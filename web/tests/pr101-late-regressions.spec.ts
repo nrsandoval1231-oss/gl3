@@ -13,6 +13,8 @@ const need = {
     event_date_label: 'Unknown', source_id: 'city-permits', document_number: 'permit-1', source_origin: 'City',
     abstract: 'A construction filing.', assessment_current: true }],
 }
+const validUntil = '2099-01-01T00:00:00Z'
+const projectPage = { items: [{ id: 'project-a', project_id: 'project-a', representative_need_id: 'need-a', name: 'Austin data center', company: 'Austin data center', location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null, needs: [{ ...need, browse_title: need.name }], need_count: 1, event: null, contact: [], power_summary: null, next_action: null, updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'late-regression-projects', generation: 'synthetic', valid_until: validUntil }
 
 async function authenticated(page: import('@playwright/test').Page) {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
@@ -34,21 +36,26 @@ test('server-filtered SHOW group remains visible when only a REVIEW member is lo
 
 test('active Opportunities navigation preserves its selected need and section after reload', async ({ page }) => {
   await authenticated(page)
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic', valid_until: validUntil } }))
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: projectPage }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: {
     items: [{ ...need, signal_display_decision: 'SHOW', commercial_disposition: 'RESEARCH' }], total: 1,
     counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null,
     cohort_token: 'workspace-cohort', count_unit: 'power needs', changes_available: false,
   } }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.goto('/?view=workspace&groupBrowse=1&need=need-a&section=evidence')
-  await expect(page.locator('.wh-detail').getByRole('button', { name: 'Evidence', exact: true })).toHaveClass(/active/)
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0&need=need-a&section=evidence')
+  const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(detail.getByRole('heading', { name: 'Austin data center', exact: true })).toBeVisible()
+  const sources = detail.locator('details.cod-account-sources')
+  await expect(sources).toHaveAttribute('open', '')
+  await expect(sources.getByRole('link', { name: 'Construction filing', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page).toHaveURL(/need=need-a/)
   await expect(page).toHaveURL(/section=evidence/)
   await page.reload()
-  await expect(page.locator('.wh-detail').getByRole('heading', { name: 'Austin data center' })).toBeVisible()
-  await expect(page.locator('.wh-detail').getByRole('button', { name: 'Evidence', exact: true })).toHaveClass(/active/)
+  await expect(detail.getByRole('heading', { name: 'Austin data center', exact: true })).toBeVisible()
+  await expect(sources).toHaveAttribute('open', '')
 })
 
 test('legacy source-sector aliases canonicalize selection, request, and URL', async ({ page }) => {

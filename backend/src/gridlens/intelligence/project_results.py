@@ -11,7 +11,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from fastapi import HTTPException
 from sqlalchemy import text
 
-from gridlens.domain.opportunity_shortlist import POLICY_VERSION, shortlist_assessment
+from gridlens.domain.opportunity_shortlist import POLICY_VERSION
 from gridlens.intelligence.saved_browse import current_generation
 from gridlens.intelligence.saved_history_privacy import (
     _redact_all_contact_tokens,
@@ -72,7 +72,9 @@ def page(
     include_signals: bool = False,
     shortlist: bool = False,
     project_ids: list[UUID] | None = None,
+    canonical_assets: bool = False,
     selected_generation=None,
+    primary_customer_ids_by_project: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
     """Return physical projects, consolidating only validated well API identities."""
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -82,59 +84,17 @@ def page(
     generation = selected_generation or current_generation(session)
     term = (search or "").strip().casefold()
     source_rows: list[Any] = []
-    source_by_id: dict[str, dict[str, Any]] = {}
-    if shortlist:
+    shortlist_data = None
+    if shortlist or canonical_assets:
         # Freeze the exact effective Jev map before validating pagination.
         # This avoids MAX(id) races (IDs can commit out of order) and ensures
         # this request assesses exactly the decisions represented by its token.
-        source_rows = (
-            session.execute(
-                text(
-                    "SELECT need_id, project_id, summary, compact "
-                    "FROM browse_rows WHERE generation_id = :generation"
-                ),
-                {"generation": generation.id},
-            )
-            .mappings()
-            .all()
-        )
-        evidence_ids = sorted(
-            {
-                str(evidence.get("id"))
-                for row in source_rows
-                for evidence in (row["summary"] or {}).get("evidence", [])
-                if evidence.get("assessment_current") is True and evidence.get("id")
-            }
-        )
-        if evidence_ids:
-            evidence_rows = (
-                session.execute(
-                    text("""SELECT e.id, e.title, e.abstract, e.url, e.published_at, e.event_date,
-                              e.event_date_label, o.source_id
-                       FROM evidence e JOIN observations o ON o.id = e.observation_id
-                       WHERE e.id = ANY(CAST(:evidence_ids AS uuid[]))"""),
-                    {"evidence_ids": evidence_ids},
-                )
-                .mappings()
-                .all()
-            )
-            jev_by_evidence = _current_jev_decisions(session, evidence_ids)
-            source_by_id = {
-                str(row["id"]): {
-                    **dict(row),
-                    "id": str(row["id"]),
-                    "text": row["abstract"],
-                    "jev_decision": jev_by_evidence.get(str(row["id"])),
-                }
-                for row in evidence_rows
-            }
-        else:
-            jev_by_evidence = {}
-        jev_map_digest = hashlib.sha256(
-            json.dumps(sorted(jev_by_evidence.items()), separators=(",", ":")).encode()
-        ).hexdigest()
+        from gridlens.intelligence.account_shortlist import assess_generation
+
+        shortlist_data = assess_generation(session, generation)
+        source_rows = shortlist_data["rows"]
+        jev_map_digest = shortlist_data["jev_map_digest"]
     else:
-        jev_by_evidence = {}
         jev_map_digest = None
     cohort_payload = [
         str(generation.id),
@@ -145,9 +105,10 @@ def page(
         str(need_id or ""),
         include_signals,
         shortlist,
-        POLICY_VERSION if shortlist else None,
-        jev_map_digest,
-        date.today().isoformat() if shortlist else None,
+        canonical_assets,
+        POLICY_VERSION if shortlist or canonical_assets else None,
+        jev_map_digest if shortlist or canonical_assets else None,
+        date.today().isoformat() if shortlist or canonical_assets else None,
         sorted(str(value) for value in project_ids or []),
     ]
     cohort_digest = hashlib.sha256(
@@ -197,25 +158,13 @@ def page(
     shortlist_by_need: dict[str, dict[str, Any]] = {}
     shortlist_priority_by_need: dict[UUID, int] = {}
     if shortlist:
+        assert shortlist_data is not None
         # Build eligibility and duplicate lineage against the full generation,
         # so search/sector/detail filters cannot split one physical project into
         # unstable public groups or omit its other source references.
-        for row in source_rows:
-            summary = row["summary"] or {}
-            refs = []
-            for evidence in summary.get("evidence", []):
-                source = source_by_id.get(str(evidence.get("id")))
-                if (
-                    source
-                    and evidence.get("assessment_current") is True
-                    and evidence.get("source_id") == source.get("source_id")
-                ):
-                    refs.append({**source, "assessment_current": True})
-            assessment = shortlist_assessment({**summary, **(row["compact"] or {})}, refs)
-            shortlist_by_need[str(row["need_id"])] = assessment
-            if assessment["eligible"]:
-                eligible_need_ids.append(row["need_id"])
-                shortlist_priority_by_need[row["need_id"]] = int(assessment.get("priority") or 0)
+        shortlist_by_need = shortlist_data["assessments"]
+        eligible_need_ids = shortlist_data["eligible_need_ids"]
+        shortlist_priority_by_need = shortlist_data["priority_by_need"]
         filters.append("need_id = ANY(CAST(:shortlist_need_ids AS uuid[]))")
         params["shortlist_need_ids"] = eligible_need_ids
         params["eligible_need_ids"] = eligible_need_ids
@@ -242,25 +191,9 @@ def page(
     # Exact retained-source duplicate groups are only applied in shortlist mode;
     # the full All Projects view keeps every canonical project unchanged.
     duplicate_project_map: dict[UUID, UUID] = {}
-    if shortlist:
-        duplicate_groups: dict[str, set[UUID]] = {}
-        for row in source_rows:
-            duplicate_key = shortlist_by_need[str(row["need_id"])].get("duplicate_key")
-            if duplicate_key:
-                duplicate_groups.setdefault(duplicate_key, set()).add(row["project_id"])
-        components: list[set[UUID]] = []
-        for project_set in duplicate_groups.values():
-            if len(project_set) < 2:
-                continue
-            overlapping = [component for component in components if component & project_set]
-            merged = set(project_set)
-            for component in overlapping:
-                merged.update(component)
-                components.remove(component)
-            components.append(merged)
-        for component in components:
-            canonical = min(component, key=str)
-            duplicate_project_map.update({project_id: canonical for project_id in component})
+    if shortlist or canonical_assets:
+        assert shortlist_data is not None
+        duplicate_project_map = shortlist_data["duplicate_project_map"]
         params["shortlist_dup_ids"] = list(duplicate_project_map)
     # Only a validated, canonical U.S. well API number may consolidate separate
     # permit Projects. Every other row retains its own canonical project id.
@@ -288,8 +221,10 @@ def page(
         THEN 'api:' || (compact #>> '{project_metadata,asset_identity,value}')
         ELSE 'project:' || project_id::text END"""
     )
-    params["shortlist_dedupe_enabled"] = bool(shortlist and duplicate_project_map)
-    if not shortlist or not duplicate_project_map:
+    params["shortlist_dedupe_enabled"] = bool(
+        (shortlist or canonical_assets) and duplicate_project_map
+    )
+    if not (shortlist or canonical_assets) or not duplicate_project_map:
         # Avoid array bind or generated CASE references in the compatibility path.
         asset_key = """CASE
         WHEN compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'
@@ -422,7 +357,6 @@ def page(
     items = []
     for row in rows:
         compact = row["representative"] or {}
-        summary = row["representative_summary"] or {}
         meta = compact.get("project_metadata") or {}
         name = (
             meta.get("title")
@@ -431,8 +365,38 @@ def page(
             or compact.get("name")
         )
         category = meta.get("sector")
+        representative_project_id = str(compact.get("project_id") or "")
+        if primary_customer_ids_by_project is not None:
+            primary_id = primary_customer_ids_by_project.get(representative_project_id)
+            project_contact_people = [
+                person
+                for person in (compact.get("contact_people") or [])
+                if primary_id is not None
+                and str(person.get("company_identity_id") or "") == primary_id
+            ]
+        else:
+            primary_id = None
+            project_contact_people = compact.get("contact_people") or []
         needs = []
         for need in row["needs"] or []:
+            need_project_id = str(need.get("project_id") or representative_project_id)
+            if primary_customer_ids_by_project is not None:
+                need_primary_id = primary_customer_ids_by_project.get(need_project_id)
+                need_contact_actions = [
+                    action
+                    for action in (need.get("contact_actions") or [])
+                    if need_primary_id is not None
+                    and str(action.get("company_identity_id") or "") == need_primary_id
+                ]
+                need_contact_people = [
+                    person
+                    for person in (need.get("contact_people") or [])
+                    if need_primary_id is not None
+                    and str(person.get("company_identity_id") or "") == need_primary_id
+                ]
+            else:
+                need_contact_actions = need.get("contact_actions") or []
+                need_contact_people = need.get("contact_people") or []
             needs.append(
                 {
                     key: need.get(key)
@@ -458,8 +422,15 @@ def page(
                     if need.get(key) is not None
                 }
             )
+            if primary_customer_ids_by_project is not None:
+                needs[-1]["contact_actions"] = need_contact_actions
+                needs[-1]["contact_people"] = need_contact_people
         contact = []
         for action in compact.get("contact_actions") or []:
+            if primary_customer_ids_by_project is not None and (
+                primary_id is None or str(action.get("company_identity_id") or "") != primary_id
+            ):
+                continue
             kind = action.get("kind")
             if kind not in {"call", "email", "contact"}:
                 continue
@@ -485,8 +456,53 @@ def page(
                     ),
                 }
             )
+        if primary_customer_ids_by_project is not None:
+            # A project's header can use a current primary-account contact
+            # attached to any need on that physical project.
+            known_actions = {
+                (
+                    str(action.get("company_identity_id") or ""),
+                    str(action.get("person_identity_id") or ""),
+                    str(action.get("kind") or ""),
+                    str(action.get("href") or ""),
+                )
+                for action in contact
+            }
+            for need_item in needs:
+                for action in need_item.get("contact_actions") or []:
+                    key = (
+                        str(action.get("company_identity_id") or ""),
+                        str(action.get("person_identity_id") or ""),
+                        str(action.get("kind") or ""),
+                        str(action.get("href") or ""),
+                    )
+                    kind = action.get("kind")
+                    if key in known_actions or kind not in {"call", "email", "contact"}:
+                        continue
+                    known_actions.add(key)
+                    contact.append(
+                        {
+                            **action,
+                            "label": {
+                                "call": "Call",
+                                "email": "Email",
+                                "contact": "Company contact page",
+                            }[kind]
+                            + (
+                                f" {action.get('name') or action.get('company')}"
+                                if kind in {"call", "email"}
+                                and (action.get("name") or action.get("company"))
+                                else ""
+                            ),
+                            "route_kind": (
+                                "person_method"
+                                if action.get("name")
+                                and action.get("responsibility") != "General company contact path"
+                                else "company_route"
+                            ),
+                        }
+                    )
         asset_project_ids = [str(project_id) for project_id in row["project_ids"]]
-        representative_project_id = compact.get("project_id")
         if representative_project_id not in asset_project_ids:
             representative_project_id = asset_project_ids[0]
         asset_identity = meta.get("asset_identity")
@@ -541,9 +557,15 @@ def page(
                 "need_count": row["need_count"],
                 "event": meta.get("event"),
                 "contact": contact,
-                "contact_people": compact.get("contact_people") or [],
+                "contact_people": project_contact_people,
                 "power_summary": meta.get("power_summary") or compact.get("power_summary"),
                 "power_summary_kind": meta.get("power_summary_kind") or "unknown",
+                "power_amount_class": (
+                    meta.get("power_amount_class")
+                    if meta.get("power_amount_class")
+                    in {"documented", "calculated", "estimated", "inferred", "unknown"}
+                    else "unknown"
+                ),
                 "next_action": (compact.get("commercial_preview") or {}).get("next_action"),
                 **({"shortlist_assessment": shortlist_result} if shortlist else {}),
                 "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
@@ -621,4 +643,9 @@ def page(
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
+        "generation_id": str(generation.id),
+        "as_of": generation.built_at.isoformat(),
+        "valid_until": generation.valid_until.isoformat(),
+        "qualification_state": "current",
+        "refresh_state": "current",
     }

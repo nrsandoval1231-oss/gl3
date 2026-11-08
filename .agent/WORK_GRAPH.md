@@ -1,4 +1,4 @@
-# Current work graph — November 2 progress saved
+# Current work graph â€” November 2 progress saved
 
 | Work | State | Evidence / next action |
 |---|---|---|
@@ -25,3 +25,11 @@ Combined validation at `d02dbb81`: full local `scripts/check.ps1` with `PYTEST_A
 Independent Astra review passed the integrated source, maximum-diff, conflict-order, retry, citation and privacy probes; the last listing correction receives scoped re-review. All 14 added sources remain disabled; existing source enablement is unchanged.
 
 Next: confirm final-head CI and the last scoped review, merge 180 before 181, then verify main CI and remaining open PRs. Final GitHub PR/CI state is authoritative after this checkpoint. Sources remain disabled; repository validation does not prove live-source coverage or production operation.
+
+## November 7 account-first Slice 1
+
+Implemented and locally verified from `3e1982ce`: [bounded implementation and acceptance](../docs/engineering/account-first-slice-20261107.md). Six Luna lanes completed; independent Astra reviewed frozen source `5c4bfd9e` with no remaining material findings. Final local backend 5,055/browser 317 gates and real acceptance passed. [Draft PR #187](https://github.com/nrsandoval1231-oss/gl3/pull/187) owns final evidence-head attestation/CI and owner review. Lead runtime model identity is not certified. No merge/deployment/provider authority. Older NEXT/PR statuses above are dated history, not current GitHub/runtime observations.
+
+## November 8 PR187 review and merge gate
+
+Owner now authorizes review of comments, validation and merge when ready for PR187 only. READY review packet: historical alias privacy, account child order and header restoration. Repairs and regression coverage are implemented; independent scoped review passes, including its additional delayed-membership privacy finding. Full local gates and exact-head CI passed on `caa2a15`. Subsequent CodeRabbit comments led to saved-Pursuit availability handling for restored alias chains and two documentation clarifications; seven new regression cases reproduce the old failure and pass the repair. All 63 Pursuit/alias integration tests and independent follow-up review pass. Latest-head full CI remains the merge gate. [Receipt](../docs/validation/pr187-review-20261108.md) and the current PR record own final outcomes. No deployment/provider/production authority is added.

@@ -10,7 +10,7 @@ const need = {
 }
 const projectResults = {
   items: [{ id: 'project-shell', project_id: 'project-shell', name: 'Northstar Energy · Mesa compressor project', company: 'Northstar Energy', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: null, representative_need_id: 'need-shell', need_count: 1, needs: [{ id: 'need-shell', project_id: 'project-shell', name: 'Mesa compressor project', browse_title: 'Mesa compressor project', activity: 'compressor station construction', tier: 'Signal' }], event: null, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: null }],
-  total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'shell-cohort', generation: 'shell', results_scope: 'discovery',
+  total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'shell-cohort', generation: 'shell', results_scope: 'discovery', valid_until: '2099-01-01T00:00:00Z',
 }
 
 test('canonical shell searches opportunities, navigates, and remains usable at narrow widths', async ({ page }) => {
@@ -29,7 +29,7 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   })
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
   // Panel endpoints; an unmocked call would surface as a genuine session-ended event.
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } }))
   await page.route(url => url.pathname === '/api/opportunities', route => route.fulfill({ json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } }))
   await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } }))
   await page.route('**/api/opportunities/workspace/changes**', route => route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } }))
@@ -48,7 +48,8 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   await page.getByRole('button', { name: 'Companies' }).click()
   await expect(page.getByRole('region', { name: 'Companies' })).toBeVisible()
   await expect(page).toHaveURL(/panel=companies/)
-  await expect(page.getByRole('link', { name: 'Browse customer accounts' })).toBeVisible()
+  await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Companies' })).toBeVisible()
   await page.getByRole('button', { name: 'Reports' }).click()
   await expect(page.getByRole('region', { name: 'Reports' })).toBeVisible()
   await page.goBack()
@@ -69,7 +70,7 @@ test('companies and reports open as their own page and closing restores the exac
   await page.route('**/api/search?**', route => route.fulfill({ json: { query: '', companies: [], projects: [], contacts: [], opportunities: [] } }))
   await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
   await page.route('**/api/opportunities/needs/need-shell?**', route => route.fulfill({ json: need }))
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } }))
   // Reports panel endpoints; an unmocked call would surface as a genuine session-ended event.
   await page.route(url => url.pathname === '/api/opportunities', route => route.fulfill({ json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } }))
   await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } }))
@@ -100,7 +101,7 @@ test('companies and reports open as their own page and closing restores the exac
   await expect(page).toHaveURL(/need=need-shell/)
   await expect(page.getByRole('heading', { name: /Mesa compressor project/ }).first()).toBeVisible()
   expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true)
-  expect(projectRequests).toBe(seen)
+  await expect.poll(() => projectRequests).toBeGreaterThan(seen)
 
   // Browser back reopens the panel, forward returns to Opportunities with state intact.
   await page.goBack()
@@ -122,7 +123,7 @@ test('panel navigation: no duplicate history, one-press Back, and focus lands on
   await mockDemandSummary(page)
   await page.route('**/api/search?**', route => route.fulfill({ json: { query: '', companies: [], projects: [], contacts: [], opportunities: [] } }))
   await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: projectResults }))
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g' } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } }))
   await page.route(url => url.pathname === '/api/opportunities', route => route.fulfill({ json: [], headers: { 'X-Total-Count': '0', 'X-Group-Total-Count': '0', 'X-Cohort-Token': 't', 'X-Limit': '1', 'X-Offset': '0' } }))
   await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } }))
   await page.route('**/api/opportunities/workspace/changes**', route => route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 't', token: 't', source_health_exceptions: [] } }))

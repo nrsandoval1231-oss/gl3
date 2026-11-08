@@ -2258,7 +2258,11 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
 
 
 def buying_chain_views(
-    session: Session, project_ids: set[UUID], *, now: datetime | None = None
+    session: Session,
+    project_ids: set[UUID],
+    *,
+    now: datetime | None = None,
+    history: bool = False,
 ) -> dict[str, dict]:
     """Bulk-load the canonical selected-project buying-chain projections."""
     if not project_ids:
@@ -2417,6 +2421,7 @@ def buying_chain_views(
             session,
             project_id,
             now=now,
+            history=history,
             preload=preload,
             include_identity_ids=False,
             _apply_privacy=False,

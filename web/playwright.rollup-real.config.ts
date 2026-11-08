@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { resolve } from 'node:path'
 
 // This lane only targets a caller-started disposable stack. Requiring an
 // explicit switch and loopback URL keeps it out of the ordinary 184-test run.
@@ -15,6 +16,8 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(parsedOrigin.hostname)) {
 const startStack = process.env.CUSTOMER_ROLLUP_REAL_START_STACK === '1'
 const apiPort = Number(process.env.GRIDLENS_API_PORT ?? '18191')
 const webPort = Number(parsedOrigin.port)
+const outputDir = process.env.CUSTOMER_ROLLUP_REAL_OUTPUT_DIR
+if (!outputDir) throw new Error('Set CUSTOMER_ROLLUP_REAL_OUTPUT_DIR outside the web workspace for private acceptance artifacts.')
 if (startStack && (!Number.isInteger(apiPort) || apiPort < 1 || apiPort > 65535 || !Number.isInteger(webPort) || webPort < 1 || webPort > 65535)) {
   throw new Error('Stack startup requires valid explicit loopback API and web ports.')
 }
@@ -35,6 +38,7 @@ const webServer = startStack ? [
 ] : undefined
 
 export default defineConfig({
+  outputDir: resolve(outputDir),
   testDir: './acceptance/rollup-scale',
   testMatch: '**/customer-rollup-real.spec.ts',
   workers: 1,

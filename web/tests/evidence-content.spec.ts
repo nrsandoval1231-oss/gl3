@@ -21,10 +21,11 @@ test('raw source content loads only on request and uses bounded chunks', async (
     if (!path.startsWith('/api/')) return route.continue()
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (path === '/api/opportunities/workspace/changes' || path === '/api/changes') return route.fulfill({ json: { items: [], counts: {}, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, source_health_exceptions: [] } })
-    const projectPage = { items: [{ id: opportunity.project_id, project_id: opportunity.project_id, representative_need_id: needId, name: opportunity.name, company: 'Pecos County Data Center', location: opportunity.location, sector: 'data_centers', asset_type: 'data_center', priority_score: 1, needs: [opportunity], need_count: 1, event: { kind: 'registration', label: 'TDLR registration', date: null, source: 'Official TDLR record', evidence_refs: [] }, contact: [], power_summary: 'Power need to confirm', next_action: opportunity.next_action, updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'evidence-test', generation: 'synthetic', results_scope: 'discovery' }
-    if (path === '/api/opportunities/groups') return route.fulfill({ json: { items: [{ id: 'group-pecos', name: 'Pecos County Data Center', role: 'customer', operator_number: null, project_count: 1, need_count: 1, priority_score: 1, sectors: ['data_centers'] }], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'evidence-parent', generation: 'synthetic' } })
+    const projectPage = { items: [{ id: opportunity.project_id, project_id: opportunity.project_id, representative_need_id: needId, name: opportunity.name, company: 'Pecos County Data Center', location: opportunity.location, sector: 'data_centers', asset_type: 'data_center', priority_score: 1, needs: [opportunity], need_count: 1, event: { kind: 'registration', label: 'TDLR registration', date: null, source: 'Official TDLR record', evidence_refs: [] }, contact: [], power_summary: 'Power need to confirm', next_action: opportunity.next_action, updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'evidence-test', generation: 'synthetic', results_scope: 'discovery', valid_until: '2099-01-01T00:00:00Z' }
+    if (path === '/api/opportunities/groups') return route.fulfill({ json: { items: [{ id: 'group-pecos', name: 'Pecos County Data Center', role: 'customer', operator_number: null, project_count: 1, need_count: 1, priority_score: 1, sectors: ['data_centers'] }], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'evidence-parent', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
     if (path === '/api/opportunities/groups/group-pecos/projects') return route.fulfill({ json: projectPage })
     if (path === '/api/opportunities/projects') return route.fulfill({ json: projectPage })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [opportunity], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'evidence-workspace', count_unit: 'power needs', changes_available: false } })
     if (path === `/api/opportunities/needs/${needId}`) return route.fulfill({ json: opportunity })
     if (path === '/api/health') return route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } })
     if (path === `/api/evidence/${evidenceId}/content`) {
@@ -35,11 +36,9 @@ test('raw source content loads only on request and uses bounded chunks', async (
     return route.fulfill({ status: 404, json: { detail: 'Not found' } })
   })
 
-  await page.goto('/?groupBrowse=1')
-  await expect(page.getByRole('heading', { name: /Pecos County Data Center/ })).toBeVisible()
-  await page.getByRole('button', { name: /Pecos County Data Center/ }).click()
-  await page.getByRole('button', { name: 'View project details' }).click()
-  await page.getByRole('button', { name: 'Evidence' }).click()
+  await page.goto(`/?view=workspace&accountBrowse=1&projectBrowse=1&need=${needId}&section=evidence`)
+  const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(detail).toBeVisible()
   await expect(page.getByText(/Project: Pecos County Data Center/)).toBeVisible()
   expect(rawRequests).toHaveLength(0)
 

@@ -5,7 +5,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import func, select
 
-from gridlens.intelligence.customer_results import group_metadata, group_projects, groups
+from gridlens.intelligence.customer_results import (
+    group_metadata,
+    group_open,
+    group_projects,
+    groups,
+)
+from gridlens.intelligence.project_results import page as project_page
 from gridlens.intelligence.saved_browse import current_generation, rebuild
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
@@ -56,7 +62,7 @@ def _seed_group_cohort(factory):
                     ]
                     if index == 64
                     else [
-                        (owner_identity.id, "Canonical Owner", "owner"),
+                        (owner_identity.id, "Canonical Owner", "owner_developer"),
                         (contractor_identity.id, "Construction Contractor", "contractor"),
                     ]
                 )
@@ -94,10 +100,44 @@ def _seed_group_cohort(factory):
                                 "company_identity_id": str(contractor_identity.id),
                                 "person_identity_id": str(uuid4()),
                                 "claim_id": "private-claim",
+                            },
+                            {
+                                "kind": "email",
+                                "href": "mailto:operator@example.invalid",
+                                "company_identity_id": str(owner_identity.id),
+                                "person_identity_id": str(uuid4()),
+                                "claim_id": "operator-claim",
+                            },
+                        ],
+                        "contact_people": [
+                            {
+                                "name": "Contractor Contact",
+                                "email": "contractor@example.invalid",
+                                "company_identity_id": str(contractor_identity.id),
+                                "person_identity_id": str(uuid4()),
+                            },
+                            {
+                                "name": "Operator Contact",
+                                "email": "operator-person@example.invalid",
+                                "company_identity_id": str(owner_identity.id),
+                                "person_identity_id": str(uuid4()),
+                            },
+                        ],
+                    }
+                    if index == 0
+                    else {}
+                ),
+                **(
+                    {
+                        "contact_actions": [
+                            {
+                                "kind": "email",
+                                "href": "mailto:rrc-only@example.invalid",
+                                "company_identity_id": str(owner_identity.id),
                             }
                         ]
                     }
-                    if index == 0
+                    if index == 1
                     else {}
                 ),
             }
@@ -122,7 +162,7 @@ def _seed_group_cohort(factory):
                             company_identity_id=identity.id,
                             project_id=row.project_id,
                             organization_name=f"Conflicted Operator {position}",
-                            role="operator",
+                            role="asset_operator",
                         )
                     )
                 session.add(
@@ -330,6 +370,8 @@ def test_customer_filter_and_search_keep_all_related_sector_projects(saved_db):
         searched = groups(session, search="Synthetic 7", sector="oil_gas", limit=10)
         assert searched["total"] == 1
         selected = searched["items"][0]
+        assert selected["matched_project_id"] is not None
+        assert selected["matched_need_id"] is not None
         assert selected["project_count"] == 62
         complete = group_projects(
             session,
@@ -428,6 +470,246 @@ def test_tdlr_same_name_container_preserves_distinct_company_identities(saved_db
         outside_bucket = [group for group in parent["items"] if group["id"] != container["id"]]
         assert len(outside_bucket) == 6
         assert all(group["group_kind"] != "same_name_unconfirmed" for group in outside_bucket)
+
+
+def test_account_contacts_are_scoped_to_selected_primary_identity(saved_db, monkeypatch):
+    _seed_group_cohort(saved_db)
+    from gridlens.intelligence import project_contact_actions
+
+    monkeypatch.setattr(
+        project_contact_actions,
+        "filter_project_contact_records",
+        lambda _session, records: records,
+    )
+    with saved_db() as session:
+        generation = current_generation(session)
+        contact_row = session.execute(
+            select(BrowseRow.project_id)
+            .where(
+                BrowseRow.generation_id == generation.id,
+                BrowseRow.compact.contains(
+                    {"contact_actions": [{"href": "mailto:business@example.invalid"}]}
+                ),
+            )
+            .limit(1)
+        ).scalar_one()
+        account_page = groups(
+            session, search="Different Canonical Operator Label", sector="oil_gas"
+        )
+        assert account_page["total"] == 1
+        opened = group_open(
+            session,
+            account_page["items"][0]["id"],
+            search="Different Canonical Operator Label",
+            sector="oil_gas",
+            limit=100,
+        )
+        account_project = next(
+            item for item in opened["projects"]["items"] if str(contact_row) in item["project_ids"]
+        )
+        account_actions = [
+            action for need in account_project["needs"] for action in need["contact_actions"]
+        ]
+        account_people = [
+            person for need in account_project["needs"] for person in need["contact_people"]
+        ]
+        assert {action["href"] for action in account_project["contact"]} <= {
+            "mailto:operator@example.invalid"
+        }
+        assert {action["href"] for action in account_actions} == {"mailto:operator@example.invalid"}
+        assert {person["email"] for person in account_people} == {"operator-person@example.invalid"}
+
+        generic_project = project_page(
+            session,
+            sector="oil_gas",
+            project_ids=[contact_row],
+            limit=10,
+            selected_generation=generation,
+        )
+        generic_item = next(
+            item for item in generic_project["items"] if str(contact_row) in item["project_ids"]
+        )
+        generic_actions = [
+            action for need in generic_item["needs"] for action in need["contact_actions"]
+        ]
+        generic_people = [
+            person for need in generic_item["needs"] for person in need["contact_people"]
+        ]
+        assert {action["href"] for action in generic_actions} == {
+            "mailto:business@example.invalid",
+            "mailto:operator@example.invalid",
+        }
+        assert {person["email"] for person in generic_people} == {
+            "contractor@example.invalid",
+            "operator-person@example.invalid",
+        }
+
+        rrc_only_row = session.execute(
+            select(BrowseRow.project_id).where(
+                BrowseRow.generation_id == generation.id,
+                BrowseRow.compact.contains(
+                    {"contact_actions": [{"href": "mailto:rrc-only@example.invalid"}]}
+                ),
+            )
+        ).scalar_one()
+        rrc_group = groups(session, search="12345", sector="oil_gas")
+        operator_group = next(item for item in rrc_group["items"] if item["project_count"] == 62)
+        rrc_open = group_open(
+            session,
+            operator_group["id"],
+            search="12345",
+            sector="oil_gas",
+            limit=100,
+        )
+        rrc_project = next(
+            item
+            for item in rrc_open["projects"]["items"]
+            if str(rrc_only_row) in item["project_ids"]
+        )
+        assert rrc_project["contact"] == []
+        assert all(not need["contact_actions"] for need in rrc_project["needs"])
+
+
+def test_account_contact_project_is_selected_beyond_child_page(saved_db):
+    generation_id = _seed_group_cohort(saved_db)
+    from gridlens.intelligence.contact_suppressions import (
+        method_suppression_key,
+        record_contact_suppression,
+    )
+
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        rows = session.scalars(
+            select(BrowseRow)
+            .join(Project, BrowseRow.project_id == Project.id)
+            .where(BrowseRow.generation_id == generation.id)
+            .order_by(func.length(Project.external_id), Project.external_id)
+        ).all()
+        primary_id = session.scalar(
+            select(BrowseCustomerMembership.company_identity_id).where(
+                BrowseCustomerMembership.generation_id == generation.id,
+                BrowseCustomerMembership.project_id == rows[0].project_id,
+            )
+        )
+        secondary_id = uuid4()
+        inferred_candidate = rows[59]
+        target = rows[61]
+        suppressed = rows[60]
+        for row in (inferred_candidate, target, suppressed):
+            session.add(
+                BrowseCustomerMembership(
+                    generation_id=generation.id,
+                    company_identity_id=primary_id,
+                    project_id=row.project_id,
+                    organization_name="Selected Operator",
+                    role="asset_operator",
+                )
+            )
+        inferred_candidate.compact = {
+            **inferred_candidate.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": "mailto:inferred@example.invalid",
+                    "name": "Named Inferred Contact",
+                    "title": "Project Director",
+                    "responsibility": "Inferred likely role",
+                    "company_identity_id": str(primary_id),
+                }
+            ],
+        }
+        target.compact = {
+            **target.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": "mailto:target-inferred@example.invalid",
+                    "name": "Named Inferred Contact",
+                    "title": "Project Director",
+                    "responsibility": "Inferred likely role",
+                    "company_identity_id": str(primary_id),
+                },
+                {
+                    "kind": "email",
+                    "href": "mailto:best@example.invalid",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(primary_id),
+                },
+                {
+                    "kind": "email",
+                    "href": "mailto:secondary@example.invalid",
+                    "name": "Other Company Contact",
+                    "title": "Project Director",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(secondary_id),
+                },
+            ],
+        }
+        suppressed_href = "mailto:suppressed@example.invalid"
+        suppressed.compact = {
+            **suppressed.compact,
+            "contact_actions": [
+                {
+                    "kind": "email",
+                    "href": suppressed_href,
+                    "name": "Suppressed Primary Contact",
+                    "responsibility": "Verified project responsibility",
+                    "company_identity_id": str(primary_id),
+                }
+            ],
+        }
+        record_contact_suppression(
+            session,
+            scope="method",
+            subject_key=method_suppression_key(
+                primary_id, "Suppressed Primary Contact", "email", suppressed_href
+            ),
+            action="suppress",
+            expected_version=0,
+            reason="Regression fixture suppression",
+            actor="test",
+            idempotency_key="account-contact-best-project-suppression",
+        )
+
+    with saved_db() as session:
+        generation = current_generation(session)
+        assert str(generation.id) == str(generation_id)
+        account_page = groups(session, search="12345", sector="oil_gas", limit=25)
+        operator = next(item for item in account_page["items"] if item["project_count"] == 62)
+        account_contact = operator["account_contact_project"]
+        assert account_contact is not None
+        assert str(target.project_id) in account_contact["project_ids"]
+        assert str(inferred_candidate.project_id) not in account_contact["project_ids"]
+        assert {
+            (action["href"], action.get("responsibility")) for action in account_contact["contact"]
+        } == {
+            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
+            ("mailto:best@example.invalid", "Verified project responsibility"),
+        }
+
+        opened = group_open(
+            session,
+            operator["id"],
+            search="12345",
+            sector="oil_gas",
+            limit=25,
+        )
+        assert (
+            opened["group"]["account_contact_project"]["project_ids"]
+            == account_contact["project_ids"]
+        )
+        assert str(target.project_id) not in {
+            project_id
+            for child in opened["projects"]["items"]
+            for project_id in child["project_ids"]
+        }
+        serialized = opened["group"]["account_contact_project"]
+        assert {
+            (action["href"], action.get("responsibility")) for action in serialized["contact"]
+        } == {
+            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
+            ("mailto:best@example.invalid", "Verified project responsibility"),
+        }
 
 
 def test_tdlr_bucket_excludes_entire_identity_with_ineligible_sibling(saved_db):
@@ -582,3 +864,219 @@ def test_customer_sort_is_global_and_deterministic(saved_db, sort):
         assert [item["id"] for item in first["items"] + second["items"]] == [
             item["id"] for item in full["items"]
         ]
+
+
+def test_customer_shortlist_is_bound_into_account_cohort(saved_db, monkeypatch):
+    """Synthetic projection check: an eligible need qualifies its resolved account."""
+    _seed_group_cohort(saved_db)
+    from gridlens.intelligence import account_shortlist
+
+    with saved_db() as session:
+        generation = current_generation(session)
+        source_rows = (
+            session.execute(
+                select(
+                    BrowseRow.need_id, BrowseRow.project_id, BrowseRow.summary, BrowseRow.compact
+                )
+                .where(BrowseRow.generation_id == generation.id)
+                .order_by(BrowseRow.need_id)
+            )
+            .mappings()
+            .all()
+        )
+    contact_source = next(
+        row
+        for row in source_rows
+        if any(
+            action.get("href") == "mailto:operator@example.invalid"
+            for action in row["compact"].get("contact_actions", [])
+        )
+        and row["compact"].get("project_metadata", {}).get("sector") == "oil_gas"
+        and row["compact"].get("project_metadata", {}).get("oil_gas", {}).get("operator_number")
+        == "12345"
+    )
+    eligible_candidates = [
+        row
+        for row in source_rows
+        if row["compact"].get("project_metadata", {}).get("sector") == "oil_gas"
+        and row["compact"].get("project_metadata", {}).get("oil_gas", {}).get("operator_number")
+        == "12345"
+    ]
+    chosen_rows = [contact_source] + [
+        row for row in eligible_candidates if row["need_id"] != contact_source["need_id"]
+    ][:1]
+    assert len(chosen_rows) == 2
+    chosen_ids = {str(row["need_id"]) for row in chosen_rows}
+    assessments = {
+        str(row["need_id"]): {
+            "eligible": str(row["need_id"]) in chosen_ids,
+            "priority": (
+                99
+                if str(row["need_id"]) == str(contact_source["need_id"])
+                else 91
+                if str(row["need_id"]) in chosen_ids
+                else 0
+            ),
+            "duplicate_key": None,
+            "reasons": [],
+            "evidence_refs": [],
+        }
+        for row in source_rows
+    }
+    monkeypatch.setattr(
+        account_shortlist,
+        "assess_generation",
+        lambda _session, _generation: {
+            "rows": source_rows,
+            "assessments": assessments,
+            "eligible_need_ids": [row["need_id"] for row in chosen_rows],
+            "priority_by_need": {
+                row["need_id"]: 99 if row["need_id"] == contact_source["need_id"] else 91
+                for row in chosen_rows
+            },
+            "duplicate_project_map": {},
+            "jev_map_digest": "synthetic-decision-digest",
+        },
+    )
+    with saved_db() as session:
+        ordinary = groups(session, sector="oil_gas")
+        shortlisted = groups(session, sector="oil_gas", shortlist=True)
+        assert ordinary["cohort_token"] != shortlisted["cohort_token"]
+        original_assessor = account_shortlist.assess_generation
+        monkeypatch.setattr(
+            account_shortlist,
+            "assess_generation",
+            lambda db, generation: {
+                **original_assessor(db, generation),
+                "jev_map_digest": "changed-synthetic-decision-map",
+            },
+        )
+        changed_decision = groups(session, sector="oil_gas", shortlist=True)
+        assert changed_decision["cohort_token"] != shortlisted["cohort_token"]
+        assert shortlisted["total"] > 0
+        assert shortlisted["items"]
+        assert all(item["group_kind"] == "resolved_identity" for item in shortlisted["items"])
+        assert all(item["relevant_project_count"] > 0 for item in shortlisted["items"])
+        assert all(item["eligible_need_count"] > 0 for item in shortlisted["items"])
+        assert all(item["featured_project"] is not None for item in shortlisted["items"])
+        assert all(
+            item["total_known_project_count"] >= item["relevant_project_count"]
+            for item in shortlisted["items"]
+        )
+        chosen_group = next(
+            item for item in shortlisted["items"] if item["eligible_need_count"] == 2
+        )
+        from gridlens.persistence.commercial_pursuit_models import CommercialPursuit
+
+        session.add(
+            CommercialPursuit(
+                need_id=chosen_rows[0]["need_id"], project_id=chosen_rows[0]["project_id"]
+            )
+        )
+        session.flush()
+        partly_pursued = groups(session, sector="oil_gas", shortlist=True)
+        account = next(item for item in partly_pursued["items"] if item["id"] == chosen_group["id"])
+        assert account["pursued_eligible_need_count"] == 1
+        session.add(
+            CommercialPursuit(
+                need_id=chosen_rows[1]["need_id"], project_id=chosen_rows[1]["project_id"]
+            )
+        )
+        session.flush()
+        fully_pursued = groups(session, sector="oil_gas", shortlist=True)
+        account = next(item for item in fully_pursued["items"] if item["id"] == chosen_group["id"])
+        assert account["pursued_eligible_need_count"] == 2
+        opened = group_open(session, chosen_group["id"], sector="oil_gas", shortlist=True)
+        assert opened["group"]["eligible_need_count"] > 0
+        assert opened["group"]["featured_project"] is not None
+        featured = opened["group"]["featured_project"]
+        assert str(contact_source["project_id"]) in featured["project_ids"], repr(
+            (contact_source["project_id"], featured)
+        )
+        primary_identity_id = session.scalar(
+            select(BrowseCustomerMembership.company_identity_id).where(
+                BrowseCustomerMembership.generation_id == current_generation(session).id,
+                BrowseCustomerMembership.project_id == contact_source["project_id"],
+            )
+        )
+        expected_contact_identity_id = next(
+            action["company_identity_id"]
+            for action in contact_source["compact"]["contact_actions"]
+            if action["href"] == "mailto:operator@example.invalid"
+        )
+        assert str(primary_identity_id) == expected_contact_identity_id
+        featured_actions = [
+            action for need in featured["needs"] for action in need["contact_actions"]
+        ]
+        assert {action["href"] for action in featured_actions} == {
+            "mailto:operator@example.invalid"
+        }, repr((primary_identity_id, expected_contact_identity_id, featured))
+
+        # Cross persisted legacy rank against shortlist priority. The first child
+        # page must honor priority 99 before 91, even though legacy rank prefers 91.
+        for index, chosen in enumerate(chosen_rows):
+            for projection in session.scalars(
+                select(BrowseRow).where(
+                    BrowseRow.generation_id == generation.id,
+                    BrowseRow.project_id == chosen["project_id"],
+                )
+            ):
+                projection.rank_score = index * 1000
+        session.flush()
+        crossed = group_open(session, chosen_group["id"], sector="oil_gas", shortlist=True, limit=2)
+        assert [item["project_id"] for item in crossed["projects"]["items"]] == [
+            str(row["project_id"]) for row in chosen_rows
+        ]
+
+        # Keep the actual serializer and its full project shape, but deliberately
+        # reverse its result to model a legacy rank order that disagrees with
+        # the generation-bound account query. Singleton featured-contact reads
+        # are unaffected.
+        from gridlens.intelligence import customer_results as customer_module
+
+        serialize = customer_module.project_page
+        selected_pages = []
+
+        def reversed_serialization(*args, **kwargs):
+            selected_ids = [str(value) for value in kwargs["project_ids"]]
+            if len(selected_ids) > 1:
+                selected_pages.append(selected_ids)
+            result = serialize(*args, **kwargs)
+            by_project = {
+                project_id: item for item in result["items"] for project_id in item["project_ids"]
+            }
+            result["items"] = [by_project[value] for value in reversed(selected_ids)]
+            return result
+
+        monkeypatch.setattr(customer_module, "project_page", reversed_serialization)
+        for child_sort in ("priority", "priority_asc", "company", "updated"):
+            first_page = group_open(
+                session,
+                chosen_group["id"],
+                sector="oil_gas",
+                shortlist=True,
+                sort=child_sort,
+                limit=2,
+            )
+            assert [item["project_id"] for item in first_page["projects"]["items"]] == (
+                selected_pages[-1]
+            )
+            if child_sort == "priority":
+                assert selected_pages[-1] == [str(row["project_id"]) for row in chosen_rows]
+            parent = groups(session, sector="oil_gas", shortlist=True, sort=child_sort)
+            child_token = None
+            for offset in (0, 2):
+                child_page = group_projects(
+                    session,
+                    chosen_group["id"],
+                    sector="oil_gas",
+                    shortlist=True,
+                    sort=child_sort,
+                    limit=2,
+                    offset=offset,
+                    token=child_token,
+                    parent_token=parent["cohort_token"],
+                )
+                child_token = child_page["cohort_token"]
+                assert len(child_page["items"]) == 2
+                assert [item["project_id"] for item in child_page["items"]] == (selected_pages[-1])

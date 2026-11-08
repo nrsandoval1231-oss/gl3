@@ -474,17 +474,13 @@ def _development(title: str, scope: str, fields: dict[str, str]) -> tuple[int, s
 
 
 def _duplicate_key(source: dict[str, Any], fields: dict[str, str], scope: str) -> str | None:
-    """Build a stable key for collapsing duplicate source records when possible."""
-    """Only exact native paired-permit scope or identical news coverage clusters."""
+    """Build a physical-site key only from exact paired permits at one address."""
     source_id = str(source["source_id"])
     permit = fields.get("row", "")
     match = re.fullmatch(r"(\d{4}-\d+)\s+(?:BP|EP)", permit, re.I)
     address = fields.get("address")
     if match and address and scope:
         identity = [source_id, match[1], _norm(address), _norm(scope)]
-    elif "news" in source_id.casefold() and source.get("title") and scope:
-        # Identical headline AND abstract are required, not merely company name.
-        identity = ["identical-news-development", _norm(str(source["title"])), _norm(scope)]
     else:
         return None
     return hashlib.sha256("\x1f".join(identity).encode()).hexdigest()

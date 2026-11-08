@@ -72,8 +72,12 @@ export function ReportsPanel({ onSelectActiveNeed }: { onSelectActiveNeed: (need
 function ReportsBody({ onSelectActiveNeed }: { onSelectActiveNeed: (need: { id: string }) => void }) {
   const pursuits = usePursuitStore()
   useEffect(() => { if (!pursuits.loaded) void refreshPursuits() }, [pursuits.loaded])
-  const [projects, retryProjects] = useLoad(signal => client.projectResults({ sector: 'all', limit: 1 }, signal))
-  const [companies, retryCompanies] = useLoad(signal => client.opportunityGroups({ sector: 'all', limit: 1 }, signal))
+  const [cohort, retryCohort] = useLoad(async signal => {
+    const page = await client.opportunityGroups({ sector: 'all', limit: 1, shortlist: false }, signal)
+    const totals = page.totals
+    if (!totals || ![totals.accounts, totals.projects, totals.needs].every(value => Number.isSafeInteger(value) && value >= 0)) throw new Error('Canonical account and project counts are unavailable.')
+    return totals
+  })
   const [demand, retryDemand] = useLoad(signal => client.demandSummary('all', signal))
   const [oil, retryOil] = useLoad(signal => client.demandSummary('oil_gas', signal))
   const [dc, retryDc] = useLoad(signal => client.demandSummary('data_centers', signal))
@@ -85,11 +89,11 @@ function ReportsBody({ onSelectActiveNeed }: { onSelectActiveNeed: (need: { id: 
     <h1>Reports</h1>
     <p className="rpt-sub">Counts come from the current source-backed results. Each figure states what it measures.</p>
     <div className="rpt-tiles">
-      <Tile title="Total Projects" definition={`Projects in the current project results${projects.status === 'ok' && projects.value.results_scope ? ` (${projects.value.results_scope} scope)` : ''}.`} load={projects} retry={retryProjects}>
-        {projects.status === 'ok' && <strong>{projects.value.total.toLocaleString()}</strong>}
+      <Tile title="Total Projects" definition="Distinct known physical projects in the same account directory cohort, including unresolved projects." load={cohort} retry={retryCohort}>
+        {cohort.status === 'ok' && <><strong>{cohort.value.projects.toLocaleString()}</strong><small>{cohort.value.needs.toLocaleString()} distinct power needs</small></>}
       </Tile>
-      <Tile title="Operator/customer groups" definition="Groups in the current results. Includes one group per unresolved project and same-name groups, so this is not a count of confirmed companies." load={companies} retry={retryCompanies}>
-        {companies.status === 'ok' && <strong>{companies.value.total.toLocaleString()}</strong>}
+      <Tile title="Customer accounts" definition="Resolved customer/operator identities. Provisional same-name and unresolved groups are excluded from this account count." load={cohort} retry={retryCohort}>
+        {cohort.status === 'ok' && <strong>{cohort.value.accounts.toLocaleString()}</strong>}
       </Tile>
       <Tile title="Active Pursuits" definition="Your commercial pursuits that are not Won or Lost." load={pursuitLoad} retry={() => void refreshPursuits(true)}>
         <strong>{pursuits.counts.active.toLocaleString()}</strong>
@@ -114,18 +118,9 @@ function ReportsBody({ onSelectActiveNeed }: { onSelectActiveNeed: (need: { id: 
         {load.status === 'ok' && (load.value.availability === 'available' ? <p>{(['documented', 'calculated', 'estimated'] as const).map(key => `${key[0].toUpperCase() + key.slice(1)} ${classMw(load.value.classes[key])}`).join(' · ')}</p> : <p>Unavailable: {unavailableText(load.value)}{load.value.limitations.map(item => <small key={item}> {item}</small>)}</p>)}
       </div>)}
     </section>
-    <section className="rpt-card" aria-label="Not yet available">
-      <h2>Not yet available</h2>
-      <ul>
-        <li><strong>Demand by Vertical chart:</strong> documented, calculated and estimated demand are different evidence classes and the API provides no combined share, so a donut would be invented.</li>
-        <li><strong>Total portfolio demand (GW):</strong> the demand summary covers supported equipment records only.</li>
-        <li><strong>High Priority and priority counts:</strong> not shown here; this view does not use the priority filters of the opportunity and group endpoints.</li>
-        <li><strong>New This Week:</strong> not shown here; see the recent changes list below.</li>
-      </ul>
-    </section>
     <section className="rpt-card" aria-label="Export and recent changes">
       <h2>Export and changes</h2>
-      <p>Export the current results with the table's Export action. Recent source-backed changes appear below.</p>
+      <p>Export a labeled account page or loaded account projects from Opportunities. Recent source-backed changes appear below.</p>
       <WorkspaceChanges onSelectActiveNeed={onSelectActiveNeed}/>
     </section>
   </div>

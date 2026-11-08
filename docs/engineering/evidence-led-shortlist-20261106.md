@@ -1,6 +1,6 @@
 # Evidence-led opportunity shortlist — candidate and validation
 
-Owner request: November 6, 2026. Branch `codex/evidence-led-shortlist`, based on `fc59eab64306b7bcd0d047a0f5b7b3eb9381b6aa`. This is a PR candidate, not a production release. No merge, deployment, production write or paid-provider execution is part of this task.
+Owner request: November 6, 2026. Branch `codex/evidence-led-shortlist`, based on `fc59eab64306b7bcd0d047a0f5b7b3eb9381b6aa`. Merged in PR186 at `3e1982ce6b36b951a634b75333eb08d27d83a097` (verified November 7); current deployment is unverified in Slice 1. Candidate statements below are dated validation history. No merge, deployment, production write or paid-provider execution is part of this task.
 
 ## Implemented behavior
 
@@ -88,3 +88,7 @@ Final check results and candidate hash are recorded after the integrated gates; 
 Final November 7 validation completed in sections: `pwsh -NoProfile -File scripts/check.ps1` passed dependency audit, Ruff/format, mypy, migration upgrade/drift, and 5,011 backend tests (three skipped; seven subtests passed), then stopped at Windows EPERM while npm tried to replace a preview-held esbuild executable. After stopping the task-owned preview, the remaining npm install/audit/typecheck/build/Chromium steps passed. The first full browser run exposed ten stale approved-label/KPI assertions; only selectors and the intentional three-to-one KPI expectation were updated, preserving behavior, privacy, retry, idempotency and geometry checks. The final complete browser rerun passed all 291 tests. The separate real-backend rollup lane passed all three journeys against dedicated disposable 2,098-row fixtures. Brand validation passed 216 assets/eight semantic AA pairs; maintained links passed 109 documents/513 targets/18 anchors. The initial formatting failure, superseded partial run, Windows lock and stale-selector logs remain private and are not passing receipts.
 
 Independent Astra review verified the final application sources, five negation/affirmative-work probes, the complete copied-source SQL cohort and paging, the effective-Jev-decision token change, responsive screenshots, and unchanged behavioral coverage in the selector repairs. These are repository/local replay results; this candidate is not merged or deployed and does not claim new paid-provider completion. Existing production configuration remains untouched.
+
+## Account-first continuation
+
+[November 7 Slice 1](account-first-slice-20261107.md) reuses the source assessment and makes canonical accounts the default with distinct nested projects. Prior candidate screenshots/results do not prove this workflow or current deployment.

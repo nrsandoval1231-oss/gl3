@@ -147,9 +147,325 @@ def test_create_is_idempotent_per_opportunity(pursuit_env):
     listing = client.get("/api/commercial-pursuits", params={"need_id": need_id}).json()
     assert listing["counts"]["total"] == 1 and len(listing["items"]) == 1
     assert [a["kind"] for a in first.json()["activity"]] == ["created"]
+    with pursuit_env() as session:
+        session.get(PowerNeed, UUID(need_id)).active = False
+        session.commit()
+    inactive_retry = client.post("/api/commercial-pursuits", json={"need_id": need_id})
+    assert inactive_retry.status_code == 200
+    assert inactive_retry.json()["id"] == first.json()["id"]
     assert (
         client.post("/api/commercial-pursuits", json={"need_id": str(uuid4())}).status_code == 404
     )
+
+
+def test_concurrent_alias_and_root_create_serializes_to_one_pursuit(pursuit_env):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from test_need_aliases import _fixture_graph, _record
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+    barrier = Barrier(2)
+
+    def create(need_id):
+        client = TestClient(app)
+        barrier.wait()
+        return client.post("/api/commercial-pursuits", json={"need_id": str(need_id)})
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(create, (needs[0], needs[1])))
+    assert sorted(response.status_code for response in responses) == [200, 201]
+    assert responses[0].json()["id"] == responses[1].json()["id"]
+    assert responses[0].json()["need_id"] == str(needs[1])
+    with pursuit_env() as session:
+        pursuits = session.scalars(select(CommercialPursuit)).all()
+        assert len(pursuits) == 1
+        assert pursuits[0].need_id == needs[1]
+
+
+def test_distinct_needs_remain_distinct_pursuits_even_on_same_project(pursuit_env):
+    """Account/project association must not collapse separate power needs or their history."""
+    client = TestClient(app)
+    first_need_id = UUID(_need(pursuit_env))
+    with pursuit_env() as session:
+        first_need = session.get(PowerNeed, first_need_id)
+        second_need = PowerNeed(
+            project_id=first_need.project_id,
+            activity_key="data-center-expansion",
+            tier="Lead",
+            rationale="Separate synthetic power package",
+            required_mw="25",
+        )
+        session.add(second_need)
+        session.commit()
+        second_need_id = second_need.id
+
+    first = client.post("/api/commercial-pursuits", json={"need_id": str(first_need_id)}).json()
+    first = client.patch(
+        f"/api/commercial-pursuits/{first['id']}", json={"stage": "Engaged"}
+    ).json()
+    second = client.post("/api/commercial-pursuits", json={"need_id": str(second_need_id)}).json()
+
+    assert first["id"] != second["id"]
+    assert first["project_id"] == second["project_id"]
+    assert first["stage"] == "Engaged"
+    assert second["stage"] == "New"
+    assert first["account_id"] is None
+    assert first["account_name"] is None
+
+
+def test_alias_retry_returns_existing_canonical_pursuit(pursuit_env):
+    from test_need_aliases import _fixture_graph, _record
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+    client = TestClient(app)
+    canonical = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])})
+    assert canonical.status_code == 201
+    with pursuit_env() as session:
+        session.get(PowerNeed, needs[1]).active = False
+        session.commit()
+
+    retry = client.post("/api/commercial-pursuits", json={"need_id": str(needs[0])})
+    assert retry.status_code == 200
+    assert retry.json()["id"] == canonical.json()["id"]
+    assert str(needs[0]) in retry.json()["need_alias_ids"]
+    alias_filtered = client.get(
+        "/api/commercial-pursuits", params={"need_id": str(needs[0])}
+    ).json()
+    assert [item["id"] for item in alias_filtered["items"]] == [canonical.json()["id"]]
+
+
+@pytest.fixture
+def restored_alias_chain(pursuit_env):
+    """Restore source evidence after another accepted alias creates a real chain."""
+    from test_need_aliases import _add_pair_evidence, _fixture_graph, _record
+
+    from gridlens.intelligence.account_identity import account_identity_for_projects
+    from gridlens.intelligence.need_aliases import NeedAliasError, need_alias_members
+    from gridlens.intelligence.saved_browse import rebuild
+    from gridlens.persistence.models import BrowseState, Observation
+
+    client = TestClient(app)
+    needs, observation_id, evidence_id = _fixture_graph(pursuit_env)
+    created = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])})
+    assert created.status_code == 201
+    pursuit = created.json()
+    unrelated = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    private_text = "Call Jordan Quill at jordan.quill@acme.test or 512-555-0147"
+    base = f"/api/commercial-pursuits/{pursuit['id']}"
+    assert client.post(f"{base}/tasks", json={"description": private_text}).status_code == 201
+    assert (
+        client.post(
+            f"{base}/activity",
+            json={
+                "kind": "note",
+                "summary": private_text,
+                "detail": private_text,
+                "confirmed": True,
+            },
+        ).status_code
+        == 201
+    )
+    with pursuit_env() as session:
+        assert _record(session, needs, evidence_id).state == "current"
+        observation = session.get(Observation, observation_id)
+        original_hash = observation.content_hash
+        observation.content_hash = "b" * 64
+        session.flush()
+        # A -> B is temporarily invalid. C -> A is accepted without inserting
+        # malformed assertions directly or mocking the resolver.
+        next_evidence = _add_pair_evidence(session, needs, 2, 0)
+        assert (
+            _record(session, needs, next_evidence, alias_index=2, canonical_index=0).state
+            == "current"
+        )
+        session.add(BrowseState(id=1))
+        session.commit()
+    # Ensure the account-label lookup reaches alias validation, rather than
+    # returning early because there is no current saved browse generation.
+    assert rebuild(pursuit_env)["status"] == "published"
+    with pursuit_env() as session:
+        session.get(Observation, observation_id).content_hash = original_hash
+        session.commit()
+    _suppressed_person(pursuit_env, _project_of(pursuit_env, needs[2]))
+    with pursuit_env() as session:
+        with pytest.raises(NeedAliasError, match="chain"):
+            need_alias_members(session, [needs[1]])
+        with pytest.raises(NeedAliasError, match="chain"):
+            account_identity_for_projects(session, {UUID(pursuit["project_id"])})
+    return needs, pursuit, unrelated, private_text
+
+
+@pytest.mark.parametrize("route", ["list", "detail", "exact-retry"])
+@pytest.mark.parametrize("privacy_overflow", [False, True])
+def test_saved_pursuits_survive_restored_alias_chain(
+    pursuit_env, restored_alias_chain, monkeypatch, route, privacy_overflow
+):
+    """Optional identity failure cannot hide saved work or relax historical privacy."""
+    from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+    needs, pursuit, unrelated, private_text = restored_alias_chain
+    if privacy_overflow:
+        monkeypatch.setattr(module, "_MAX_PRIVACY_NEEDS", 2)
+    client = TestClient(app, raise_server_exceptions=False)
+    if route == "list":
+        response = client.get("/api/commercial-pursuits")
+    elif route == "detail":
+        response = client.get(f"/api/commercial-pursuits/{pursuit['id']}")
+    else:
+        response = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    if route == "list":
+        assert body["counts"]["total"] == body["total_matching"] == 2
+        by_id = {item["id"]: item for item in body["items"]}
+        assert set(by_id) == {pursuit["id"], unrelated["id"]}
+        body = by_id[pursuit["id"]]
+    assert body["id"] == pursuit["id"] and body["need_id"] == str(needs[1])
+    assert body["account_id"] is None and body["account_name"] is None
+    assert "[redacted]" in body["next_task"]["description"]
+    for secret in ("Jordan Quill", "jordan.quill@acme.test", "512-555-0147"):
+        assert secret not in str(body)
+    if privacy_overflow:
+        assert body["next_task"]["description"] == "[redacted]"
+    if route != "list":
+        assert body["tasks"][0]["description"] == body["next_task"]["description"]
+        note = next(item for item in body["activity"] if item["kind"] == "note")
+        assert "[redacted]" in note["summary"] and "[redacted]" in note["detail"]
+    with pursuit_env() as session:
+        assert session.scalar(select(func.count()).select_from(CommercialPursuit)) == 2
+        assert session.scalar(select(PursuitTask.description)) == private_text
+        note = session.scalar(select(PursuitActivity).where(PursuitActivity.kind == "note"))
+        assert note.summary == note.detail == private_text
+
+
+def test_unknown_alias_membership_rejects_filters_and_prevents_duplicates(
+    pursuit_env, restored_alias_chain
+):
+    """Unknown alias membership is not an authoritative empty or exact-only result."""
+    needs, pursuit, unrelated, _private_text = restored_alias_chain
+    client = TestClient(app, raise_server_exceptions=False)
+    for need_id in (*needs, UUID(unrelated["need_id"]), uuid4()):
+        filtered = client.get("/api/commercial-pursuits", params={"need_id": str(need_id)})
+        assert filtered.status_code == 409, filtered.text
+        assert filtered.json()["detail"] == "Opportunity identity is ambiguous"
+    for need_id in (needs[0], needs[2], needs[3]):
+        create = client.post("/api/commercial-pursuits", json={"need_id": str(need_id)})
+        assert create.status_code == 409, create.text
+    # Exact persisted IDs remain replayable, even for a separate unaffected pursuit.
+    for existing in (pursuit, unrelated):
+        retry = client.post("/api/commercial-pursuits", json={"need_id": existing["need_id"]})
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["id"] == existing["id"]
+    with pursuit_env() as session:
+        assert session.scalar(select(func.count()).select_from(CommercialPursuit)) == 2
+
+
+def test_conflicted_alias_create_preserves_both_existing_pursuits(pursuit_env):
+    from test_need_aliases import _fixture_graph, _record
+
+    from gridlens.intelligence.need_aliases import record_alias
+    from gridlens.persistence.models import Evidence, NeedObservation, Observation
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+
+    with pursuit_env() as session:
+        alias_need = session.get(PowerNeed, needs[0])
+        canonical_need = session.get(PowerNeed, needs[1])
+        alias_pursuit = CommercialPursuit(
+            need_id=alias_need.id,
+            project_id=alias_need.project_id,
+            stage="Contacted",
+        )
+        canonical_pursuit = CommercialPursuit(
+            need_id=canonical_need.id,
+            project_id=canonical_need.project_id,
+            stage="Engaged",
+        )
+        session.add_all([alias_pursuit, canonical_pursuit])
+        session.commit()
+        alias_pursuit_id = alias_pursuit.id
+        canonical_pursuit_id = canonical_pursuit.id
+    client = TestClient(app)
+    with pursuit_env() as session:
+        alias_need = session.get(PowerNeed, needs[2])
+        canonical_need = session.get(PowerNeed, needs[1])
+        alias_project = session.get(Project, alias_need.project_id)
+        canonical_project = session.get(Project, canonical_need.project_id)
+        alias_binding = {
+            "source_ref": f"{alias_project.source_id}:{alias_project.external_id}",
+            "activity_key": alias_need.activity_key,
+            "package_scope": "package-7",
+        }
+        canonical_binding = {
+            "source_ref": f"{canonical_project.source_id}:{canonical_project.external_id}",
+            "activity_key": canonical_need.activity_key,
+            "package_scope": "package-7",
+        }
+        quote = (
+            f"Package package-7: {alias_binding['source_ref']} "
+            f"({alias_binding['activity_key']}) and {canonical_binding['source_ref']} "
+            f"({canonical_binding['activity_key']}) refer to the same power package."
+        )
+        source = session.get(Source, alias_project.source_id)
+        observation = Observation(
+            source_id=source.id,
+            external_id=f"conflicted-alias-{uuid4().hex[:8]}",
+            title=quote,
+            abstract="Synthetic strict package alias proof",
+            url="https://synthetic.invalid/conflicted-alias",
+            content_hash="b" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            provenance={
+                "need_alias_assertion": {
+                    "package_scope": "package-7",
+                    "need_bindings": [alias_binding, canonical_binding],
+                    "same_package_quote": quote,
+                }
+            },
+        )
+        session.add(evidence)
+        session.flush()
+        session.add_all(
+            [
+                NeedObservation(need_id=needs[2], observation_id=observation.id),
+                NeedObservation(need_id=needs[1], observation_id=observation.id),
+            ]
+        )
+        record_alias(
+            session,
+            alias_need_id=needs[2],
+            canonical_need_id=needs[1],
+            evidence_id=evidence.id,
+            expected_evidence_hash=evidence.content_hash,
+            package_scope="package-7",
+            reason="Explicit synthetic package link",
+        )
+        session.commit()
+
+    conflicted = client.post("/api/commercial-pursuits", json={"need_id": str(needs[2])})
+    assert conflicted.status_code == 409
+    alias_after = client.get(f"/api/commercial-pursuits/{alias_pursuit_id}").json()
+    canonical_after = client.get(f"/api/commercial-pursuits/{canonical_pursuit_id}").json()
+    assert alias_after["stage"] == "Contacted"
+    assert canonical_after["stage"] == "Engaged"
 
 
 def test_stage_changes_persist_and_log_without_advancing_automatically(pursuit_env):
@@ -550,6 +866,298 @@ def test_suppressed_contact_text_is_redacted_on_read_but_stored_unchanged(pursui
         from gridlens.persistence.commercial_pursuit_models import PursuitTask
 
         assert session.get(PursuitTask, task_id).description == task_text
+
+
+@pytest.mark.parametrize("stored_need_index", [0, 1], ids=["alias-pursuit", "root-pursuit"])
+@pytest.mark.parametrize("alias_state", ["current", "retracted", "conflicted", "superseded"])
+def test_alias_contact_privacy_covers_persisted_history(
+    pursuit_env, stored_need_index, alias_state
+):
+    """Both entry points retain privacy scope after aliases stop resolving together."""
+    from test_need_aliases import _fixture_graph, _record
+
+    from gridlens.intelligence.need_aliases import retract_alias
+    from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+    client = TestClient(app)
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    created = client.post(
+        "/api/commercial-pursuits", json={"need_id": str(needs[stored_need_index])}
+    )
+    assert created.status_code == 201
+    pursuit_id = created.json()["id"]
+    with pursuit_env() as session:
+        assertion = _record(session, needs, evidence_id)
+        assertion_id = assertion.id
+        session.commit()
+    resolved = client.post(
+        "/api/commercial-pursuits", json={"need_id": str(needs[1 - stored_need_index])}
+    )
+    assert resolved.status_code == 200 and resolved.json()["id"] == pursuit_id
+    base = f"/api/commercial-pursuits/{pursuit_id}"
+    summary = "Spoke with Jordan Quill at jordan.quill@acme.test"
+    detail = "Call back on 512-555-0147 after lunch"
+    task_text = "Email Jordan Quill at jordan.quill@acme.test or 512-555-0147"
+    for kind in ("note", "call"):
+        assert (
+            client.post(
+                f"{base}/activity",
+                json={"kind": kind, "summary": summary, "detail": detail, "confirmed": True},
+            ).status_code
+            == 201
+        )
+    task_response = client.post(f"{base}/tasks", json={"description": task_text})
+    assert task_response.status_code == 201
+    task_id = task_response.json()["tasks"][0]["id"]
+    # Task-completion activity quotes saved task text as well.
+    assert client.patch(f"{base}/tasks/{task_id}", json={"completed": True}).status_code == 200
+    assert client.post(f"{base}/tasks", json={"description": task_text}).status_code == 201
+    unrelated = client.post("/api/commercial-pursuits", json={"need_id": str(needs[2])}).json()
+    unrelated_base = f"/api/commercial-pursuits/{unrelated['id']}"
+    assert (
+        client.post(f"{unrelated_base}/tasks", json={"description": task_text}).status_code == 201
+    )
+    if alias_state != "current":
+        with pursuit_env() as session:
+            if alias_state == "retracted":
+                assert retract_alias(session, needs[0], "Synthetic correction") is not None
+            else:
+                session.get(module.NeedAliasAssertion, assertion_id).state = alias_state
+            session.commit()
+    # The suppressed contact belongs only to the OTHER source project, not the
+    # pursuit's stored project. Apply suppression after all history was persisted.
+    _suppressed_person(pursuit_env, _project_of(pursuit_env, needs[1 - stored_need_index]))
+    secrets = ("Jordan Quill", "jordan.quill@acme.test", "512-555-0147")
+
+    def assert_safe(body):
+        for secret in secrets:
+            assert secret not in str(body), secret
+
+    listing = client.get("/api/commercial-pursuits").json()
+    by_id = {item["id"]: item for item in listing["items"]}
+    assert_safe(by_id[pursuit_id])
+    assert "[redacted]" in by_id[pursuit_id]["next_task"]["description"]
+    assert by_id[unrelated["id"]]["next_task"]["description"] == task_text
+    body = client.get(base).json()
+    assert_safe(body)
+    assert all("[redacted]" in task["description"] for task in body["tasks"])
+    for kind in ("note", "call", "task_completed"):
+        items = [item for item in body["activity"] if item["kind"] == kind]
+        assert items and all("[redacted]" in item["summary"] for item in items)
+        if kind in {"note", "call"}:
+            assert all("[redacted]" in item["detail"] for item in items)
+    assert_safe(client.patch(base, json={"stage": "Engaged"}).json())
+    assert_safe(client.post(f"{base}/tasks", json={"description": task_text}).json())
+    assert_safe(client.patch(f"{base}/tasks/{task_id}", json={"due_date": "2026-12-01"}).json())
+    assert_safe(
+        client.post(
+            f"{base}/activity",
+            json={"kind": "note", "summary": summary, "detail": detail, "confirmed": True},
+        ).json()
+    )
+    with pursuit_env() as session:
+        row = session.get(CommercialPursuit, pursuit_id)
+        assert row.need_id == needs[stored_need_index]
+        assert row.project_id == _project_of(pursuit_env, needs[stored_need_index])
+        assert session.get(PursuitTask, task_id).description == task_text
+        saved = session.scalars(
+            select(PursuitActivity).where(
+                PursuitActivity.pursuit_id == row.id, PursuitActivity.kind.in_(["note", "call"])
+            )
+        ).all()
+        assert saved and all(item.summary == summary and item.detail == detail for item in saved)
+
+
+@pytest.mark.parametrize("bound", ["_MAX_PRIVACY_NEEDS", "_MAX_PRIVACY_ALIAS_ASSERTIONS"])
+def test_alias_privacy_bounds_withhold_only_affected_pursuit(pursuit_env, monkeypatch, bound):
+    from test_need_aliases import _fixture_graph, _record
+
+    from gridlens.intelligence.need_aliases import retract_alias
+    from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+    client = TestClient(app)
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        retract_alias(session, needs[0], "Synthetic correction")
+        session.commit()
+    linked = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])}).json()
+    other = client.post("/api/commercial-pursuits", json={"need_id": str(needs[2])}).json()
+    for pursuit in (linked, other):
+        assert (
+            client.post(
+                f"/api/commercial-pursuits/{pursuit['id']}/tasks",
+                json={"description": "Retained owner text"},
+            ).status_code
+            == 201
+        )
+    monkeypatch.setattr(module, bound, 1)
+    listing = client.get("/api/commercial-pursuits")
+    assert listing.status_code == 200
+    by_id = {item["id"]: item for item in listing.json()["items"]}
+    assert by_id[linked["id"]]["next_task"]["description"] == "[redacted]"
+    assert by_id[other["id"]]["next_task"]["description"] == "Retained owner text"
+    body = client.get(f"/api/commercial-pursuits/{linked['id']}").json()
+    assert body["tasks"][0]["description"] == "[redacted]"
+    assert all(item["summary"] == "[redacted]" for item in body["activity"])
+    with pursuit_env() as session:
+        assert set(session.scalars(select(PursuitTask.description))) == {"Retained owner text"}
+
+
+def test_reparented_alias_preserves_transitive_historical_privacy_scope(pursuit_env):
+    from test_need_aliases import _add_pair_evidence, _fixture_graph, _record
+
+    from gridlens.intelligence.need_aliases import retract_alias
+    from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+    client = TestClient(app)
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    created = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])}).json()
+    base = f"/api/commercial-pursuits/{created['id']}"
+    original = "Ask Jordan Quill at jordan.quill@acme.test about 512-555-0147"
+    assert client.post(f"{base}/tasks", json={"description": original}).status_code == 201
+    assert (
+        client.post(
+            f"{base}/activity",
+            json={"kind": "note", "summary": original, "detail": original, "confirmed": True},
+        ).status_code
+        == 201
+    )
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        retract_alias(session, needs[0], "Synthetic old root correction")
+        replacement = _add_pair_evidence(session, needs, 0, 2, scope="replacement-package")
+        _record(session, needs, replacement, canonical_index=2, scope="replacement-package")
+        session.commit()
+    _suppressed_person(pursuit_env, _project_of(pursuit_env, needs[2]))
+    with pursuit_env() as session:
+        row = session.get(CommercialPursuit, created["id"])
+        assert module._privacy_project_ids(session, row) == sorted(
+            [_project_of(pursuit_env, need_id) for need_id in needs[:3]], key=str
+        )
+        assert session.scalar(select(PursuitTask.description)) == original
+    for response in (client.get(base), client.get("/api/commercial-pursuits")):
+        assert response.status_code == 200
+        body = response.json()
+        assert all(
+            secret not in str(body)
+            for secret in ("Jordan Quill", "jordan.quill@acme.test", "512-555-0147")
+        )
+        item = body["items"][0] if "items" in body else body
+        assert "[redacted]" in item["next_task"]["description"]
+
+
+def test_alias_privacy_database_error_rolls_back_lookup_and_withholds_text(
+    pursuit_env, monkeypatch
+):
+    from gridlens.persistence.commercial_pursuit_models import PursuitTask
+
+    client = TestClient(app)
+    created = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()
+    base = f"/api/commercial-pursuits/{created['id']}"
+    assert (
+        client.post(f"{base}/tasks", json={"description": "Retained owner text"}).status_code == 201
+    )
+    original_execute = module.Session.execute
+    failures = []
+
+    def fail_lookup(self, statement, *args, **kwargs):
+        names = [column["name"] for column in getattr(statement, "column_descriptions", [])]
+        if names == ["id", "alias_need_id", "canonical_need_id"]:
+            failures.append(True)
+            # A real PostgreSQL statement error must be isolated by the savepoint.
+            return original_execute(self, text("SELECT * FROM nonexistent_privacy_alias_table"))
+        return original_execute(self, statement, *args, **kwargs)
+
+    monkeypatch.setattr(module.Session, "execute", fail_lookup)
+    for response in (client.get(base), client.get("/api/commercial-pursuits")):
+        assert response.status_code == 200
+        body = response.json()
+        item = body["items"][0] if "items" in body else body
+        assert item["next_task"]["description"] == "[redacted]"
+    # A failed lookup must leave the same session usable, not transaction-aborted.
+    with pursuit_env() as session:
+        row = session.get(CommercialPursuit, created["id"])
+        assert module._privacy_project_ids(session, row) is None
+        assert session.scalar(select(func.count()).select_from(PursuitTask)) == 1
+    assert len(failures) == 3
+
+
+def test_historical_privacy_traversal_is_bounded_and_scoped():
+    """No database required: inspect every frontier query and a transitive cycle."""
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    root, former, earlier, unrelated = (uuid4() for _ in range(4))
+    root_project, former_project, earlier_project = (uuid4() for _ in range(3))
+    edges = [(uuid4(), root, former), (uuid4(), former, earlier), (uuid4(), earlier, root)]
+    queries = []
+
+    class FakeSession:
+        def begin_nested(self):
+            return nullcontext()
+
+        def execute(self, statement):
+            sql = str(statement)
+            values = statement.compile().params
+            queries.append((sql, values))
+            if "need_alias_assertions" in sql:
+                assert "WHERE" in sql and "LIMIT" in sql
+                assert "state" not in sql  # Historical assertions in every state stay in scope.
+                frontier = set(values["alias_need_id_1"])
+                assert frontier == set(values["canonical_need_id_1"])
+                assert unrelated not in frontier
+                result = [edge for edge in edges if edge[1] in frontier or edge[2] in frontier]
+            else:
+                assert set(values["id_1"]) == {root, former, earlier}
+                result = [
+                    (root, root_project),
+                    (former, former_project),
+                    (earlier, earlier_project),
+                ]
+            return SimpleNamespace(all=lambda: result)
+
+    row = SimpleNamespace(need_id=root, project_id=root_project)
+    assert module._privacy_project_ids(FakeSession(), row) == sorted(
+        [root_project, former_project, earlier_project], key=str
+    )
+    assert len(queries) == 3  # Two frontier batches, one need/project lookup.
+
+
+@pytest.mark.parametrize("failure", ["needs", "assertions", "missing-project", "query-error"])
+def test_historical_privacy_traversal_fails_closed_without_database(monkeypatch, failure):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    root, other, project = uuid4(), uuid4(), uuid4()
+    if failure == "needs":
+        monkeypatch.setattr(module, "_MAX_PRIVACY_NEEDS", 1)
+    if failure == "assertions":
+        monkeypatch.setattr(module, "_MAX_PRIVACY_ALIAS_ASSERTIONS", 1)
+
+    class FakeSession:
+        def begin_nested(self):
+            return nullcontext()
+
+        def execute(self, statement):
+            if failure == "query-error":
+                raise RuntimeError("synthetic unavailable graph")
+            if "need_alias_assertions" in str(statement):
+                result = [(uuid4(), root, other)]
+                if failure == "assertions":
+                    result.append((uuid4(), root, other))
+            else:
+                result = [(root, project)]  # Other need's retained project could not be read.
+            return SimpleNamespace(all=lambda: result)
+
+    row = SimpleNamespace(need_id=root, project_id=project)
+    assert module._privacy_project_ids(FakeSession(), row) is None
+    texts = {"note": "Private owner text", "empty": "", "absent": None}
+    assert module._private_pursuit_text(FakeSession(), row, texts) == {
+        "note": "[redacted]",
+        "empty": "",
+        "absent": None,
+    }
 
 
 def _bulk_pursuits(factory, count, stage="New"):

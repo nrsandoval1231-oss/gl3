@@ -1,7 +1,5 @@
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
-import { resolve } from 'node:path'
 
 const group = { id: 'sector-group', name: 'Sector Customer', role: 'customer', project_count: 1, need_count: 1, sectors: ['oil_gas', 'data_centers'] }
 
@@ -16,8 +14,9 @@ test('changing sector clears region and stage filters and their URL state', asyn
     return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `sector-${dataCenters ? 'dc' : 'oil'}`, facets: dataCenters ? { regions: ['Austin, TX'], stages: ['Construction notice'] } : { regions: ['Permian Basin, TX'], stages: ['Permit issued'] } } })
   })
 
-  await page.goto('/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&groupBrowse=1')
+  await page.goto('/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toHaveCount(1)
+  await page.getByText('More filters and sorting', { exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Permian Basin, TX')
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Permit issued')
 
@@ -43,8 +42,9 @@ test('URL region and stage stay visibly selected when omitted from returned face
     return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'arbitrary-filter-cohort', facets: { regions: ['Austin, TX'], stages: ['Construction notice'] } } })
   })
 
-  await page.goto('/?view=workspace&region=Nonfacet+Region&stage=Nonfacet+Stage&groupBrowse=1')
+  await page.goto('/?view=workspace&region=Nonfacet+Region&stage=Nonfacet+Stage&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toHaveCount(1)
+  await page.getByText('More filters and sorting', { exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Nonfacet Region')
   await expect(page.getByRole('combobox', { name: 'Region' }).locator('option', { hasText: 'Nonfacet Region' })).toHaveCount(1)
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Nonfacet Stage')
@@ -71,19 +71,19 @@ test('sector switch immediately announces loading and hides the previous cohort 
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await expect(page.getByRole('heading', { name: 'All Sector Group' })).toBeVisible()
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toContainText('All Sector Group')
 
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Data Centers', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'true')
-  await expect(page.getByRole('status')).toContainText('Loading Data Centers groups. Previous results are hidden')
+  await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
   await expect(page.locator('.customer-group')).toHaveCount(0)
   expect(requests).toContain('data_centers')
 
   releaseDataCenters()
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
-  await expect(page.getByRole('heading', { name: 'Data Center Group' })).toBeVisible()
+  await expect(page.locator('.customer-group')).toContainText('Data Center Group')
   await expect(page.locator('.customer-group')).toContainText('Data Center Group')
   await expect(page.locator('.customer-group')).not.toContainText('All Sector Group')
 })
@@ -107,16 +107,16 @@ test('a rapid sector change ignores a late response from the previously requeste
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await expect(page.getByRole('heading', { name: 'All Sector Group' })).toBeVisible()
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toContainText('All Sector Group')
 
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Loading Data Centers groups. Previous results are hidden')
+  await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
   await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Oil & Gas', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('heading', { name: 'Oil and Gas Group' })).toBeVisible()
+  await expect(page.locator('.customer-group')).toContainText('Oil and Gas Group')
   releaseDataCenters()
-  await expect(page.getByRole('heading', { name: 'Oil and Gas Group' })).toBeVisible()
+  await expect(page.locator('.customer-group')).toContainText('Oil and Gas Group')
   await expect(page.locator('.customer-group')).not.toContainText('Data Center Group')
   expect(requests.slice(-2)).toEqual(['data_centers', 'oil_gas'])
 })
@@ -143,15 +143,15 @@ test('failed sector results keep retry through no-op filter clicks and reverted 
     await route.fulfill({ json: { items: [result], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-retry-cohort`, facets: { regions: [], stages: [] } } })
   })
 
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await expect(page.getByRole('heading', { name: 'All Sector Before Error' })).toBeVisible()
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toContainText('All Sector Before Error')
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Loading Data Centers groups. Previous results are hidden')
+  await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
   await expect(page.locator('.customer-group')).toHaveCount(0)
   releaseFailure()
 
   const alert = page.getByRole('alert')
-  await expect(alert).toContainText('Could not load operator/customer groups (503)')
+  await expect(alert).toContainText('Could not load accounts')
   await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
   await expect(page.locator('.customer-group-list')).toHaveCount(0)
@@ -159,23 +159,23 @@ test('failed sector results keep retry through no-op filter clicks and reverted 
   // Selecting the already-active sector does not start a new cohort request,
   // so it must leave the actionable error state in place.
   await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
-  await expect(alert).toContainText('Could not load operator/customer groups (503)')
+  await expect(alert).toContainText('Could not load accounts')
   await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
   expect(dataCenterReads).toBe(1)
 
   // A draft that is reverted before debounce is not a request either; the
   // failed cohort's retry remains available until a real read starts.
-  const search = page.getByRole('textbox', { name: 'Search opportunities' })
+  const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await search.fill('temporary draft')
   await search.fill('')
   await page.waitForTimeout(400)
-  await expect(alert).toContainText('Could not load operator/customer groups (503)')
+  await expect(alert).toContainText('Could not load accounts')
   await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
-  await expect(page.locator('.project-results-count')).not.toHaveText('No groups')
+  await expect(page.locator('.project-results-count')).not.toHaveText('No accounts')
   expect(dataCenterReads).toBe(1)
 
   await alert.getByRole('button', { name: 'Retry' }).click()
-  await expect(page.getByRole('heading', { name: 'Recovered Data Center Group' })).toBeVisible()
+  await expect(page.locator('.customer-group')).toContainText('Recovered Data Center Group')
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
   await expect(page.locator('.customer-group')).not.toContainText('All Sector Before Error')
   expect(dataCenterReads).toBe(2)
@@ -194,10 +194,8 @@ test('responsive sector loading and settled states render at desktop, tablet, an
     const item = sector === 'all' ? { ...fixture('oil_gas'), id: 'visual-all', name: 'All Sector Visual Group' } : fixture(sector)
     await route.fulfill({ json: { items: [item], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: `${sector}-visual`, facets: { regions: [], stages: [] } } })
   })
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await expect(page.getByRole('heading', { name: 'All Sector Visual Group' })).toBeVisible()
-  const artifactDir = resolve(process.cwd(), '../.artifacts/ui-followup-20261102')
-  mkdirSync(artifactDir, { recursive: true })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toContainText('All Sector Visual Group')
   const sizes = [
     { name: 'desktop1440', width: 1440, height: 1000, sector: 'data_centers', label: 'Data Centers' },
     { name: 'header1281', width: 1281, height: 900, sector: 'oil_gas', label: 'Oil & Gas' },
@@ -211,11 +209,11 @@ test('responsive sector loading and settled states render at desktop, tablet, an
     await page.getByRole('button', { name: size.label, exact: true }).click()
     await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'true')
     await expect(page.getByRole('status')).toBeVisible()
-    await page.screenshot({ path: resolve(artifactDir, `${size.name}-loading.png`), fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`${size.name}-loading.png`), fullPage: true })
     releasePending()
-    await expect(page.getByRole('heading', { name: /Visual Group/ })).toBeVisible()
+    await expect(page.locator('.customer-group')).toContainText('Visual Group')
     await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'false')
-    await page.screenshot({ path: resolve(artifactDir, `${size.name}-settled.png`), fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`${size.name}-settled.png`), fullPage: true })
     pendingSector = undefined
   }
 })

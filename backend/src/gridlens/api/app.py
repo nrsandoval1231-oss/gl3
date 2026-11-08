@@ -668,6 +668,7 @@ def _validate_browse_query(request: Request) -> None:
             "region",
             "stage",
             "priority",
+            "shortlist",
         }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
@@ -678,7 +679,7 @@ def _validate_browse_query(request: Request) -> None:
         and bool(request.url.path.split("/")[4])
         and request.url.path.split("/")[5] == "open"
     ):
-        allowed = {"search", "sector", "sort", "limit", "region", "stage", "priority"}
+        allowed = {"search", "sector", "sort", "limit", "region", "stage", "priority", "shortlist"}
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
@@ -702,6 +703,7 @@ def _validate_browse_query(request: Request) -> None:
                 "region",
                 "stage",
                 "priority",
+                "shortlist",
             }
             search = request.query_params.get("search")
             if search is not None and len(search) > 250:
@@ -2142,6 +2144,32 @@ def opportunity_demand_summary(
         return summarize(session, sector)
 
 
+@app.get("/api/projects/{project_id}/account", dependencies=[Depends(require_session)])
+def resolve_project_account(project_id: UUID):
+    """Verify account context on a compatible project/need deep link."""
+    from gridlens.intelligence.account_identity import account_for_project
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        account = account_for_project(session, project_id)
+        if account is None:
+            raise HTTPException(404, "This project has no current account assignment")
+        return account
+
+
+@app.get("/api/companies/{company_id}/account", dependencies=[Depends(require_session)])
+def resolve_company_account(company_id: UUID):
+    """Translate a bookmarked company identity to its current shared account route."""
+    from gridlens.intelligence.account_identity import account_for_company
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        account = account_for_company(session, company_id)
+        if account is None:
+            raise HTTPException(404, "This company has no unambiguous current account")
+        return account
+
+
 @app.get(
     "/api/opportunities/groups",
     dependencies=[Depends(require_session), Depends(_validate_browse_query)],
@@ -2156,12 +2184,13 @@ def customer_opportunity_groups(
     region: str | None = None,
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
+    shortlist: bool = False,
 ):
     from gridlens.intelligence.customer_results import groups
 
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        return groups(
+        payload = groups(
             session,
             search=search,
             sector=sector,
@@ -2172,7 +2201,20 @@ def customer_opportunity_groups(
             region=region,
             stage=stage,
             priority=priority,
+            shortlist=shortlist,
         )
+
+        _bounded_opportunity_payload(
+            [
+                item[field]
+                for item in payload["items"]
+                for field in ("featured_project", "account_contact_project")
+                if item.get(field)
+            ]
+        )
+        if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
+            raise HTTPException(413, "Account results exceed the response byte budget")
+        return payload
 
 
 @app.get(
@@ -2191,6 +2233,7 @@ def customer_group_projects(
     region: str | None = None,
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
+    shortlist: bool = False,
 ):
     from gridlens.intelligence.customer_results import group_projects
 
@@ -2209,6 +2252,7 @@ def customer_group_projects(
             region=region,
             stage=stage,
             priority=priority,
+            shortlist=shortlist,
         )
         _bounded_opportunity_payload(payload["items"])
         return payload
@@ -2227,6 +2271,7 @@ def customer_group_open(
     region: str | None = None,
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
+    shortlist: bool = False,
 ):
     from gridlens.intelligence.customer_results import group_open
 
@@ -2244,9 +2289,17 @@ def customer_group_open(
             region=region,
             stage=stage,
             priority=priority,
+            shortlist=shortlist,
             selected_generation=generation,
         )
-        _bounded_opportunity_payload(payload["projects"]["items"])
+        _bounded_opportunity_payload(
+            payload["projects"]["items"]
+            + (
+                [payload["group"]["account_contact_project"]]
+                if payload["group"].get("account_contact_project")
+                else []
+            )
+        )
         if len(json.dumps(payload, default=str).encode("utf-8")) > _MAX_OPPORTUNITY_PAGE_BYTES:
             raise HTTPException(413, "Project results exceed the response byte budget")
         return payload

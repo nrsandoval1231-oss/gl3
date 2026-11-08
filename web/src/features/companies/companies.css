@@ -11,14 +11,16 @@
 .cmp-body{border-top:1px solid #e3e9f0;font-size:12px;cursor:pointer}.cmp-body:hover{background:#f8fafc}.cmp-body:focus-within{background:#f2f6f9}
 .cmp-name{display:flex;flex-direction:column;min-width:0}.cmp-name button{all:unset;cursor:pointer;font:600 13px Inter,sans-serif;overflow-wrap:anywhere}.cmp-name button:focus-visible{outline:2px solid #47748e;outline-offset:2px}.cmp-name small{color:#617189;font-size:11px}
 .cmp-name .cmp-kind{color:#10223c;font-weight:600}.cmp-chevron{color:#617189;font-size:18px;text-align:right}.cmp-empty{padding:14px;margin:0;font-size:12px;color:#617189}
-.cmp-paging{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;font-size:11px;color:#617189}.cmp-paging button,.cmp-back,.cmp-error button,.cmp-block button{padding:5px 10px;border:1px solid #e3e9f0;border-radius:6px;background:#fff;color:#10223c;cursor:pointer}.cmp button:disabled{opacity:.5;cursor:default}
+.cmp-paging{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;font-size:11px;color:#617189}.cmp-paging button,.cmp-back,.cmp-company>button,.cmp-error button,.cmp-block button{padding:5px 10px;border:1px solid #e3e9f0;border-radius:6px;background:#fff;color:#10223c;cursor:pointer}.cmp-back,.cmp-company>button{min-height:44px}.cmp button:disabled{opacity:.5;cursor:default}
 .cmp-error{padding:10px;border:1px solid #e3b8b8;border-radius:6px;background:#fdf3f3;font-size:12px}.cmp-links{font-size:12px}
 .cmp-block{margin:14px 0;padding:12px;border:1px solid #e3e9f0;border-radius:7px;background:#fff;font-size:12px;overflow-wrap:anywhere}.cmp-block ul{margin:0;padding-left:18px}
 .cmp-projects{list-style:none;padding:0!important}.cmp-projects li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid #e3e9f0}.cmp-projects li:first-child{border-top:0}.cmp-projects span{color:#617189}.cmp-projects a{color:#47748e;font-weight:600;width:fit-content}
 .cmp-badge{width:fit-content;padding:1px 8px;border-radius:999px;background:#f2f6f9;color:#10223c!important}
 @media(max-width:720px){.cmp-row{grid-template-columns:minmax(0,1fr) 56px 70px 14px;gap:6px;padding:10px 8px}.cmp-head{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.cmp *{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
-/* Companies/Reports page chrome: the panel is its own page; Opportunities stays mounted but hidden. */
+/* Companies/Reports page chrome: the panel is its own page and Opportunities unmounts while it is active. */
+.cmp-company [aria-label="Best available contact"]>span:first-child{display:block;margin-bottom:4px}
+.cmp-company [aria-label="Best available contact"]>p:not(.cmp-note){display:flex;flex-wrap:wrap;gap:8px 16px}
 .wh-main[hidden]{display:none!important}
 main.canonical-navigation-page{display:block;padding:10px 26px 20px;background:#f5f7fa;min-height:calc(100vh - 54px);min-width:0}
 main.canonical-navigation-page>.canonical-navigation-panel{margin:0;padding:0;border:0;border-radius:0;background:transparent;font-size:12px;min-width:0}

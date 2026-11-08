@@ -8,7 +8,7 @@ import { inApp, openPursuit, pursuitHref } from './pursuitNav'
 /** Add-to-Pursuit control for one opportunity. Mount with `key={needId}` so state never leaks between needs. */
 export function AddToPursuit({ needId, children, disabled = false, deferLookup = false }: { needId: string; children?: ReactNode; disabled?: boolean; deferLookup?: boolean }) {
   const store = usePursuitStore()
-  const fromStore = store.items.find(item => item.need_id === needId)
+  const fromStore = store.items.find(item => (item.need_id === needId || item.need_alias_ids?.includes(needId)))
   // A truncated list is incomplete, so a missing need still gets the targeted lookup.
   const storeUsable = store.loaded && !store.error && !store.truncated
   const [lookup, setLookup] = useState<{ state: 'idle' | 'loading' | 'done'; id: string | null }>({ state: 'idle', id: null })
@@ -28,7 +28,7 @@ export function AddToPursuit({ needId, children, disabled = false, deferLookup =
     const controller = new AbortController()
     setLookup({ state: 'loading', id: null })
     client.commercialPursuits({ needId, background: true }, controller.signal)
-      .then(list => { if (!controller.signal.aborted && !endedRef.current) setLookup({ state: 'done', id: list.items.find(item => item.need_id === needId)?.id ?? null }) })
+      .then(list => { if (!controller.signal.aborted && !endedRef.current) setLookup({ state: 'done', id: list.items.find(item => (item.need_id === needId || item.need_alias_ids?.includes(needId)))?.id ?? null }) })
       .catch(() => { if (!controller.signal.aborted && !endedRef.current) setLookup({ state: 'done', id: null }) })
     return () => controller.abort()
   }, [needId, storeUsable, fromStore?.id, deferLookup])
@@ -42,7 +42,7 @@ export function AddToPursuit({ needId, children, disabled = false, deferLookup =
       inflight.current = true; endedRef.current = false; setBusy(true); setError('')
       try {
         const list = await client.commercialPursuits({ needId, background: true })
-        const existing = list.items.find(item => item.need_id === needId)?.id ?? null
+        const existing = list.items.find(item => (item.need_id === needId || item.need_alias_ids?.includes(needId)))?.id ?? null
         if (endedRef.current) return
         if (existing) { setLookup({ state: 'done', id: existing }); return }
         setLookup({ state: 'done', id: null })

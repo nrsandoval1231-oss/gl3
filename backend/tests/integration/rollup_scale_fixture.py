@@ -46,8 +46,8 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
 
     generation_id = uuid4()
     now = datetime.now(UTC)
-    de_number = "4216500001"
-    diamond_number = "4216500002"
+    de_number = "910001"
+    diamond_number = "910002"
     amazon_name = "AMAZON DATA SERVICES, INC"
     source_id = "synthetic-rollup-scale"
     company_ids = [uuid4() for _ in range(3)]
@@ -130,7 +130,7 @@ def seed_scale_corpus(factory, total_rows: int = 2098) -> dict:
                     "kind": "other_oil_gas",
                     "index": row_index,
                     "sector": "oil_gas",
-                    "operator_number": f"9{operator_index:09d}",
+                    "operator_number": f"8{operator_index:05d}",
                     "operator": f"A SCALE Synthetic Operator {operator_index:03d}",
                     "title": f"Synthetic Oil and Gas Project {operator_index:03d}-{project_index}",
                     "location": "Oklahoma" if project_index % 2 else "Texas",

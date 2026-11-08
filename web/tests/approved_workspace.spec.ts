@@ -28,220 +28,105 @@ const needA = {
   browse_title: 'North Austin Advanced Manufacturing Campus Construction and Electrical Infrastructure Development Project', location: 'Austin, TX', tier: 'Signal',
   workflow_status: 'New', activity: 'construction', rationale: 'A retained project filing supports investigation.',
   signal_evidence_state: 'active', conflict_state: 'Not assessed', required_mw: '12.75–19.5 MW for the phased temporary construction power package', supply: 'Unknown', start_window: 'Q3 2027 after substation feeder acceptance, followed by staged construction and commissioning', duration: '24–36 months across the staged construction and commissioning sequence',
-  evidence: [{ source_id: 'city-permit', document_number: 'P-1', title: 'Retained site development notice', url: source.url, published_at: null, retrieved_at: '2026-10-20T10:00:00Z', event_date: '2026-10-19', event_date_label: 'Event date', source_origin: 'City permits', extraction_location: 'Page 1', abstract: 'The notice identifies a site project and its electrical contractor.', content_hash: 'a'.repeat(64), assessment_current: true }],
+  evidence: [{ source_id: 'city-permit', document_number: 'P-1', title: 'Retained site development notice', url: source.url, published_at: null, retrieved_at: '2026-10-20T10:00:00Z', event_date: '2026-10-19', event_date_label: 'Event date', source_origin: 'City permits', extraction_location: 'Page 1', abstract: source.passage, content_hash: 'a'.repeat(64), assessment_current: true }],
   missing_facts: ['Activity-specific load', 'Suitable utility supply'], project_identity_key: 'project-a',
-  commercial_disposition: 'RESEARCH', commercial_reason: 'The retained filing supports project investigation while load and suitable supply remain unknown.',
+  commercial_disposition: 'RESEARCH', commercial_reason: 'The 12.75–19.5 MW temporary construction package is activity-specific; 184.75 MW is the complete facility buildout.',
   commercial_next_question: 'Who owns the electrical scope?', commercial_next_action: 'Confirm the power package and expected timing.', commercial_organization: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company',
   intelligence_card: card,
 }
 const needB = { ...needA, id: 'need-b', project_id: 'project-b', name: 'Second supported power need', browse_title: 'Second supported power need', required_mw: '', start_window: '', duration: '', intelligence_card: { ...card, need_id: 'need-b', project_id: 'project-b', power_gap: { remaining_mw: '', status: '' }, fields: card.fields.filter(field => !['facility_demand', 'energization'].includes(field.key)).map(field => field.key === 'customer' ? { ...field, value: 'Example Customer' } : field.key === 'project' ? { ...field, value: 'Second supported power need' } : field), contacts: [], evidence: [] }, evidence: needA.evidence }
 
-test('approved intelligence workspace preserves evidence, research status, selection history, and mobile width', async ({ page }, testInfo) => {
+test('account-first workspace keeps scoped project evidence, contacts, history, and responsive access', async ({ page }, testInfo) => {
   let providerPosts = 0
-  const workspace = (items: typeof needA[], total = items.length) => ({ items, total, counts: { action_now: 0, research: total, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
+  const projectA = {
+    id: 'project-a', project_id: 'project-a', name: needA.name, company: card.fields[0].value, location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: 8,
+    representative_need_id: 'need-a', needs: [{ id: 'need-a', project_id: 'project-a', name: needA.name, activity: 'construction', tier: 'Signal' }], need_count: 1,
+    event: { kind: 'permit_issued', label: 'Construction permit issued', date: '2026-10-19', source: source.url, evidence_refs: [source.reference] },
+    contact: [{ kind: 'phone', label: 'Call Alexandra Longname-Sample', href: 'tel:+15125550100', name: 'Alexandra Longname-Sample', title: 'Director, Infrastructure Programs', company: card.fields[0].value, source_url: source.url }],
+    contact_people: [], power_summary: '12.75–19.5 MW temporary construction package', power_amount_class: 'documented', power_summary_kind: 'activity_requirement',
+    next_action: 'Verify the activity-specific power window and remaining utility capacity.', shortlist_assessment: { why_now: 'A current permit supports review of the construction package.', next_step: 'Confirm activity-specific power timing.', evidence_refs: [source.reference] }, updated_at: '2026-10-20T10:00:00Z',
+  }
+  const projectB = { ...projectA, id: 'project-b', project_id: 'project-b', name: needB.name, representative_need_id: 'need-b', needs: [{ id: 'need-b', project_id: 'project-b', name: needB.name, activity: 'construction', tier: 'Signal' }] }
+  const projects = [projectA, projectB]
+  const projectPage = { items: projects, total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'project-page', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' }
+  const group = { id: 'cg_approved_fixture', name: card.fields[0].value, role: 'operator', group_kind: 'resolved_identity', project_count: 2, total_known_project_count: 2, relevant_project_count: 2, eligible_need_count: 2, eligible_need_ids: ['need-a', 'need-b'], pursued_eligible_need_count: 0, need_count: 2, sectors: ['data_centers'], featured_project: projectA }
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const request = route.request()
-    const path = new URL(request.url()).pathname
+    const url = new URL(request.url())
+    const path = url.pathname
     if (request.method() === 'POST') providerPosts += 1
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (path === '/api/opportunities/workspace') return route.fulfill({ json: workspace([needA, needB], 1659) })
-    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (path === '/api/opportunities/groups') return route.fulfill({ json: { items: [group], totals: { accounts: 1, projects: 2, needs: 2 }, total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'group-page', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
+    if (path === `/api/opportunities/groups/${group.id}/open`) return route.fulfill({ json: { group, projects: projectPage, parent_cohort_token: 'group-page', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
+    if (path === `/api/opportunities/groups/${group.id}/projects`) return route.fulfill({ json: projectPage })
+    if (path === '/api/projects/project-a/account' || path === '/api/projects/project-b/account') return route.fulfill({ json: { id: group.id, name: group.name, group_kind: group.group_kind, project_id: path.includes('project-a') ? 'project-a' : 'project-b' } })
+    if (path === '/api/opportunities/projects') return route.fulfill({ json: { ...projectPage, items: url.searchParams.get('need_id') === 'need-b' ? [projectB] : [projectA] } })
     if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: needA })
     if (path === '/api/opportunities/needs/need-b') return route.fulfill({ json: needB })
-    if (/\/power-needs\/[^/]+\/(brief|title)$/.test(path)) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path === '/api/commercial-pursuits') return route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 } } })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
     return route.fulfill({ json: [] })
   })
 
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto('/?view=workspace&accountBrowse=1')
-  await expect(page.locator('.wh-list')).toBeVisible()
-  for (const viewport of [{ width: 1280, height: 720 }, { width: 390, height: 844 }]) {
-    await page.setViewportSize(viewport)
-    const account = page.locator('.wh-account')
-    const summary = account.locator('summary')
-    const signOut = page.getByRole('button', { name: 'Sign out' })
-    await summary.focus()
-    await page.keyboard.press('Enter')
-    await expect(account).toHaveAttribute('open', '')
-    await expect(signOut).toBeVisible()
-    await page.keyboard.press('Tab')
-    await expect(page.getByRole('button', { name: 'Research progress' })).toBeFocused()
-    await page.keyboard.press('Tab')
-    await expect(page.getByRole('button', { name: 'Signals' })).toBeFocused()
-    await page.keyboard.press('Tab')
-    await expect(page.getByRole('button', { name: 'Technical diagnostics' })).toBeFocused()
-    await page.keyboard.press('Tab')
-    await expect(signOut).toBeFocused()
-    const contrast = await signOut.evaluate(button => {
-      const panel = button.parentElement!
-      const parse = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number)
-      const luminance = (color: string) => {
-        const [r, g, b] = parse(color).map(channel => {
-          const normalized = channel / 255
-          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
-        })
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b
-      }
-      const foreground = luminance(getComputedStyle(button).color)
-      const background = luminance(getComputedStyle(panel).backgroundColor)
-      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
-    })
-    expect(contrast).toBeGreaterThanOrEqual(4.5)
-    await summary.press('Enter')
-    await expect(account).not.toHaveAttribute('open', '')
-  }
-  await page.setViewportSize({ width: 1280, height: 720 })
-  // Reserve the scrollbar gutter that Windows Chrome allocates in this list.
-  await page.locator('.wh-list').evaluate(element => { element.style.scrollbarGutter = 'stable' })
-  await expect(page.locator('.wh-queue-heading > span')).toHaveText('1659 opportunities')
-  await expect(page.locator('.wh-sort select')).toHaveValue('priority')
-  const assertQueueToolbarFits = async () => {
-    const geometry = await page.evaluate(() => {
-      const list = document.querySelector<HTMLElement>('.wh-list')!
-      const tools = document.querySelector<HTMLElement>('.wh-tools > summary')!
-      const rect = tools.getBoundingClientRect()
-      const listRect = list.getBoundingClientRect()
-      return {
-        scrollWidth: list.scrollWidth,
-        clientWidth: list.clientWidth,
-        toolsRight: rect.right,
-        visibleRight: listRect.left + list.clientLeft + list.clientWidth,
-      }
-    })
-    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
-    expect(geometry.toolsRight).toBeLessThanOrEqual(geometry.visibleRight)
-  }
-  await assertQueueToolbarFits()
-  await page.locator('.wh-tools > summary').click()
-  await expect(page.locator('.wh-tool-content')).toBeVisible()
-  await page.locator('.wh-filter-disclosure > summary').click()
-  await expect(page.getByLabel('Tier')).toBeVisible()
-  await assertQueueToolbarFits()
-  await page.locator('.wh-tools > summary').click()
-  for (const width of [1321, 1330, 1399, 1440]) {
-    await page.setViewportSize({ width, height: 720 })
-    await assertQueueToolbarFits()
-  }
-  await page.locator('[data-need-row="need-a"]').click()
-  await expect(page.getByRole('heading', { name: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company' })).toBeVisible()
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  const account = page.locator('.wh-account')
+  const accountSummary = account.locator('summary')
+  const signOut = page.getByRole('button', { name: 'Sign out' })
+  await accountSummary.focus()
+  await page.keyboard.press('Enter')
+  await expect(account).toHaveAttribute('open', '')
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Research progress' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Signals' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Technical diagnostics' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(signOut).toBeFocused()
+  await accountSummary.press('Enter')
+  await expect(account).not.toHaveAttribute('open', '')
+  await expect(page.locator('.customer-group')).toContainText('A current permit supports review of the construction package.')
+  await expect(page.getByRole('link', { name: 'Call Alexandra Longname-Sample' })).toHaveAttribute('href', 'tel:+15125550100')
+  await expect(page.getByRole('button', { name: /Choose opportunity/ })).toBeVisible()
+  await page.getByRole('button', { name: /Choose opportunity/ }).click()
+  await expect(page.getByRole('region', { name: `Company ${group.name}` })).toBeVisible()
+  await page.goBack()
+  await expect(page.locator('.customer-group')).toBeVisible()
+  await page.goForward()
+  await expect(page.getByRole('region', { name: `Company ${group.name}` })).toBeVisible()
   await page.setViewportSize({ width: 1280, height: 800 })
-  const assertContainedMetrics = async (selector: string) => {
-    const layout = await page.locator(selector).evaluate(container => {
-      const containerRect = container.getBoundingClientRect()
-      const cards = [...container.children] as HTMLElement[]
-      return {
-        containerFits: container.scrollWidth <= container.clientWidth,
-        cardCount: cards.length,
-        cards: cards.map(card => {
-          const rect = card.getBoundingClientRect()
-          const content = [...card.querySelectorAll<HTMLElement>('strong,span,small')].map(item => ({
-            fits: item.scrollWidth <= item.clientWidth,
-            left: item.getBoundingClientRect().left,
-            right: item.getBoundingClientRect().right,
-          }))
-          return { fits: card.scrollWidth <= card.clientWidth, left: rect.left, right: rect.right, content }
-        }),
-        bounds: { left: containerRect.left, right: containerRect.right },
-      }
-    })
-    expect(layout.containerFits).toBe(true)
-    for (const card of layout.cards) {
-      expect(card.fits).toBe(true)
-      expect(card.left).toBeGreaterThanOrEqual(layout.bounds.left)
-      expect(card.right).toBeLessThanOrEqual(layout.bounds.right)
-      for (const item of card.content) {
-        expect(item.fits).toBe(true)
-        expect(item.left).toBeGreaterThanOrEqual(card.left)
-        expect(item.right).toBeLessThanOrEqual(card.right)
-      }
-    }
-    return layout.cardCount
-  }
-  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(2)
-  await expect(page.locator('.wh-customer-metrics')).toContainText('3.25–6.75 MW of potential residual bridge power during phase one construction')
-  await expect(page.locator('.wh-customer-metrics')).toContainText('Q3 2027 after substation feeder acceptance')
-  await expect(page.locator('.wh-customer-metrics')).not.toContainText('Confidence')
-  await page.getByRole('button', { name: 'Power Analysis', exact: true }).click()
-  const powerAnalysis = page.locator('.wh-metrics')
-  await expect(powerAnalysis.locator('.wh-metric')).toHaveCount(5)
-  await expect(powerAnalysis).toContainText('184.75 MW across the complete facility buildout')
-  await expect(powerAnalysis).toContainText('North Austin substation energization targeted for Q3 2027 after substation feeder acceptance')
-  expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
-  await page.screenshot({ path: testInfo.outputPath('selected-detail-1280x800.png'), fullPage: false })
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await assertContainedMetrics('.wh-customer-metrics')).toBe(2)
-  expect(await assertContainedMetrics('.wh-metrics')).toBe(5)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: testInfo.outputPath('selected-detail-390x844.png'), fullPage: false })
-  await page.getByRole('button', { name: 'Overview', exact: true }).click()
-  const dashboard = page.getByRole('region', { name: 'Commercial research summary' })
-  await expect(dashboard.getByText('A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company').first()).toBeVisible()
-  await expect(dashboard.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
-  await expect(dashboard.locator('a[href^="mailto:"]')).toHaveCount(0)
-  await page.locator('.wh-more-tabs > summary').click()
-  await page.getByRole('button', { name: 'Research Gaps' }).click()
-  await expect(page.getByText(/Buying authority: not evaluated in this summary/)).toBeVisible()
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page.locator('.wh-evidence-heading')).toContainText('Retained records: 1 · Research references: 1.')
-  await expect(page.locator('.wh-evidence-heading')).toContainText('References may point to records listed here.')
-  const sourceFilter = page.getByRole('combobox', { name: 'Filter evidence sources' })
-  await expect(sourceFilter.locator('option')).toHaveText(['All sources', 'City permits', 'evidence:approved-fixture'])
-  await sourceFilter.selectOption('evidence:approved-fixture')
-  await expect(page.locator('.wh-evidence-table tbody tr')).toHaveCount(0)
-  await expect(page.locator('.wh-card-sources article')).toHaveCount(1)
-  await sourceFilter.selectOption('City permits')
-  await expect(page.locator('.wh-evidence-table tbody tr')).toHaveCount(1)
-  await expect(page.locator('.wh-card-sources article')).toHaveCount(0)
-  await sourceFilter.selectOption('All sources')
-  await expect(page.getByRole('link', { name: 'Retained site development notice' }).first()).toBeVisible()
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await page.locator('[data-need-row="need-b"]').click()
-  await expect(page.getByRole('heading', { name: 'Example Customer' })).toBeVisible()
-  await page.setViewportSize({ width: 1648, height: 928 })
-  await page.locator('.wh-detail').evaluate(el => { el.scrollTop = 0 })
-  const geometry = await page.evaluate(() => ({ header: document.querySelector('.canonical-header')!.getBoundingClientRect(), rail: document.querySelector('.wh-list')!.getBoundingClientRect(), metrics: document.querySelector('.wh-customer-metrics')!.getBoundingClientRect(), columns: document.querySelector('.ic-dashboard')!.getBoundingClientRect(), tabs: document.querySelector('.wh-tabs')!.getBoundingClientRect(), table: document.querySelector('.wh-tabs')!.getBoundingClientRect() }))
-  expect(geometry.header.height).toBeCloseTo(54, 0)
-  // October 23 supersedes the old fixed 25% queue / three-column detail.
-  expect(geometry.rail.width).toBeGreaterThan(1648 * .5)
-  expect(geometry.rail.width).toBeLessThan(1648 * .71)
-  expect(geometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
-  expect(geometry.columns.top).toBeGreaterThan(geometry.metrics.top)
-  expect(await page.locator('.canonical-header').evaluate(el => getComputedStyle(el).backgroundImage)).toContain('linear-gradient')
-  await page.evaluate(() => document.fonts.ready)
-  expect(await page.evaluate(() => document.fonts.check('14px Inter') && document.fonts.check('22px Sora'))).toBe(true)
-  for (const [width, height] of [[1648,928],[1440,900],[1280,800],[768,1024],[390,844]]) {
-    await page.setViewportSize({ width, height })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    await page.screenshot({ path: testInfo.outputPath(`workspace-${width}x${height}.png`), fullPage: false })
-  }
-  await page.setViewportSize({ width: 1648, height: 928 })
-  // Wider action labels model platform font metrics without changing production typography.
-  const wideActionLabels = await page.addStyleTag({ content: '.wh-record-actions button { letter-spacing: 3px; }' })
-  const actionGeometry = await page.evaluate(() => {
-    const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
-    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), research: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-customer-metrics').toJSON() }
-  })
-  expect(actionGeometry.actions.width).toBeGreaterThan(180)
-  expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.research.top, 0)
-  expect(actionGeometry.share.right).toBeLessThanOrEqual(actionGeometry.research.left)
-  expect(actionGeometry.research.right).toBeLessThanOrEqual(1648)
-  expect(actionGeometry.metrics.top).toBeGreaterThan(geometry.header.bottom)
-  expect(actionGeometry.metrics.bottom).toBeLessThanOrEqual(geometry.columns.top)
-  await wideActionLabels.evaluate(element => (element as HTMLElement).remove())
-  await page.locator('[data-need-row="need-a"]').click()
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await page.getByText('Source record', { exact: true }).click()
-  await expect(page.getByText('P-1 · Event date', { exact: false })).toBeVisible()
+  await expect(page.locator('.cmp-company')).toContainText('A current permit supports review of the construction package.')
+  await page.getByRole('button', { name: /Open project detail .*North Austin Advanced Manufacturing/ }).click()
   await expect(page).toHaveURL(/need=need-a/)
-  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.locator('.cod-panel')).toContainText('Activity-specific power need')
+  await expect(page.locator('.cod-panel')).toContainText('12.75–19.5 MW for the phased temporary construction power package')
+  await expect(page.locator('.cod-panel')).toContainText('The 12.75–19.5 MW temporary construction package is activity-specific; 184.75 MW is the complete facility buildout.')
+  await expect(page.locator('.cod-panel')).toContainText('Alexandra Longname-Sample')
+  await expect(page.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
+  const sources = page.locator('.cod-account-sources')
+  await expect(sources).not.toHaveAttribute('open', '')
+  await sources.locator('summary').click()
+  await expect(sources.getByRole('link', { name: 'Retained site development notice' })).toHaveAttribute('href', source.url)
+  await expect(sources).toContainText('North Austin site')
+  await expect(sources).toContainText('184.75 MW of full facility buildout demand')
+  await page.getByRole('button', { name: '← Back to account' }).click()
+  await expect(page.getByRole('region', { name: `Company ${group.name}` })).toBeVisible()
+  await page.getByRole('button', { name: /Open project detail .*Second supported power need/ }).click()
   await expect(page).toHaveURL(/need=need-b/)
   await page.goBack()
-  await expect(page).toHaveURL(/need=need-a/)
-  await expect(page.getByRole('heading', { name: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company' })).toBeVisible()
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.getByRole('region', { name: `Company ${group.name}` })).toBeVisible()
+  await page.goForward()
+  await expect(page).toHaveURL(/need=need-b/)
+  await expect(page.getByRole('heading', { name: 'Second supported power need' })).toBeVisible()
   expect(providerPosts).toBe(0)
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.getByRole('heading', { name: 'A very long customer organization name for a multi-phase advanced manufacturing and industrial infrastructure development company' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: testInfo.outputPath('selected-detail-390x844.png'), fullPage: false })
+  for (const [width, height] of [[1648, 928], [1440, 900], [1280, 800], [768, 1024], [390, 844]]) {
+    await page.setViewportSize({ width, height })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: testInfo.outputPath(`account-detail-${width}x${height}.png`), fullPage: false })
+  }
+  expect(providerPosts).toBe(0)
 })

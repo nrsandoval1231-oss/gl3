@@ -4,33 +4,59 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from sqlalchemy import MetaData, create_engine, inspect, select, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "backend"
 sys.path.insert(0, str(BACKEND / "tests" / "integration"))
 sys.path.insert(0, str(BACKEND / "src"))
+sys.path.insert(0, str(REPO / "web" / "acceptance" / "rollup-scale"))
 
 from rollup_scale_fixture import seed_scale_corpus  # noqa: E402
+from account_fixture import seed_resolved_operator_accounts  # noqa: E402
 from gridlens.settings import get_settings  # noqa: E402
 
 
 def checked_database_url(value: str) -> str:
-    parsed = urlsplit(value)
-    host = (parsed.hostname or "").lower()
+    parsed = make_url(value)
+    routing_overrides = {
+        "host", "hostaddr", "port", "dbname", "database", "user", "username",
+        "password", "service", "servicefile", "options", "target_session_attrs",
+    }
+    if routing_overrides.intersection(parsed.query):
+        raise SystemExit("Refusing database URL with connection-routing query overrides.")
+    if any(os.environ.get(key) for key in (
+        "PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGUSER", "PGOPTIONS",
+        "PGSERVICE", "PGSERVICEFILE",
+    )):
+        raise SystemExit("Refusing inherited libpq connection-routing environment overrides.")
+    if urlsplit(value).fragment:
+        raise SystemExit("Refusing database URL fragments.")
+    host = (parsed.host or "").lower()
     if host not in {"127.0.0.1", "localhost", "::1"}:
         raise SystemExit("Refusing to seed a non-loopback database host.")
-    database = parsed.path.lstrip("/").lower()
+    if not isinstance(parsed.port, int) or not 1 <= parsed.port <= 65535:
+        raise SystemExit("Refusing database URL without an explicit valid port.")
+    database = (parsed.database or "").lower()
     if "_rollup_scale_" not in database or not database.endswith("_test"):
         raise SystemExit("Refusing to seed a database unless its name contains _rollup_scale_ and ends in _test.")
-    if parsed.scheme not in {"postgres", "postgresql", "postgresql+psycopg"}:
+    if parsed.drivername not in {"postgres", "postgresql", "postgresql+psycopg"}:
         raise SystemExit("The real-backend browser lane requires loopback PostgreSQL.")
+    from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+    args, effective = dialect().create_connect_args(parsed)
+    if args or (effective.get("host") or "").lower() not in {"127.0.0.1", "localhost", "::1"}:
+        raise SystemExit("Refusing effective connection parameters outside loopback.")
+    if effective.get("port") != parsed.port or effective.get("dbname") != parsed.database:
+        raise SystemExit("Refusing effective connection parameters that differ from the pinned URL.")
     return value
 
 
@@ -59,8 +85,8 @@ def main() -> None:
         metadata.reflect(bind=engine)
         with engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-            if revision != "0050_commercial_pursuits":
-                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0050_commercial_pursuits.")
+            if revision != "0051_canonical_need_aliases":
+                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0051_canonical_need_aliases.")
             for table in metadata.sorted_tables:
                 if table.name == "alembic_version":
                     continue
@@ -69,9 +95,8 @@ def main() -> None:
                     if len(rows) != 1:
                         raise SystemExit("Refusing to seed unless browse_state contains only the migration-owned singleton.")
                     row = rows[0]
-                    # At schema 0050 (which only adds the empty commercial_pursuits,
-                    # pursuit_tasks and pursuit_activity tables and does not touch
-                    # browse_state) the pristine migration chain owns the
+                    # Schema 0051 adds only canonical need aliases after the
+                    # pursuit tables and does not touch browse_state; the pristine migration chain owns the
                     # empty singleton: 0021 creates it; 0030, 0031, and 0034
                     # each force one full publication revision; 0032 bumps the
                     # title-policy input revision. No data table may be seeded
@@ -90,6 +115,7 @@ def main() -> None:
                     raise SystemExit(f"Refusing to seed nonempty table {table.name!r}.")
         factory = sessionmaker(bind=engine, expire_on_commit=False)
         manifest = seed_scale_corpus(factory, total_rows=args.rows)
+        seed_resolved_operator_accounts(engine, manifest)
     finally:
         engine.dispose()
 

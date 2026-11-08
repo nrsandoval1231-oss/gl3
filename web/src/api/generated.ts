@@ -363,7 +363,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Project Opportunities */
+        /**
+         * Project Opportunities
+         * @description Serve one bounded opportunity page, optionally filtered to the evidence shortlist.
+         */
         get: operations["project_opportunities_api_opportunities_projects_get"];
         put?: never;
         post?: never;
@@ -382,6 +385,46 @@ export interface paths {
         };
         /** Opportunity Demand Summary */
         get: operations["opportunity_demand_summary_api_opportunities_demand_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Project Account
+         * @description Verify account context on a compatible project/need deep link.
+         */
+        get: operations["resolve_project_account_api_projects__project_id__account_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{company_id}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve Company Account
+         * @description Translate a bookmarked company identity to its current shared account route.
+         */
+        get: operations["resolve_company_account_api_companies__company_id__account_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4565,11 +4608,17 @@ export interface components {
              * Format: uuid
              */
             need_id: string;
+            /** Need Alias Ids */
+            need_alias_ids?: string[];
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
+            /** Account Id */
+            account_id?: string | null;
+            /** Account Name */
+            account_name?: string | null;
             /**
              * Stage
              * @enum {string}
@@ -5370,6 +5419,68 @@ export interface operations {
             };
         };
     };
+    resolve_project_account_api_projects__project_id__account_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_company_account_api_companies__company_id__account_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     customer_opportunity_groups_api_opportunities_groups_get: {
         parameters: {
             query?: {
@@ -5382,6 +5493,7 @@ export interface operations {
                 region?: string | null;
                 stage?: string | null;
                 priority?: ("ranked" | "unranked") | null;
+                shortlist?: boolean;
             };
             header?: never;
             path?: never;
@@ -5422,6 +5534,7 @@ export interface operations {
                 region?: string | null;
                 stage?: string | null;
                 priority?: ("ranked" | "unranked") | null;
+                shortlist?: boolean;
             };
             header?: never;
             path: {
@@ -5461,6 +5574,7 @@ export interface operations {
                 region?: string | null;
                 stage?: string | null;
                 priority?: ("ranked" | "unranked") | null;
+                shortlist?: boolean;
             };
             header?: never;
             path: {

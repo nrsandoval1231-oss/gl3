@@ -1,5 +1,16 @@
 # GridLens — Product Requirements Document
 
+## Current owner amendment — account-first Slice 1, November 7, 2026
+
+One canonical customer/operator account. Distinct physical projects and power needs underneath. Curated commercial relevance upfront. Contacts and a justified action within easy reach. Evidence on demand; research/process machinery behind the scenes. This owner decision supersedes flat-project defaults, mandatory KPI tiles and historical evidence-heavy layouts. Preserve the existing logo, navy header, palette, typography and exact primary navigation: Opportunities | Companies | Pursuits | Reports. Keep All | Oil & Gas | Data Centers with their actual sector semantics.
+
+Opportunities presents compact source-backed account cards. Companies uses the same canonical identities and detail across its broader directory. Account detail places contacts near the top, orders distinct projects by relevance and retains project/account context across mobile Back, browser history and reload. Sources is collapsed by default; material uncertainty remains visible at the claim. Search, combined project filters, sorting, counts and grouping apply server-side before account pagination; combined project predicates must match the same child. Account and child pages are independent. Routine document volume, a shared name or contractor role cannot establish identity or relevance. Provisional buckets stay provisional; separate subsidiaries/sites/packages remain distinct.
+
+Need-scoped Pursuits retain IDs, stages, tasks and confirmed activity, presented under canonical accounts. Multiple eligible opportunities require a compact explicit picker. Call/Email opens only a permitted contact route and records no activity. Owner-approved manual Pursuits actions are a scoped exception to older read-only prescriptions. Unknown MW is neither zero nor an automatic exclusion; facility scale is not rental demand. Preserve privacy, suppression, provenance and contradictions in projections and explicitly scoped safe exports. No scores, repeated unavailable fields, permit dumps or processing diagnostics in ordinary account cards.
+
+[Slice 1 implementation and exact acceptance](../engineering/account-first-slice-20261107.md) records current repository status. Historical presentation instructions below apply only where compatible with this amendment. Dated deployment receipts do not establish current runtime state.
+
+
 **Version:** Demand-centered scope · 2026-10-30
 **Status:** Active requirements subordinate to the sole [Autonomous Power Demand Intelligence Canon](AUTONOMOUS_INTELLIGENCE_CANON.md).
 **Product owner:** Nick Sandoval

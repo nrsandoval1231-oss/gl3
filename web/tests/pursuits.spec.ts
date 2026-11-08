@@ -329,7 +329,7 @@ test('deep link, back and forward restore selection and filter without a reload'
 
 test('header Pursuits button and account-menu Research route to separate views', async ({ page }) => {
   await setup(page, [pursuit('p1', 'need-a')])
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits/ }).click()
   await expect(page).toHaveURL(/view=pursuits/)
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toBeVisible()
@@ -401,7 +401,7 @@ test('no URL filter means All even after visiting another filter', async ({ page
   await setup(page, [pursuit('p1', 'need-a'), pursuit('p2', 'need-b', { stage: 'Won' })])
   await page.goto('/?view=pursuits&filter=active')
   await expect(page.locator('.pu-card')).toHaveCount(1)
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits/ }).click()
   await expect(page.getByRole('button', { name: 'All Pursuits' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.pu-card')).toHaveCount(2)
@@ -561,4 +561,12 @@ test('a delayed 401 from the previous session cannot expire the session after re
   await expect(page.getByRole('button', { name: 'View Details' })).toBeVisible()
   expect((await events()).auth).toBe(endedAfterLogin)
   await expect(page).toHaveURL(/need=need-1/)
+})
+
+
+test('supported canonical opportunity alias shows its saved pursuit without a new create', async ({ page }) => {
+  const { log } = await setup(page, [pursuit('alias-saved', 'canonical-need', { need_alias_ids: ['need-1'] })])
+  await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', /pursuit=alias-saved/)
+  expect(log.filter(entry => entry.method === 'POST')).toHaveLength(0)
 })

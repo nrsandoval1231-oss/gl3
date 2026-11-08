@@ -23,6 +23,7 @@ from gridlens.persistence.models import (
     BuyingChainIdentityLink,
     CompanyIdentity,
     CompanyProjectMembership,
+    CompanyProjectMembershipCorrection,
     Evidence,
     Interpretation,
     NeedObservation,
@@ -693,6 +694,7 @@ def _current_customer_claims(
     *,
     project_ids: set[UUID] | None = None,
     include_conflicts: bool = False,
+    sectors_by_project: dict[UUID, str] | None = None,
 ):
     links_query = select(BuyingChainIdentityLink).where(
         BuyingChainIdentityLink.state == "current",
@@ -782,14 +784,82 @@ def _current_customer_claims(
                 _membership_claim(membership, observed_at),
             )
         )
-    identities_by_project: dict[UUID, set[UUID]] = defaultdict(set)
-    for identity_id, project_id, _claim in linked_claims:
-        if identity_id is not None and project_id is not None:
-            identities_by_project[project_id].add(identity_id)
-    conflicted = {pid for pid, ids in identities_by_project.items() if len(ids) > 1}
     if include_conflicts:
         return linked_claims
-    return [row for row in linked_claims if row[1] not in conflicted]
+    project_scope = {project_id for _identity_id, project_id, _claim in linked_claims}
+    if project_ids is not None:
+        project_scope.update(project_ids)
+    if sectors_by_project is None:
+        from gridlens.intelligence.customer_primary import project_sectors
+
+        sectors_by_project = project_sectors(session, project_scope)
+    selections = _primary_role_selections(session, linked_claims, sectors_by_project)
+    return [
+        row
+        for row in linked_claims
+        if (selection := selections.get(row[1])) is not None
+        and selection.status == "selected"
+        and row[0] == selection.company_identity_id
+        and row[2].category == selection.role
+        and row[2].organization == selection.organization_name
+    ]
+
+
+def _retracted_primary_projects(
+    session: Session, project_ids: set[UUID] | None = None
+) -> set[UUID]:
+    query = (
+        select(CompanyProjectMembership.project_id)
+        .join(
+            CompanyProjectMembershipCorrection,
+            CompanyProjectMembershipCorrection.membership_id == CompanyProjectMembership.id,
+        )
+        .where(
+            CompanyProjectMembership.state == "retracted",
+            CompanyProjectMembership.role == "asset_operator",
+            CompanyProjectMembershipCorrection.action == "retracted",
+        )
+    )
+    if project_ids is not None:
+        query = query.where(CompanyProjectMembership.project_id.in_(project_ids))
+    return set(session.scalars(query).all())
+
+
+def _primary_role_selections(session, rows, sectors_by_project):
+    from gridlens.intelligence.customer_primary import select_primary_roles
+
+    project_ids = {project_id for _identity, project_id, _claim in rows} | set(sectors_by_project)
+    conflicted_projects = {
+        project_id
+        for project_id, _identity, _name in _current_conflicted_memberships(session, project_ids)
+    }
+    retracted_projects = _retracted_primary_projects(session, project_ids)
+    retracted_owner_projects = _retracted_owner_projects(session, project_ids)
+    return select_primary_roles(
+        rows,
+        sectors_by_project,
+        blocked_project_ids=conflicted_projects | retracted_projects,
+        blocked_owner_project_ids=retracted_owner_projects,
+    )
+
+
+def _retracted_owner_projects(session: Session, project_ids: set[UUID]) -> set[UUID]:
+    """Find source-current explicit owner retractions without scanning per project."""
+    if not project_ids:
+        return set()
+    from gridlens.intelligence.buying_chain import buying_chain_views
+
+    result = set()
+    for project_id, view in buying_chain_views(session, project_ids, history=True).items():
+        if any(
+            candidate.get("category") in {"owner_developer", "owner_construction", "owner_energy"}
+            and candidate.get("retracted") is True
+            and not candidate.get("stale")
+            and not candidate.get("correction_stale")
+            for candidate in view.get("candidates", [])
+        ):
+            result.add(UUID(str(project_id)))
+    return result
 
 
 def _membership_claim(membership: CompanyProjectMembership, observed_at: datetime) -> Any:
@@ -839,11 +909,23 @@ def associated_accounts_for_projects(
     if not project_ids:
         return {}
     claims = _current_customer_claims(session, project_ids=project_ids, include_conflicts=True)
-    conflicts = _current_conflicted_memberships(session, project_ids)
+    from gridlens.intelligence.customer_primary import project_sectors
+
+    selections = _primary_role_selections(session, claims, project_sectors(session, project_ids))
     by_project: dict[UUID, list[tuple[UUID, Any]]] = defaultdict(list)
     for identity_id, project_id, claim in claims:
-        by_project[project_id].append((identity_id, claim))
-    conflicted_projects = {project_id for project_id, _identity, _name in conflicts}
+        selection = selections.get(project_id)
+        if (
+            selection is not None
+            and selection.status == "selected"
+            and identity_id == selection.company_identity_id
+            and claim.category == selection.role
+            and claim.organization == selection.organization_name
+        ):
+            by_project[project_id].append((identity_id, claim))
+    conflicted_projects = {
+        project_id for project_id, selection in selections.items() if selection.status != "selected"
+    }
     links = {
         link.claim_id: link
         for link in session.scalars(
@@ -875,12 +957,6 @@ def associated_accounts_for_projects(
                     }
                 )
     result: dict[UUID, dict[str, Any] | None] = {}
-    role_priority = {
-        "owner_developer": 0,
-        "owner_energy": 1,
-        "owner_construction": 2,
-        "asset_operator": 3,
-    }
     for project_id in project_ids:
         rows = by_project.get(project_id, [])
         identity_ids = {identity_id for identity_id, _claim in rows}
@@ -891,8 +967,8 @@ def associated_accounts_for_projects(
         candidates = sorted(
             ((claim.category, claim) for _identity, claim in rows),
             key=lambda pair: (
-                role_priority.get(pair[0], 99),
                 pair[0],
+                (pair[1].organization or "").casefold(),
                 str(getattr(pair[1], "id", "")),
             ),
         )

@@ -186,7 +186,7 @@ test('project search surfaces matching project cards and opens a matching need',
   const longCompany = `Ridgeview${'Energy'.repeat(16)}`
   const longEmail = `morgan.${'project-buyer'.repeat(8)}@${'ridgeview-power-'.repeat(7)}example.com`
   const projectResults = {
-    items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: longCompany, location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [{ kind: 'email', label: 'Email Morgan Lee', href: `mailto:${longEmail}`, name: 'Morgan Lee', title: 'Director, Construction', company: longCompany }], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: '2026-10-25T00:00:00Z' }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery'
+    items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: longCompany, location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [{ kind: 'email', label: 'Email Morgan Lee', href: `mailto:${longEmail}`, name: 'Morgan Lee', title: 'Director, Construction', company: longCompany }], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: '2026-10-25T00:00:00Z' }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery', valid_until: '2099-01-01T00:00:00Z'
   }
   const searchNeed = { ...need, intelligence_card: { ...need.intelligence_card, contacts: need.intelligence_card.contacts.map(contact => ({ ...contact, company: longCompany, methods: contact.methods.map(method => ({ ...method, value: longEmail, href: `mailto:${longEmail}` })) })) } }
   await page.route('**/api/opportunities/needs/need-demo**', route => route.fulfill({ json: searchNeed }))
@@ -207,7 +207,7 @@ test('project search surfaces matching project cards and opens a matching need',
 
 test('project search drops prior results after a failed query', async ({ page }) => {
   await install(page)
-  const projectResults = { items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: 'Ridgeview Energy', location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery' }
+  const projectResults = { items: [{ id: 'project-demo', project_id: 'project-demo', representative_need_id: 'need-demo', name: 'Ridgeview commissioning', company: 'Ridgeview Energy', location: 'Austin, TX', sector: 'oil_gas', asset_type: 'processing_plant', priority_score: 1, needs: [need], need_count: 1, event: null, contact: [], power_summary: 'Power need to confirm', next_action: 'Confirm project timing', updated_at: null }], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', results_scope: 'discovery', valid_until: '2099-01-01T00:00:00Z' }
   const projectQueries: string[] = []
   await page.route('**/api/opportunities/projects?**', route => {
     const query = new URL(route.request().url()).searchParams.get('search') ?? ''
@@ -231,8 +231,8 @@ test('project search drops prior results after a failed query', async ({ page })
 
 test('All search explains when no source-backed operator/customer groups match', async ({ page }) => {
   await install(page)
-  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic' } }))
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await page.getByLabel('Search opportunities').fill('Ridgeview')
-  await expect(page.getByText(/No groups match this search/)).toBeVisible()
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } }))
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await page.getByLabel('Search accounts and projects').fill('Ridgeview')
+  await expect(page.getByText(/No accounts match this search/)).toBeVisible()
 })

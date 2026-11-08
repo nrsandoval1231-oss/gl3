@@ -1,0 +1,510 @@
+{
+  "synthetic_fixture": true,
+  "source_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/4f1cb044f187f6f030338dc2",
+  "pursuits_lane_database": "ui_pursuits_real_slice1o_test",
+  "rollup_lane_database": "gl3_account_first_rollup_scale_v7_test",
+  "pursuits_real_journey": {
+    "status": "passed",
+    "passed": 1,
+    "failed": 0,
+    "duration_ms": 45900,
+    "persisted_journey_ms": 9828,
+    "read_only_warm_iterations": 10,
+    "api_request_count": 150,
+    "api_status_failures": [],
+    "end_state": {
+      "pursuits": 1,
+      "tasks": 1,
+      "activity_rows": 1,
+      "activity_kinds": [
+        "created"
+      ],
+      "call_notes": 0,
+      "outreach_activity_rows": 0
+    },
+    "contact_inspection_non_auth_writes": 0,
+    "external_request_count": 0
+  },
+  "real_account_contact": {
+    "account": "DE CENTRAL Synthetic Operator",
+    "project_id": "aa188a80-9d56-4342-a574-9341d65a381c",
+    "project_name": "DE CENTRAL Asset 00",
+    "methods": [
+      "mailto:buyer@example.invalid",
+      "tel:+15555550101"
+    ],
+    "api_project_scope_asserted": true,
+    "ui_project_attribution_asserted": true,
+    "no_contact_or_outreach_write": true
+  },
+  "rollup_real_journey": {
+    "passed": 3,
+    "failed": 0,
+    "viewports": [
+      "1440x900",
+      "768x1024",
+      "390x844"
+    ],
+    "rows": 2098,
+    "groups": 417,
+    "de_central_projects": 48,
+    "diamondback_projects": 159,
+    "amazon_company_identities": 3,
+    "timings_run_under_backend_gate": true
+  },
+  "screenshot_validation": {
+    "count": 25,
+    "horizontal_overflow": false,
+    "captures": [
+      {
+        "state": "account-detail",
+        "viewport": "1648x928",
+        "width": 1648,
+        "height": 928,
+        "screenshot": "account-detail-1648x928.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "account-detail",
+        "viewport": "1440x900",
+        "width": 1440,
+        "height": 900,
+        "screenshot": "account-detail-1440x900.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "account-detail",
+        "viewport": "1280x800",
+        "width": 1280,
+        "height": 800,
+        "screenshot": "account-detail-1280x800.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "account-detail",
+        "viewport": "768x1024",
+        "width": 768,
+        "height": 1024,
+        "screenshot": "account-detail-768x1024.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "account-detail",
+        "viewport": "390x844",
+        "width": 390,
+        "height": 844,
+        "screenshot": "account-detail-390x844.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "project-detail",
+        "viewport": "1648x928",
+        "width": 1648,
+        "height": 928,
+        "screenshot": "project-detail-1648x928.png",
+        "scroll_policy": "selected project focused"
+      },
+      {
+        "state": "project-detail",
+        "viewport": "1440x900",
+        "width": 1440,
+        "height": 900,
+        "screenshot": "project-detail-1440x900.png",
+        "scroll_policy": "selected project focused"
+      },
+      {
+        "state": "project-detail",
+        "viewport": "1280x800",
+        "width": 1280,
+        "height": 800,
+        "screenshot": "project-detail-1280x800.png",
+        "scroll_policy": "selected project focused"
+      },
+      {
+        "state": "project-detail",
+        "viewport": "768x1024",
+        "width": 768,
+        "height": 1024,
+        "screenshot": "project-detail-768x1024.png",
+        "scroll_policy": "selected project focused"
+      },
+      {
+        "state": "project-detail",
+        "viewport": "390x844",
+        "width": 390,
+        "height": 844,
+        "screenshot": "project-detail-390x844.png",
+        "scroll_policy": "selected project focused"
+      },
+      {
+        "state": "companies-account-detail",
+        "viewport": "1648x928",
+        "width": 1648,
+        "height": 928,
+        "screenshot": "companies-account-detail-1648x928.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "companies-account-detail",
+        "viewport": "1440x900",
+        "width": 1440,
+        "height": 900,
+        "screenshot": "companies-account-detail-1440x900.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "companies-account-detail",
+        "viewport": "1280x800",
+        "width": 1280,
+        "height": 800,
+        "screenshot": "companies-account-detail-1280x800.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "companies-account-detail",
+        "viewport": "768x1024",
+        "width": 768,
+        "height": 1024,
+        "screenshot": "companies-account-detail-768x1024.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "companies-account-detail",
+        "viewport": "390x844",
+        "width": 390,
+        "height": 844,
+        "screenshot": "companies-account-detail-390x844.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "grouped-pursuits",
+        "viewport": "1648x928",
+        "width": 1648,
+        "height": 928,
+        "screenshot": "grouped-pursuits-1648x928.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "grouped-pursuits",
+        "viewport": "1440x900",
+        "width": 1440,
+        "height": 900,
+        "screenshot": "grouped-pursuits-1440x900.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "grouped-pursuits",
+        "viewport": "1280x800",
+        "width": 1280,
+        "height": 800,
+        "screenshot": "grouped-pursuits-1280x800.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "grouped-pursuits",
+        "viewport": "768x1024",
+        "width": 768,
+        "height": 1024,
+        "screenshot": "grouped-pursuits-768x1024.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "state": "grouped-pursuits",
+        "viewport": "390x844",
+        "width": 390,
+        "height": 844,
+        "screenshot": "grouped-pursuits-390x844.png",
+        "scroll_policy": "top of page"
+      },
+      {
+        "scope_shortlist_pressed": true,
+        "pursued_status_contact_overlap": false,
+        "viewport": "1648x928",
+        "screenshot": "default-shortlist-1648x928.png",
+        "open_contact_details": 0,
+        "state": "default-shortlist",
+        "choose_button_height_px": 29,
+        "scroll_policy": "top of page",
+        "horizontal_overflow": false,
+        "call_email_gap_px": 8,
+        "pursued_status_within_viewport": true,
+        "width": 1648,
+        "pursued_status_text": "1 of 48 opportunities in Pursuits",
+        "height": 928
+      },
+      {
+        "scope_shortlist_pressed": true,
+        "pursued_status_contact_overlap": false,
+        "viewport": "1440x900",
+        "screenshot": "default-shortlist-1440x900.png",
+        "open_contact_details": 0,
+        "state": "default-shortlist",
+        "choose_button_height_px": 29,
+        "scroll_policy": "top of page",
+        "horizontal_overflow": false,
+        "call_email_gap_px": 8,
+        "pursued_status_within_viewport": true,
+        "width": 1440,
+        "pursued_status_text": "1 of 48 opportunities in Pursuits",
+        "height": 900
+      },
+      {
+        "scope_shortlist_pressed": true,
+        "pursued_status_contact_overlap": false,
+        "viewport": "1280x800",
+        "screenshot": "default-shortlist-1280x800.png",
+        "open_contact_details": 0,
+        "state": "default-shortlist",
+        "choose_button_height_px": 29,
+        "scroll_policy": "top of page",
+        "horizontal_overflow": false,
+        "call_email_gap_px": 8,
+        "pursued_status_within_viewport": true,
+        "width": 1280,
+        "pursued_status_text": "1 of 48 opportunities in Pursuits",
+        "height": 800
+      },
+      {
+        "scope_shortlist_pressed": true,
+        "pursued_status_contact_overlap": false,
+        "viewport": "768x1024",
+        "screenshot": "default-shortlist-768x1024.png",
+        "open_contact_details": 0,
+        "state": "default-shortlist",
+        "choose_button_height_px": 29,
+        "scroll_policy": "top of page",
+        "horizontal_overflow": false,
+        "call_email_gap_px": 8,
+        "pursued_status_within_viewport": true,
+        "width": 768,
+        "pursued_status_text": "1 of 48 opportunities in Pursuits",
+        "height": 1024
+      },
+      {
+        "scope_shortlist_pressed": true,
+        "pursued_status_contact_overlap": false,
+        "viewport": "390x844",
+        "screenshot": "default-shortlist-390x844.png",
+        "open_contact_details": 0,
+        "state": "default-shortlist",
+        "choose_button_height_px": 44,
+        "scroll_policy": "top of page",
+        "horizontal_overflow": false,
+        "call_email_gap_px": 8,
+        "pursued_status_within_viewport": true,
+        "width": 390,
+        "pursued_status_text": "1 of 48 opportunities in Pursuits",
+        "height": 844
+      }
+    ],
+    "account_detail_read_only_recapture": [
+      {
+        "viewport": "1648x928",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "1440x900",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "1280x800",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "768x1024",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "390x844",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": {
+          "back": 44,
+          "first_project_action": 44,
+          "email": 44,
+          "phone": 44
+        }
+      }
+    ],
+    "companies_account_detail_read_only_recapture": [
+      {
+        "viewport": "1648x928",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "1440x900",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "1280x800",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "768x1024",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": null
+      },
+      {
+        "viewport": "390x844",
+        "scroll_y": 0,
+        "horizontal_overflow": false,
+        "open_details": 0,
+        "project_to_name_gap_px": 4,
+        "contact_methods_gap_px": 16,
+        "mobile_touch_targets_px": {
+          "back": 44,
+          "first_project_action": 44,
+          "email": 44,
+          "phone": 44
+        }
+      }
+    ],
+    "read_only_capture_external_requests": 0,
+    "read_only_capture_unexpected_writes": 0,
+    "default_shortlist_selector_recapture": {
+      "all_captures_no_horizontal_overflow": true,
+      "read_only": true,
+      "all_captures_call_email_gap_px_8": true,
+      "mobile_choose_button_height_px": 44,
+      "lane_database": "ui_pursuits_real_slice1o_test",
+      "source_change": "CSS selector-only spacing correction",
+      "all_pursued_status_readable": true,
+      "open_contact_details": 0
+    }
+  },
+  "warm_interactions_ms": {
+    "searchUntilAccountResultMs": {
+      "n": 10,
+      "p50_ms": 462,
+      "p95_ms": 472
+    },
+    "accountOpenReadyMs": {
+      "n": 10,
+      "p50_ms": 266,
+      "p95_ms": 269
+    },
+    "nestedPaginationReadyMs": {
+      "n": 10,
+      "p50_ms": 153,
+      "p95_ms": 154
+    },
+    "projectDetailReadyMs": {
+      "n": 10,
+      "p50_ms": 180,
+      "p95_ms": 194
+    },
+    "companiesNavigationReadyMs": {
+      "n": 1,
+      "p50_ms": 44,
+      "p95_ms": 44
+    },
+    "companiesSearchReadyMs": {
+      "n": 10,
+      "p50_ms": 408,
+      "p95_ms": 416
+    },
+    "companiesAccountOpenReadyMs": {
+      "n": 10,
+      "p50_ms": 246,
+      "p95_ms": 260
+    }
+  },
+  "performance": {
+    "first_authenticated_shortlist_ready_ms_n1": 800,
+    "persisted_journey_plus_benchmark_ms": 40770,
+    "warm_measurement_gate_context": "Backend/browser final gates were not active during this benchmark; server and PostgreSQL cache state unknown.",
+    "rollup_measurement_gate_context": "Backend full regression gate was active during the read-only rollup browser checks."
+  },
+  "contact_scope_visibility": {
+    "expected_text": "Contact associated with DE CENTRAL Asset 00",
+    "account_detail_mobile": {
+      "exact_text": "Contact associated with DE CENTRAL Asset 00",
+      "client_width_px": 324,
+      "scroll_width_px": 324,
+      "computed_style": {
+        "display": "block",
+        "white_space": "normal",
+        "overflow": "visible",
+        "text_overflow": "clip",
+        "max_width": "none"
+      },
+      "bounding_box_px": {
+        "x": 33,
+        "y": 453.34375,
+        "width": 324,
+        "height": 15,
+        "right": 357,
+        "bottom": 468.34375
+      },
+      "viewport_width_px": 390,
+      "fully_inside_viewport": true,
+      "unclipped": true
+    },
+    "companies_detail_mobile": {
+      "exact_text": "Contact associated with DE CENTRAL Asset 00",
+      "client_width_px": 344,
+      "scroll_width_px": 344,
+      "computed_style": {
+        "display": "block",
+        "white_space": "normal",
+        "overflow": "visible",
+        "text_overflow": "clip",
+        "max_width": "none"
+      },
+      "bounding_box_px": {
+        "x": 23,
+        "y": 285,
+        "width": 344,
+        "height": 15,
+        "right": 367,
+        "bottom": 300
+      },
+      "viewport_width_px": 390,
+      "fully_inside_viewport": true,
+      "unclipped": true
+    },
+    "verified_after_spacing_fix": true
+  }
+}

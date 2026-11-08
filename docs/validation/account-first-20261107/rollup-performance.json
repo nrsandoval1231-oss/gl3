@@ -1,0 +1,1406 @@
+{
+  "synthetic_fixture": true,
+  "manifest": {
+    "generation_id": "18986ca3-ae09-4736-b04e-f9a4542d1262",
+    "row_count": 2098,
+    "account_group_count": 417,
+    "de_central_projects": 48,
+    "diamondback_projects": 159,
+    "amazon_projects": 3,
+    "amazon_company_identities": 3
+  },
+  "semantics": {
+    "http_elapsed": "Per route, request start through Playwright requestfinished (response body complete).",
+    "cold_ui_ready": "First list render in a fresh browser context; server/PostgreSQL cache state is unknown. n=1 per viewport.",
+    "warm_reload_ready": "Same-page reload in the same browser context/process. n=1 per viewport.",
+    "route_groups": "Aggregated separately by HTTP method and URL pathname, omitting query values."
+  },
+  "viewport_runs": [
+    {
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "cold_ui_ready_ms": 606,
+      "warm_reload_ready_ms": 510,
+      "ui_ready_budget_ms": 15000,
+      "request_count": 43,
+      "expected_negative_no_match_404_count": 2,
+      "route_timings": {
+        "GET /api/auth/session": {
+          "n": 4,
+          "p50_body_complete_ms": 44,
+          "p95_body_complete_ms": 116,
+          "statuses": [
+            200
+          ]
+        },
+        "POST /api/auth/login": {
+          "n": 1,
+          "p50_body_complete_ms": 297,
+          "p95_body_complete_ms": 297,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/commercial-pursuits": {
+          "n": 2,
+          "p50_body_complete_ms": 25,
+          "p95_body_complete_ms": 61,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups": {
+          "n": 17,
+          "p50_body_complete_ms": 105,
+          "p95_body_complete_ms": 464,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open": {
+          "n": 7,
+          "p50_body_complete_ms": 203,
+          "p95_body_complete_ms": 245,
+          "statuses": [
+            200,
+            404
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 67,
+          "p95_body_complete_ms": 67,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab": {
+          "n": 1,
+          "p50_body_complete_ms": 252,
+          "p95_body_complete_ms": 252,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 24,
+          "p95_body_complete_ms": 24,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account": {
+          "n": 1,
+          "p50_body_complete_ms": 61,
+          "p95_body_complete_ms": 61,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open": {
+          "n": 1,
+          "p50_body_complete_ms": 116,
+          "p95_body_complete_ms": 116,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects": {
+          "n": 6,
+          "p50_body_complete_ms": 91,
+          "p95_body_complete_ms": 113,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open": {
+          "n": 1,
+          "p50_body_complete_ms": 110,
+          "p95_body_complete_ms": 110,
+          "statuses": [
+            200
+          ]
+        }
+      },
+      "browser_resource_timings": [
+        {
+          "path": "/api/auth/session",
+          "startTime": 219.5,
+          "duration": 20.5,
+          "requestStart": 232.5,
+          "responseStart": 239.2999999821186,
+          "responseEnd": 240,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/auth/session",
+          "startTime": 219.69999998807907,
+          "duration": 25.80000001192093,
+          "requestStart": 232.69999998807907,
+          "responseStart": 243.89999997615814,
+          "responseEnd": 245.5,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 262.39999997615814,
+          "duration": 17.80000001192093,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 280.19999998807907,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/commercial-pursuits?limit=200",
+          "startTime": 262.5,
+          "duration": 13.399999976158142,
+          "requestStart": 266.2999999821186,
+          "responseStart": 275.19999998807907,
+          "responseEnd": 275.89999997615814,
+          "transferSize": 419
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 262.7999999821186,
+          "duration": 124.40000000596046,
+          "requestStart": 266.5,
+          "responseStart": 386.69999998807907,
+          "responseEnd": 387.19999998807907,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=New+Mexico&stage=well_permitted&priority=ranked",
+          "startTime": 510.5,
+          "duration": 202,
+          "requestStart": 512.5,
+          "responseStart": 711.7999999821186,
+          "responseEnd": 712.5,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=Texas&stage=permit_issued&priority=ranked",
+          "startTime": 732.5,
+          "duration": 94.09999999403954,
+          "requestStart": 735.2999999821186,
+          "responseStart": 825.8999999761581,
+          "responseEnd": 826.5999999940395,
+          "transferSize": 352
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL&sector=oil_gas&sort=priority&limit=25",
+          "startTime": 832.2999999821186,
+          "duration": 202.2000000178814,
+          "requestStart": 834.8999999761581,
+          "responseStart": 1033.5999999940395,
+          "responseEnd": 1034.5,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups?sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1077.0999999940395,
+          "duration": 144.09999999403954,
+          "requestStart": 1081.2999999821186,
+          "responseStart": 1220.699999988079,
+          "responseEnd": 1221.199999988079,
+          "transferSize": 14261
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1411.3999999761581,
+          "duration": 462.10000002384186,
+          "requestStart": 1414.2999999821186,
+          "responseStart": 1872.8999999761581,
+          "responseEnd": 1873.5,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1940.5,
+          "duration": 181.2999999821186,
+          "requestStart": 1944.2999999821186,
+          "responseStart": 2121.0999999940395,
+          "responseEnd": 2121.7999999821186,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 2263,
+          "duration": 100.39999997615814,
+          "requestStart": 2265.5999999940395,
+          "responseStart": 2362.899999976158,
+          "responseEnd": 2363.399999976158,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&priority=ranked&shortlist=false",
+          "startTime": 2405.899999976158,
+          "duration": 95.30000001192093,
+          "requestStart": 2409.699999988079,
+          "responseStart": 2500.899999976158,
+          "responseEnd": 2501.199999988079,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 2627.899999976158,
+          "duration": 34.10000002384186,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 2662,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&priority=ranked&shortlist=false",
+          "startTime": 2658.899999976158,
+          "duration": 119.10000002384186,
+          "requestStart": 2669.0999999940395,
+          "responseStart": 2777.199999988079,
+          "responseEnd": 2778,
+          "transferSize": 7095
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 2832,
+          "duration": 71.19999998807907,
+          "requestStart": 2836.399999976158,
+          "responseStart": 2902.5999999940395,
+          "responseEnd": 2903.199999988079,
+          "transferSize": 3902
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 2940.899999976158,
+          "duration": 69.60000002384186,
+          "requestStart": 2943.899999976158,
+          "responseStart": 3010.0999999940395,
+          "responseEnd": 3010.5,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 3053.699999988079,
+          "duration": 53.30000001192093,
+          "requestStart": 3056.899999976158,
+          "responseStart": 3106.5999999940395,
+          "responseEnd": 3107,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 3157.2999999821186,
+          "duration": 73,
+          "requestStart": 3160.7999999821186,
+          "responseStart": 3230,
+          "responseEnd": 3230.2999999821186,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=25&cohort_token=p1_9a4c0fbca3ea70ea7cb75b76ad36292c942c1b3ceb2b77777922514e0ce78f4f&sort=company&shortlist=false",
+          "startTime": 3294,
+          "duration": 54.69999998807907,
+          "requestStart": 3298.399999976158,
+          "responseStart": 3347.7999999821186,
+          "responseEnd": 3348.699999988079,
+          "transferSize": 11487
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 3720.899999976158,
+          "duration": 164.7000000178814,
+          "requestStart": 3723.699999988079,
+          "responseStart": 3885.0999999940395,
+          "responseEnd": 3885.5999999940395,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 3923.899999976158,
+          "duration": 9.600000023841858,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 3933.5,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 3924.0999999940395,
+          "duration": 141.7999999821186,
+          "requestStart": 3929.699999988079,
+          "responseStart": 4065.399999976158,
+          "responseEnd": 4065.899999976158,
+          "transferSize": 38166
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228.group.c7f6114a9b528c82&parent_cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228&sort=company&shortlist=false",
+          "startTime": 4190.399999976158,
+          "duration": 73.80000001192093,
+          "requestStart": 4201.5,
+          "responseStart": 4263.199999988079,
+          "responseEnd": 4264.199999988079,
+          "transferSize": 30808
+        },
+        {
+          "path": "/api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab",
+          "startTime": 4362.5,
+          "duration": 252.09999999403954,
+          "requestStart": 4367.5999999940395,
+          "responseStart": 4613.699999988079,
+          "responseEnd": 4614.5999999940395,
+          "transferSize": 16594
+        },
+        {
+          "path": "/api/opportunities/projects?need_id=83f0693b-52c2-4550-ab2c-99573d0dd5ab&sector=all&limit=25&offset=0&sort=priority&shortlist=false&include_signals=true",
+          "startTime": 4623.5999999940395,
+          "duration": 21.400000005960464,
+          "requestStart": 4627.899999976158,
+          "responseStart": 4644.199999988079,
+          "responseEnd": 4645,
+          "transferSize": 1913
+        },
+        {
+          "path": "/api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account",
+          "startTime": 4623.899999976158,
+          "duration": 61.20000001788139,
+          "requestStart": 4628.699999988079,
+          "responseStart": 4684.899999976158,
+          "responseEnd": 4685.0999999940395,
+          "transferSize": 468
+        },
+        {
+          "path": "/api/opportunities/groups?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 5189.799999982119,
+          "duration": 100.90000000596046,
+          "requestStart": 5192.899999976158,
+          "responseStart": 5290.0999999940395,
+          "responseEnd": 5290.699999988079,
+          "transferSize": 1378
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5324.0999999940395,
+          "duration": 9.299999982118607,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 5333.399999976158,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5324.299999982119,
+          "duration": 119.5,
+          "requestStart": 5331.5,
+          "responseStart": 5443.0999999940395,
+          "responseEnd": 5443.799999982119,
+          "transferSize": 32072
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5571.799999982119,
+          "duration": 75.30000001192093,
+          "requestStart": 5582.299999982119,
+          "responseStart": 5646.399999976158,
+          "responseEnd": 5647.0999999940395,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=50&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5738.5,
+          "duration": 103.69999998807907,
+          "requestStart": 5755.199999988079,
+          "responseStart": 5841.699999988079,
+          "responseEnd": 5842.199999988079,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=75&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5939.699999988079,
+          "duration": 103.40000000596046,
+          "requestStart": 5960.699999988079,
+          "responseStart": 6042.699999988079,
+          "responseEnd": 6043.0999999940395,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=100&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6122.5,
+          "duration": 127.69999998807907,
+          "requestStart": 6146.899999976158,
+          "responseStart": 6249.899999976158,
+          "responseEnd": 6250.199999988079,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=125&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6440,
+          "duration": 151,
+          "requestStart": 6480.299999982119,
+          "responseStart": 6590.699999988079,
+          "responseEnd": 6591,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=150&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6772.899999976158,
+          "duration": 137.80000001192093,
+          "requestStart": 6819.0999999940395,
+          "responseStart": 6910.299999982119,
+          "responseEnd": 6910.699999988079,
+          "transferSize": 11945
+        },
+        {
+          "path": "/api/opportunities/groups?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 7471.5999999940395,
+          "duration": 150.90000000596046,
+          "requestStart": 7474.199999988079,
+          "responseStart": 7621.699999988079,
+          "responseEnd": 7622.5,
+          "transferSize": 1306
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7655.299999982119,
+          "duration": 13.200000017881393,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 7668.5,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7655.5999999940395,
+          "duration": 110.59999999403954,
+          "requestStart": 7661.299999982119,
+          "responseStart": 7765.399999976158,
+          "responseEnd": 7766.199999988079,
+          "transferSize": 5455
+        }
+      ]
+    },
+    {
+      "viewport": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "cold_ui_ready_ms": 467,
+      "warm_reload_ready_ms": 344,
+      "ui_ready_budget_ms": 15000,
+      "request_count": 43,
+      "expected_negative_no_match_404_count": 2,
+      "route_timings": {
+        "GET /api/auth/session": {
+          "n": 4,
+          "p50_body_complete_ms": 10,
+          "p95_body_complete_ms": 16,
+          "statuses": [
+            200
+          ]
+        },
+        "POST /api/auth/login": {
+          "n": 1,
+          "p50_body_complete_ms": 231,
+          "p95_body_complete_ms": 231,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/commercial-pursuits": {
+          "n": 2,
+          "p50_body_complete_ms": 18,
+          "p95_body_complete_ms": 26,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups": {
+          "n": 17,
+          "p50_body_complete_ms": 96,
+          "p95_body_complete_ms": 587,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open": {
+          "n": 7,
+          "p50_body_complete_ms": 234,
+          "p95_body_complete_ms": 280,
+          "statuses": [
+            200,
+            404
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 70,
+          "p95_body_complete_ms": 70,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab": {
+          "n": 1,
+          "p50_body_complete_ms": 127,
+          "p95_body_complete_ms": 127,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 22,
+          "p95_body_complete_ms": 22,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account": {
+          "n": 1,
+          "p50_body_complete_ms": 59,
+          "p95_body_complete_ms": 59,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open": {
+          "n": 1,
+          "p50_body_complete_ms": 100,
+          "p95_body_complete_ms": 100,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects": {
+          "n": 6,
+          "p50_body_complete_ms": 83,
+          "p95_body_complete_ms": 103,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open": {
+          "n": 1,
+          "p50_body_complete_ms": 102,
+          "p95_body_complete_ms": 102,
+          "statuses": [
+            200
+          ]
+        }
+      },
+      "browser_resource_timings": [
+        {
+          "path": "/api/auth/session",
+          "startTime": 171.09999999403954,
+          "duration": 20.5,
+          "requestStart": 184.7000000178814,
+          "responseStart": 191.09999999403954,
+          "responseEnd": 191.59999999403954,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/auth/session",
+          "startTime": 171.7000000178814,
+          "duration": 19.399999976158142,
+          "requestStart": 184.80000001192093,
+          "responseStart": 190.59999999403954,
+          "responseEnd": 191.09999999403954,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 215.59999999403954,
+          "duration": 16.200000017881393,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 231.80000001192093,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/commercial-pursuits?limit=200",
+          "startTime": 215.7000000178814,
+          "duration": 26.399999976158142,
+          "requestStart": 219.7000000178814,
+          "responseStart": 241.2000000178814,
+          "responseEnd": 242.09999999403954,
+          "transferSize": 419
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 216.09999999403954,
+          "duration": 96.30000001192093,
+          "requestStart": 219.7000000178814,
+          "responseStart": 311.59999999403954,
+          "responseEnd": 312.40000000596046,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=New+Mexico&stage=well_permitted&priority=ranked",
+          "startTime": 346,
+          "duration": 277.80000001192093,
+          "requestStart": 348.30000001192093,
+          "responseStart": 623.2000000178814,
+          "responseEnd": 623.8000000119209,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=Texas&stage=permit_issued&priority=ranked",
+          "startTime": 638,
+          "duration": 80.90000000596046,
+          "requestStart": 640.5,
+          "responseStart": 718.5,
+          "responseEnd": 718.9000000059605,
+          "transferSize": 352
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL&sector=oil_gas&sort=priority&limit=25",
+          "startTime": 724.5999999940395,
+          "duration": 233.60000002384186,
+          "requestStart": 727,
+          "responseStart": 957.5999999940395,
+          "responseEnd": 958.2000000178814,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups?sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 998.0999999940395,
+          "duration": 166,
+          "requestStart": 1001.2000000178814,
+          "responseStart": 1163.5999999940395,
+          "responseEnd": 1164.0999999940395,
+          "transferSize": 14261
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1334.0999999940395,
+          "duration": 585.7000000178814,
+          "requestStart": 1336.7000000178814,
+          "responseStart": 1919.4000000059605,
+          "responseEnd": 1919.800000011921,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1994.5999999940395,
+          "duration": 173.80000001192093,
+          "requestStart": 1997.800000011921,
+          "responseStart": 2167.800000011921,
+          "responseEnd": 2168.4000000059605,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 2334.5999999940395,
+          "duration": 81.7000000178814,
+          "requestStart": 2337.5,
+          "responseStart": 2415.800000011921,
+          "responseEnd": 2416.300000011921,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&priority=ranked&shortlist=false",
+          "startTime": 2451.0999999940395,
+          "duration": 99.40000000596046,
+          "requestStart": 2455.5,
+          "responseStart": 2550.0999999940395,
+          "responseEnd": 2550.5,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 2681.5,
+          "duration": 36,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 2717.5,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&priority=ranked&shortlist=false",
+          "startTime": 2714.800000011921,
+          "duration": 83.2999999821186,
+          "requestStart": 2718.7000000178814,
+          "responseStart": 2797.5999999940395,
+          "responseEnd": 2798.0999999940395,
+          "transferSize": 7095
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 2836.2000000178814,
+          "duration": 60.19999998807907,
+          "requestStart": 2840,
+          "responseStart": 2896,
+          "responseEnd": 2896.4000000059605,
+          "transferSize": 3902
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 2935,
+          "duration": 58.80000001192093,
+          "requestStart": 2938.2000000178814,
+          "responseStart": 2993.300000011921,
+          "responseEnd": 2993.800000011921,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 3037.800000011921,
+          "duration": 81.40000000596046,
+          "requestStart": 3044.9000000059605,
+          "responseStart": 3118.7000000178814,
+          "responseEnd": 3119.2000000178814,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 3177.7000000178814,
+          "duration": 70.39999997615814,
+          "requestStart": 3181.7000000178814,
+          "responseStart": 3247.5999999940395,
+          "responseEnd": 3248.0999999940395,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=25&cohort_token=p1_9a4c0fbca3ea70ea7cb75b76ad36292c942c1b3ceb2b77777922514e0ce78f4f&sort=company&shortlist=false",
+          "startTime": 3328.5999999940395,
+          "duration": 71.10000002384186,
+          "requestStart": 3331.5999999940395,
+          "responseStart": 3399.2000000178814,
+          "responseEnd": 3399.7000000178814,
+          "transferSize": 11487
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 3759.5,
+          "duration": 162.80000001192093,
+          "requestStart": 3762.7000000178814,
+          "responseStart": 3921.5999999940395,
+          "responseEnd": 3922.300000011921,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 3961.300000011921,
+          "duration": 10.199999988079071,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 3971.5,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 3961.5,
+          "duration": 151.2000000178814,
+          "requestStart": 3966.5999999940395,
+          "responseStart": 4112,
+          "responseEnd": 4112.700000017881,
+          "transferSize": 38166
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228.group.c7f6114a9b528c82&parent_cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228&sort=company&shortlist=false",
+          "startTime": 4225.700000017881,
+          "duration": 75.2999999821186,
+          "requestStart": 4235.5,
+          "responseStart": 4300.300000011921,
+          "responseEnd": 4301,
+          "transferSize": 30808
+        },
+        {
+          "path": "/api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab",
+          "startTime": 4397.800000011921,
+          "duration": 127.90000000596046,
+          "requestStart": 4403,
+          "responseStart": 4525.200000017881,
+          "responseEnd": 4525.700000017881,
+          "transferSize": 16594
+        },
+        {
+          "path": "/api/opportunities/projects?need_id=83f0693b-52c2-4550-ab2c-99573d0dd5ab&sector=all&limit=25&offset=0&sort=priority&shortlist=false&include_signals=true",
+          "startTime": 4535.5,
+          "duration": 19.099999994039536,
+          "requestStart": 4540.800000011921,
+          "responseStart": 4553.800000011921,
+          "responseEnd": 4554.5999999940395,
+          "transferSize": 1913
+        },
+        {
+          "path": "/api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account",
+          "startTime": 4535.700000017881,
+          "duration": 60.19999998807907,
+          "requestStart": 4540.9000000059605,
+          "responseStart": 4595.4000000059605,
+          "responseEnd": 4595.9000000059605,
+          "transferSize": 468
+        },
+        {
+          "path": "/api/opportunities/groups?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 5090.5999999940395,
+          "duration": 148.7000000178814,
+          "requestStart": 5093.4000000059605,
+          "responseStart": 5238.700000017881,
+          "responseEnd": 5239.300000011921,
+          "transferSize": 1378
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5275.800000011921,
+          "duration": 12.400000005960464,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 5288.200000017881,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5276,
+          "duration": 100.2000000178814,
+          "requestStart": 5282.0999999940395,
+          "responseStart": 5375.5999999940395,
+          "responseEnd": 5376.200000017881,
+          "transferSize": 32072
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5440.9000000059605,
+          "duration": 66.30000001192093,
+          "requestStart": 5450.800000011921,
+          "responseStart": 5506.5,
+          "responseEnd": 5507.200000017881,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=50&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5608.300000011921,
+          "duration": 103.09999999403954,
+          "requestStart": 5628.300000011921,
+          "responseStart": 5710.9000000059605,
+          "responseEnd": 5711.4000000059605,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=75&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5808.5999999940395,
+          "duration": 103.40000000596046,
+          "requestStart": 5833.0999999940395,
+          "responseStart": 5911.5999999940395,
+          "responseEnd": 5912,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=100&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6026.800000011921,
+          "duration": 86.40000000596046,
+          "requestStart": 6054.300000011921,
+          "responseStart": 6112.700000017881,
+          "responseEnd": 6113.200000017881,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=125&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6227.9000000059605,
+          "duration": 90.19999998807907,
+          "requestStart": 6241.5999999940395,
+          "responseStart": 6317.4000000059605,
+          "responseEnd": 6318.0999999940395,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=150&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6445.800000011921,
+          "duration": 160.19999998807907,
+          "requestStart": 6506,
+          "responseStart": 6605.4000000059605,
+          "responseEnd": 6606,
+          "transferSize": 11945
+        },
+        {
+          "path": "/api/opportunities/groups?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 7140.5,
+          "duration": 127.5,
+          "requestStart": 7143.200000017881,
+          "responseStart": 7267.5999999940395,
+          "responseEnd": 7268,
+          "transferSize": 1306
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7309,
+          "duration": 11.300000011920929,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 7320.300000011921,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7309.200000017881,
+          "duration": 104,
+          "requestStart": 7313.9000000059605,
+          "responseStart": 7412.800000011921,
+          "responseEnd": 7413.200000017881,
+          "transferSize": 5455
+        }
+      ]
+    },
+    {
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "cold_ui_ready_ms": 484,
+      "warm_reload_ready_ms": 492,
+      "ui_ready_budget_ms": 15000,
+      "request_count": 43,
+      "expected_negative_no_match_404_count": 2,
+      "route_timings": {
+        "GET /api/auth/session": {
+          "n": 4,
+          "p50_body_complete_ms": 31,
+          "p95_body_complete_ms": 47,
+          "statuses": [
+            200
+          ]
+        },
+        "POST /api/auth/login": {
+          "n": 1,
+          "p50_body_complete_ms": 225,
+          "p95_body_complete_ms": 225,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/commercial-pursuits": {
+          "n": 2,
+          "p50_body_complete_ms": 19,
+          "p95_body_complete_ms": 25,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups": {
+          "n": 17,
+          "p50_body_complete_ms": 114,
+          "p95_body_complete_ms": 631,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open": {
+          "n": 7,
+          "p50_body_complete_ms": 229,
+          "p95_body_complete_ms": 305,
+          "statuses": [
+            200,
+            404
+          ]
+        },
+        "GET /api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 55,
+          "p95_body_complete_ms": 55,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab": {
+          "n": 1,
+          "p50_body_complete_ms": 130,
+          "p95_body_complete_ms": 130,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/projects": {
+          "n": 1,
+          "p50_body_complete_ms": 16,
+          "p95_body_complete_ms": 16,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account": {
+          "n": 1,
+          "p50_body_complete_ms": 44,
+          "p95_body_complete_ms": 44,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open": {
+          "n": 1,
+          "p50_body_complete_ms": 100,
+          "p95_body_complete_ms": 100,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects": {
+          "n": 6,
+          "p50_body_complete_ms": 97,
+          "p95_body_complete_ms": 116,
+          "statuses": [
+            200
+          ]
+        },
+        "GET /api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open": {
+          "n": 1,
+          "p50_body_complete_ms": 92,
+          "p95_body_complete_ms": 92,
+          "statuses": [
+            200
+          ]
+        }
+      },
+      "browser_resource_timings": [
+        {
+          "path": "/api/auth/session",
+          "startTime": 212,
+          "duration": 21.399999976158142,
+          "requestStart": 224,
+          "responseStart": 233.09999999403954,
+          "responseEnd": 233.39999997615814,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/auth/session",
+          "startTime": 212.09999999403954,
+          "duration": 28.900000005960464,
+          "requestStart": 225.59999999403954,
+          "responseStart": 239,
+          "responseEnd": 241,
+          "transferSize": 322
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 255.5,
+          "duration": 15.399999976158142,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 270.89999997615814,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/commercial-pursuits?limit=200",
+          "startTime": 255.59999999403954,
+          "duration": 14.400000005960464,
+          "requestStart": 259.39999997615814,
+          "responseStart": 269.59999999403954,
+          "responseEnd": 270,
+          "transferSize": 419
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 255.89999997615814,
+          "duration": 110.90000000596046,
+          "requestStart": 259.59999999403954,
+          "responseStart": 366.2999999821186,
+          "responseEnd": 366.7999999821186,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=New+Mexico&stage=well_permitted&priority=ranked",
+          "startTime": 492.39999997615814,
+          "duration": 283.40000000596046,
+          "requestStart": 494.2999999821186,
+          "responseStart": 775.2999999821186,
+          "responseEnd": 775.7999999821186,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=STORMCHASER&sector=oil_gas&sort=priority&limit=25&region=Texas&stage=permit_issued&priority=ranked",
+          "startTime": 790.5999999940395,
+          "duration": 128.7999999821186,
+          "requestStart": 793.5,
+          "responseStart": 918.8999999761581,
+          "responseEnd": 919.3999999761581,
+          "transferSize": 352
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL&sector=oil_gas&sort=priority&limit=25",
+          "startTime": 925.6999999880791,
+          "duration": 305.09999999403954,
+          "requestStart": 928.5,
+          "responseStart": 1230.2999999821186,
+          "responseEnd": 1230.7999999821186,
+          "transferSize": 38198
+        },
+        {
+          "path": "/api/opportunities/groups?sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1277.2999999821186,
+          "duration": 197.40000000596046,
+          "requestStart": 1281.5,
+          "responseStart": 1474.199999988079,
+          "responseEnd": 1474.699999988079,
+          "transferSize": 14261
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=oil_gas&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 1615.5,
+          "duration": 630.5999999940395,
+          "requestStart": 1618.699999988079,
+          "responseStart": 2245.5999999940395,
+          "responseEnd": 2246.0999999940395,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL&sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 2343.699999988079,
+          "duration": 198.69999998807907,
+          "requestStart": 2346.899999976158,
+          "responseStart": 2542,
+          "responseEnd": 2542.399999976158,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false",
+          "startTime": 2681.899999976158,
+          "duration": 124.30000001192093,
+          "requestStart": 2686.7999999821186,
+          "responseStart": 2805.5999999940395,
+          "responseEnd": 2806.199999988079,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&priority=ranked&shortlist=false",
+          "startTime": 2861.0999999940395,
+          "duration": 113.2999999821186,
+          "requestStart": 2863.7999999821186,
+          "responseStart": 2973.7999999821186,
+          "responseEnd": 2974.399999976158,
+          "transferSize": 14363
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 3096.5,
+          "duration": 33.099999994039536,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 3129.5999999940395,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&priority=ranked&shortlist=false",
+          "startTime": 3126.7999999821186,
+          "duration": 99.59999999403954,
+          "requestStart": 3130.699999988079,
+          "responseStart": 3225.7999999821186,
+          "responseEnd": 3226.399999976158,
+          "transferSize": 7095
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&region=New+Mexico&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 3263.0999999940395,
+          "duration": 49.69999998807907,
+          "requestStart": 3266.899999976158,
+          "responseStart": 3312.5,
+          "responseEnd": 3312.7999999821186,
+          "transferSize": 3902
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&stage=construction_started&priority=ranked&shortlist=false",
+          "startTime": 3353.5999999940395,
+          "duration": 65.59999999403954,
+          "requestStart": 3356.699999988079,
+          "responseStart": 3418.7999999821186,
+          "responseEnd": 3419.199999988079,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&priority=ranked&shortlist=false",
+          "startTime": 3469.5,
+          "duration": 55.599999994039536,
+          "requestStart": 3472.899999976158,
+          "responseStart": 3524.5,
+          "responseEnd": 3525.0999999940395,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 3571.2999999821186,
+          "duration": 48.099999994039536,
+          "requestStart": 3574.0999999940395,
+          "responseStart": 3618.899999976158,
+          "responseEnd": 3619.399999976158,
+          "transferSize": 11486
+        },
+        {
+          "path": "/api/opportunities/groups?sector=all&limit=25&offset=25&cohort_token=p1_9a4c0fbca3ea70ea7cb75b76ad36292c942c1b3ceb2b77777922514e0ce78f4f&sort=company&shortlist=false",
+          "startTime": 3677.0999999940395,
+          "duration": 55.099999994039536,
+          "requestStart": 3680.2999999821186,
+          "responseStart": 3731.5999999940395,
+          "responseEnd": 3732.199999988079,
+          "transferSize": 11487
+        },
+        {
+          "path": "/api/opportunities/groups?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 4106.899999976158,
+          "duration": 188.2000000178814,
+          "requestStart": 4110.299999982119,
+          "responseStart": 4294.399999976158,
+          "responseEnd": 4295.0999999940395,
+          "transferSize": 4139
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 4325.5999999940395,
+          "duration": 9.099999994039536,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 4334.699999988079,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/open?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 4325.799999982119,
+          "duration": 143.5,
+          "requestStart": 4331.199999988079,
+          "responseStart": 4468.5999999940395,
+          "responseEnd": 4469.299999982119,
+          "transferSize": 38166
+        },
+        {
+          "path": "/api/opportunities/groups/cg_7917a514f19099ee070e7829a0fab68f/projects?search=DE+CENTRAL+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228.group.c7f6114a9b528c82&parent_cohort_token=p1_3f4cbc3ee6633e4471ceb0ac5664bbcb109250d62ddca587157d65bce7189228&sort=company&shortlist=false",
+          "startTime": 4656.699999988079,
+          "duration": 61.099999994039536,
+          "requestStart": 4666.0999999940395,
+          "responseStart": 4717.299999982119,
+          "responseEnd": 4717.799999982119,
+          "transferSize": 30808
+        },
+        {
+          "path": "/api/opportunities/needs/83f0693b-52c2-4550-ab2c-99573d0dd5ab",
+          "startTime": 4812.5999999940395,
+          "duration": 129.90000000596046,
+          "requestStart": 4816.899999976158,
+          "responseStart": 4942.0999999940395,
+          "responseEnd": 4942.5,
+          "transferSize": 16594
+        },
+        {
+          "path": "/api/opportunities/projects?need_id=83f0693b-52c2-4550-ab2c-99573d0dd5ab&sector=all&limit=25&offset=0&sort=priority&shortlist=false&include_signals=true",
+          "startTime": 4951.0999999940395,
+          "duration": 14.799999982118607,
+          "requestStart": 4955,
+          "responseStart": 4965.5,
+          "responseEnd": 4965.899999976158,
+          "transferSize": 1913
+        },
+        {
+          "path": "/api/projects/08a561b7-bdf8-4f7a-817a-817b78752704/account",
+          "startTime": 4951.299999982119,
+          "duration": 43.80000001192093,
+          "requestStart": 4955.299999982119,
+          "responseStart": 4994.5999999940395,
+          "responseEnd": 4995.0999999940395,
+          "transferSize": 468
+        },
+        {
+          "path": "/api/opportunities/groups?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 5471.899999976158,
+          "duration": 157.60000002384186,
+          "requestStart": 5474.399999976158,
+          "responseStart": 5628.899999976158,
+          "responseEnd": 5629.5,
+          "transferSize": 1378
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5674.0999999940395,
+          "duration": 10.099999994039536,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 5684.199999988079,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/open?search=Diamondback+Synthetic+Operator&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 5674.299999982119,
+          "duration": 100.5,
+          "requestStart": 5678.899999976158,
+          "responseStart": 5774.0999999940395,
+          "responseEnd": 5774.799999982119,
+          "transferSize": 32072
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=25&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 5839.199999988079,
+          "duration": 69.80000001192093,
+          "requestStart": 5850.699999988079,
+          "responseStart": 5908.5,
+          "responseEnd": 5909,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=50&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6007.0999999940395,
+          "duration": 100.90000000596046,
+          "requestStart": 6024.399999976158,
+          "responseStart": 6107.5999999940395,
+          "responseEnd": 6108,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=75&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6279.299999982119,
+          "duration": 118.09999999403954,
+          "requestStart": 6304.399999976158,
+          "responseStart": 6396.699999988079,
+          "responseEnd": 6397.399999976158,
+          "transferSize": 31576
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=100&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6508.699999988079,
+          "duration": 125.69999998807907,
+          "requestStart": 6541.0999999940395,
+          "responseStart": 6634,
+          "responseEnd": 6634.399999976158,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=125&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 6825.199999988079,
+          "duration": 143.80000001192093,
+          "requestStart": 6870.5999999940395,
+          "responseStart": 6968.5,
+          "responseEnd": 6969,
+          "transferSize": 31577
+        },
+        {
+          "path": "/api/opportunities/groups/cg_2a15a5c3365761116168b0df00709329/projects?search=Diamondback+Synthetic+Operator&sector=all&limit=25&offset=150&cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0.group.0820ef3f3525efd7&parent_cohort_token=p1_f69b1e89c97c21e08c8156e0ab6ec483791a7cd86a5b8cc830865229b3f4bde0&sort=company&shortlist=false",
+          "startTime": 7092.899999976158,
+          "duration": 130.30000001192093,
+          "requestStart": 7110.199999988079,
+          "responseStart": 7222.799999982119,
+          "responseEnd": 7223.199999988079,
+          "transferSize": 11945
+        },
+        {
+          "path": "/api/opportunities/groups?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&offset=0&sort=company&shortlist=false",
+          "startTime": 7789.899999976158,
+          "duration": 140.90000000596046,
+          "requestStart": 7792.899999976158,
+          "responseStart": 7930.299999982119,
+          "responseEnd": 7930.799999982119,
+          "transferSize": 1306
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7973.799999982119,
+          "duration": 12.300000011920929,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 7986.0999999940395,
+          "transferSize": 0
+        },
+        {
+          "path": "/api/opportunities/groups/cg_ada07913fd6388f0526a330ea8ee51f8/open?search=AMAZON+DATA+SERVICES%2C+INC&sector=all&limit=25&sort=company&shortlist=false",
+          "startTime": 7974.0999999940395,
+          "duration": 92.40000000596046,
+          "requestStart": 7978.5,
+          "responseStart": 8066.0999999940395,
+          "responseEnd": 8066.5,
+          "transferSize": 5455
+        }
+      ]
+    }
+  ]
+}

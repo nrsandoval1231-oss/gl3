@@ -1,423 +1,297 @@
 import { mockDemandSummary } from './mock-demand-summary'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import type { OpportunityGroup, ProjectResult } from '../src/api/client'
 
-const accountRow = {
-  id: 'need-1', project_id: 'project-1', browse_title: 'Cedar Ridge campus', location: 'Austin, TX', tier: 'Prospect',
-  activity_key: 'construction', required_mw: '12', start_window: '2027', duration: null, supply: 'Unknown',
-  evidence_count: 1, commercial_disposition: null, commercial_reason: 'Timing requires confirmation.', commercial_next_question: 'Who controls power procurement?', commercial_next_action: 'Verify the project power package.', commercial_organization: 'Northstar Compute',
-  company_identity_id: 'company-1', account_name: 'Northstar Compute', asset_type: 'data_center', account_aliases: ['Northstar', 'NORTHSTAR COMPUTE'], supporting_evidence_count: 8, last_evidence_update: '2026-10-20', project_count: 2, need_count: 3, matching_project_count: 2, matching_need_count: 2,
+const accountId = 'cg_north'
+const companyId = 'company-1'
+const companyName = 'Northstar Compute'
+const project = (index: number): ProjectResult => {
+  const id = `project-${index}`
+  const needId = `need-${index}`
+  return {
+    id, project_id: id, name: index === 1 ? 'Cedar Ridge campus' : index === 2 ? 'South plant' : `Synthetic project ${index}`,
+    company: companyName, customer_identity_id: companyId, location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null,
+    representative_need_id: needId, need_count: 1,
+    needs: [{ id: needId, project_id: id, name: index === 1 ? 'Cedar Ridge campus' : `Synthetic need ${index}`, activity: index === 1 ? 'construction' : 'commissioning', tier: 'Prospect' }],
+    eligible_need_ids: index === 1 ? [needId] : [],
+    event: { kind: 'construction', label: 'Synthetic construction planned', date: '2026-10-20', source: 'https://example.invalid/synthetic-source' },
+    contact: index === 1 ? [
+      { kind: 'email', label: 'Email Jordan Lee', href: 'mailto:jordan@example.invalid', name: 'Jordan Lee', title: 'Facilities Director', company: companyName, responsibility: 'Facilities project contact' },
+      { kind: 'phone', label: 'Call Jordan Lee', href: 'tel:+15125550123', name: 'Jordan Lee', title: 'Facilities Director', company: companyName },
+      { kind: 'email', label: 'Unsafe contact', href: 'javascript:alert(1)', name: 'Suppressed Contact', company: companyName },
+    ] : [],
+    power_summary: index === 1 ? '12 MW reported' : null, power_summary_kind: index === 1 ? 'activity_requirement' : 'unknown', next_action: null,
+    shortlist_assessment: index === 1 ? { eligible: true, reasons: [], evidence_refs: [], why_now: 'Synthetic construction activity is planned.', next_step: 'Confirm commissioning timing.' } : null,
+    updated_at: null,
+  }
 }
-const accountWorkspace = (params: URLSearchParams, items = [accountRow]) => ({
-  items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: Number(params.get('offset') ?? 0), limit: 25, next_offset: null,
-  cohort_token: 'accounts-cohort', count_unit: 'company accounts', changes_available: false,
+
+const accountGroup = (id = accountId, name = companyName, groupKind: OpportunityGroup['group_kind'] = 'resolved_identity', projectTotal = 2): OpportunityGroup => ({
+  id, name, role: groupKind === 'unresolved' ? 'unresolved' : 'customer', group_kind: groupKind,
+  project_count: projectTotal, total_known_project_count: projectTotal, relevant_project_count: id === accountId ? 1 : 0, need_count: projectTotal,
+  sectors: ['data_centers'], featured_project: id === accountId ? project(1) : null,
 })
 
-test('account queue uses server grouping, opens paginated projects, and retains unresolved research access', async ({ page }) => {
-  const workspaceQueries: string[] = []
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+type BrowseOptions = {
+  groups?: OpportunityGroup[]
+  groupOffset409Once?: boolean
+  child409AtOffset?: number
+  projectTotal?: number
+  failOpenOnce?: string
+  projectOwner?: string | null
+}
+
+async function installAccountFirst(page: Page, options: BrowseOptions = {}) {
+  await mockDemandSummary(page)
+  const groups = options.groups ?? [accountGroup(), accountGroup('cg_unresolved', 'Unresolved customer project', 'unresolved', 1)]
+  const parentQueries: URL[] = [], childQueries: URL[] = [], opens: URL[] = [], resolutions: string[] = []
+  let openFailure = options.failOpenOnce ?? ''
+  let childFailureUsed = false
+  let parentFailureUsed = false
+  await page.route(url => new URL(url).pathname.startsWith('/api/') && !new URL(url).pathname.includes('demand-summary'), async route => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') { workspaceQueries.push(url.search); return route.fulfill({ json: accountWorkspace(url.searchParams) }) }
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname === '/api/customer-accounts/company-1/projects') { const offset = Number(url.searchParams.get('need_offset') ?? 0); return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', aliases: ['Northstar', 'NORTHSTAR COMPUTE'], project_count: 2, need_count: 27, supporting_evidence_count: 8, last_evidence_update: '2026-10-20', qualification_tiers: ['Prospect'], highest_priority_need: { activity_key: 'construction', required_mw: '12', start_window: '2027', tier: 'Prospect', industry: null, location: 'Austin, TX', commercial_disposition: 'RESEARCH', commercial_reason: 'Timing needs confirmation.', commercial_next_action: 'Verify project power package.' } }, items: [{ id: 'project-1', name: 'Cedar Ridge campus', location: 'Austin, TX', customer_role: 'Developer', need_count: 26, need_next_offset: offset ? null : 25, needs: offset ? [] : [{ id: 'need-1', project_id: 'project-1', tier: 'Prospect', activity_key: 'construction', required_mw: '12', start_window: '2027', duration: null, supply: 'Unknown' }] }, { id: 'project-2', name: 'South plant', location: 'Austin, TX', customer_role: 'Owner', need_count: 1, need_next_offset: null, needs: [{ id: 'need-2', project_id: 'project-2', tier: 'Signal', activity_key: 'commissioning', required_mw: null, start_window: null, duration: null, supply: 'Unknown' }] }], total: 2, limit: 25, offset: 0, next_offset: null } }) }
-    if (url.pathname === '/api/opportunities/needs/need-1') return route.fulfill({ json: { ...accountRow, commercial_disposition: null, name: accountRow.browse_title, workflow_status: 'New', activity: 'construction', rationale: 'Retained project evidence supports review.', signal_evidence_state: 'active', conflict_state: 'Not assessed', associated_account: { company_identity_id: 'company-1', name: 'Northstar Compute', role: 'asset_operator', basis: 'Retained current operator role evidence.', support_status: 'current', evidence_refs: [{ namespace: 'retained-evidence', id: 'evidence-1', retained_evidence_id: 'evidence-1' }] }, intelligence_card: { disposition: 'WATCH', completeness: { supported: 1, total: 2 }, fields: [], contacts: [], evidence: [], research_gaps: [], policy_version: 'test', need_id: 'need-1', project_id: 'project-1', input_fingerprint: 'test', qualification: 'Prospect', next_contact_path: '', next_action: '', last_intelligence_update: '2026-10-20', research_enabled: false }, evidence: [], missing_facts: [] } })
-    if (url.pathname === '/api/opportunities/needs/need-unresolved') return route.fulfill({ json: { ...accountRow, id: 'need-unresolved', project_id: 'unresolved-1', name: 'West parcel', browse_title: 'West parcel', commercial_organization: 'Northstar subcontractor', workflow_status: 'New', activity: 'construction', rationale: 'Retained project evidence supports review.', signal_evidence_state: 'active', conflict_state: 'Not assessed', evidence: [], missing_facts: [] } })
-    if (url.pathname === '/api/customer-accounts/unresolved') { const offset = Number(url.searchParams.get('offset') ?? 0); return route.fulfill({ json: { items: offset ? [] : [{ project_id: 'unresolved-1', project_name: 'West parcel', location: 'Austin, TX', organization: 'Northstar subcontractor', role: 'Electrical contractor', reason: 'Customer identity needs review.', need_id: 'need-unresolved' }, { project_id: 'unresolved-2', project_name: 'East parcel', location: null, organization: 'Electrical subcontractor', role: 'Electrical contractor', reason: 'No eligible power need.', need_id: null, no_eligible_need: true }], total: 26, limit: 25, offset } }) }
+    if (url.pathname === '/api/companies/company-1/account') {
+      resolutions.push(companyId)
+      return route.fulfill({ json: { id: accountId, name: companyName, group_kind: 'resolved_identity' } })
+    }
+    if (url.pathname === `/api/projects/project-1/account`) {
+      if (options.projectOwner === null) return route.fulfill({ status: 404, json: {} })
+      return route.fulfill({ json: { id: options.projectOwner ?? accountId, name: options.projectOwner === 'cg_other' ? 'Different Operator' : companyName, group_kind: 'resolved_identity', project_id: 'project-1' } })
+    }
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/groups') {
+      parentQueries.push(url)
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      if (options.groupOffset409Once && offset === 25 && !parentFailureUsed) { parentFailureUsed = true; return route.fulfill({ status: 409, json: { detail: 'synthetic cohort expired' } }) }
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      const matched = groups.filter(group => !search || group.name.toLowerCase().includes(search) || (group.featured_project?.name.toLowerCase().includes(search) ?? false))
+      return route.fulfill({ json: { items: matched.slice(offset, offset + 25), total: matched.length, count_unit: 'groups', limit: 25, offset, cohort_token: 'synthetic-parent-cohort', generation: 'synthetic', facets: { regions: ['Austin, TX'], stages: ['Construction'] } } })
+    }
+    if (url.pathname === '/api/opportunities/projects') {
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const total = options.projectTotal ?? 2
+      const limit = Number(url.searchParams.get('limit') ?? 25)
+      const items = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, index) => {
+        const result = project(offset + index + 1)
+        return { ...result, id: result.project_id, project_ids: [result.project_id] }
+      })
+      return route.fulfill({ json: { items, total, count_unit: 'projects', limit, offset, cohort_token: 'synthetic-project-count', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
+    }
+    if (/^\/api\/opportunities\/groups\/[^/]+\/open$/.test(url.pathname)) {
+      opens.push(url)
+      const id = url.pathname.split('/')[4]
+      if (openFailure === id) return route.fulfill({ status: 503, json: { detail: 'synthetic account read failure' } })
+      const group = groups.find(item => item.id === id) ?? accountGroup(id, 'Unavailable account', 'unresolved')
+      const total = options.projectTotal ?? group.project_count
+      const items = Array.from({ length: Math.min(25, total) }, (_, index) => project(index + 1))
+      return route.fulfill({ json: { group: { ...group, featured_project: group.featured_project ?? (id === accountId ? project(1) : null) }, parent_cohort_token: 'synthetic-parent-cohort', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z', projects: { items, total, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-child-cohort', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } } })
+    }
+    if (/^\/api\/opportunities\/groups\/[^/]+\/projects$/.test(url.pathname)) {
+      childQueries.push(url)
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      if (options.child409AtOffset === offset && !childFailureUsed) { childFailureUsed = true; return route.fulfill({ status: 409, json: { detail: 'synthetic child cohort expired' } }) }
+      const total = options.projectTotal ?? 2
+      const items = Array.from({ length: Math.max(0, Math.min(25, total - offset)) }, (_, index) => project(offset + index + 1))
+      return route.fulfill({ json: { items, total, count_unit: 'projects', limit: 25, offset, cohort_token: 'synthetic-child-cohort', parent_cohort_token: 'synthetic-parent-cohort', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
+    }
+    if (url.pathname.startsWith('/api/opportunities/needs/')) {
+      const id = url.pathname.split('/').pop() ?? 'need-1'
+      const projectId = id === 'need-unresolved' ? 'project-unresolved' : id.replace('need-', 'project-')
+      return route.fulfill({ json: { id, project_id: projectId, name: projectId === 'project-1' ? 'Cedar Ridge campus' : projectId, browse_title: projectId === 'project-1' ? 'Cedar Ridge campus' : projectId, location: 'Austin, TX', tier: 'Lead', workflow_status: 'New', activity: 'construction', rationale: 'Synthetic retained project evidence supports review.', signal_evidence_state: 'active', conflict_state: 'Not assessed', required_mw: null, supply: 'Unknown', start_window: null, duration: null, evidence: [], missing_facts: [], project_identity_key: `synthetic-${projectId}`, commercial_disposition: 'RESEARCH', commercial_reason: 'Synthetic evidence supports review.', commercial_next_question: 'Who owns the scope?', commercial_next_action: 'Review retained evidence.', commercial_organization: null } })
+    }    if (url.pathname === '/api/commercial-pursuits') return route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } })
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'synthetic', token: 'synthetic', source_health_exceptions: [] } })
     return route.fulfill({ json: [] })
   })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1')
-  await expect(page.getByRole('region', { name: 'Customer accounts' })).toBeVisible()
-  expect(workspaceQueries[0]).toContain('group_by=account')
-  await expect(page.locator('.ci-accounts .opportunity-table')).not.toContainText('permit')
-  await page.getByRole('button', { name: '2 projects · 3 needs' }).focus()
-  await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page.getByRole('heading', { name: 'Cedar Ridge campus' })).toBeVisible()
-  await expect(page.locator('.ci-accounts')).toContainText('Also known as: Northstar')
-  await expect(page.locator('.ci-accounts')).not.toContainText('NORTHSTAR COMPUTE')
-  await expect(page.locator('.ci-accounts')).toContainText('8 supporting evidence items')
-  await page.getByRole('button', { name: 'Cedar Ridge campus' }).click()
-  await expect(page).toHaveURL(/project=project-1/)
-  await expect(page.locator('.ci-need')).toHaveCount(1)
-  await page.reload()
-  await expect(page.getByRole('button', { name: 'Cedar Ridge campus' })).toHaveAttribute('aria-pressed', 'true')
-  await page.locator('[aria-label="Cedar Ridge campus power need pages"]').getByRole('button', { name: 'Next' }).click()
-  await expect(page).toHaveURL(/need_offset=25/)
-  await expect(page.locator('.ci-need')).toHaveCount(0)
-  await page.locator('[aria-label="Cedar Ridge campus power need pages"]').getByRole('button', { name: 'Previous' }).click()
-  await page.getByRole('button', { name: /construction · 12 MW/ }).click()
+  return { parentQueries, childQueries, opens, resolutions, recoverOpen: () => { openFailure = '' } }
+}
+
+test('account-first browse opens distinct projects, selected need and unresolved account detail', async ({ page }) => {
+  const browse = await installAccountFirst(page)
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toHaveCount(2)
+  await expect(page.getByRole('region', { name: /Northstar Compute customer group/ })).toContainText('Cedar Ridge campus')
+  await page.getByRole('region', { name: /Northstar Compute customer group/ }).getByRole('button', { name: /Northstar Compute/ }).click()
+  await expect(page).toHaveURL(/account=cg_north/)
+  const detail = page.getByRole('region', { name: 'Company Northstar Compute' })
+  await expect(detail.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await expect(detail).toContainText('Cedar Ridge campus')
+  await expect(detail).toContainText('South plant')
+  await expect(detail).not.toContainText('evidence-')
+  await detail.getByRole('button', { name: /Open project detail Cedar Ridge campus/ }).click()
   await expect(page).toHaveURL(/need=need-1/)
-  await expect(page).toHaveURL(/account=company-1/)
   await expect(page).toHaveURL(/project=project-1/)
-  await expect(page.locator('.wh-detail')).toBeVisible()
-  await expect(page.locator('.wh-tier-badge')).toContainText('WATCH')
-  await expect(page.locator('.wh-group-context')).toContainText('Northstar Compute · asset operator')
-  await expect(page.locator('.wh-group-context')).toContainText('Buying authority is not established')
-  await expect(page.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page).toHaveURL(/project=project-1/)
-  await expect(page).toHaveURL(/need=need-1/)
-  await expect(page.getByRole('button', { name: 'Evidence', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Overview', exact: true }).click()
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page).toHaveURL(/project=project-1/)
-  await expect(page).toHaveURL(/need=need-1/)
-  await page.reload()
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page).toHaveURL(/project=project-1/)
-  await expect(page.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.wh-evidence details[open]')).toHaveCount(0)
+  await expect(page).toHaveURL(/account=cg_north/)
+  await expect(page.getByRole('complementary', { name: 'Opportunity detail' })).toBeVisible()
   await page.goBack()
-  await expect(page.getByRole('button', { name: 'Evidence', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Back to power needs', exact: true }).click()
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page.getByRole('heading', { name: 'Cedar Ridge campus' })).toBeVisible()
-  await page.getByRole('button', { name: 'All accounts' }).click()
-  await expect(page.locator('.ci-unresolved')).toContainText('Projects needing customer research')
-  await page.locator('.ci-unresolved summary').click()
-  await expect(page.getByRole('button', { name: 'Review this power need' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Research Electrical subcontractor' })).toHaveAttribute('href', /[?&]view=research&q=/)
-  await expect(page.locator('.ci-unresolved')).toContainText('Customer needs confirmation')
-  await page.locator('.ci-unresolved').getByRole('button', { name: 'Next' }).click()
-  await expect(page.locator('.ci-unresolved')).not.toContainText('West parcel')
-  await page.locator('.ci-unresolved').getByRole('button', { name: 'Previous' }).click()
-  await expect(page.locator('.ci-unresolved')).toContainText('West parcel')
-  await page.getByRole('button', { name: 'Review this power need' }).click()
-  await expect(page).toHaveURL(/need=need-unresolved/)
-  await expect(page).not.toHaveURL(/account=/)
-  await expect(page.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expect(page.getByRole('region', { name: 'Company Northstar Compute' })).toBeVisible()
+  await page.goBack()
+  await expect(page.locator('.customer-group')).toHaveCount(2)
+  await page.getByRole('region', { name: /Unresolved customer project customer group/ }).getByRole('button', { name: /Unresolved customer project/ }).click()
+  await expect(page.getByRole('region', { name: 'Group Unresolved customer project' })).toBeVisible()
+  expect(browse.parentQueries.some(url => url.searchParams.get('group_by') === null)).toBeTruthy()
 })
 
-test('account deep links reload profile and filters remain server-side', async ({ page }) => {
-  const queries: URLSearchParams[] = []
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') { queries.push(url.searchParams); return route.fulfill({ json: accountWorkspace(url.searchParams, []) }) }
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', aliases: ['Northstar', 'NORTHSTAR COMPUTE'], project_count: 2, need_count: 3, supporting_evidence_count: 4, last_evidence_update: '2026-10-20' }, items: [], total: 2, limit: 25, offset: 0 } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
+test('legacy company UUID links resolve to the canonical account and reload in the shared detail', async ({ page }) => {
+  const browse = await installAccountFirst(page)
   await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
-  await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
-  await expect(page.locator('.ci-accounts')).toContainText('Also known as: Northstar')
+  await expect(page).toHaveURL(/groupBrowse=1/)
+  await expect(page).toHaveURL(/account=cg_north/)
+  await expect(page.getByRole('heading', { name: companyName })).toBeVisible()
+  expect(browse.resolutions).toContain(companyId)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
-  await page.getByLabel('Search workspace').fill('Northstar')
-  await expect.poll(() => queries.at(-1)?.get('search')).toBe('Northstar')
-  expect(queries.at(-1)?.get('group_by')).toBe('account')
+  await expect(page.getByRole('heading', { name: companyName })).toBeVisible()
+  await expect(page).toHaveURL(/account=cg_north/)
+  await expect(page.getByRole('region', { name: 'Account overview' })).toContainText('Synthetic construction activity is planned.')
+})
+
+test('group account pages use server filters and restore page, cohort and search history', async ({ page }) => {
+  const groups = Array.from({ length: 26 }, (_, index) => accountGroup(`cg_company_${String(index + 1).padStart(2, '0')}`, `Synthetic Company ${String(index + 1).padStart(2, '0')}`, 'resolved_identity', 1))
+  const browse = await installAccountFirst(page, { groups })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toHaveCount(25)
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page).toHaveURL(/offset=25/)
+  await expect(page.locator('.customer-group')).toHaveCount(1)
+  expect(browse.parentQueries.at(-1)?.searchParams.get('offset')).toBe('25')
+  expect(browse.parentQueries.at(-1)?.searchParams.get('cohort_token')).toBe('synthetic-parent-cohort')
+  await page.reload()
+  await expect(page.locator('.customer-group')).toHaveCount(1)
+  await expect(page).toHaveURL(/offset=25/)
+  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Company 02')
+  await expect(page.locator('.customer-group')).toHaveCount(1)
+  await expect.poll(() => browse.parentQueries.at(-1)?.searchParams.get('search')).toBe('Company 02')
+  expect(browse.parentQueries.at(-1)?.searchParams.get('offset')).toBe('0')
+  expect(browse.parentQueries.at(-1)?.searchParams.get('cohort_token')).toBeNull()
+})
+
+test('expired account-group page cohort resets to the first page and explains the refresh', async ({ page }) => {
+  const groups = Array.from({ length: 26 }, (_, index) => accountGroup(`cg_company_${String(index + 1).padStart(2, '0')}`, `Synthetic Company ${String(index + 1).padStart(2, '0')}`, 'resolved_identity', 1))
+  const browse = await installAccountFirst(page, { groups, groupOffset409Once: true })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.locator('.customer-group')).toHaveCount(25)
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect.poll(() => page.locator('.customer-group').count()).toBe(25)
+  await expect(page.locator('.project-results-notice')).toContainText('Results changed. Reloaded from the first page.')
+  await expect(page).not.toHaveURL(/offset=25/)
+  expect(browse.parentQueries.filter(url => url.searchParams.get('offset') === '25')).toHaveLength(1)
+  expect(browse.parentQueries.at(-1)?.searchParams.get('offset')).toBe('0')
+})
+
+test('a saved account URL resolves its canonical identity before showing account content', async ({ page }) => {
+  const browse = await installAccountFirst(page)
+  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&q=Northstar')
+  await expect(page.getByRole('heading', { name: companyName })).toBeVisible()
+  await expect.poll(() => browse.opens.at(-1)?.searchParams.get('search')).toBe('Northstar')
+  await expect(page).toHaveURL(/account=cg_north/)
+  await expect(page).toHaveURL(/q=Northstar/)
   await page.locator('.wh-account summary').click()
   await expect(page.locator('.wh-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
-  await expect(page).toHaveURL(/account=company-1/)
 })
 
-test('primary account pages are server driven and preserve cohort and history', async ({ page }) => {
-  const rows = Array.from({ length: 26 }, (_, index) => ({ ...accountRow, id: `need-${index + 1}`, project_id: `project-${index + 1}`, company_identity_id: `company-${index + 1}`, account_name: `Company ${String(index + 1).padStart(2, '0')}` }))
-  const queries: URLSearchParams[] = []
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') {
-      const params = url.searchParams, offset = Number(params.get('offset') ?? 0)
-      queries.push(new URLSearchParams(params))
-      return route.fulfill({ json: { items: rows.slice(offset, offset + 25), total: rows.length, counts: { action_now: 0, research: rows.length, watch: 0, reject: 0 }, offset, limit: 25, next_offset: offset + 25 < rows.length ? offset + 25 : null, cohort_token: 'fixed-account-cohort', count_unit: 'company accounts', changes_available: false } })
-    }
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1')
-  await expect(page.locator('.ci-accounts .opportunity-select')).toHaveCount(25)
-  const pager = page.getByRole('navigation', { name: 'Customer account pages' })
-  await expect(pager).toContainText('Accounts 1–25 of 26')
-  await pager.getByRole('button', { name: 'Next' }).click()
-  await expect(page).toHaveURL(/offset=25/)
-  await expect(page).toHaveURL(/cohort_token=fixed-account-cohort/)
-  await expect(page.locator('.ci-accounts .opportunity-select')).toHaveCount(1)
-  expect(queries.at(-1)?.get('offset')).toBe('25')
-  expect(queries.at(-1)?.get('cohort_token')).toBe('fixed-account-cohort')
-  await page.goBack()
-  await expect(page.locator('.ci-accounts .opportunity-select')).toHaveCount(25)
-  await page.goForward()
-  await expect(page.locator('.ci-accounts .opportunity-select')).toHaveCount(1)
-  await page.getByLabel('Search workspace').fill('Company')
-  await expect.poll(() => queries.at(-1)?.get('search')).toBe('Company')
-  expect(queries.at(-1)?.get('offset')).toBe('0')
-  expect(queries.at(-1)?.get('cohort_token')).toBeNull()
-})
-
-test('primary account pager resets a stale cohort on 409', async ({ page }) => {
-  const rows = Array.from({ length: 26 }, (_, index) => ({ ...accountRow, id: `need-${index + 1}`, project_id: `project-${index + 1}`, company_identity_id: `company-${index + 1}`, account_name: `Company ${String(index + 1).padStart(2, '0')}` }))
-  const queries: URLSearchParams[] = []
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') {
-      const params = url.searchParams, offset = Number(params.get('offset') ?? 0)
-      queries.push(new URLSearchParams(params))
-      if (offset === 25) return route.fulfill({ status: 409, json: { detail: 'cohort expired' } })
-      return route.fulfill({ json: { items: rows.slice(offset, offset + 25), total: rows.length, counts: { action_now: 0, research: rows.length, watch: 0, reject: 0 }, offset, limit: 25, next_offset: 25, cohort_token: 'fresh-account-cohort', count_unit: 'company accounts', changes_available: false } })
-    }
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
-  await expect(page.getByRole('heading', { name: 'Company 01' })).toBeVisible()
-  await page.getByRole('navigation', { name: 'Customer account pages' }).getByRole('button', { name: 'Next' }).click()
-  await expect.poll(() => queries.length).toBe(3)
-  await expect.poll(() => new URL(page.url()).searchParams.get('offset')).toBe('0')
-  await expect.poll(() => new URL(page.url()).searchParams.get('cohort_token')).toBeNull()
-  await expect(page).toHaveURL(/account=company-1/)
-  await expect(page.getByRole('heading', { name: 'Company 01' })).toBeVisible()
-  expect(queries[1].get('cohort_token')).toBe('fresh-account-cohort')
-  expect(queries[2].get('offset')).toBe('0')
-  expect(queries[2].get('cohort_token')).toBeNull()
-})
-
-test('expired workspace cohort restarts pagination and keeps the selected account profile', async ({ page }) => {
-  let requests = 0
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') {
-      requests += 1
-      if (requests === 1) return route.fulfill({ status: 409, json: { detail: 'cohort expired' } })
-      return route.fulfill({ json: accountWorkspace(url.searchParams) })
-    }
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&offset=25&cohort_token=expired')
-  await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
-  await expect.poll(() => new URL(page.url()).searchParams.get('offset')).toBe('0')
-  await expect.poll(() => new URL(page.url()).searchParams.get('cohort_token')).toBeNull()
-  await expect(page).toHaveURL(/account=company-1/)
-  expect(requests).toBe(2)
-})
-
-test('account project errors expose an explicit retry without changing the account route', async ({ page }) => {
-  let attempts = 0
-  let unavailable = true
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams, []) })
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/projects')) {
-      attempts += 1
-      if (unavailable) return route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
-      return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', project_count: 2, need_count: 3 }, items: [], total: 2, limit: 25, offset: 0 } })
-    }
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1')
-  await expect(page.locator('.ci-accounts')).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText('could not load this account')
-  await expect(page).toHaveURL(/account=company-1/)
-  unavailable = false
+test('account project detail shows a retry after read failure without changing the canonical route', async ({ page }) => {
+  const browse = await installAccountFirst(page, { failOpenOnce: accountId })
+  await page.goto('/?view=workspace&groupBrowse=1&account=cg_north')
+  await expect(page.getByRole('alert')).toContainText('Could not open current operator/customer results (503).')
+  await expect(page).toHaveURL(/account=cg_north/)
+  browse.recoverOpen()
   await page.getByRole('alert').getByRole('button', { name: 'Retry' }).click()
-  await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
-  expect(attempts).toBeGreaterThanOrEqual(2)
+  await expect(page.getByRole('heading', { name: companyName })).toBeVisible()
+  expect(browse.opens.filter(url => url.pathname.endsWith('/open')).length).toBeGreaterThanOrEqual(3)
 })
 
-test('unresolved customer project failures remain visible and retry successfully', async ({ page }) => {
-  let attempts = 0
-  let unavailable = true
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams, []) })
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/unresolved')) {
-      attempts += 1
-      if (unavailable) return route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
-      return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    }
-    return route.fulfill({ json: [] })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1')
-  await page.locator('.ci-unresolved summary').click()
-  await expect(page.locator('.ci-unresolved')).toContainText('Unresolved customer projects could not be loaded')
-  unavailable = false
-  await page.locator('.ci-unresolved').getByRole('button', { name: 'Retry' }).click()
-  await expect(page.locator('.ci-unresolved')).toContainText('(0)')
-  expect(attempts).toBeGreaterThanOrEqual(2)
+test('unresolved account project reads remain available through the shared account detail', async ({ page }) => {
+  const browse = await installAccountFirst(page, { groups: [accountGroup('cg_unresolved', 'Unresolved customer project', 'unresolved', 1)], failOpenOnce: 'cg_unresolved' })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await page.locator('.customer-group').getByRole('button', { name: /Unresolved customer project/ }).click()
+  await expect(page.getByRole('alert')).toContainText('Could not open current operator/customer results (503).')
+  browse.recoverOpen()
+  await page.getByRole('alert').getByRole('button', { name: 'Retry' }).click()
+  await expect(page.getByRole('heading', { name: 'Unresolved customer project' })).toBeVisible()
+  expect(browse.opens.some(url => url.pathname.endsWith('/cg_unresolved/open'))).toBeTruthy()
 })
 
-test('account project page is deep-linked and restored through reload, Back, and Forward', async ({ page }) => {
-  const projectQueries: number[] = []
-  const projects = Array.from({ length: 26 }, (_, index) => ({
-    id: `project-${index + 1}`, name: `Project ${String(index + 1).padStart(2, '0')}`, location: 'Austin, TX', customer_role: 'Owner',
-    need_count: 1, need_next_offset: null, needs: [{ id: `need-${index + 1}`, project_id: `project-${index + 1}`, tier: 'Signal', activity_key: 'construction', required_mw: null, start_window: null, duration: null, supply: 'Unknown' }],
-  }))
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams) })
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname === '/api/customer-accounts/company-1/projects') {
-      const offset = Number(url.searchParams.get('offset') ?? 0)
-      projectQueries.push(offset)
-      return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', project_count: 26, need_count: 26 }, items: projects.slice(offset, offset + 25), total: 26, limit: 25, offset, next_offset: offset + 25 < 26 ? 25 : null } })
-    }
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: [] })
-  })
-
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&accountBrowse=1')
-  await expect(page.getByRole('heading', { name: 'Project 01' })).toBeVisible()
-  const pager = page.getByRole('navigation', { name: 'Account project pages' })
-  await pager.getByRole('button', { name: 'Next' }).click()
-  await expect(page).toHaveURL(/project_offset=25/)
-  await expect(page.getByRole('heading', { name: 'Project 26' })).toBeVisible()
-  await page.getByRole('button', { name: 'Project 26' }).click()
-  await expect(page).toHaveURL(/project=project-26/)
-  await expect(page).toHaveURL(/project_offset=25/)
-  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
+test('account project navigation restores matched project context through reload, Back and Forward', async ({ page }) => {
+  const browse = await installAccountFirst(page, { projectTotal: 26 })
+  await page.goto('/?view=workspace&groupBrowse=1&account=cg_north&project=project-26')
+  const detail = page.getByRole('region', { name: 'Company Northstar Compute' })
+  await expect(detail.getByRole('button', { name: 'Load more projects' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Load more projects' }).click()
+  await expect(detail.locator('[data-project-id="project-26"]')).toBeVisible()
+  await expect(detail.locator('[data-project-id="project-26"]')).toHaveAttribute('aria-current', 'location')
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
-  expect(projectQueries.at(-1)).toBe(25)
-  await page.goBack()
-  await expect(page).not.toHaveURL(/project=/)
-  await expect(page).toHaveURL(/project_offset=25/)
-  await expect(page.getByRole('heading', { name: 'Project 26' })).toBeVisible()
-  await page.goForward()
-  await expect(page).toHaveURL(/project=project-26/)
-  await expect(page.getByRole('button', { name: 'Project 26' })).toHaveAttribute('aria-pressed', 'true')
-  await page.goBack()
-  await page.goBack()
-  await expect(page).not.toHaveURL(/project_offset=/)
-  await expect(page.getByRole('heading', { name: 'Project 01' })).toBeVisible()
+  const refreshed = page.getByRole('region', { name: 'Company Northstar Compute' })
+  await expect(refreshed.locator('[data-project-id="project-26"]')).toBeVisible()
+  await expect(refreshed.locator('[data-project-id="project-26"]')).toHaveAttribute('aria-current', 'location')
+  await expect(refreshed.getByRole('button', { name: 'Load more projects' })).toHaveCount(0)
+  expect(browse.opens.some(url => url.searchParams.get('shortlist') === 'true')).toBeTruthy()
 })
 
-test('unresolved pagination resets on search and ignores the previous search response', async ({ page }) => {
-  const unresolvedQueries: Array<{ search: string; offset: number }> = []
-  let releaseOldPage: (() => void) | undefined
-  let heldAlphaPage = false
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams, []) })
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname === '/api/customer-accounts/unresolved') {
-      const search = url.searchParams.get('search') ?? '', offset = Number(url.searchParams.get('offset') ?? 0)
-      unresolvedQueries.push({ search, offset })
-      if (search === 'Alpha' && offset === 25 && !heldAlphaPage) {
-        heldAlphaPage = true
-        await new Promise<void>(resolve => { releaseOldPage = resolve })
-        try { return await route.fulfill({ json: { items: [{ project_id: 'old-page', project_name: 'Old search page', location: null, organization: 'Old Organization', role: 'Unknown', reason: 'Stale result.' }], total: 26, limit: 25, offset } }) } catch { return }
-      }
-      const items = search === 'Beta' ? [{ project_id: 'narrow-result', project_name: 'Narrow result', location: null, organization: 'Narrow Organization', role: 'Unknown', reason: 'Current search.' }] : offset ? [{ project_id: 'alpha-page-two', project_name: 'Alpha second page', location: null, organization: 'Alpha Organization', role: 'Unknown', reason: 'Second page.' }] : [{ project_id: 'first-page', project_name: 'First search page', location: null, organization: 'First Organization', role: 'Unknown', reason: 'Initial result.' }]
-      return route.fulfill({ json: { items, total: search === 'Beta' ? 1 : 26, limit: 25, offset } })
-    }
-    return route.fulfill({ json: [] })
-  })
+test('expired nested account project pages recover with current cohort tokens', async ({ page }) => {
+  const browse = await installAccountFirst(page, { projectTotal: 26, child409AtOffset: 25 })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0&account=cg_north')
+  const detail = page.getByRole('region', { name: 'Company Northstar Compute' })
+  await expect(detail.getByRole('button', { name: 'Load more projects' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Load more projects' }).click()
+  await expect(detail.locator('.cmp-projects li')).toHaveCount(26)
+  expect(browse.childQueries.map(url => url.searchParams.get('offset'))).toEqual(['25', '25'])
+})
 
-  const unresolvedSection = page.locator('.ci-unresolved')
-  const openUnresolved = async () => { if (!(await unresolvedSection.evaluate(element => (element as HTMLDetailsElement).open))) await unresolvedSection.locator('summary').click() }
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1')
-  await page.getByLabel('Search workspace').fill('Alpha')
-  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Alpha' && query.offset === 0)).toBe(true)
-  await openUnresolved()
-  await expect(unresolvedSection).toContainText('First search page')
-  await unresolvedSection.getByRole('button', { name: 'Next' }).click()
-  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Alpha' && query.offset === 25)).toBe(true)
-  await page.getByLabel('Search workspace').fill('Beta')
-  await expect.poll(() => unresolvedQueries.some(query => query.search === 'Beta' && query.offset === 0)).toBe(true)
-  await openUnresolved()
-  await expect(unresolvedSection).toContainText('Narrow result')
-  releaseOldPage?.()
-  await expect(unresolvedSection).toContainText('Narrow result')
-  await expect(unresolvedSection).not.toContainText('Old search page')
-  await page.getByLabel('Search workspace').fill('Alpha')
-  await expect.poll(() => unresolvedQueries.at(-1)).toEqual({ search: 'Alpha', offset: 0 })
-  await openUnresolved()
-  await expect(unresolvedSection).toContainText('First search page')
-  await expect(unresolvedSection).toContainText('1\u20131 of 26')
+test('search changes discard a delayed previous group response', async ({ page }) => {
+  const groups = [accountGroup('cg_alpha', 'Alpha Synthetic Account',  'resolved_identity', 1), accountGroup('cg_beta', 'Beta Synthetic Account', 'resolved_identity', 1)]
+  let releaseAlpha!: () => void
+  let held = false
+  const queries: URL[] = []
+  await installAccountFirst(page, { groups })
+  await page.route(url => new URL(url).pathname === '/api/opportunities/groups', async route => {
+    const url = new URL(route.request().url()); queries.push(url)
+    if (url.searchParams.get('search') === 'Alpha' && !held) {
+      held = true
+      await new Promise<void>(resolve => { releaseAlpha = resolve })
+      try { await route.fulfill({ json: { items: [groups[0]], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'old-alpha', generation: 'synthetic' } }) } catch { return }
+      return
+    }
+    const value = url.searchParams.get('search') === 'Beta' ? groups[1] : groups[0]
+    return route.fulfill({ json: { items: [value], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'current-search', generation: 'synthetic' } })
+  })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Alpha')
+  await expect.poll(() => queries.some(url => url.searchParams.get('search') === 'Alpha')).toBe(true)
+  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Beta')
+  await expect(page.locator('.customer-group')).toContainText('Beta Synthetic Account')
+  releaseAlpha?.()
+  await expect(page.locator('.customer-group')).toContainText('Beta Synthetic Account')
+  await expect(page.locator('.customer-group')).not.toContainText('Alpha Synthetic Account')
 })
 
 for (const scenario of [
-  { label: 'mismatched account identity', association: { company_identity_id: 'company-2', name: 'Different Operator', role: 'asset_operator', basis: 'Current retained operator evidence.', support_status: 'current', evidence_refs: [] }, notice: 'Current evidence associates this need with Different Operator.' },
-  { label: 'retracted account identity', association: null, notice: 'current evidence does not support an account association' },
+  { label: 'different current account', owner: 'cg_other', notice: 'This project belongs to a different current account.' },
+  { label: 'retracted account membership', owner: null, notice: 'selected project is not currently assigned to this account' },
 ]) {
-  test(`detail clears a ${scenario.label} from the saved account URL`, async ({ page }) => {
-    await page.route(url => url.pathname.startsWith('/api/'), async route => {
-      const url = new URL(route.request().url())
-      if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-      if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams) })
-      if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-      if (url.pathname === '/api/customer-accounts/company-1/projects') return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', aliases: [], project_count: 1, need_count: 1 }, items: [], total: 1, limit: 25, offset: 0 } })
-      if (url.pathname === '/api/opportunities/needs/need-1') return route.fulfill({ json: { id: 'need-1', project_id: 'project-1', name: 'Cedar Ridge campus', location: 'Austin, TX', tier: 'Prospect', workflow_status: 'UNKNOWN', activity: 'construction', rationale: 'Review required.', signal_evidence_state: 'active_evidence', required_mw: null, start_window: null, duration: null, supply: 'Unknown', next_action: 'Research', conflict_state: 'unknown', evidence: [], associated_account: scenario.association } })
-      if (url.pathname === '/api/customer-accounts/unresolved') return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-      return route.fulfill({ json: [] })
-    })
-    await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&project=project-1&need=need-1')
-    await expect(page.locator('.wh-detail')).toBeVisible()
-    await expect(page.locator('.wh-integrity')).toContainText(scenario.notice)
+  test(`selected project clears saved account context when it has a ${scenario.label}`, async ({ page }) => {
+    await installAccountFirst(page, { projectOwner: scenario.owner })
+    await page.goto('/?view=workspace&groupBrowse=1&account=cg_north&project=project-1&need=need-1')
+    await expect(page.getByRole('complementary', { name: 'Opportunity detail' })).toBeVisible()
+    await expect(page.getByText(scenario.notice)).toBeVisible()
     await expect(page).toHaveURL(/need=need-1/)
     await expect(page).not.toHaveURL(/account=/)
     await expect(page).not.toHaveURL(/project=/)
-    await expect(page.locator('.wh-record-identity')).toContainText(scenario.association ? 'Different Operator' : 'Cedar Ridge campus')
-    if (scenario.association) await expect(page.locator('.wh-group-context')).toContainText('Different Operator')
-    else await expect(page.locator('.wh-group-context')).toHaveCount(0)
+    await expect(page.getByText(scenario.notice)).toBeVisible()
   })
 }
 
-test('company contacts remain actionable after refresh and generic routes require research', async ({ page }) => {
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
-    const url = new URL(route.request().url())
-    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams) })
-    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
-    if (url.pathname.endsWith('/contacts')) return route.fulfill({ json: { company_id: 'company-1', research_required: true, contacts: [
-      { claim_id: 'contact-1', company: 'Northstar Compute', role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', verified_at: '2026-10-24T12:00:00Z', methods: [{ kind: 'phone', value: '+15125550123', href: 'tel:+15125550123', source_url: 'https://northstar.example/contact', verified_at: '2026-10-20T12:00:00Z' }, { kind: 'email', value: 'office@northstar.example', href: 'mailto:office@northstar.example', source_url: 'https://northstar.example/contact', verified_at: '2026-10-25T12:00:00Z' }] },
-      { claim_id: 'contact-2', company: 'Northstar Compute', name: 'Jordan Lee', title: 'Facilities Director', role: 'facilities', responsibility: 'Verified organizational responsibility', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', methods: [], verified_at: null, sources: [{ reference: 'source-2', title: 'Facilities team', url: 'https://northstar.example/people/jordan', source_date: '2026-10-19', assessed_at: '2026-10-22T12:00:00Z', passage: 'Jordan Lee leads facilities.', extraction_method: 'public page', verification_status: 'Current source version' }] },
-      { claim_id: 'contact-3', company: 'Northstar Compute', name: 'Casey Invalid', role: 'operations', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', verification_status: 'Source verified; reachability and authority unconfirmed', verified_at: '2026-10-24T12:00:00Z', methods: [{ kind: 'email', value: 'unknown@northstar.example', href: 'mailto:unknown@northstar.example', source_url: 'https://northstar.example/contact', verified_at: 'invalid-date' }] },
-    ] } })
-    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { account: { company_identity_id: 'company-1', name: 'Northstar Compute', project_count: 2, need_count: 3 }, items: [], total: 0, limit: 25, offset: 0 } })
-    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
-    return route.fulfill({ json: { items: [], counts: {}, total: 0 } })
-  })
-  await mockDemandSummary(page)
-  await page.goto('/?view=workspace&accountBrowse=1&account=company-1&accountBrowse=1')
-  const contacts = page.getByRole('region', { name: 'Contacts & Buying Chain' })
-  await expect(contacts).toContainText('Research Required')
-  await expect(contacts.getByText('Affiliation: Northstar Compute').first()).toBeVisible()
-  await expect(contacts).toContainText('No usable email or phone is verified.')
-  await expect(contacts).toContainText('Purchasing authority remains unconfirmed.')
-  await expect(contacts.getByRole('link', { name: 'Contact evidence' })).toHaveAttribute('href', 'https://northstar.example/people/jordan')
-  await expect(contacts).toContainText('Role/source checked')
-  await expect(contacts.getByText('Last source check 10/25/2026')).toBeVisible()
-  await expect(contacts.getByText(/Last source check.*10\/24\/2026/)).toHaveCount(0)
-  await expect(contacts.getByText('Source checked 10/25/2026')).toBeVisible()
-  await expect(contacts.getByText('Role/source checked 10/22/2026')).toBeVisible()
-  await expect(contacts.getByRole('link').first()).toHaveText('office@northstar.example')
-  await expect(contacts.getByRole('link', { name: 'office@northstar.example' })).toHaveAttribute('href', 'mailto:office@northstar.example')
-  await expect(contacts.getByRole('link', { name: '+15125550123' })).toHaveAttribute('href', 'tel:+15125550123')
-  await expect(contacts.getByRole('link', { name: 'Open source' }).first()).toHaveAttribute('href', 'https://northstar.example/contact')
-  await expect(contacts.getByRole('link', { name: 'Open contact page' }).first()).toHaveAttribute('href', 'https://northstar.example/contact')
+test('only valid projected contact routes remain actionable after reload', async ({ page }) => {
+  const writes: string[] = []
+  await installAccountFirst(page)
+  page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()) })
+  await page.goto('/?view=workspace&groupBrowse=1&account=cg_north')
+  const overview = page.getByRole('region', { name: 'Account overview' })
+  await expect(overview.getByRole('link', { name: 'Email Jordan Lee' })).toHaveAttribute('href', 'mailto:jordan@example.invalid')
+  await expect(overview).not.toContainText('Suppressed Contact')
+  await expect(overview).not.toContainText('javascript:')
   await page.reload()
-  await expect(contacts.getByRole('link', { name: 'office@northstar.example' })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
-  await expect(contacts).toBeVisible()
+  const refreshed = page.getByRole('region', { name: 'Account overview' })
+  await expect(refreshed.getByRole('link', { name: 'Email Jordan Lee' })).toBeVisible()
+  await expect(refreshed).not.toContainText('Suppressed Contact')
+  expect(writes).toEqual([])
 })

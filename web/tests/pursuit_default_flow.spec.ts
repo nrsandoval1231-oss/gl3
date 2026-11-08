@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
 // SYNTHETIC UI TEST FIXTURE ONLY — names, contacts, dates and power values are fabricated.
-// Covers the DEFAULT browse (owner decision 2026-11-06): flat project cards and CanonicalOpportunityDetail,
-// plus the released operator/customer group browse (?groupBrowse=1) and WorkspaceDetail.
+// Covers the DEFAULT account-first browse: curated customer accounts, distinct projects,
+// CanonicalOpportunityDetail, and need-scoped pursuit idempotency.
 
 const sampleProject = {
   id: 'project-1', project_id: 'project-1', name: 'Example Energy · Example Compressor Station', company: 'Example Energy', customer_identity_id: 'company-1',
@@ -11,7 +11,7 @@ const sampleProject = {
   needs: [{ id: 'need-1', project_id: 'project-1', tier: 'Lead', activity: 'drilling' }],
   event: null, contact: [], contact_people: [], power_summary: null, power_summary_kind: 'unknown', next_action: 'Confirm fixture details.', updated_at: '2026-10-21T00:00:00Z',
 }
-const group = { id: 'group-1', name: 'Example Energy', role: 'operator', project_count: 1, need_count: 1, priority_score: null, sectors: ['oil_gas'] }
+const group = { id: 'group-1', name: 'Example Energy', role: 'operator', group_kind: 'resolved_identity', project_count: 1, total_known_project_count: 1, relevant_project_count: 1, eligible_need_count: 1, pursued_eligible_need_count: 0, need_count: 1, priority_score: null, sectors: ['oil_gas'], featured_project: sampleProject }
 const need = {
   id: 'need-1', project_id: 'project-1', name: 'Example Compressor Station', browse_title: 'Example Compressor Station', location: 'Permian Basin, TX', tier: 'Lead', workflow_status: 'New',
   activity: 'drilling', rationale: 'Synthetic fixture.', signal_evidence_state: 'active_evidence', required_mw: null, start_window: null, duration: null, supply: 'Unknown',
@@ -30,9 +30,14 @@ async function setup(page: Page, seed: ReturnType<typeof pursuit>[]) {
   await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.includes('demand-summary'), route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method()
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (path === '/api/opportunities/groups') return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g1', generation: 'g' } })
-    if (path.startsWith('/api/opportunities/groups/') && path.endsWith('/projects')) return route.fulfill({ json: { items: [sampleProject], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', parent_cohort_token: 'g1', generation: 'g' } })
-    if (path === '/api/opportunities/projects') return route.fulfill({ json: { items: [sampleProject], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', generation: 'g' } })
+    if (path === '/api/opportunities/groups') return route.fulfill({ json: { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g1', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } })
+    if (path === '/api/opportunities/groups/group-1/open') return route.fulfill({ json: {
+      group,
+      projects: { items: [sampleProject], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', generation: 'g', valid_until: '2099-01-01T00:00:00Z' },
+      parent_cohort_token: 'g1', generation: 'g', valid_until: '2099-01-01T00:00:00Z',
+    } })
+    if (path.startsWith('/api/opportunities/groups/') && path.endsWith('/projects')) return route.fulfill({ json: { items: [sampleProject], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', parent_cohort_token: 'g1', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } })
+    if (path === '/api/opportunities/projects') return route.fulfill({ json: { items: [sampleProject], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } })
     if (path === '/api/opportunities/needs/need-1') return route.fulfill({ json: need })
     if (path === '/api/commercial-pursuits') {
       let body: any = null
@@ -57,20 +62,22 @@ async function setup(page: Page, seed: ReturnType<typeof pursuit>[]) {
 
 async function openDefaultDetail(page: Page) {
   await page.goto('/?view=workspace')
-  expect(new URL(page.url()).searchParams.get('groupBrowse')).toBeNull()
-  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(1)
-  await page.locator('[data-need-row="need-1"]').click()
+  expect(new URL(page.url()).searchParams.get('projectBrowse')).toBeNull()
+  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await page.getByRole('button', { name: 'View account details' }).click()
+  await expect(page.getByRole('region', { name: 'Company Example Energy' })).toBeVisible()
+  await page.getByRole('button', { name: /Open project detail .*Example Compressor Station/ }).click()
   await expect(page).toHaveURL(/need=need-1/)
   await expect(page.locator('.cod-panel')).toBeVisible()
 }
 
 async function openGroupDetail(page: Page) {
-  await page.goto('/?view=workspace&groupBrowse=1')
-  await page.locator('.customer-group').filter({ hasText: 'Example Energy' }).locator('.customer-group-toggle').click()
-  await page.getByRole('button', { name: 'View project details' }).click()
+  await page.goto('/?view=workspace')
+  await page.getByRole('button', { name: 'View account details' }).click()
+  await expect(page.getByRole('region', { name: 'Company Example Energy' })).toBeVisible()
+  await page.getByRole('button', { name: /Open project detail .*Example Compressor Station/ }).click()
   await expect(page).toHaveURL(/need=need-1/)
-  await expect(page).toHaveURL(/groupBrowse=1/)
-  await expect(page.locator('.wh-detail')).toBeVisible()
+  await expect(page.locator('.cod-panel')).toBeVisible()
 }
 
 test('default browse: Add to Pursuit on the selected need creates once, shows In Pursuits and bumps the badge', async ({ page }) => {
@@ -139,13 +146,13 @@ test('a truncated store load still runs the targeted lookup before offering Add 
   expect(reads.some(entry => new URLSearchParams(entry.search).get('need_id') === 'need-1')).toBe(true)
 })
 
-test('group browse (?groupBrowse=1): Add to Pursuit creates once and shows In Pursuits', async ({ page }) => {
+test('account-first browse: Add to Pursuit creates once and shows In Pursuits', async ({ page }) => {
   const api = await setup(page, [])
   await openGroupDetail(page)
-  const add = page.locator('.wh-detail').getByRole('button', { name: 'Add to Pursuit' })
+  const add = page.locator('.cod-panel').getByRole('button', { name: 'Add to Pursuit' })
   await expect(add).toBeVisible()
   await add.dblclick()
-  await expect(page.locator('.wh-detail').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p-new')
+  await expect(page.locator('.cod-panel').getByRole('link', { name: 'In Pursuits' })).toHaveAttribute('href', '/?view=pursuits&pursuit=p-new')
   await expect(page.getByTestId('nav-badge-pursuits')).toHaveText('1')
   expect(api.posts()).toHaveLength(1)
   expect(api.posts()[0].body).toEqual({ need_id: 'need-1' })

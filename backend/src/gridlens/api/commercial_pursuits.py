@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,11 @@ from gridlens.domain.commercial_pursuits import (
     attention_reasons,
     valid_stage,
 )
+from gridlens.intelligence.need_aliases import (
+    NeedAliasError,
+    lock_need_alias_pursuits,
+    resolve_component,
+)
 from gridlens.persistence.commercial_pursuit_models import (
     CLOSED_STAGES,
     CommercialPursuit,
@@ -30,7 +35,7 @@ from gridlens.persistence.commercial_pursuit_models import (
     PursuitTask,
 )
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import PowerNeed, Project
+from gridlens.persistence.models import NeedAliasAssertion, PowerNeed, Project
 from gridlens.security import require_same_origin, require_session
 
 router = APIRouter(
@@ -74,7 +79,10 @@ class ContactSummary(BaseModel):
 class PursuitOut(BaseModel):
     id: UUID
     need_id: UUID
+    need_alias_ids: list[UUID] = Field(default_factory=list)
     project_id: UUID
+    account_id: str | None = None
+    account_name: str | None = None
     stage: Stage
     title: str
     location: str | None
@@ -182,9 +190,16 @@ def _task_out(task: PursuitTask, description: str | None = None) -> TaskOut:
 
 
 _WITHHELD = "[redacted]"
+_MAX_PRIVACY_NEEDS = 64
+_MAX_PRIVACY_ALIAS_ASSERTIONS = 256
 
 
-def _private_text(session: Session, project_id: UUID, texts: dict[str, str | None]):
+def _private_text(
+    session: Session,
+    project_id: UUID,
+    texts: dict[str, str | None],
+    related_project_ids: list[UUID] | None = None,
+):
     """Read-time suppression of saved free text; stored rows are never modified.
 
     Reuses the saved-history projection that protects commercial call notes: the text is
@@ -199,7 +214,7 @@ def _private_text(session: Session, project_id: UUID, texts: dict[str, str | Non
 
     item = {
         "project_id": str(project_id),
-        "related_project_ids": [],
+        "related_project_ids": [str(value) for value in (related_project_ids or [])],
         "notes": [{"key": k, "text": v} for k, v in present.items()],
     }
     try:
@@ -209,6 +224,73 @@ def _private_text(session: Session, project_id: UUID, texts: dict[str, str | Non
     except Exception:
         out = {k: _WITHHELD for k in present}
     return {k: out.get(k, _WITHHELD) if v else v for k, v in texts.items()}
+
+
+def _privacy_project_ids(session: Session, row: CommercialPursuit) -> list[UUID] | None:
+    """Include every historical alias project in the text suppression cohort.
+
+    Alias retractions do not erase the identity/history connection for privacy purposes.
+    Return None on malformed/oversized history so callers can withhold text fail-closed.
+    """
+    try:
+        # Bound both the component and retained assertion history. Query only the
+        # frontier, never the whole alias table. State/evidence validity deliberately
+        # do not filter historical privacy scope, even after a link is retracted.
+        with session.begin_nested():
+            related_needs = {row.need_id}
+            frontier = related_needs.copy()
+            assertion_ids = set()
+            while frontier:
+                edges = session.execute(
+                    select(
+                        NeedAliasAssertion.id,
+                        NeedAliasAssertion.alias_need_id,
+                        NeedAliasAssertion.canonical_need_id,
+                    )
+                    .where(
+                        or_(
+                            NeedAliasAssertion.alias_need_id.in_(frontier),
+                            NeedAliasAssertion.canonical_need_id.in_(frontier),
+                        )
+                    )
+                    .limit(_MAX_PRIVACY_ALIAS_ASSERTIONS + 1)
+                ).all()
+                discovered: set[UUID] = set()
+                for assertion_id, alias_id, canonical_id in edges:
+                    assertion_ids.add(assertion_id)
+                    discovered.update((alias_id, canonical_id))
+                if len(assertion_ids) > _MAX_PRIVACY_ALIAS_ASSERTIONS:
+                    return None
+                frontier = discovered - related_needs
+                related_needs.update(frontier)
+                if len(related_needs) > _MAX_PRIVACY_NEEDS:
+                    return None
+            projects_by_need: dict[UUID, UUID] = {
+                need_id: project_id
+                for need_id, project_id in session.execute(
+                    select(PowerNeed.id, PowerNeed.project_id).where(
+                        PowerNeed.id.in_(related_needs)
+                    )
+                ).all()
+            }
+            if set(projects_by_need) != related_needs or None in projects_by_need.values():
+                return None
+            project_ids = set(projects_by_need.values()) | {row.project_id}
+            if len(project_ids) > _MAX_PRIVACY_NEEDS:
+                return None
+            return sorted(project_ids, key=str)
+    except Exception:
+        return None
+
+
+def _private_pursuit_text(session: Session, row: CommercialPursuit, texts: dict[str, str | None]):
+    """Apply the same fail-closed historical privacy scope to every pursuit response."""
+    if not any(texts.values()):
+        return texts
+    privacy_projects = _privacy_project_ids(session, row)
+    if privacy_projects is None:
+        return {key: _WITHHELD if value else value for key, value in texts.items()}
+    return _private_text(session, row.project_id, texts, privacy_projects)
 
 
 def _contact(session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
@@ -273,6 +355,30 @@ class _Preload:
             ):
                 self.tasks.setdefault(task.pursuit_id, []).append(task)
         self.contacts: dict[UUID, tuple[ContactSummary | None, str]] = {}
+        from gridlens.intelligence.need_aliases import need_alias_members
+
+        # Current identity is supplementary to saved owner state. Retain an
+        # explicit unknown sentinel on malformed graphs, not an empty mapping:
+        # alias-dependent filtering must fail rather than hide an existing row.
+        self.need_aliases: dict[UUID, tuple[UUID, ...]] | None
+        try:
+            self.need_aliases = need_alias_members(session, need_ids)
+        except NeedAliasError:
+            self.need_aliases = None
+        # Resolve the exact account group once for the page. This is supplementary
+        # context; an unavailable current snapshot leaves the pursuit list usable.
+        from gridlens.intelligence.account_identity import account_identity_for_projects
+
+        try:
+            account_rows = account_identity_for_projects(session, project_ids)
+        except (HTTPException, NeedAliasError):
+            account_rows = {}
+        self.accounts = {
+            project_id: (account["id"], account["name"])
+            if (account := account_rows.get(project_id))
+            else (None, None)
+            for project_id in project_ids
+        }
 
     def contact(self, session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
         """Reuse the contact projection cached for this project's response page."""
@@ -304,10 +410,17 @@ def _view(
         today=today,
     )
     nxt = min(open_tasks, key=lambda t: (t.due_date is None, t.due_date or date.max), default=None)
+    # Emit only verified aliases as supplementary display context. An empty
+    # display list is not proof of no aliases: targeted list lookups below use
+    # the preload's unknown state, and creation still resolves identity strictly.
+    alias_ids = pre.need_aliases.get(row.need_id, ()) if pre.need_aliases is not None else ()
     out = PursuitOut(
         id=row.id,
         need_id=row.need_id,
+        need_alias_ids=[need_id for need_id in alias_ids if need_id != row.need_id],
         project_id=row.project_id,
+        account_id=pre.accounts.get(row.project_id, (None, None))[0],
+        account_name=pre.accounts.get(row.project_id, (None, None))[1],
         stage=row.stage,  # type: ignore[arg-type]
         title=project.name if project else "Unavailable project",
         location=project.location if project else None,
@@ -342,7 +455,7 @@ def _view(
     for a in activities:
         texts[f"s{a.id}"] = a.summary
         texts[f"d{a.id}"] = a.detail
-    safe = _private_text(session, row.project_id, texts) if private else texts
+    safe = _private_pursuit_text(session, row, texts) if private else texts
     if nxt:
         out.next_task = _task_out(nxt, safe[f"t{nxt.id}"])
     if detail:
@@ -414,6 +527,11 @@ def list_pursuits(
             )
         )
         pre = _Preload(session, rows)
+        if need_id is not None and pre.need_aliases is None:
+            # Even an exact match cannot establish the complete filtered set
+            # when other saved rows may be aliases. Never report a false empty
+            # or incomplete success that a caller could interpret as safe to add.
+            raise HTTPException(409, "Opportunity identity is ambiguous")
         # Free text is projected only for the returned page (below), not for every row.
         views = [_view(session, row, today, detail=False, pre=pre, private=False) for row in rows]
     counts = PursuitCounts(
@@ -426,14 +544,17 @@ def list_pursuits(
         for v in views
         if (not needs_attention or v.attention)
         and (not active_only or v.stage not in CLOSED_STAGES)
-        and (need_id is None or v.need_id == need_id)
+        and (need_id is None or v.need_id == need_id or need_id in v.need_alias_ids)
     ]
     items = matching[offset : offset + limit]
+    rows_by_id = {row.id: row for row in rows}
     with SessionLocal() as session:
         for item in items:
             if item.next_task is not None:
                 item.next_task.description = (
-                    _private_text(session, item.project_id, {"t": item.next_task.description})["t"]
+                    _private_pursuit_text(
+                        session, rows_by_id[item.id], {"t": item.next_task.description}
+                    )["t"]
                     or ""
                 )
     end = offset + len(items)
@@ -454,28 +575,43 @@ def create_pursuit(body: CreateIn, response: Response):
     """Create or return the single pursuit attached to an active opportunity."""
     today = _today()
     with SessionLocal() as session:
-        need = session.get(PowerNeed, body.need_id)
-        if need is None or not need.active:
-            raise HTTPException(404, "Opportunity not found")
-        existing = session.scalar(
+        lock_need_alias_pursuits(session)
+        # Direct retries survive changes to current opportunity activity.
+        exact_existing = session.scalar(
             select(CommercialPursuit).where(CommercialPursuit.need_id == body.need_id)
         )
-        if existing is not None:
+        if exact_existing is not None:
             response.status_code = 200
-            return _view(session, existing, today, detail=True)
+            return _view(session, exact_existing, today, detail=True)
+        try:
+            resolution = resolve_component(session, body.need_id)
+        except NeedAliasError as exc:
+            raise HTTPException(409, "Opportunity identity is ambiguous") from exc
+        if resolution.conflicted:
+            raise HTTPException(409, "Opportunity identity is ambiguous")
+        if resolution.existing_pursuit is not None:
+            response.status_code = 200
+            return _view(session, resolution.existing_pursuit, today, detail=True)
+        need = session.get(PowerNeed, resolution.root_need_id)
+        if need is None or not need.active:
+            raise HTTPException(404, "Opportunity not found")
         row = CommercialPursuit(need_id=need.id, project_id=need.project_id, stage="New")
         session.add(row)
         try:
             session.flush()
         except IntegrityError:  # concurrent create: return the winner
             session.rollback()
-            winner = session.scalar(
-                select(CommercialPursuit).where(CommercialPursuit.need_id == body.need_id)
-            )
-            if winner is None:
+            winners = session.scalars(
+                select(CommercialPursuit).where(
+                    CommercialPursuit.need_id.in_(resolution.member_need_ids)
+                )
+            ).all()
+            if not winners:
                 raise
+            if len(winners) > 1:
+                raise HTTPException(409, "Opportunity identity is ambiguous") from None
             response.status_code = 200
-            return _view(session, winner, today, detail=True)
+            return _view(session, winners[0], today, detail=True)
         _log(session, row.id, "created", "Added to Pursuits")
         session.commit()
         session.refresh(row)

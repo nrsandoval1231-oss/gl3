@@ -10,7 +10,6 @@ const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'All Pursu
 // Survives unmount so leaving and returning to Pursuits keeps the list scroll.
 const savedScroll = { list: 0, window: 0 }
 const PAGE_SIZE = 200
-const MAX_LIST_ITEMS = 2000
 
 function readRoute() {
   // The URL is the source of truth: no filter in the URL means All.
@@ -76,6 +75,15 @@ export function PursuitsPage() {
 
   const counts = data?.counts ?? lists.all?.counts ?? lists.active?.counts ?? lists.attention?.counts
   const items = data?.items ?? []
+  const accountGroups = (() => {
+    const grouped = new Map<string, { name: string; items: CommercialPursuit[] }>()
+    for (const item of items) {
+      const key = item.account_id || 'unassigned'
+      const entry = grouped.get(key) ?? { name: item.account_name || 'Account not established', items: [] }
+      entry.items.push(item); grouped.set(key, entry)
+    }
+    return [...grouped.entries()]
+  })()
 
   // Restore list position after returning from a detail.
   const hadSelection = useRef(Boolean(route.id))
@@ -127,7 +135,7 @@ export function PursuitsPage() {
           {!ended && error && <div className="pu-state" role="alert"><p>{error}</p><button type="button" className="pu-btn" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
           {!ended && !data && !error && <div className="pu-skeletons" aria-label="Loading pursuits" role="status">{[0, 1, 2].map(index => <div key={index} className="pu-card pu-skeleton" aria-hidden="true"/>)}</div>}
           {data && !items.length && !error && <div className="pu-state"><p>{route.filter === 'attention' ? 'No pursuits need attention right now.' : route.filter === 'active' ? 'No active pursuits.' : 'No pursuits yet. Use Add to Pursuit on an opportunity to start one.'}</p></div>}
-          {items.length > 0 && <ul className="pu-cards">{items.map(item => <li key={item.id}>
+          {items.length > 0 && <div className="pu-account-groups">{accountGroups.map(([accountId, account]) => <section className="pu-account-group" key={accountId}><h2>{account.name}</h2><ul className="pu-cards">{account.items.map(item => <li key={item.id}>
             <button type="button" className="pu-card" data-pursuit-card={item.id} aria-current={route.id === item.id ? 'true' : undefined} onClick={() => open(item.id)}>
               <span className="pu-card-title">{item.title}</span>
               <span className={`pu-badge pu-stage-${item.stage.toLowerCase()}`}>{item.stage}</span>
@@ -138,10 +146,10 @@ export function PursuitsPage() {
               {item.attention_labels.length > 0 && <span className="pu-attention">{item.attention_labels.map(label => <span key={label} className="pu-attn-chip">{label}</span>)}</span>}
               <span className="pu-arrow" aria-hidden="true">›</span>
             </button>
-          </li>)}</ul>}
+          </li>)}</ul></section>)}</div>}
           {data && data.has_more && <div className="pu-more">
-            <p role="status">Showing {items.length} of {data.total_matching ?? 'more'}{items.length >= MAX_LIST_ITEMS ? '. Use Active or Needs Attention to narrow the list.' : ''}</p>
-            {items.length < MAX_LIST_ITEMS && <button type="button" className="pu-btn" disabled={more === 'loading'} aria-busy={more === 'loading'} onClick={() => void loadMore()}>{more === 'loading' ? 'Loading…' : 'Load more'}</button>}
+            <p role="status">Showing {items.length} of {data.total_matching ?? 'more'}</p>
+            <button type="button" className="pu-btn" disabled={more === 'loading'} aria-busy={more === 'loading'} onClick={() => void loadMore()}>{more === 'loading' ? 'Loading…' : 'Load more'}</button>
             {more === 'error' && <p role="alert">More pursuits could not be loaded. Try again.</p>}
           </div>}
         </div>
