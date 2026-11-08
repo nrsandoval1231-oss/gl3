@@ -341,8 +341,9 @@ def test_customer_filter_and_search_keep_all_related_sector_projects(saved_db):
         generation = current_generation(session)
         rows = session.scalars(
             select(BrowseRow)
+            .join(Project, BrowseRow.project_id == Project.id)
             .where(BrowseRow.generation_id == generation.id)
-            .order_by(BrowseRow.project_id)
+            .order_by(func.length(Project.external_id), Project.external_id)
         ).all()
         operator_rows = [
             row
@@ -356,13 +357,34 @@ def test_customer_filter_and_search_keep_all_related_sector_projects(saved_db):
         # All 63 are separate projects; the conflicting row stays outside the
         # resolved 62-project operator group asserted below.
         assert len({row.project_id for row in operator_rows}) == 63
-        for index, row in enumerate(operator_rows):
+        conflicting_project_ids = set(
+            session.scalars(
+                select(BrowseUnresolvedCustomer.project_id).where(
+                    BrowseUnresolvedCustomer.generation_id == generation.id,
+                    BrowseUnresolvedCustomer.role == "conflicting_customer",
+                )
+            )
+        )
+        resolved_rows = [
+            row
+            for row in operator_rows
+            if row.compact.get("project_metadata", {}).get("oil_gas", {}).get("operator_number")
+            == "12345"
+            and row.project_id not in conflicting_project_ids
+        ]
+        assert len(resolved_rows) == 62
+        texas_project_id = resolved_rows[0].project_id
+        for row in operator_rows:
             row.compact = {
                 **row.compact,
-                "location": "Texas" if index == 0 else "Oklahoma",
+                "location": "Texas" if row.project_id == texas_project_id else "Oklahoma",
                 "project_metadata": {
                     **row.compact["project_metadata"],
-                    "event": {"kind": "permit_issued" if index == 0 else "well_permitted"},
+                    "event": {
+                        "kind": "permit_issued"
+                        if row.project_id == texas_project_id
+                        else "well_permitted"
+                    },
                 },
             }
 
