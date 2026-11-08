@@ -13,13 +13,13 @@ The commercial projection adds an optional `commercial_brief` object to existing
 | Lane | Exclusive implementation ownership | Interface |
 |---|---|---|
 | A acquisition/planning | autonomous_research.py, pursuit_questions.py, research_routing.py, ingestion/adapters/pursuit_acquisition.py and their focused tests | Existing question/job APIs, source/ledger controls; no settings/models/worker writes |
-| B commercial interpretation | new domain/commercial_brief.py, project_results.py, commercial_evaluation.py and focused tests | `build_commercial_brief(item: dict, *, now=None) -> dict`; existing payload plus optional brief |
-| C public/optional contacts | company_contact_discovery.py, company_contacts.py, enrichment_planner.py, optional Apollo adapter and focused tests | Existing company jobs and contact persistence; Apollo disabled/activation blocked unless separately authorized |
+| B commercial interpretation | new domain/commercial_brief.py, project_results.py, commercial_evaluation.py, customer_accounts.py, pursuit_workspace.py and focused tests | `build_commercial_brief(item: dict, *, now=None) -> dict`; existing payload plus optional brief |
+| C public/optional contacts | company_contact_discovery.py, company_contacts.py, enrichment_planner.py, optional Apollo adapter, public_site_policy.py, buying_chain_public.py, two budgeted buying_chain.py callsites and focused tests | Existing company jobs and contact persistence; Apollo disabled/activation blocked unless separately authorized |
 | D product | web source/client types and browser tests, except generated API artifacts | Render optional brief; preserve old payload fallback and privacy cleanup; add fixture acceptance |
 | E acceptance | new scripts/phase2* and backend/tests/integration/test_phase2_acceptance.py in the primary worktree | Real persisted worker-to-projection fixture and same-fixture baseline/candidate receipts |
 | Coordinator | worker/settings/API/models/generated artifacts/integration and maintained docs | Lease shared files explicitly; integrate and run final gates |
 
-Builders use separate managed worktrees from the same base and commit only owned files. The lead integrates commits sequentially. Five exact Luna/low builders (four implementation lanes and one cross-lane acceptance lane) and independent Astra/high final review are required and supported by runtime metadata. Root handles owner updates and bounded verification assistance.
+Implementation builders A–D use separate managed worktrees from the same base and commit only owned files; builder E writes exclusively owned new acceptance files in the primary worktree. Shared-file leases above were extended explicitly as integration needs became concrete. The lead integrates commits sequentially. Five exact Luna/low builders (four implementation lanes and one cross-lane acceptance lane) and independent Astra/high final review are required and supported by runtime metadata. Root handles owner updates and bounded verification assistance.
 
 ## Acceptance and next steps
 

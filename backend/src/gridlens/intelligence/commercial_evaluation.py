@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
 from gridlens.domain.commercial_brief import build_optional_commercial_brief
+from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
 from gridlens.domain.pursuits import CommercialTriageCard
 from gridlens.persistence.models import Pursuit
 
