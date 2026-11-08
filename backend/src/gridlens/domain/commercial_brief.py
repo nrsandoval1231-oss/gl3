@@ -170,6 +170,30 @@ def _date_in_text(value: Any) -> str | None:
     return match.group(1) if match else None
 
 
+def _calendar_day(value: Any) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        match = re.fullmatch(r"(\d{4}-\d{2}-\d{2})(?:T.*)?", value.strip())
+        if match:
+            try:
+                return date.fromisoformat(match.group(1))
+            except ValueError:
+                return None
+    return None
+
+
+def _freshness_date(evidence: dict, *, as_of: date) -> date | None:
+    publication_value = evidence.get("published_at")
+    if publication_value is not None:
+        publication_day = _calendar_day(publication_value)
+        return publication_day if publication_day is not None and publication_day <= as_of else None
+    event_day = _calendar_day(evidence.get("event_date"))
+    return event_day if event_day is not None and event_day <= as_of else None
+
+
 def _accepted_sources(item: dict) -> list[dict]:
     rows = item.get("evidence")
     if not isinstance(rows, list):
@@ -476,13 +500,23 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
             event_rows = [row for row in resolved if row.get("event_date")]
             selected = matched or event_rows or resolved
             chosen = selected[0]
-            why_date = _iso(chosen.get("event_date") or chosen.get("published_at"))
+            event_date = _iso(chosen.get("event_date"))
+            published_date = _iso(chosen.get("published_at"))
+            if cited_date and cited_date == event_date:
+                why_date = event_date
+                why_label = chosen.get("event_date_label") or "Source reported"
+            elif cited_date and cited_date == published_date:
+                why_date = published_date
+                why_label = "Published"
+            elif event_date:
+                why_date = event_date
+                why_label = chosen.get("event_date_label") or "Source reported"
+            else:
+                why_date = published_date
+                why_label = "Published"
             why_sources = [_source(row) for row in selected]
-            label = chosen.get("event_date_label") or (
-                "Published" if not chosen.get("event_date") else "Source reported"
-            )
             if why_date:
-                why_text = f"{label} {why_date}: {why_scope or 'scope is not established'}"
+                why_text = f"{why_label} {why_date}: {why_scope or 'scope is not established'}"
         if not why_sources:
             why_text = None
             why_scope = None
@@ -518,15 +552,26 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
             "Next action is a research prompt; no buyer or purchase authority is established."
         )
     # Source dates are intentionally separate from retrieval/as-of dates.
-    source_dates = [source.get("date") for source in evidence if source.get("date")]
+    current_rows = [
+        row
+        for row in item.get("evidence", [])
+        if isinstance(row, dict) and row.get("current") is True
+    ]
     source_age = None
-    if source_dates:
-        try:
-            as_of_day = date.fromisoformat(str(as_of)[:10])
-            latest_source_day = max(date.fromisoformat(str(value)[:10]) for value in source_dates)
-            source_age = max(0, (as_of_day - latest_source_day).days)
-        except ValueError:
-            source_age = None
+    freshness_source_date = None
+    try:
+        as_of_day = date.fromisoformat(str(as_of)[:10])
+        dated_rows = [
+            source_day
+            for row in current_rows
+            if (source_day := _freshness_date(row, as_of=as_of_day)) is not None
+        ]
+        if dated_rows:
+            latest_source_day = max(dated_rows)
+            source_age = (as_of_day - latest_source_day).days
+            freshness_source_date = latest_source_day.isoformat()
+    except ValueError:
+        source_age = None
     freshness_state = (
         "source_unavailable"
         if not evidence
@@ -559,7 +604,7 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
         "freshness": {
             "as_of": as_of,
             "status": freshness_state,
-            "source_date": why_date,
+            "source_date": freshness_source_date,
             "source_age_days": source_age,
         },
         "limitations": list(dict.fromkeys(limitations)),

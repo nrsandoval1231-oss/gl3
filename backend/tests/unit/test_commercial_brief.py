@@ -282,6 +282,56 @@ def test_publication_dates_differing_do_not_conflict_with_one_event_date():
     assert "Conflicting current dates" not in " ".join(brief["limitations"])
 
 
+def test_future_milestone_does_not_refresh_old_source_publication():
+    brief = build_commercial_brief(
+        {
+            "shortlist_assessment": {
+                "eligible": True,
+                "why_now": "Published 2026-02-01; expected 2027-01-01 construction start",
+                "scope": "construction",
+                "evidence_refs": ["e-1"],
+            },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Expected construction schedule",
+                    "url": "https://example.test/schedule",
+                    "published_at": "2026-02-01",
+                    "event_date": "2027-01-01",
+                    "event_date_label": "Expected construction start",
+                    "current": True,
+                }
+            ],
+        },
+        now="2026-11-08",
+    )
+    assert brief["why_now"]["source_date"] == "2026-02-01"
+    assert brief["why_now"]["text"].startswith("Published 2026-02-01:")
+    assert brief["freshness"]["source_date"] == "2026-02-01"
+    assert brief["freshness"]["source_age_days"] == 280
+    assert brief["freshness"]["status"] == "stale_source"
+
+
+def test_future_publication_date_is_not_reported_as_fresh():
+    brief = build_commercial_brief(
+        {
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Future-dated source",
+                    "url": "https://example.test/future",
+                    "published_at": "2027-01-01",
+                    "current": True,
+                }
+            ]
+        },
+        now="2026-11-08",
+    )
+    assert brief["freshness"]["source_date"] is None
+    assert brief["freshness"]["source_age_days"] is None
+    assert brief["freshness"]["status"] == "source_age_unknown"
+
+
 def test_conflicting_same_event_dates_and_overflow_abstain():
     evidence = [
         {
