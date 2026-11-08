@@ -394,8 +394,10 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
   const best = brief.best_contact
   const contactHref = best?.href ? safeBriefHref(best.kind, best.href) : null
   const powerText = brief.power_need.amount_class === 'unknown' || !brief.power_need.value
-    ? 'Power need unknown'
+    ? brief.power_need.scope || 'Unknown'
     : `${briefPowerAmount(brief.power_need.value, brief.power_need.unit)}${brief.power_need.scope ? ` · ${brief.power_need.scope}` : ''}`
+  const unknownPower = brief.power_need.amount_class === 'unknown' || !brief.power_need.value
+  const powerLimitations = brief.power_need.limitations.flatMap(value => value.split(/;\s*/).map(part => part.trim()).filter(part => part && !/^(?:(?:activity-specific )?(?:power )?(?:need|amount)(?: for [^.]*)? is unknown\.?|unknown is not zero\.?|unknown does not mean zero\.?)$/i.test(part)))
   const whySources = brief.why_now.sources ?? []
   const sourceRows = new Map<string, { title: string; url: string; date: string | null }>()
   for (const source of [...brief.sources, ...whySources, ...(brief.next_action.source ? [brief.next_action.source] : []), ...(best?.sources ?? [])]) {
@@ -409,8 +411,8 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
     : []
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p>{brief.why_now.scope && <small>Scope: {brief.why_now.scope}</small>}{brief.why_now.source_date && <small>Source date: {brief.why_now.source_date}</small>}{brief.freshness.status && <small>{humanizeBriefStatus(brief.freshness.status)}</small>}{whyLimitations.map(value => <small key={value}>{value}</small>)}</div>
-    <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p><small>{brief.power_need.amount_class === 'unknown' ? 'Amount unknown' : `${humanizeBriefStatus(brief.power_need.amount_class)} · ${humanizeBriefStatus(brief.power_need.status)}`}{brief.power_need.limitations.length ? ` · ${brief.power_need.limitations.join('; ')}` : ''}</small></div>
-    <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{best && contactHref ? <><a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a><small>Authority: {best.authority} · Deliverability: {best.deliverability}</small></> : <small>No permitted contact route is available in current evidence.</small>}</div>
+    <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{unknownPower ? <small>Amount unknown; not zero.</small> : <small>{`${humanizeBriefStatus(brief.power_need.amount_class)} · ${humanizeBriefStatus(brief.power_need.status)}`}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>
+    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref ? <><a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a><small>Authority: {best.authority} · Deliverability: {best.deliverability}</small></> : <small>No permitted contact route is available in current evidence.</small>}</div>}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
     <details className="customer-brief-sources"><summary>Sources ({sourceRows.size})</summary>{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>

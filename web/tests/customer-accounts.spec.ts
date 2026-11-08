@@ -136,7 +136,7 @@ test('account cards prefer an optional brief, keep abstained claims withheld, an
   const brief = {
     version: 'synthetic-v1',
     why_now: { text: null, source_date: null, scope: null, sources: [] },
-    power_need: { amount_class: 'unknown' as const, scope: 'Temporary package', value: null, unit: null, status: 'unknown', limitations: ['Activity-specific power need is unknown; unknown is not zero.'] },
+    power_need: { amount_class: 'unknown' as const, scope: 'Temporary package', value: null, unit: null, status: 'unknown', limitations: ['Activity-specific power need is unknown; unknown is not zero.', 'The 40 MW figure is campus nameplate and does not establish rental load.'] },
     best_contact: { contact: 'Jordan Fixture', href: 'tel:+15125550123', kind: 'call' as const, route_kind: 'person_method' as const, authority: 'Unknown; confirm for this need.', deliverability: 'Unknown; route has not been verified for delivery.', sources: [] },
     next_action: { text: 'Confirm the temporary package scope from source evidence.', kind: 'confirm_need', source: null },
     freshness: { as_of: '2026-11-08T00:00:00Z', status: 'current_source', source_date: null },
@@ -155,8 +155,10 @@ test('account cards prefer an optional brief, keep abstained claims withheld, an
   const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
   await expect(card.getByText('Why now is not established from current evidence.')).toBeVisible()
   await expect(card.getByText('Synthetic construction activity is planned.')).toHaveCount(0)
-  await expect(card.getByText('Power need unknown')).toBeVisible()
-  await expect(card.getByText(/unknown is not zero/)).toBeVisible()
+  await expect(card.getByText('Temporary package', { exact: true })).toBeVisible()
+  await expect(card.getByText('Amount unknown; not zero.', { exact: true })).toBeVisible()
+  await expect(card.getByText(/unknown is not zero/)).toHaveCount(0)
+  await expect(card.getByText(/40 MW figure is campus nameplate and does not establish rental load/)).toBeVisible()
   await expect(card.getByRole('link', { name: /Call Jordan Fixture/ })).toHaveAttribute('href', 'tel:+15125550123')
   await expect(card.getByText(/Authority: Unknown; confirm for this need/)).toBeVisible()
   await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
@@ -167,6 +169,26 @@ test('account cards prefer an optional brief, keep abstained claims withheld, an
   await sources.locator('summary').click()
   await expect(sources.getByRole('link', { name: 'Synthetic accepted source' })).toHaveAttribute('href', 'https://example.invalid/synthetic-source')
   expect(writes).toEqual([])
+})
+
+test('a brief with no best contact does not repeat an unavailable-contact block or restore legacy routes', async ({ page }) => {
+  const brief = {
+    version: 'synthetic-v1',
+    why_now: { text: 'A synthetic accepted source documents a construction milestone.', source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'unknown' as const, scope: null, value: null, unit: null, status: 'unknown', limitations: [] },
+    best_contact: null,
+    next_action: { text: 'Review the accepted source before deciding whether to follow up.', kind: 'review_source', source: null },
+    freshness: { as_of: null, status: 'unknown', source_date: null },
+    limitations: [],
+    sources: [],
+  }
+  const group = { ...accountGroup(), featured_project: { ...project(1), commercial_brief: brief } }
+  await installAccountFirst(page, { groups: [group] })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
+  await expect(card.locator('[aria-label="Best contact"]')).toHaveCount(0)
+  await expect(card.getByText('Suppressed Contact')).toHaveCount(0)
+  await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
 })
 
 test('legacy company UUID links resolve to the canonical account and reload in the shared detail', async ({ page }) => {
