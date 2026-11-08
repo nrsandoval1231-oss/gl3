@@ -1188,7 +1188,13 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
 
 def _retain_unchecked_contacts(session, project_id, candidates, saved, retrieved_urls, now):
     """A bounded or failed refresh is not evidence that an existing method vanished."""
-    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
+    prior_view = buying_chain_view(
+        session,
+        project_id,
+        now=now,
+        include_identity_ids=False,
+        _apply_privacy=False,
+    )
     for previous in prior_view["candidates"]:
         if previous.get("stale") or previous.get("retracted"):
             continue
@@ -1251,7 +1257,13 @@ def _retain_unchecked_assignments(
     assignment that the normal view still validates for freshness and conflicts.
     Different titles, UNKNOWN roles and successfully retracted sources never qualify.
     """
-    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
+    prior_view = buying_chain_view(
+        session,
+        project_id,
+        now=now,
+        include_identity_ids=False,
+        _apply_privacy=False,
+    )
     prior_candidates = {str(item["id"]): item for item in prior_view["candidates"]}
     for prior_id, previous in prior_candidates.items():
         if previous["person_project_relationship"] != "DIRECT":
@@ -1350,7 +1362,13 @@ def enrich_buying_chain(
     # Refresh comparisons must use the actual persisted claim state.  A public
     # privacy projection redacts that state and can otherwise make unchanged
     # claims look newly absent (or changed) on every refresh.
-    buying_chain_baseline = buying_chain_view(session, project.id, now=now, _apply_privacy=False)
+    buying_chain_baseline = buying_chain_view(
+        session,
+        project.id,
+        now=now,
+        include_identity_ids=False,
+        _apply_privacy=False,
+    )
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -1936,7 +1954,13 @@ def enrich_buying_chain(
             after_rows = [
                 row
                 for row in field_rows(
-                    buying_chain_view(session, project.id, now=now, _apply_privacy=False)
+                    buying_chain_view(
+                        session,
+                        project.id,
+                        now=now,
+                        include_identity_ids=False,
+                        _apply_privacy=False,
+                    )
                 )
             ]
             before_rows = [row for row in field_rows(buying_chain_baseline)]
