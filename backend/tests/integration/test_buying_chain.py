@@ -6311,6 +6311,54 @@ def test_contact_recovery_plan_prioritizes_tiers_and_resumes_without_writes(db, 
         assert session.scalar(select(func.count()).select_from(Job)) == 0
 
 
+def test_buying_chain_public_request_reservations_are_durable_and_bounded(db, monkeypatch):
+    import json
+
+    import gridlens.intelligence.buying_chain as buying_chain
+    from gridlens.ingestion.adapters.buying_chain_public import PublicAccessRestricted
+    from gridlens.persistence.models import Job
+
+    with db.begin() as session:
+        project = seed(session, external_id="public-budget")
+        job = Job(
+            source_id="test",
+            kind=buying_chain.BUYING_CHAIN_JOB_KIND,
+            target_id=project.id,
+            status="running",
+            checkpoint=json.dumps({"task_type": buying_chain.BUYING_CHAIN_TASK_TYPE}),
+            lease_owner="budget-test",
+            fence=7,
+            lease_until=datetime.now(UTC) + timedelta(minutes=5),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    monkeypatch.setattr(buying_chain, "SessionLocal", db)
+    cap = 2 * buying_chain.MAX_DOCUMENTS
+    for index in range(cap // 2):
+        buying_chain._reserve_buying_chain_public_request(
+            job_id, "budget-test", 7, f"https://example.test/path/{index}"
+        )
+    with db.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_owner = "budget-retry"
+        job.fence = 8
+        job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
+    for index in range(cap // 2, cap):
+        buying_chain._reserve_buying_chain_public_request(
+            job_id, "budget-retry", 8, f"https://example.test/path/{index}"
+        )
+    with pytest.raises(PublicAccessRestricted, match="request_budget_exhausted"):
+        buying_chain._reserve_buying_chain_public_request(
+            job_id, "budget-retry", 8, "https://example.test/path/last"
+        )
+    with db() as session:
+        checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        assert len(checkpoint["public_http_requests"]) == cap
+        assert checkpoint["public_http_requests"][0]["url"] == "https://example.test/path/0"
+
+
 @pytest.mark.parametrize(
     "team_path",
     ("contact", "our-people", "team/jane-doe", "team.html"),

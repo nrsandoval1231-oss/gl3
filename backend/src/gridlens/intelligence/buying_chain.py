@@ -32,6 +32,7 @@ from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 from gridlens.ingestion.adapters.bounded_http import run_isolated
 from gridlens.ingestion.adapters.buying_chain_public import (
     CAPTURE_VERSION,
+    PublicAccessRestricted,
     PublicDocument,
     retrieve,
     validate_public_url,
@@ -41,6 +42,7 @@ from gridlens.ingestion.adapters.houston_permit_details import (
     response_type_code,
     retrieve_detail,
 )
+from gridlens.ingestion.adapters.public_site_policy import load_host_approval
 from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
 from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
 from gridlens.intelligence.buying_chain_extraction import (
@@ -555,6 +557,21 @@ def buying_chain_job_status(session: Session, project_id: UUID) -> dict | None:
     }
 
 
+def _reserve_buying_chain_public_request(
+    job_id: UUID, worker_id: str, fence: int, request_url: str
+) -> None:
+    """Persist one bounded robots/target request reservation under the job fence."""
+    normalized = validate_public_url(request_url)
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        requests = checkpoint.setdefault("public_http_requests", [])
+        if not isinstance(requests, list) or len(requests) >= 2 * MAX_DOCUMENTS:
+            raise PublicAccessRestricted("request_budget_exhausted")
+        requests.append({"url": normalized, "reserved_at": datetime.now(UTC).isoformat()})
+        job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+
+
 def run_buying_chain_research(
     job_id: UUID,
     worker_id: str,
@@ -702,7 +719,17 @@ def run_buying_chain_research(
                 continue
             checked.add(url)
             try:
-                doc = retrieve(url, deadline=deadline)
+                approval = load_host_approval(url, mode="direct")
+                if approval is None:
+                    raise PublicAccessRestricted("host_not_approved")
+                doc = retrieve(
+                    url,
+                    deadline=deadline,
+                    approval=approval,
+                    before_request=lambda request_url: _reserve_buying_chain_public_request(
+                        job_id, worker_id, fence, request_url
+                    ),
+                )
                 validate_public_url(doc.url)
                 matched, _reason = project_document_match(project_snapshot, doc)
                 prefetched_documents[url] = doc
@@ -1300,6 +1327,7 @@ def enrich_buying_chain(
     *,
     source_urls: list[str] | None = None,
     fetcher: Callable[[str], PublicDocument] = retrieve,
+    public_request_reserver: Callable[[str], None] | None = None,
     prefetched_documents: dict[str, PublicDocument] | None = None,
     retrieval_failures: dict[str, str] | None = None,
     prefetched_houston_detail: PublicDocument | None = None,
@@ -1409,7 +1437,20 @@ def enrich_buying_chain(
                     )
                     continue
             else:
-                doc = retrieve(url, deadline=deadline) if fetcher is retrieve else fetcher(url)
+                if fetcher is retrieve:
+                    approval = load_host_approval(url, mode="direct")
+                    if approval is None:
+                        raise PublicAccessRestricted("host_not_approved")
+                    if public_request_reserver is None:
+                        raise PublicAccessRestricted("request_budget_callback_required")
+                    doc = retrieve(
+                        url,
+                        deadline=deadline,
+                        approval=approval,
+                        before_request=public_request_reserver,
+                    )
+                else:
+                    doc = fetcher(url)
             validate_public_url(doc.url)
             matched, reason = project_document_match(project, doc)
             documents.append((doc, matched, reason, None))

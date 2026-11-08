@@ -76,6 +76,7 @@ MAX_CANDIDATE_URLS = 4
 MAX_ADAPTIVE_FETCHES = 6
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
+MAX_CONTACT_HTTP_REQUESTS = 2 * MAX_ADAPTIVE_FETCHES + 2
 CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
 POLICY_VERSION = "company-contact-discovery-v13-adaptive"
@@ -1365,6 +1366,23 @@ def process_company_contact_discovery(
     if research_profile not in {STANDARD_RESEARCH_PROFILE, DEEP_RESEARCH_PROFILE}:
         raise ValueError("Unsupported company contact research profile")
     fetch_limit = _adaptive_fetch_limit(research_profile)
+
+    def reserve_public_request(request_url: str) -> None:
+        """Persist the contact job's bounded robots/target HTTP request budget."""
+        from gridlens.ingestion.adapters.buying_chain_public import PublicAccessRestricted
+
+        with SessionLocal.begin() as budget_session:
+            active_job = assert_fence(budget_session, job_id, worker_id, fence)
+            reserved_checkpoint = _load_checkpoint(active_job)
+            count = reserved_checkpoint.get("public_http_request_count", 0)
+            if type(count) is not int or count < 0 or count >= MAX_CONTACT_HTTP_REQUESTS:
+                raise PublicAccessRestricted("request_budget_exhausted")
+            reserved_checkpoint["public_http_request_count"] = count + 1
+            # Retain only the host for bounded internal audit; do not copy query paths.
+            host = urlsplit(request_url).hostname or "unknown"
+            reserved_checkpoint["last_public_request_host"] = host[:253]
+            active_job.checkpoint = json.dumps(reserved_checkpoint, separators=(",", ":"))
+
     checked: set[str] = set()
     consecutive_low_yield = 0
     seen_yield_keys = _current_contact_yield_keys(current.contacts)
@@ -1379,7 +1397,11 @@ def process_company_contact_discovery(
             failures.append({"url": url, "reason": "DeadlineExceeded"})
             break
         try:
-            document = retrieve(url, deadline=deadline)
+            document = retrieve(
+                url,
+                deadline=deadline,
+                before_request=reserve_public_request,
+            )
             fetched[url] = document
             if organization and _self_identified_company_site(document, organization):
                 path = urlsplit(document.url).path.casefold()
@@ -1478,7 +1500,11 @@ def process_company_contact_discovery(
     ):
         checked.add(registry_url)
         try:
-            registry_doc = retrieve(registry_url, deadline=deadline)
+            registry_doc = retrieve(
+                registry_url,
+                deadline=deadline,
+                before_request=reserve_public_request,
+            )
             fetched[registry_url] = registry_doc
         except Exception as exc:
             failure = {"url": registry_url, "reason": type(exc).__name__}
