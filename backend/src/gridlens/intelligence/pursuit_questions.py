@@ -90,7 +90,7 @@ def buyer_contact_company_coverage(
             BuyingChainClaim.project_id == project_id,
         )
     )
-    company_ids = list(session.scalars(union(membership_ids, claim_ids)))
+    company_ids: list[UUID] = list(session.scalars(union(membership_ids, claim_ids)))
     gaps: list[UUID] = []
     due_times: list[datetime] = []
 

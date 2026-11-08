@@ -149,6 +149,7 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                         {
                             "inflight_url": None,
                             "inflight_logical_call_id": None,
+                            "inflight_query": None,
                             "pre_dispatch_recovered": str(prior_call.id),
                         }
                     )
@@ -598,6 +599,28 @@ class QuestionRun:
         with SessionLocal.begin() as session:
             row = self.row(session)
             receipt = dict(row.receipt)
+            same_reservation = (
+                receipt.get("inflight_logical_call_id") == str(call_id)
+                and receipt.get("inflight_url") == url
+                and receipt.get("inflight_query") == query
+            )
+            recovered_reservation = receipt.get("pre_dispatch_recovered") == str(
+                call_id
+            ) and query in receipt.get("queries_attempted", [])
+            if same_reservation or recovered_reservation:
+                # Recovery of this exact persisted NOT_SENT call after the
+                # question receipt commit must not debit its search/document,
+                # query, or cost reservation twice.
+                receipt.update(
+                    {
+                        "inflight_url": url,
+                        "inflight_logical_call_id": str(call_id),
+                        "inflight_query": query,
+                        "pre_dispatch_recovered": None,
+                    }
+                )
+                row.receipt = receipt
+                return
             if time.monotonic() >= self.deadline:
                 raise BudgetExceeded("Research deadline exhausted")
             if query:
@@ -627,6 +650,7 @@ class QuestionRun:
                 {
                     "inflight_url": url,
                     "inflight_logical_call_id": str(call_id),
+                    "inflight_query": query,
                     "reserved_cost_usd": str(next_cost),
                     "cost_usd": None,
                     "actual_cost_usd": None,
@@ -642,6 +666,8 @@ class QuestionRun:
             if receipt.get("inflight_logical_call_id") == str(call_id):
                 receipt["inflight_url"] = None
                 receipt["inflight_logical_call_id"] = None
+                receipt["inflight_query"] = None
+                receipt["pre_dispatch_recovered"] = None
             receipt["last_logical_call_id"] = str(call_id)
             if query:
                 receipt["queries_searched"] = [*receipt.get("queries_searched", []), query]
@@ -778,10 +804,10 @@ class QuestionRun:
         shared_task_prefix = f"ps1:{semantic_fingerprint}:"
         current_task_prefix = f"{shared_task_prefix}{source_version or 'none'}:"
 
-        shared_result = None
-        prior_id = None
-        failure = None
-        blocked_reason = None
+        shared_result: LegacyCallResult | None = None
+        prior_id: UUID | None = None
+        failure: Exception | None = None
+        blocked_reason: str | None = None
         if not provider_enabled:
             blocked_reason = _disabled_reason or "PROVIDER_DISABLED"
         elif not allowed:
@@ -865,9 +891,11 @@ class QuestionRun:
                 now = datetime.now(UTC)
                 with SessionLocal() as policy_session:
                     row = policy_session.get(PursuitResearchQuestion, self.question_id)
+                    if row is None:
+                        raise RuntimeError("Research question disappeared before cache lookup")
                     freshness = min(int((row.context or {}).get("freshness_hours", 24)), 24)
                 cutoff = now - timedelta(hours=max(1, freshness))
-                reusable = next(
+                reusable: LogicalCall | None = next(
                     (
                         call
                         for call in semantic_calls
@@ -886,11 +914,15 @@ class QuestionRun:
                     None,
                 )
                 if reusable is not None:
+                    reusable_payload = reusable.result_payload
                     if operation == "search":
-                        urls = reusable.result_payload.get("urls")
+                        urls = (
+                            reusable_payload.get("urls") if reusable_payload is not None else None
+                        )
                         try:
                             valid = (
-                                isinstance(urls, list)
+                                reusable_payload is not None
+                                and isinstance(urls, list)
                                 and len(urls) <= 10
                                 and all(
                                     isinstance(value, str) and validate_public_url(value) == value
@@ -901,31 +933,37 @@ class QuestionRun:
                         except (TypeError, ValueError):
                             valid = False
                     else:
-                        data = reusable.result_payload
-                        try:
-                            valid = (
-                                isinstance(data.get("url"), str)
-                                and validate_public_url(data["url"]) == normalized_input
-                                and isinstance(data.get("title"), str)
-                                and len(data["title"]) <= 500
-                                and isinstance(data.get("text"), str)
-                                and 0 < len(data["text"]) <= self.budget["document_bytes"]
-                                and isinstance(data.get("observed_at"), str)
-                                and isinstance(data.get("extraction_location"), str)
-                                and isinstance(data.get("links", []), list)
-                                and isinstance(data.get("structured", []), list)
-                            )
-                            datetime.fromisoformat(data["observed_at"])
-                            if data.get("published_at"):
-                                datetime.fromisoformat(data["published_at"])
-                            for link in data.get("links", []):
-                                if validate_public_url(link) != link:
-                                    valid = False
-                        except (KeyError, TypeError, ValueError):
+                        data = reusable_payload
+                        if data is None:
                             valid = False
-                    if not valid:
+                        else:
+                            try:
+                                valid = (
+                                    isinstance(data.get("url"), str)
+                                    and validate_public_url(data["url"]) == normalized_input
+                                    and isinstance(data.get("title"), str)
+                                    and len(data["title"]) <= 500
+                                    and isinstance(data.get("text"), str)
+                                    and 0 < len(data["text"]) <= self.budget["document_bytes"]
+                                    and isinstance(data.get("observed_at"), str)
+                                    and isinstance(data.get("extraction_location"), str)
+                                    and isinstance(data.get("links", []), list)
+                                    and isinstance(data.get("structured", []), list)
+                                )
+                                datetime.fromisoformat(data["observed_at"])
+                                if data.get("published_at"):
+                                    datetime.fromisoformat(data["published_at"])
+                                for link in data.get("links", []):
+                                    if validate_public_url(link) != link:
+                                        valid = False
+                            except (KeyError, TypeError, ValueError):
+                                valid = False
+                    if not valid or reusable_payload is None:
                         failure = SourceParseError("Cached Firecrawl result failed validation")
                     else:
+                        finished_at = reusable.finished_at
+                        if finished_at is None:
+                            raise SourceParseError("Cached Firecrawl result has no completion time")
                         row = self.row(guard)
                         receipt = dict(row.receipt)
                         reuses = int(receipt.get("shared_provider_reuse_count", 0))
@@ -942,14 +980,14 @@ class QuestionRun:
                                         "logical_call_id": str(reusable.id),
                                         "request_fingerprint": semantic_fingerprint,
                                         "task_type": task_type,
-                                        "completed_at": reusable.finished_at.isoformat(),
+                                        "completed_at": finished_at.isoformat(),
                                         "source_version_fingerprint": source_version,
                                     },
                                 ],
                             }
                             shared_result = LegacyCallResult(
                                 reusable.id,
-                                deepcopy(reusable.result_payload),
+                                deepcopy(reusable_payload),
                                 reusable.input_tokens,
                                 reusable.output_tokens,
                                 True,

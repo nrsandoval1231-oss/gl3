@@ -1702,6 +1702,98 @@ def test_same_job_restart_recovers_one_unstarted_shared_reservation(runtime, mon
         assert question.receipt["searches"] == 1
 
 
+def test_process_restart_after_question_reservation_before_dispatch_is_idempotent(
+    runtime, monkeypatch
+):
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    calls = []
+    query = '"Synthetic Orion" project contact'
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.context = {
+            **question.context,
+            "queries": [query],
+            "query_routes": [{"query": query, "family": "public-web"}],
+        }
+    monkeypatch.setattr(
+        acquisition, "discover_urls", lambda searched, **_kwargs: calls.append(searched) or []
+    )
+    monkeypatch.setattr(worker, "acquire_registered_record", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Empty deterministic search must not retrieve"),
+    )
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    real_mark_dispatched = legacy_calls.mark_dispatched
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    def exit_after_question_reservation(*_args, **_kwargs):
+        raise SimulatedProcessExit()
+
+    monkeypatch.setattr(legacy_calls, "mark_dispatched", exit_after_question_reservation)
+    job_id, fence = lease_question(factory, question_id)
+    with pytest.raises(SimulatedProcessExit):
+        worker.process_question_job(job_id, "question-test", fence)
+
+    with factory() as session:
+        call_before = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert call_before is not None and call_before.status == "NOT_SENT"
+        call_id = call_before.id
+        assert question.receipt["searches"] == 1
+        assert question.receipt["queries_attempted"] == [query]
+        assert question.receipt["inflight_logical_call_id"] == str(call_id)
+        assert question.receipt["inflight_query"] == query
+        reserved_cost = question.receipt["reserved_cost_usd"]
+        before_budgets = session.scalars(select(LogicalCallBudget)).all()
+        before_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in before_budgets
+        ]
+        assert before_budgets
+
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+    new_job_id, new_fence = lease_question(factory, question_id)
+    assert new_job_id == job_id and new_fence > fence
+    monkeypatch.setattr(legacy_calls, "mark_dispatched", real_mark_dispatched)
+    worker.process_question_job(new_job_id, "question-test", new_fence)
+
+    assert calls == [query]
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        call_after = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        after_budgets = session.scalars(select(LogicalCallBudget)).all()
+        assert call_after is not None
+        assert call_after.id == call_id and call_after.status == "COMPLETED"
+        assert len(after_budgets) == len(before_counts)
+        after_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in after_budgets
+        ]
+        assert sorted(after_counts) == sorted(
+            (scope, count, cost, 0) for scope, count, cost, _ in before_counts
+        )
+        assert question.receipt["searches"] == 1
+        assert question.receipt["reserved_cost_usd"] == reserved_cost
+        assert question.receipt["queries_attempted"] == [query]
+        assert question.receipt["inflight_logical_call_id"] is None
+        assert question.receipt["inflight_query"] is None
+
+
 def test_shared_search_cache_expiry_uses_a_new_durable_generation(runtime, monkeypatch):
     import time
     from decimal import Decimal
