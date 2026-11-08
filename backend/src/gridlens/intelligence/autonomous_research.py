@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import time
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import and_, or_, select, text
 
 from gridlens.domain.pursuit_research import ACTIVE, blocker_resolved, fingerprint
-from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable, retrieve
+from gridlens.ingestion.adapters.buying_chain_public import (
+    PublicAccessRestricted,
+    PublicExtractionUnavailable,
+    retrieve,
+)
 from gridlens.ingestion.adapters.pursuit_acquisition import (
     SUPPORTED_SOURCES,
     ExtractionUnavailable,
@@ -36,6 +41,8 @@ from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
+    Job,
+    LogicalCall,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -412,11 +419,22 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
             return
         direct_failure = None
         try:
-            run.reserve(url)
+            from gridlens.ingestion.adapters.public_site_policy import load_host_approval
+
+            approval = load_host_approval(url, mode="direct")
+            if approval is None:
+                raise PublicAccessRestricted(
+                    "Exact-host terms and robots approval is not configured for this destination"
+                )
             acquisition_method = "direct_http"
             try:
                 document = retrieve(
-                    url, deadline=run.deadline, max_bytes=run.budget["document_bytes"]
+                    url,
+                    approval=approval,
+                    mode="direct",
+                    before_request=lambda robots_url: run.reserve(robots_url),
+                    deadline=run.deadline,
+                    max_bytes=run.budget["document_bytes"],
                 )
             except PublicExtractionUnavailable as exc:
                 direct_failure = retrieval_failure(exc)
@@ -621,25 +639,19 @@ class QuestionRun:
 
     def search(self, query: str) -> list[str]:
         from gridlens.ingestion.adapters.pursuit_acquisition import discover_urls
-        from gridlens.integrations.legacy_calls import perform_legacy_call
 
         with SessionLocal() as session:
             row = session.get(PursuitResearchQuestion, self.question_id)
             assert row is not None
             project_id = row.project_id
         payload = {"query": query, "limit": 10, "sources": ["web"]}
-        result = perform_legacy_call(
+        result = self._shared_firecrawl_call(
             task_type="FIRECRAWL_SEARCH_V2",
-            task_key=f"pursuit-question:{self.question_id}:search:{fingerprint(query)}",
+            operation="search",
+            semantic_input=query,
             payload=payload,
-            source_id=None,
             project_id=project_id,
-            job_id=self.job_id,
-            worker_id=self.worker_id,
-            fence_token=self.fence,
-            before_dispatch=lambda call_id: self._reserve_paid(
-                call_id, "https://api.firecrawl.dev/v2/search", query=query
-            ),
+            query=query,
             invoke=lambda: (
                 {
                     "urls": discover_urls(
@@ -659,70 +671,340 @@ class QuestionRun:
         urls = result.result.get("urls")
         if not isinstance(urls, list) or any(not isinstance(url, str) for url in urls):
             raise ValueError("Cached Firecrawl search response is invalid")
-        self._finish_paid(result.logical_call_id, query=query)
         return urls
 
     def scrape(self, url: str):
-        from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
-        from gridlens.ingestion.adapters.pursuit_acquisition import extract_public_document
-        from gridlens.integrations.legacy_calls import perform_legacy_call
-
-        with SessionLocal() as session:
-            row = session.get(PursuitResearchQuestion, self.question_id)
-            assert row is not None
-            project_id = row.project_id
-        payload = {"url": url, "formats": ["markdown"], "max_bytes": self.budget["document_bytes"]}
-
-        def invoke():
-            document = extract_public_document(
-                url,
-                api_key=settings.firecrawl_api_key.get_secret_value()
-                if settings.firecrawl_api_key
-                else None,
-                deadline=self.deadline,
-                before_request=lambda _endpoint: None,
-                max_bytes=self.budget["document_bytes"],
-            )
-            value = {
-                "url": document.url,
-                "title": document.title,
-                "text": document.text,
-                "published_at": document.published_at.isoformat()
-                if document.published_at
-                else None,
-                "observed_at": document.observed_at.isoformat(),
-                "extraction_location": document.extraction_location,
-                "links": list(document.links),
-                "structured": list(document.structured),
-                "retained_version": document.retained_version,
-                "capture_version": document.capture_version,
-            }
-            return value, None, None
-
-        result = perform_legacy_call(
-            task_type="FIRECRAWL_SCRAPE_V2",
-            task_key=f"pursuit-question:{self.question_id}:scrape:{fingerprint(url)}",
-            payload=payload,
-            source_id=None,
-            project_id=project_id,
-            job_id=self.job_id,
-            worker_id=self.worker_id,
-            fence_token=self.fence,
-            before_dispatch=lambda call_id: self._reserve_paid(
-                call_id, "https://api.firecrawl.dev/v2/scrape"
-            ),
-            invoke=invoke,
+        # The official Firecrawl v2 scrape contract currently documents no
+        # target redirect/private-host control. Final-URL validation is after
+        # provider-side navigation, so it cannot prevent an unsafe fetch.
+        raise ExtractionUnavailable(
+            "Firecrawl target redirect safety is not established; use bounded direct retrieval."
         )
-        data = result.result
-        if not isinstance(data.get("text"), str):
-            raise ValueError("Cached Firecrawl scrape response is invalid")
-        data["observed_at"] = datetime.fromisoformat(data["observed_at"])
-        if data.get("published_at"):
-            data["published_at"] = datetime.fromisoformat(data["published_at"])
-        data["links"] = tuple(data.get("links", ()))
-        data["structured"] = tuple(data.get("structured", ()))
-        self._finish_paid(result.logical_call_id)
-        return PublicDocument(**data)
+
+    def _shared_firecrawl_call(
+        self,
+        *,
+        task_type: str,
+        operation: str,
+        semantic_input: str,
+        payload: dict,
+        project_id: UUID,
+        invoke,
+        query: str | None = None,
+    ):
+        """Serialize and reuse exact recent Firecrawl work across need jobs.
+
+        The paid-call ledger remains project-bound for each dispatched request.
+        This read-only result cache points back to the original ledger row; every
+        requesting need still runs its own source admission and evidence checks.
+        """
+        from gridlens.ingestion.adapters.buying_chain_public import validate_public_url
+        from gridlens.ingestion.adapters.pursuit_acquisition import SourceParseError
+        from gridlens.integrations.legacy_calls import (
+            LegacyCallBlocked,
+            LegacyCallResult,
+            _digest,
+            perform_legacy_call,
+        )
+        from gridlens.integrations.logical_calls import _provider_quarantined
+        from gridlens.intelligence.intelligence_jobs import (
+            _billing_policy_identity,
+            _cost_bound,
+            _dispatch_policy,
+            _enabled,
+            _owner_unlimited_allowed,
+        )
+
+        normalized_input = (
+            " ".join(semantic_input.split()).casefold()
+            if operation == "search"
+            else validate_public_url(semantic_input)
+        )
+        semantic_fingerprint = fingerprint([operation, normalized_input])
+        suffix = fingerprint(semantic_input)
+        legacy_suffix = f":{operation}:{suffix}"
+        lock_key = f"firecrawl-shared:{operation}:{semantic_fingerprint}"
+        endpoint = (
+            "https://api.firecrawl.dev/v2/search"
+            if operation == "search"
+            else "https://api.firecrawl.dev/v2/scrape"
+        )
+        unit_cost_setting = (
+            settings.firecrawl_search_cost_usd
+            if operation == "search"
+            else settings.firecrawl_scrape_cost_usd
+        )
+        provider_enabled, provider, model, _disabled_reason = _enabled(task_type, payload=payload)
+        billing_policy = _billing_policy_identity(provider, model, task_type)
+        allowed, _policy_reason = _dispatch_policy(
+            task_type,
+            None,
+            provider,
+            model,
+            payload,
+            None
+            if _owner_unlimited_allowed(provider, task_type)
+            else _cost_bound(provider, task_type, payload),
+            billing_policy,
+        )
+        cache_allowed = bool(
+            provider_enabled
+            and allowed
+            and settings.firecrawl_api_key
+            and unit_cost_setting is not None
+            and unit_cost_setting > 0
+            and time.monotonic() < self.deadline
+        )
+        cache_context = _digest({"payload": payload, "billing_policy": billing_policy})
+        source_version = None
+        if operation == "scrape":
+            with SessionLocal() as session:
+                versions = session.scalars(
+                    select(Observation.content_hash)
+                    .where(Observation.url == normalized_input)
+                    .order_by(Observation.source_id, Observation.external_id)
+                ).all()
+            source_version = fingerprint(versions) if versions else None
+        shared_task_prefix = f"ps1:{semantic_fingerprint}:"
+        current_task_prefix = f"{shared_task_prefix}{source_version or 'none'}:"
+
+        shared_result = None
+        prior_id = None
+        failure = None
+        blocked_reason = None
+        if not provider_enabled:
+            blocked_reason = _disabled_reason or "PROVIDER_DISABLED"
+        elif not allowed:
+            blocked_reason = _policy_reason or "PROVIDER_POLICY_BLOCKED"
+        elif not settings.firecrawl_api_key:
+            blocked_reason = "FIRECRAWL_API_KEY_MISSING"
+        elif unit_cost_setting is None or unit_cost_setting <= 0:
+            blocked_reason = "PROVIDER_UNIT_COST_UNCONFIGURED"
+        elif time.monotonic() >= self.deadline:
+            failure = BudgetExceeded("Research deadline exhausted")
+        with SessionLocal.begin() as guard:
+            _lock_acquisition(guard, lock_key)
+            current_question = guard.get(PursuitResearchQuestion, self.question_id)
+            current_job = guard.get(Job, self.job_id)
+            if (
+                current_question is None
+                or current_job is None
+                or current_job.status != "running"
+                or current_job.lease_owner != self.worker_id
+                or current_job.fence != self.fence
+                or current_job.lease_until is None
+                or current_job.lease_until <= datetime.now(UTC)
+            ):
+                raise RuntimeError("Worker lease fence lost before shared result lookup")
+            semantic_filter = or_(
+                LogicalCall.task_key.like(f"{shared_task_prefix}%"),
+                LogicalCall.task_key.endswith(legacy_suffix),
+            )
+            unknown = guard.scalar(
+                select(LogicalCall)
+                .where(
+                    LogicalCall.task_type == task_type,
+                    semantic_filter,
+                    LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+                )
+                .order_by(LogicalCall.created_at.desc(), LogicalCall.id.desc())
+                .limit(1)
+            )
+            semantic_calls = list(
+                guard.scalars(
+                    select(LogicalCall)
+                    .where(LogicalCall.task_type == task_type, semantic_filter)
+                    .order_by(LogicalCall.created_at.desc(), LogicalCall.id.desc())
+                    .limit(50)
+                )
+            )
+            now_utc = datetime.now(UTC)
+            active_not_sent = guard.scalar(
+                select(LogicalCall)
+                .join(Job, Job.id == LogicalCall.job_id)
+                .where(
+                    LogicalCall.task_type == task_type,
+                    semantic_filter,
+                    LogicalCall.status == "NOT_SENT",
+                    LogicalCall.job_id != self.job_id,
+                    or_(
+                        Job.status == "queued",
+                        and_(Job.status == "running", Job.lease_until > now_utc),
+                    ),
+                )
+                .order_by(LogicalCall.created_at.desc(), LogicalCall.id.desc())
+                .limit(1)
+            )
+            if unknown is not None:
+                row = self.row(guard)
+                receipt = dict(row.receipt)
+                row.receipt = {
+                    **receipt,
+                    "inflight_url": endpoint,
+                    "inflight_logical_call_id": str(unknown.id),
+                    "shared_effect_fingerprint": semantic_fingerprint,
+                }
+                failure = LegacyCallBlocked("SHARED_REQUEST_OUTCOME_UNKNOWN")
+            elif active_not_sent is not None:
+                failure = AcquisitionBusy()
+            elif failure is None and not cache_allowed:
+                failure = LegacyCallBlocked(blocked_reason or "PROVIDER_POLICY_BLOCKED")
+            elif failure is None and _provider_quarantined(guard, provider):
+                failure = LegacyCallBlocked("PROVIDER_BILLING_QUARANTINED")
+            elif failure is None:
+                now = datetime.now(UTC)
+                with SessionLocal() as policy_session:
+                    row = policy_session.get(PursuitResearchQuestion, self.question_id)
+                    freshness = min(int((row.context or {}).get("freshness_hours", 24)), 24)
+                cutoff = now - timedelta(hours=max(1, freshness))
+                reusable = next(
+                    (
+                        call
+                        for call in semantic_calls
+                        if call.status == "COMPLETED"
+                        and call.context_digest == cache_context
+                        and call.provider == provider
+                        and call.model == model
+                        and call.finished_at is not None
+                        and call.finished_at >= cutoff
+                        and call.result_payload is not None
+                        and call.result_digest == _digest(call.result_payload)
+                        and (
+                            source_version is None
+                            or call.task_key.startswith(current_task_prefix)
+                        )
+                    ),
+                    None,
+                )
+                if reusable is not None:
+                    if operation == "search":
+                        urls = reusable.result_payload.get("urls")
+                        try:
+                            valid = (
+                                isinstance(urls, list)
+                                and len(urls) <= 10
+                                and all(
+                                    isinstance(value, str)
+                                    and validate_public_url(value) == value
+                                    for value in urls
+                                )
+                                and len(urls) == len(set(urls))
+                            )
+                        except (TypeError, ValueError):
+                            valid = False
+                    else:
+                        data = reusable.result_payload
+                        try:
+                            valid = (
+                                isinstance(data.get("url"), str)
+                                and validate_public_url(data["url"]) == normalized_input
+                                and isinstance(data.get("title"), str)
+                                and len(data["title"]) <= 500
+                                and isinstance(data.get("text"), str)
+                                and 0 < len(data["text"]) <= self.budget["document_bytes"]
+                                and isinstance(data.get("observed_at"), str)
+                                and isinstance(data.get("extraction_location"), str)
+                                and isinstance(data.get("links", []), list)
+                                and isinstance(data.get("structured", []), list)
+                            )
+                            datetime.fromisoformat(data["observed_at"])
+                            if data.get("published_at"):
+                                datetime.fromisoformat(data["published_at"])
+                            for link in data.get("links", []):
+                                if validate_public_url(link) != link:
+                                    valid = False
+                        except (KeyError, TypeError, ValueError):
+                            valid = False
+                    if not valid:
+                        failure = SourceParseError("Cached Firecrawl result failed validation")
+                    else:
+                        row = self.row(guard)
+                        receipt = dict(row.receipt)
+                        reuses = int(receipt.get("shared_provider_reuse_count", 0))
+                        maximum = int(self.budget["searches"]) + int(self.budget["documents"])
+                        if reuses >= maximum:
+                            failure = BudgetExceeded("Shared-result reuse cap reached")
+                        else:
+                            row.receipt = {
+                                **receipt,
+                                "shared_provider_reuse_count": reuses + 1,
+                                "shared_provider_reuses": [
+                                    *receipt.get("shared_provider_reuses", []),
+                                    {
+                                        "logical_call_id": str(reusable.id),
+                                        "request_fingerprint": semantic_fingerprint,
+                                        "task_type": task_type,
+                                        "completed_at": reusable.finished_at.isoformat(),
+                                        "source_version_fingerprint": source_version,
+                                    },
+                                ],
+                            }
+                            shared_result = LegacyCallResult(
+                                reusable.id,
+                                deepcopy(reusable.result_payload),
+                                reusable.input_tokens,
+                                reusable.output_tokens,
+                                True,
+                            )
+                            prior_id = reusable.id
+
+            if failure is None and shared_result is None:
+                if cache_allowed:
+                    previous_generation = next(
+                        (
+                            call
+                            for call in semantic_calls
+                            if call.task_key.startswith(current_task_prefix)
+                            and call.context_digest == cache_context
+                            and call.provider == provider
+                            and call.model == model
+                        ),
+                        None,
+                    )
+                    own_pending = guard.scalar(
+                        select(LogicalCall)
+                        .where(
+                            LogicalCall.task_type == task_type,
+                            semantic_filter,
+                            LogicalCall.status == "NOT_SENT",
+                            LogicalCall.job_id == self.job_id,
+                            LogicalCall.context_digest == cache_context,
+                            LogicalCall.provider == provider,
+                            LogicalCall.model == model,
+                        )
+                        .order_by(LogicalCall.created_at.desc(), LogicalCall.id.desc())
+                        .limit(1)
+                    )
+                    if own_pending is not None:
+                        task_key = own_pending.task_key
+                    else:
+                        generation_identity = (
+                            str(previous_generation.id) if previous_generation else "initial"
+                        )
+                        generation = fingerprint([generation_identity, str(project_id)])
+                        task_key = f"{current_task_prefix}{generation}"
+                else:
+                    task_key = f"pursuit-question:{self.question_id}:{operation}:{suffix}"
+                shared_result = perform_legacy_call(
+                    task_type=task_type,
+                    task_key=task_key,
+                    payload=payload,
+                    source_id=None,
+                    project_id=project_id,
+                    job_id=self.job_id,
+                    worker_id=self.worker_id,
+                    fence_token=self.fence,
+                    before_dispatch=lambda call_id: self._reserve_paid(
+                        call_id, endpoint, query=query
+                    ),
+                    invoke=invoke,
+                )
+                prior_id = shared_result.logical_call_id
+        if failure is not None:
+            raise failure
+        assert shared_result is not None and prior_id is not None
+        self._finish_paid(prior_id, query=query)
+        return shared_result
 
     def complete_search(self, query: str) -> None:
         with SessionLocal.begin() as session:

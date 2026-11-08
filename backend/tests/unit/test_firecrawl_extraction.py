@@ -5,7 +5,6 @@ import time
 from contextlib import nullcontext
 from decimal import Decimal
 from types import SimpleNamespace
-from uuid import UUID
 
 import httpx
 import pytest
@@ -14,7 +13,6 @@ from pydantic import SecretStr
 from gridlens.ingestion.adapters.bounded_http import AcquisitionFailure, ResponseTooLarge
 from gridlens.ingestion.adapters.buying_chain_public import (
     PublicAccessRestricted,
-    PublicDocument,
     PublicExtractionUnavailable,
 )
 from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -24,6 +22,16 @@ from gridlens.ingestion.adapters.pursuit_acquisition import (
 )
 
 URL = "https://example.com/project"
+
+
+@pytest.fixture(autouse=True)
+def parser_only_provider_contract_fixture(monkeypatch):
+    """Enable parser/transport fixtures only; this is not a runtime capability."""
+    from gridlens.ingestion.adapters import pursuit_acquisition
+
+    monkeypatch.setattr(
+        pursuit_acquisition, "_firecrawl_target_redirect_safety_verified", lambda: True
+    )
 
 
 def payload():
@@ -151,6 +159,29 @@ def test_extraction_byte_deadline_and_budget_prevent_unbounded_request():
         assert len(calls) == 1
 
 
+def test_provider_target_redirect_capability_blocks_before_paid_dispatch(monkeypatch):
+    from gridlens.ingestion.adapters import pursuit_acquisition
+
+    calls = []
+    monkeypatch.setattr(
+        pursuit_acquisition, "_firecrawl_target_redirect_safety_verified", lambda: False
+    )
+    with httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: calls.append(request) or httpx.Response(200, json=payload())
+        )
+    ) as client:
+        with pytest.raises(pursuit_acquisition.ExtractionUnavailable, match="redirect safety"):
+            extract_public_document(
+                URL,
+                api_key="test",
+                deadline=time.monotonic() + 5,
+                before_request=lambda _: pytest.fail("Provider budget must not be reserved"),
+                client=client,
+            )
+    assert calls == []
+
+
 def test_extraction_rejects_private_final_url_and_never_follows_provider_redirect():
     data = payload()
     data["data"]["metadata"]["url"] = "https://127.0.0.1/private"
@@ -207,8 +238,8 @@ def test_failure_receipt_uses_stable_codes_without_sensitive_exception_text(erro
 
 @pytest.mark.parametrize("eligible", [True, False])
 def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, eligible):
-    from gridlens.ingestion.adapters import pursuit_acquisition
-    from gridlens.integrations import legacy_calls
+    import sys
+
     from gridlens.intelligence import autonomous_research as worker
     from gridlens.settings import settings
 
@@ -233,6 +264,11 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     monkeypatch.setattr(worker, "SessionLocal", SessionFactory())
     monkeypatch.setattr(worker, "_lock_acquisition", lambda *_: None)
     monkeypatch.setattr(worker, "enrich_buying_chain", lambda *_args, **_kwargs: None)
+    monkeypatch.setitem(
+        sys.modules,
+        "gridlens.ingestion.adapters.public_site_policy",
+        SimpleNamespace(load_host_approval=lambda *_args, **_kwargs: object()),
+    )
     monkeypatch.setattr(
         worker, "retain_research_document", lambda *args: {"disposition": "ACCEPTED"}
     )
@@ -243,31 +279,15 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     monkeypatch.setattr(settings, "intelligence_research_enabled", True)
     monkeypatch.setattr(settings, "intelligence_enabled_contracts", "FIRECRAWL_SCRAPE_V2")
 
-    def retrieve(*_args, **_kwargs):
+    def retrieve(*_args, **kwargs):
+        kwargs["before_request"]("https://example.com/robots.txt")
+        kwargs["before_request"](URL)
         events.append("direct")
         if eligible:
             raise PublicExtractionUnavailable("JavaScript shell")
         raise PublicAccessRestricted("Login required")
 
-    def extract(*_args, **kwargs):
-        assert kwargs["api_key"] == "test"
-        assert kwargs["max_bytes"] == 750000
-        assert callable(kwargs["before_request"])
-        events.append("scrape")
-        return PublicDocument(URL, "Public project", "Full supported text")
-
-    call_id = UUID(int=1)
-
-    def perform_legacy_call(**kwargs):
-        assert kwargs["task_type"] == "FIRECRAWL_SCRAPE_V2"
-        kwargs["before_dispatch"](call_id)
-        payload, input_tokens, output_tokens = kwargs["invoke"]()
-        assert input_tokens is output_tokens is None
-        return SimpleNamespace(logical_call_id=call_id, result=payload)
-
     monkeypatch.setattr(worker, "retrieve", retrieve)
-    monkeypatch.setattr(pursuit_acquisition, "extract_public_document", extract)
-    monkeypatch.setattr(legacy_calls, "perform_legacy_call", perform_legacy_call)
     monkeypatch.setattr(worker, "SessionLocal", SessionFactory())
     run = worker.QuestionRun(
         "j",
@@ -280,23 +300,14 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     monkeypatch.setattr(run, "cached", lambda _: None)
     monkeypatch.setattr(run, "reserve", lambda *_args, **_kwargs: events.append("direct_reserved"))
     monkeypatch.setattr(run, "row", lambda _: question)
-    monkeypatch.setattr(
-        run,
-        "_reserve_paid",
-        lambda *_args, **_kwargs: events.append("scrape_reserved"),
-    )
-    monkeypatch.setattr(run, "_finish_paid", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(run, "record", receipts.append)
     worker._research_public_url(run, URL)
-    assert events == (
-        ["direct_reserved", "direct", "scrape_reserved", "scrape"]
-        if eligible
-        else ["direct_reserved", "direct"]
+    assert events == ["direct_reserved", "direct_reserved", "direct"]
+    assert receipts[0]["disposition"] == "FAILED"
+    assert receipts[0]["effect_status"] == "NOT_SENT"
+    assert receipts[0]["failure_code"] == (
+        "extraction_not_configured" if eligible else "access_restricted"
     )
-    assert receipts[0]["disposition"] == ("ACCEPTED" if eligible else "FAILED")
-    if not eligible:
-        assert receipts[0]["failure_code"] == "access_restricted"
-        assert receipts[0]["effect_status"] == "NOT_SENT"
 
 
 @pytest.mark.parametrize("exhausted", [None, "documents", "cost", "deadline"])

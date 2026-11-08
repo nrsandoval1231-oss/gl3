@@ -17,6 +17,8 @@ from gridlens.persistence.models import (
     Evidence,
     Interpretation,
     Job,
+    LogicalCall,
+    LogicalCallBudget,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -1082,6 +1084,397 @@ def test_retrieval_reservation_survives_worker_restart_and_enforces_document_bud
     # A process interruption during a free GET is idempotent and must not be
     # promoted to an ambiguous paid effect. Its reservation still survives and
     # enforces the persisted document budget after a worker restart.
+
+
+def test_identical_paid_search_is_reused_across_question_jobs(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    assert len(question_ids) == 2
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+
+    def search(query, **_kwargs):
+        calls.append(query)
+        return ["https://example.com/shared-project"]
+
+    monkeypatch.setattr(acquisition, "discover_urls", search)
+    results = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            row = session.get(PursuitResearchQuestion, question_id)
+            budget = row.budget
+        run = worker.QuestionRun(
+            job_id, "question-test", fence, question_id, time.monotonic(), budget
+        )
+        results.append(run.search('"Synthetic Orion" project contact'))
+
+    assert calls == ['"Synthetic Orion" project contact']
+    assert results == [["https://example.com/shared-project"]] * 2
+    with factory() as session:
+        calls_in_ledger = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        assert len(calls_in_ledger) == 1
+        assert second.receipt["shared_provider_reuses"][0]["logical_call_id"] == str(
+            calls_in_ledger[0].id
+        )
+
+
+def test_cached_search_cannot_bypass_disabled_provider_policy(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    assert len(question_ids) == 2
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/disabled-cache"],
+    )
+    query = '"Synthetic Orion" project contact'
+    first_job, first_fence = lease_question(factory, question_ids[0])
+    with factory() as session:
+        first_budget = session.get(PursuitResearchQuestion, question_ids[0]).budget
+    first_run = worker.QuestionRun(
+        first_job, "question-test", first_fence, question_ids[0], time.monotonic(), first_budget
+    )
+    assert first_run.search(query) == ["https://example.com/disabled-cache"]
+
+    monkeypatch.setattr(settings, "intelligence_enabled", False)
+    second_job, second_fence = lease_question(factory, question_ids[1])
+    with factory() as session:
+        second_budget = session.get(PursuitResearchQuestion, question_ids[1]).budget
+    second_run = worker.QuestionRun(
+        second_job, "question-test", second_fence, question_ids[1], time.monotonic(), second_budget
+    )
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    with pytest.raises(legacy_calls.LegacyCallBlocked):
+        second_run.search(query)
+    assert calls == [query]
+
+
+def test_concurrent_identical_search_defers_second_job_then_reuses_one_call(
+    runtime, monkeypatch
+):
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    assert len(question_ids) == 2
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    entered = threading.Event()
+    release = threading.Event()
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+
+    def search(query, **_kwargs):
+        calls.append(query)
+        entered.set()
+        assert release.wait(timeout=5)
+        return ["https://example.com/concurrent-project"]
+
+    monkeypatch.setattr(acquisition, "discover_urls", search)
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(runs[0].search, '"Synthetic Orion" project contact')
+        assert entered.wait(timeout=5)
+        second = pool.submit(runs[1].search, '"Synthetic Orion" project contact')
+        with pytest.raises(worker.AcquisitionBusy):
+            second.result(timeout=5)
+        release.set()
+        assert first.result(timeout=5) == ["https://example.com/concurrent-project"]
+
+    assert runs[1].search('"Synthetic Orion" project contact') == [
+        "https://example.com/concurrent-project"
+    ]
+    assert calls == ['"Synthetic Orion" project contact']
+    with factory() as session:
+        ledger = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        second_question = session.get(PursuitResearchQuestion, question_ids[1])
+        assert len(ledger) == 1
+        assert second_question.receipt["shared_provider_reuses"][0]["logical_call_id"] == str(
+            ledger[0].id
+        )
+
+
+def test_same_job_restart_recovers_one_unstarted_shared_reservation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    calls = []
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/restart-project"],
+    )
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    real_reserve = legacy_calls.reserve_call
+    interrupt = True
+
+    def reserve_then_exit(*args, **kwargs):
+        nonlocal interrupt
+        reservation = real_reserve(*args, **kwargs)
+        if interrupt:
+            interrupt = False
+            raise SimulatedProcessExit()
+        return reservation
+
+    monkeypatch.setattr(legacy_calls, "reserve_call", reserve_then_exit)
+    query = '"Synthetic Orion" project contact'
+    job_id, fence = lease_question(factory, question_id)
+    with factory() as session:
+        budget = session.get(PursuitResearchQuestion, question_id).budget
+    first_run = worker.QuestionRun(
+        job_id, "question-test", fence, question_id, time.monotonic(), budget
+    )
+    with pytest.raises(SimulatedProcessExit):
+        first_run.search(query)
+
+    with factory() as session:
+        call_before = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        assert call_before is not None and call_before.status == "NOT_SENT"
+        call_id = call_before.id
+        budget_before = session.scalars(select(LogicalCallBudget)).all()
+        assert len(budget_before) == 12
+        before_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in budget_before
+        ]
+
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+    new_job_id, new_fence = lease_question(factory, question_id)
+    assert new_job_id == job_id and new_fence > fence
+    resumed = worker.QuestionRun(
+        new_job_id, "question-test", new_fence, question_id, time.monotonic(), budget
+    )
+    assert resumed.search(query) == ["https://example.com/restart-project"]
+    assert calls == [query]
+    with factory() as session:
+        calls_after = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        budget_after = session.scalars(select(LogicalCallBudget)).all()
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert len(calls_after) == 1
+        assert calls_after[0].id == call_id and calls_after[0].status == "COMPLETED"
+        assert len(budget_after) == len(before_counts)
+        after_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in budget_after
+        ]
+        assert sorted(after_counts) == sorted(
+            (scope, count, cost, 0) for scope, count, cost, _ in before_counts
+        )
+        assert question.receipt["searches"] == 1
+
+
+def test_shared_search_cache_expiry_uses_a_new_durable_generation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        original = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        original_id = original.id
+        original.finished_at = datetime.now(UTC) - timedelta(days=2)
+
+    assert runs[1].search(query) == ["https://example.com/shared-project"]
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    assert calls == [query, query]
+    with factory() as session:
+        generations = session.scalars(
+            select(LogicalCall)
+            .where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+            .order_by(LogicalCall.created_at, LogicalCall.id)
+        ).all()
+        assert len(generations) == 2
+        assert generations[0].id == original_id
+        assert generations[1].task_key.startswith("ps1:")
+        assert generations[1].task_key != generations[0].task_key
+        assert len(generations[1].task_key) <= 200
+
+
+def test_shared_unknown_search_blocks_new_payload_generation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        prior = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        prior.status = "SENT_OUTCOME_UNKNOWN"
+        prior.finished_at = datetime.now(UTC) - timedelta(days=3)
+
+    with pytest.raises(LegacyCallBlocked, match="OUTCOME_UNKNOWN"):
+        runs[1]._shared_firecrawl_call(
+            task_type="FIRECRAWL_SEARCH_V2",
+            operation="search",
+            semantic_input=query,
+            payload={"query": query, "limit": 5, "sources": ["web"]},
+            project_id=uuid4(),
+            query=query,
+            invoke=lambda: (calls.append(query) or {"urls": []}, None, None),
+        )
+    assert calls == [query]
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_ids[1])
+        assert question.receipt["inflight_logical_call_id"] == str(prior.id)
+        assert question.receipt["shared_effect_fingerprint"]
+
+
+def test_malformed_completed_shared_result_fails_closed_without_new_search(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+    from gridlens.integrations.legacy_calls import _digest
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        prior = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        prior.result_payload = {"urls": ["https://127.0.0.1/private"]}
+        prior.result_digest = _digest(prior.result_payload)
+
+    with pytest.raises(SourceParseError, match="Cached Firecrawl result failed validation"):
+        runs[1].search(query)
+    assert calls == [query]
 
 
 @pytest.mark.parametrize("invalidation", ["changed_content", "rejected", "force"])
