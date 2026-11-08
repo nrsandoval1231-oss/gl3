@@ -217,6 +217,7 @@ class AssociatedAccountOut(BaseModel):
 
 
 class OpportunityOut(BaseModel):
+    commercial_brief: dict[str, Any] | None = None
     intelligence_card: IntelligenceCard | None = None
     associated_account: AssociatedAccountOut | None = None
     id: UUID
@@ -323,6 +324,7 @@ class PursuitWorkspacePageOut(BaseModel):
 
 
 class CustomerAccountNeedOut(BaseModel):
+    commercial_brief: dict[str, Any] | None = None
     id: UUID
     project_id: UUID
     tier: str
@@ -444,6 +446,7 @@ class UnifiedSearchOut(BaseModel):
 
 
 class CustomerProjectOut(BaseModel):
+    commercial_brief: dict[str, Any] | None = None
     id: UUID
     name: str
     location: str | None

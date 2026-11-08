@@ -6882,6 +6882,18 @@
       },
       "CustomerAccountNeedOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Brief"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7129,6 +7141,18 @@
       },
       "CustomerProjectOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Brief"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -9957,6 +9981,18 @@
       },
       "OpportunityOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Brief"
+          },
           "intelligence_card": {
             "anyOf": [
               {
@@ -11962,6 +11998,18 @@
       },
       "PursuitWorkspaceItemOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Brief"
+          },
           "intelligence_card": {
             "anyOf": [
               {

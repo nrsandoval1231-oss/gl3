@@ -1900,6 +1900,10 @@ export interface components {
         };
         /** CustomerAccountNeedOut */
         CustomerAccountNeedOut: {
+            /** Commercial Brief */
+            commercial_brief?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Id
              * Format: uuid
@@ -1976,6 +1980,10 @@ export interface components {
         };
         /** CustomerProjectOut */
         CustomerProjectOut: {
+            /** Commercial Brief */
+            commercial_brief?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Id
              * Format: uuid
@@ -2937,6 +2945,10 @@ export interface components {
         };
         /** OpportunityOut */
         OpportunityOut: {
+            /** Commercial Brief */
+            commercial_brief?: {
+                [key: string]: unknown;
+            } | null;
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**
@@ -3562,6 +3574,10 @@ export interface components {
         };
         /** PursuitWorkspaceItemOut */
         PursuitWorkspaceItemOut: {
+            /** Commercial Brief */
+            commercial_brief?: {
+                [key: string]: unknown;
+            } | null;
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**

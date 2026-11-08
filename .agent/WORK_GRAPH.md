@@ -33,3 +33,7 @@ Implemented and locally verified from `3e1982ce`: [bounded implementation and ac
 ## November 8 PR187 review and merge gate
 
 Owner now authorizes review of comments, validation and merge when ready for PR187 only. READY review packet: historical alias privacy, account child order and header restoration. Repairs and regression coverage are implemented; independent scoped review passes, including its additional delayed-membership privacy finding. Full local gates and exact-head CI passed on `caa2a15`. Subsequent CodeRabbit comments led to saved-Pursuit availability handling for restored alias chains and two documentation clarifications; seven new regression cases reproduce the old failure and pass the repair. All 63 Pursuit/alias integration tests and independent follow-up review pass. Latest-head full CI remains the merge gate. [Receipt](../docs/validation/pr187-review-20261108.md) and the current PR record own final outcomes. No deployment/provider/production authority is added.
+
+## November 8 autonomous commercial research Phase 2
+
+Current authority is ONE tested/reviewed draft PR without merge/deploy/provider/production authority. Base bc433650 includes merged PR187. Four isolated Luna lanes own acquisition, commercial interpretation, contacts and product; coordinator owns shared integration. See [current contracts](../docs/engineering/autonomous-commercial-research-20261108.md). Prior merge permissions above are historical. Implementation/verification in progress; no runtime acceptance claim.
