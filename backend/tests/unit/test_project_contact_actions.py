@@ -173,6 +173,13 @@ def test_cached_page_actions_and_people_are_filtered_by_new_suppressions(monkeyp
     def suppress_only(monkeypatch, keys):
         monkeypatch.setattr(
             contact_actions_module,
+            "_current_contact_record_keys",
+            lambda _session, requested: {
+                contact_actions_module._record_key(record) for record in requested
+            },
+        )
+        monkeypatch.setattr(
+            contact_actions_module,
             "_ledger_states",
             lambda _session, requested: {key: "suppress" for key in requested & keys},
         )

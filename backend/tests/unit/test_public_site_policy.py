@@ -68,13 +68,15 @@ def test_host_approval_is_exact_host_mode_scoped_expiring_and_revocable(monkeypa
         "https://*.example.test/", approval, mode="direct", now=NOW
     ).allowed
 
-    settings_data = [{
-        "hostname": "example.test",
-        "terms_review_ref": "fixture:review-1",
-        "reviewed_at": (NOW - timedelta(days=1)).isoformat(),
-        "expires_at": (NOW + timedelta(days=30)).isoformat(),
-        "modes": ["direct"],
-    }]
+    settings_data = [
+        {
+            "hostname": "example.test",
+            "terms_review_ref": "fixture:review-1",
+            "reviewed_at": (NOW - timedelta(days=1)).isoformat(),
+            "expires_at": (NOW + timedelta(days=30)).isoformat(),
+            "modes": ["direct"],
+        }
+    ]
     import gridlens.ingestion.adapters.public_site_policy as policy
 
     config_value = json.dumps(settings_data)
@@ -88,13 +90,15 @@ def test_host_approval_is_exact_host_mode_scoped_expiring_and_revocable(monkeypa
         policy, "settings", SimpleNamespace(public_research_site_permissions=config_value)
     )
     assert load_host_approval("https://example.test/a", mode="direct", now=NOW) is None
-    invalid_data = [{
-        "hostname": "example.test",
-        "terms_review_ref": "fixture:review-1",
-        "reviewed_at": (NOW - timedelta(days=1)).isoformat(),
-        "expires_at": (NOW + timedelta(days=30)).isoformat(),
-        "modes": [{}],
-    }]
+    invalid_data = [
+        {
+            "hostname": "example.test",
+            "terms_review_ref": "fixture:review-1",
+            "reviewed_at": (NOW - timedelta(days=1)).isoformat(),
+            "expires_at": (NOW + timedelta(days=30)).isoformat(),
+            "modes": [{}],
+        }
+    ]
     monkeypatch.setattr(
         policy,
         "settings",
@@ -125,35 +129,49 @@ def test_robots_prefix_rules_are_conservative_and_fail_closed():
     assert evaluate_robots_policy(None, "https://example.test/", robots_status=410).allowed
     assert not evaluate_robots_policy(policy, "https://example.test/%70rivate/x").allowed
     assert not evaluate_robots_policy(policy, "https://example.test/private/../public").allowed
-    assert not evaluate_robots_policy(policy, "https://example.test/private?next=/public").allowed
+    assert not evaluate_robots_policy(
+        "User-agent: *\nDisallow: /private?next=",
+        "https://example.test/private?next=/public",
+    ).allowed
+    assert not evaluate_robots_policy(
+        "User-agent: *\nAllow: /private?next=/public",
+        "https://example.test/private?next=%2Fpublic",
+    ).allowed
+    rrc_url = (
+        "https://webapps2.rrc.texas.gov/EWA/organizationResultsDrillDownAction.do"
+        "?methodToCall=searchByOperatorNo&operatorNo=123456"
+    )
+    assert evaluate_robots_policy("User-agent: *\nAllow: /EWA/", rrc_url).allowed
+    assert not evaluate_robots_policy(
+        "User-agent: *\nDisallow: /EWA/organizationResultsDrillDownAction.do?"
+        "methodToCall=searchByOperatorNo&operatorNo=123456",
+        rrc_url,
+    ).allowed
+    assert evaluate_robots_policy(
+        "User-agent: *\nDisallow: /EWA/organizationResultsDrillDownAction.do?"
+        "methodToCall=searchByOperatorNo&operatorNo=999999\nAllow: /EWA/",
+        rrc_url,
+    ).allowed
 
 
 def test_robots_exact_user_agent_group_precedes_wildcard_and_allow_wins_equal_prefix():
     groups = (
-        "User-agent: *\nDisallow: /\n"
-        "User-agent: GridLens\nDisallow: /private\nAllow: /private\n"
+        "User-agent: *\nDisallow: /\nUser-agent: GridLens\nDisallow: /private\nAllow: /private\n"
     )
     assert evaluate_robots_policy(groups, "https://example.test/public").allowed
     assert evaluate_robots_policy(groups, "https://example.test/private/x").allowed
     grouped = "User-agent: *\nDisallow: /\n\nUser-agent: otherbot\nAllow: /\n"
     assert not evaluate_robots_policy(grouped, "https://example.test/public").allowed
     partial_match = "User-agent: *\nAllow: /\n\nUser-agent: Grid\nDisallow: /blocked\n"
-    assert not evaluate_robots_policy(
-        partial_match, "https://example.test/blocked/contact"
-    ).allowed
+    assert not evaluate_robots_policy(partial_match, "https://example.test/blocked/contact").allowed
     mixed_specificity = (
-        "User-agent: Grid\nAllow: /private\n\n"
-        "User-agent: GridLens\nDisallow: /private\n"
+        "User-agent: Grid\nAllow: /private\n\nUser-agent: GridLens\nDisallow: /private\n"
     )
     assert not evaluate_robots_policy(
         mixed_specificity, "https://example.test/private/contact"
     ).allowed
-    longest_path = (
-        "User-agent: GridLens\nDisallow: /private\nAllow: /private/public\n"
-    )
-    assert not evaluate_robots_policy(
-        longest_path, "https://example.test/private/contact"
-    ).allowed
+    longest_path = "User-agent: GridLens\nDisallow: /private\nAllow: /private/public\n"
+    assert not evaluate_robots_policy(longest_path, "https://example.test/private/contact").allowed
     assert evaluate_robots_policy(
         longest_path, "https://example.test/private/public/contact"
     ).allowed
@@ -175,9 +193,7 @@ def test_robots_transport_denies_redirect_and_error_statuses(monkeypatch, status
             **kwargs,
         ),
     )
-    observed_status, body, pinned_ip = _fetch_robots_direct(
-        "https://example.test/robots.txt"
-    )
+    observed_status, body, pinned_ip = _fetch_robots_direct("https://example.test/robots.txt")
     assert observed_status == status
     assert body == b""
     assert pinned_ip == "93.184.216.34"
@@ -254,12 +270,14 @@ def _mock_isolated_public_transport(monkeypatch, *, robots_body):
     requested = []
     resolved = []
     addresses = iter(("93.184.216.34", "1.1.1.1"))
+
     def resolve(_host):
         address = next(addresses)
         resolved.append(address)
         return address
 
     monkeypatch.setattr(public, "_public_ip", resolve)
+
     def client_factory(**kwargs):
         def response(request):
             requested.append(request)
@@ -343,6 +361,30 @@ def test_target_get_reuses_robots_ip_and_callback_exhaustion_prevents_fetch(monk
     assert [request.url.host for request in requested] == ["93.184.216.34"] * 2
     assert [request.headers["host"] for request in requested] == ["example.test"] * 2
     assert resolved == ["93.184.216.34"]
+
+
+def test_exact_rrc_native_lookup_with_query_runs_robots_and_pinned_fetch(monkeypatch):
+    host = "webapps2.rrc.texas.gov"
+    url = (
+        "https://webapps2.rrc.texas.gov/EWA/organizationResultsDrillDownAction.do"
+        "?methodToCall=searchByOperatorNo&operatorNo=123456"
+    )
+    public, requested, resolved = _mock_isolated_public_transport(
+        monkeypatch, robots_body=b"User-agent: *\nAllow: /EWA/\n"
+    )
+    callbacks = []
+    result = public.retrieve(
+        url,
+        approval=_approval(host),
+        before_request=callbacks.append,
+    )
+    assert result.url == url
+    assert len(requested) == 2
+    assert requested[0].url.path == "/robots.txt"
+    assert requested[1].url.path == "/EWA/organizationResultsDrillDownAction.do"
+    assert requested[1].url.query == b"methodToCall=searchByOperatorNo&operatorNo=123456"
+    assert resolved == ["93.184.216.34"]
+    assert callbacks == [f"https://{host}/robots.txt", url]
 
 
 def test_private_explicit_pin_is_rejected_and_default_deadline_is_shared(monkeypatch):

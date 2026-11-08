@@ -34,14 +34,14 @@ from gridlens.intelligence.buying_chain import (
     _store_document,
     buying_chain_view,
 )
-from gridlens.intelligence.company_contact_attribution import (
-    document_declares_operator_identity,
-    document_matches_company_identity,
-)
 from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
     extract_company_contacts,
     extract_people,
+)
+from gridlens.intelligence.company_contact_attribution import (
+    document_claims_operator_identity,
+    document_matches_company_identity,
 )
 from gridlens.intelligence.company_contacts import company_contacts, relevant_named_contact
 from gridlens.intelligence.enrichment_planner import (
@@ -1413,7 +1413,7 @@ def process_company_contact_discovery(
                     page_yield = (
                         _contact_yield_keys(document, organization, anchor, now)
                         if operator_number
-                        and document_declares_operator_identity(
+                        and document_claims_operator_identity(
                             document,
                             organization=organization,
                             operator_number=operator_number,
@@ -1480,7 +1480,7 @@ def process_company_contact_discovery(
         and any(
             _self_identified_company_site(doc, organization)
             and operator_number
-            and document_declares_operator_identity(
+            and document_claims_operator_identity(
                 doc,
                 organization=organization,
                 operator_number=operator_number,

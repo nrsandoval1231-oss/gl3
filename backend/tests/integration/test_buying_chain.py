@@ -241,9 +241,7 @@ def _add_active_company_domain_hint(session, *, company_id, organization, domain
     )
     session.add(row)
     session.flush()
-    session.add(
-        ExternalImportActivation(row_id=row.id, active=True, changed_by="synthetic-test")
-    )
+    session.add(ExternalImportActivation(row_id=row.id, active=True, changed_by="synthetic-test"))
 
 
 def _queue_contact_job(session, company_id):
@@ -337,7 +335,7 @@ def test_imported_domain_and_matching_footer_do_not_attribute_contacts(db, monke
         assert all(result["status"] == "unresolved" for result in results), results
 
 
-def test_shared_domain_contact_requires_exact_publisher_operator_binding(db, monkeypatch):
+def test_shared_domain_self_asserted_operator_id_cannot_bind_company_website(db, monkeypatch):
     import gridlens.intelligence.company_contact_discovery as discovery
     from gridlens.intelligence.company_contacts import company_contacts
 
@@ -375,6 +373,7 @@ def test_shared_domain_contact_requires_exact_publisher_operator_binding(db, mon
         "Email: jane@example.test\nPhone: +1 (312) 555-0142\n"
         "© 2026 Shared Brand Incorporated All rights reserved."
     )
+
     def shared_brand_page(url, **_kwargs):
         links = ("https://shared-brand.example/team",) if url.endswith("/") else ()
         return PublicDocument(
@@ -398,16 +397,9 @@ def test_shared_domain_contact_requires_exact_publisher_operator_binding(db, mon
     first = discovery.process_company_contact_discovery(
         job_a, "contact-test", 1, now=NOW, deadline=time.monotonic() + 5
     )
-    assert first["status"] == "complete", first
+    assert first["status"] == "unresolved", first
     with db.begin() as session:
-        accepted = company_contacts(session, company_a).contacts
-        assert any(contact.methods for contact in accepted)
-        assert any(
-            contact.name == "Jane Example"
-            and contact.role == "procurement"
-            and contact.methods
-            for contact in accepted
-        )
+        assert not company_contacts(session, company_a).contacts
         assert not company_contacts(session, company_b).contacts
 
     second = discovery.process_company_contact_discovery(
@@ -490,9 +482,7 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
         current = company_contacts(session, identity_a.id)
         assert current.contacts == []
         current_view = buying_chain_view(session, project_a.id, now=NOW)
-        assert not any(
-            candidate.get("public_contacts") for candidate in current_view["candidates"]
-        )
+        assert not any(candidate.get("public_contacts") for candidate in current_view["candidates"])
         from gridlens.intelligence.company_contacts import project_contacts
         from gridlens.intelligence.project_contact_actions import project_contact_actions
 
@@ -508,8 +498,7 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
         )
         assert actions == []
         assert all(
-            session.get(BuyingChainClaim, claim_id).public_contacts
-            for claim_id in legacy_claim_ids
+            session.get(BuyingChainClaim, claim_id).public_contacts for claim_id in legacy_claim_ids
         )
         history = buying_chain_view(session, project_a.id, now=NOW, history=True)
         assert any(

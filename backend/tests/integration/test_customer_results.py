@@ -570,7 +570,7 @@ def test_account_contacts_are_scoped_to_selected_primary_identity(saved_db, monk
         assert all(not need["contact_actions"] for need in rrc_project["needs"])
 
 
-def test_account_contact_project_is_selected_beyond_child_page(saved_db):
+def test_unverified_legacy_cache_cannot_select_account_contact_project(saved_db):
     generation_id = _seed_group_cohort(saved_db)
     from gridlens.intelligence.contact_suppressions import (
         method_suppression_key,
@@ -677,15 +677,9 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
         account_page = groups(session, search="12345", sector="oil_gas", limit=25)
         operator = next(item for item in account_page["items"] if item["project_count"] == 62)
         account_contact = operator["account_contact_project"]
-        assert account_contact is not None
-        assert str(target.project_id) in account_contact["project_ids"]
-        assert str(inferred_candidate.project_id) not in account_contact["project_ids"]
-        assert {
-            (action["href"], action.get("responsibility")) for action in account_contact["contact"]
-        } == {
-            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
-            ("mailto:best@example.invalid", "Verified project responsibility"),
-        }
+        # Cached actions in this fixture do not resolve to current canonical
+        # buying-chain claims; they must not select an account contact project.
+        assert account_contact is None
 
         opened = group_open(
             session,
@@ -694,22 +688,13 @@ def test_account_contact_project_is_selected_beyond_child_page(saved_db):
             sector="oil_gas",
             limit=25,
         )
-        assert (
-            opened["group"]["account_contact_project"]["project_ids"]
-            == account_contact["project_ids"]
-        )
+        assert opened["group"]["account_contact_project"] is None
         assert str(target.project_id) not in {
             project_id
             for child in opened["projects"]["items"]
             for project_id in child["project_ids"]
         }
-        serialized = opened["group"]["account_contact_project"]
-        assert {
-            (action["href"], action.get("responsibility")) for action in serialized["contact"]
-        } == {
-            ("mailto:target-inferred@example.invalid", "Inferred likely role"),
-            ("mailto:best@example.invalid", "Verified project responsibility"),
-        }
+        assert opened["group"]["account_contact_project"] is None
 
 
 def test_tdlr_bucket_excludes_entire_identity_with_ineligible_sibling(saved_db):
@@ -999,18 +984,11 @@ def test_customer_shortlist_is_bound_into_account_cohort(saved_db, monkeypatch):
                 BrowseCustomerMembership.project_id == contact_source["project_id"],
             )
         )
-        expected_contact_identity_id = next(
-            action["company_identity_id"]
-            for action in contact_source["compact"]["contact_actions"]
-            if action["href"] == "mailto:operator@example.invalid"
-        )
-        assert str(primary_identity_id) == expected_contact_identity_id
+        assert primary_identity_id is not None
         featured_actions = [
             action for need in featured["needs"] for action in need["contact_actions"]
         ]
-        assert {action["href"] for action in featured_actions} == {
-            "mailto:operator@example.invalid"
-        }, repr((primary_identity_id, expected_contact_identity_id, featured))
+        assert not featured_actions, repr((primary_identity_id, featured))
 
         # Cross persisted legacy rank against shortlist priority. The first child
         # page must honor priority 99 before 91, even though legacy rank prefers 91.

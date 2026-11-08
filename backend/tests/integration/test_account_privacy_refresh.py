@@ -125,7 +125,7 @@ def _add_snapshot_membership(session, generation_id, project_id, company_id):
     )
 
 
-def test_alias_contact_suppressions_survive_rebuild_and_shortlist_featured_read(
+def test_unlinked_legacy_alias_contacts_are_withheld_from_shortlist_featured_read(
     saved_db, monkeypatch
 ):
     from test_saved_browse import seed
@@ -247,10 +247,11 @@ def test_alias_contact_suppressions_survive_rebuild_and_shortlist_featured_read(
     with saved_db() as session:
         opened = alias_open(session)
         featured = opened["group"]["featured_project"]
-        assert any(record.get("href") == METHOD for record in _public_contact_records(featured))
-        assert any(record.get("name") == PERSON for record in _public_contact_records(featured))
+        # This saved fixture has no current canonical buying-chain claims, so
+        # legacy cached actions/people are withheld during the read refresh.
+        assert not _public_contact_records(featured)
         child = opened["projects"]["items"][0]
-        assert any(record.get("href") == METHOD for record in _public_contact_records(child))
+        assert not _public_contact_records(child)
 
     with saved_db.begin() as session:
         session.add(
@@ -270,7 +271,7 @@ def test_alias_contact_suppressions_survive_rebuild_and_shortlist_featured_read(
         featured = opened["group"]["featured_project"]
         featured_records = _public_contact_records(featured)
         assert not any(record.get("href") == METHOD for record in featured_records)
-        assert any(record.get("name") == PERSON for record in featured_records)
+        assert not featured_records
 
     with saved_db.begin() as session:
         session.add(

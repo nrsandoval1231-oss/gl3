@@ -237,11 +237,14 @@ def link_claim_to_identity(
     reviewed_by: str | None = None,
     _strong_identifier: bool = False,
     _project_scoped: bool = False,
+    current_candidate: dict[str, Any] | None = None,
 ) -> BuyingChainIdentityLink:
     """Set or correct a claim link; prior link remains as superseded history."""
     if not _strong_identifier and not _project_scoped and not (reviewed_by and reviewed_by.strip()):
         raise ValueError("attributed review is required to set an identity link directly")
-    _validate_claim_evidence(session, claim, entity_type, source.id)
+    _validate_claim_evidence(
+        session, claim, entity_type, source.id, current_candidate=current_candidate
+    )
     identity_model = CompanyIdentity if entity_type == "company" else PersonIdentity
     if session.get(identity_model, identity_id) is None:
         raise ValueError("identity does not exist")
@@ -568,6 +571,7 @@ def _reuse_exact_project_company_for_named_people(
                 "same current organization source on the same project."
             ),
             _project_scoped=True,
+            current_candidate=person_candidate,
         )
 
 

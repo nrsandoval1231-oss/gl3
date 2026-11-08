@@ -221,13 +221,18 @@ def evaluate_robots_policy(
     target = urlsplit(target_url)
     path = target.path or "/"
     if (
-        target.query
-        or "%" in path
+        "%" in path
         or "\\" in path
         or "//" in path
         or any(part in {".", ".."} for part in path.split("/"))
     ):
         return PolicyDecision(False, "robots_ambiguous_target_path", host)
+    # RFC 9309 evaluates the URI path and query together. Permit only a small
+    # unescaped query alphabet so query-specific rules can be honored without
+    # normalizing encoded or ambiguous targets.
+    if target.query and not re.fullmatch(r"[A-Za-z0-9._~!&'()+,;=:/?\-]+", target.query):
+        return PolicyDecision(False, "robots_ambiguous_target_query", host)
+    target_path_query = path + (f"?{target.query}" if target.query else "")
     if robots_status in {404, 410}:
         return PolicyDecision(True, "robots_absent", host)
     if robots_status != 200 or robots_txt is None:
@@ -269,7 +274,11 @@ def evaluate_robots_policy(
             return PolicyDecision(False, "robots_unsupported_directive", host)
         if any(token in value for token in ("*", "$", "%", "\\")) or "//" in value:
             return PolicyDecision(False, "robots_unsupported_pattern", host)
-        if value and (not value.startswith("/") or len(value) > 1024):
+        if value and (
+            not value.startswith("/")
+            or len(value) > 1024
+            or not re.fullmatch(r"/[A-Za-z0-9._~!&'()+,;=:/?\-]*", value)
+        ):
             return PolicyDecision(False, "robots_unsupported_pattern", host)
         if any(part in {".", ".."} for part in value.split("/")):
             return PolicyDecision(False, "robots_unsupported_pattern", host)
@@ -290,7 +299,7 @@ def evaluate_robots_policy(
         (len(pattern), directive == "allow")
         for _, ruleset in selected
         for directive, pattern in ruleset
-        if path.startswith(pattern)
+        if target_path_query.startswith(pattern)
     ]
     if not matches:
         return PolicyDecision(True, "robots_allowed", host)
