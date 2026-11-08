@@ -36,6 +36,9 @@ _EMAIL = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.
 _PHONE = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
 _NANP = re.compile(r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]?\d{3}[ \t.-]?\d{4}(?!\d)")
 _URL = re.compile(r"https?://[^\s<>\"']+", re.I)
+_UUID_REFERENCE = re.compile(
+    r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\Z"
+)
 # Preserve machine semantics and audit pointers, including required enum fields.
 _META = frozenset(
     {
@@ -201,6 +204,12 @@ def _redact_all_contact_tokens(value: Any, key: str = "", contact_context: bool 
     contact methods and formatted telephone numbers remain unavailable.
     """
     if isinstance(value, str):
+        if key == "evidence_refs" and _UUID_REFERENCE.fullmatch(value):
+            try:
+                if str(UUID(value)) == value.casefold():
+                    return value
+            except ValueError:
+                pass
         if key in _META:
             return value
         value = _EMAIL.sub("[redacted]", value)
