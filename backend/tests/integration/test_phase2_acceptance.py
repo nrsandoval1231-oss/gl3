@@ -842,6 +842,7 @@ def _capture_projection(factory, api_module, company_id: UUID, lookalike_id: UUI
         named_contact_ids = []
         generic_contact_ids = []
         source_verified_need_ids = []
+        brief_source_bindings = []
         for need in nested_needs:
             need_id = str(need["id"])
             card = card_by_need.get(need_id, {})
@@ -886,6 +887,33 @@ def _capture_projection(factory, api_module, company_id: UUID, lookalike_id: UUI
                     references = list(why_sources or [])
                     if isinstance(action_source, dict):
                         references.append(action_source)
+                    reference_checks = []
+                    for source in references:
+                        evidence_id = str(source.get("evidence_id") or source.get("id") or "")
+                        current = current_sources.get(evidence_id)
+                        reference_checks.append(
+                            {
+                                "evidence_id": evidence_id,
+                                "url_matches_current": bool(
+                                    current is not None and source.get("url") == current["url"]
+                                ),
+                                "date_matches_current": bool(
+                                    current is not None
+                                    and (
+                                        not source.get("date")
+                                        or source.get("date") == current.get("date")
+                                    )
+                                ),
+                            }
+                        )
+                    brief_source_bindings.append(
+                        {
+                            "need_id": need_id,
+                            "why_source_count": len(why_sources or []),
+                            "action_has_source": isinstance(action_source, dict),
+                            "references": reference_checks,
+                        }
+                    )
                     source_verified = bool(why_sources and references)
                     for source in references:
                         evidence_id = str(source.get("evidence_id") or source.get("id") or "")
@@ -930,6 +958,12 @@ def _capture_projection(factory, api_module, company_id: UUID, lookalike_id: UUI
             "primary": primary_contacts,
             "lookalike": other_contacts,
         }
+        method_source_hosts = {}
+        for contact in primary_contacts:
+            for method in contact.methods:
+                host = (urlsplit(str(method.get("source_url") or "")).hostname or "").lower()
+                if host:
+                    method_source_hosts[host] = method_source_hosts.get(host, 0) + 1
         jobs = list(session.scalars(select(Job)))
         logical_calls = list(session.scalars(select(LogicalCall)))
         planner_states = list(session.scalars(select(PlannerState)))
@@ -1044,6 +1078,7 @@ def _capture_projection(factory, api_module, company_id: UUID, lookalike_id: UUI
             "named_contact_need_ids": named_contact_ids,
             "generic_contact_need_ids": generic_contact_ids,
             "source_verified_need_ids": source_verified_need_ids,
+            "brief_source_bindings": brief_source_bindings,
             "useful_need_ids": useful_need_ids,
             "contact_counts": {
                 "named_contacts": sum(bool(contact.name) for contact in primary_contacts),
@@ -1063,6 +1098,7 @@ def _capture_projection(factory, api_module, company_id: UUID, lookalike_id: UUI
                     for contact in primary_contacts
                     if contact.name
                 ),
+                "method_source_hosts": dict(sorted(method_source_hosts.items())),
             },
             "legacy_shortlist_details": legacy_shortlist_details,
             "browse_evidence_details": browse_evidence_details,
@@ -1382,6 +1418,9 @@ def test_scheduled_research_persists_and_projects_replay_safely(phase2_db, monke
             method.get("kind") == "phone" and method.get("value") == "5125550142"
             for method in primary_p5_methods
         ), "Primary call route must come from the exact-number native RRC P5 row"
+        assert before_replay["contact_counts"]["method_source_hosts"] == {"www.rrc.texas.gov": 1}, (
+            "Unverified same-name company-site claims must not become retained contact methods"
+        )
         buyer_questions = [
             item for item in before_replay["question_receipts"] if item["category"] == "buyer"
         ]
@@ -1466,6 +1505,22 @@ def test_scheduled_research_persists_and_projects_replay_safely(phase2_db, monke
     if mode == "candidate":
         assert before_replay["structured_brief_need_ids"], (
             "Candidate must expose a qualified optional commercial_brief"
+        )
+        source_grounded_briefs = [
+            binding
+            for binding in before_replay["brief_source_bindings"]
+            if binding["why_source_count"] > 0
+            and binding["action_has_source"]
+            and binding["references"]
+            and all(
+                reference["url_matches_current"] and reference["date_matches_current"]
+                for reference in binding["references"]
+            )
+        ]
+        assert source_grounded_briefs, (
+            "Candidate must provide at least one WhyNow and next action bound to current "
+            "accepted project evidence. Sanitized bindings: "
+            f"{before_replay['brief_source_bindings']}"
         )
         for card in before_replay["cards"]:
             brief = _extract_brief(card)
@@ -1595,6 +1650,7 @@ def test_scheduled_research_persists_and_projects_replay_safely(phase2_db, monke
                     .decode("utf-8")
                 ),
                 "source_verified_need_ids": before_replay["source_verified_need_ids"],
+                "brief_source_bindings": before_replay["brief_source_bindings"],
                 "legacy_shortlist_details": before_replay["legacy_shortlist_details"],
                 "browse_evidence_details": before_replay["browse_evidence_details"],
                 "direct_evidence_details": before_replay["direct_evidence_details"],
