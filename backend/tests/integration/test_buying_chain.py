@@ -925,9 +925,10 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
         assert evidence is not None
         from gridlens.intelligence.company_contact_attribution import _exact_native_rrc_contact
 
-        assert (
-            _exact_native_rrc_contact(evidence, "102606", "DE V Operating, LLC")
-            == "Phone: 8179283260"
+        assert _exact_native_rrc_contact(evidence, "102606", "DE V Operating, LLC") == (
+            "phone",
+            "8179283260",
+            "Phone: 8179283260",
         )
         wrong_directory = SimpleNamespace(
             **{
@@ -962,11 +963,36 @@ def test_rrc_p5_native_fallback_persists_company_route_and_honors_suppression(db
         )
         assert company["public_contacts"]
         assert company["public_contacts"][0]["value"] == "8179283260"
+        relationship_before_guard = company["organization_relationship"]
         assert any(
             citation.get("url") == snapshot["source_url"]
             and citation.get("quote") == "Phone: 8179283260"
             for citation in company["evidence"]
         )
+        from gridlens.intelligence.company_contact_attribution import (
+            filter_unbound_company_contacts,
+        )
+
+        company["public_contacts"][0]["value"] = "8170000000"
+        filter_unbound_company_contacts(session, [view])
+        assert company["public_contacts"] == []
+        assert company["organization_relationship"] == relationship_before_guard
+        version_view = buying_chain_view(session, project_id)
+        version_company = next(
+            candidate
+            for candidate in version_view["candidates"]
+            if candidate.get("company_identity_id") == str(company_id)
+            and not candidate.get("person_name")
+        )
+        phone_citation = next(
+            citation
+            for citation in version_company["evidence"]
+            if citation.get("supports") == "public_contact"
+            and citation.get("url") == snapshot["source_url"]
+        )
+        phone_citation["current_source_version_id"] = str(UUID(int=0))
+        filter_unbound_company_contacts(session, [version_view])
+        assert version_company["public_contacts"] == []
         assert snapshot["source_url"] in discovery._known_contact_urls(
             session, company_id, discovery._projects(session, company_id)
         )
@@ -5634,6 +5660,40 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
         )
         wrong_path.url = detail_url.replace("/WFServlet.ibfs", "/other")
         assert not _exact_houston_project_contact(wrong_path, project, organization="ACME LLC")
+        wrong_form = SimpleNamespace(
+            **{
+                key: getattr(detail_source, key)
+                for key in (
+                    "project_match_reason",
+                    "url",
+                    "excerpt",
+                    "title",
+                    "content_hash",
+                    "extraction_location",
+                    "published_at",
+                    "observed_at",
+                )
+            }
+        )
+        wrong_form.url = detail_url.replace("IBIF_ex=sold_permit_d", "IBIF_ex=other")
+        assert not _exact_houston_project_contact(wrong_form, project, organization="ACME LLC")
+        malformed_query = SimpleNamespace(
+            **{
+                key: getattr(detail_source, key)
+                for key in (
+                    "project_match_reason",
+                    "url",
+                    "excerpt",
+                    "title",
+                    "content_hash",
+                    "extraction_location",
+                    "published_at",
+                    "observed_at",
+                )
+            }
+        )
+        malformed_query.url = detail_url + "&unpaired"
+        assert not _exact_houston_project_contact(malformed_query, project, organization="ACME LLC")
         empty_site_project = SimpleNamespace(
             source_id=project.source_id,
             external_id=project.external_id,
@@ -5653,6 +5713,14 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
         assert detail_facts["Permit-listed owner / occupant"] == "*MERICHEM TECHNOLOGIES LLC"
         assert detail_facts["Permit-listed Buyer (entity type unknown)"] == "*ACME LLC"
         assert detail_facts["Permit-listed buyer phone"] == "(713) 555-0100"
+
+        from gridlens.intelligence.company_contact_attribution import (
+            filter_unbound_company_contacts,
+        )
+
+        candidate["public_contacts"][0]["value"] = "(713) 999-0100"
+        filter_unbound_company_contacts(session, [result])
+        assert candidate["public_contacts"] == []
 
         retained_before = set(
             session.scalars(
@@ -6593,6 +6661,42 @@ def test_tdlr_retained_job_links_each_pecos_project_without_name_merging(db):
         )
         rejected = enrich_buying_chain(session, wrong_project.id, retained_only=True, now=NOW)
         assert rejected["candidates"] == []
+
+
+def test_tdlr_company_method_cannot_be_copied_to_named_owner_contact(db):
+    from gridlens.intelligence.company_contact_attribution import (
+        filter_unbound_company_contacts,
+    )
+
+    number, name, location, owner, excerpt = TDLR_CASES[1]
+    excerpt += (
+        "\nOwner contact: Jordan Smith"
+        "\nOwner phone: (713) 555-0100"
+        "\nOwner contact phone: not stated"
+        "\nOwner email: not stated"
+        "\nOwner contact email: not stated"
+    )
+    with db.begin() as session:
+        project, _retained, _owner = _seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        view = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
+        organization = next(
+            row
+            for row in view["candidates"]
+            if row["organization"] == owner and row["person_name"] is None
+        )
+        person = next(
+            row
+            for row in view["candidates"]
+            if row["organization"] == owner and row["person_name"] == "Jordan Smith"
+        )
+        assert [row["value"] for row in organization["public_contacts"]] == ["(713) 555-0100"]
+        assert person["public_contacts"] == []
+        person["public_contacts"] = [dict(organization["public_contacts"][0])]
+        filter_unbound_company_contacts(session, [view])
+        assert person["public_contacts"] == []
+        assert organization["public_contacts"]
 
 
 def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatch):

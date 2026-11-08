@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -38,6 +39,40 @@ _NATIVE_IDENTITY_SOURCE_REASONS = {
 _PROJECT_SCOPED_NATIVE_SOURCE_REASONS = {
     "exact houston sold permit project, permit type, date and site match the selected project."
 }
+
+
+@dataclass(frozen=True)
+class NativeContactFact:
+    company_id: str
+    source_url: str
+    source_hash: str
+    support: str
+    quote: str
+    person_name: str | None
+    title: str | None
+    category: str | None
+    organization_relationship: str | None
+    person_organization_relationship: str | None
+    person_project_relationship: str | None
+    method_kind: str | None = None
+    method_value: str | None = None
+
+
+def _normalized_method(kind: object, value: object) -> tuple[str, str] | None:
+    method_kind = str(kind or "").strip().casefold()
+    literal = str(value or "").strip()
+    if method_kind in {"phone", "telephone", "call"} or "phone" in method_kind:
+        if not re.fullmatch(r"\+?[0-9(). -]{7,30}", literal):
+            return None
+        digits = re.sub(r"\D", "", literal)
+        if not 7 <= len(digits) <= 15:
+            return None
+        return "phone", digits
+    if method_kind == "email" and re.fullmatch(
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}", literal
+    ):
+        return "email", literal.casefold()
+    return None
 
 
 def _brand_key(value: str) -> str:
@@ -70,7 +105,7 @@ def document_claims_operator_identity(
     if not re.fullmatch(r"\d{6}", operator_number):
         return False
     try:
-        url = validate_public_url(str(document.url))
+        url = validate_public_url(str(getattr(document, "url", "")))
     except (TypeError, ValueError):
         return False
     host = (urlsplit(url).hostname or "").casefold().removeprefix("www.")
@@ -149,18 +184,27 @@ def _exact_houston_project_contact(
         return False
     from urllib.parse import parse_qs
 
-    query = parse_qs(parsed_url.query, strict_parsing=True)
+    try:
+        query = parse_qs(parsed_url.query, keep_blank_values=True, strict_parsing=True)
+    except ValueError:
+        return False
     from gridlens.ingestion.adapters.houston_permit_details import (
         SUPPORTED_TYPES,
         response_type_code,
     )
 
     expected_type_code = SUPPORTED_TYPES.get(parts[1])
-    if (
-        expected_type_code is None
-        or query.get("PN") != [parts[0]]
-        or query.get("PT") != [expected_type_code]
-    ):
+    expected_query = {
+        "IBIF_webapp": ["/ibi_apps"],
+        "IBIC_server": ["EDASERVE"],
+        "IBIWF_msgviewer": ["OFF"],
+        "IBIAPP_app": ["soldpermits"],
+        "IBIF_ex": ["sold_permit_d"],
+        "CLICKED_ON": [""],
+        "PN": [parts[0]],
+        "PT": [expected_type_code],
+    }
+    if expected_type_code is None or query != expected_query:
         return False
     fields = dict(re.findall(r"(?m)^([a-z_]+):\s*(.*?)\s*$", source.excerpt))
     if (
@@ -197,27 +241,71 @@ def supported_contact_facts(
     identity: CompanyIdentity | None,
     project: Project | None,
     retained_context: tuple[Evidence, Observation, Interpretation, Source] | None,
-    person_name: str | None,
-) -> set[tuple[str, str]]:
-    """Return only exact contact/role facts revalidated by native parsers."""
+    candidate: dict,
+) -> set[NativeContactFact]:
+    """Return exact native-parser method and role facts for a canonical company."""
     if identity is None:
         return set()
+
+    def fact(
+        support: str,
+        quote: str,
+        *,
+        parsed: object | None = None,
+        method: tuple[str, str] | None = None,
+    ) -> NativeContactFact:
+        return NativeContactFact(
+            company_id=str(identity.id),
+            source_url=source.url,
+            source_hash=source.content_hash,
+            support=support,
+            quote=quote,
+            person_name=getattr(parsed, "person_name", None),
+            title=getattr(parsed, "title", None),
+            category=getattr(parsed, "category", None),
+            organization_relationship=getattr(parsed, "organization_relationship", None),
+            person_organization_relationship=getattr(
+                parsed, "person_organization_relationship", None
+            ),
+            person_project_relationship=getattr(parsed, "person_project_relationship", None),
+            method_kind=method[0] if method else None,
+            method_value=method[1] if method else None,
+        )
+
     if source.project_match_reason.casefold() in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS:
         if not _exact_houston_project_contact(source, project, organization=organization):
             return set()
         fields = dict(re.findall(r"(?m)^([a-z_]+):\s*(.*?)\s*$", source.excerpt))
         quote = f"detail_buyer_phone: {fields.get('detail_buyer_phone', '')}"
-        return {("permit_listed_contact", quote)} if fields.get("detail_buyer_phone") else set()
+        normalized_method = _normalized_method("phone", fields.get("detail_buyer_phone"))
+        return (
+            {fact("permit_listed_contact", quote, method=normalized_method)}
+            if fields.get("detail_buyer_phone") and normalized_method
+            else set()
+        )
     if source.project_match_reason.casefold() in _NATIVE_IDENTITY_SOURCE_REASONS:
-        quote = _exact_native_rrc_contact(source, identity.rrc_operator_number, organization)
-        return {("public_contact", quote)} if quote else set()
+        native_method = _exact_native_rrc_contact(
+            source, identity.rrc_operator_number, organization
+        )
+        return (
+            {
+                fact(
+                    "public_contact",
+                    native_method[2],
+                    method=(native_method[0], native_method[1]),
+                )
+            }
+            if native_method
+            else set()
+        )
     return _current_project_native_source(
         session,
         source,
         project,
         retained_context,
+        identity=identity,
         organization=organization,
-        person_name=person_name,
+        candidate=candidate,
     )
 
 
@@ -243,7 +331,7 @@ def _exact_native_rrc_contact(
     source: BuyingChainEvidence,
     operator_number: str | None,
     organization: str,
-) -> str | None:
+) -> tuple[str, str, str] | None:
     if not operator_number or not re.fullmatch(r"\d{6}", operator_number):
         return None
     if not _source_hash_is_current(source):
@@ -283,7 +371,11 @@ def _exact_native_rrc_contact(
             )
             is not None
         )
-        return phones[0] if valid else None
+        if not valid:
+            return None
+        quote = phones[0]
+        value = quote.split(":", 1)[1].strip()
+        return ("phone", value, quote)
 
     try:
         url = validate_public_url(source.url)
@@ -292,7 +384,7 @@ def _exact_native_rrc_contact(
     fields = dict(re.findall(r"(?m)^([^:\r\n]+):\s*(.*?)\s*$", source.excerpt))
     from gridlens.ingestion.adapters.rrc_operator_directory import is_rrc_directory_workbook_url
 
-    valid = (
+    valid_p5 = (
         (urlsplit(url).hostname or "").casefold() == "www.rrc.texas.gov"
         and is_rrc_directory_workbook_url(url)
         and source.title == "RRC Oil & Gas P5 directory organization phone"
@@ -305,7 +397,7 @@ def _exact_native_rrc_contact(
         and fields.get("Phone") is not None
         and re.fullmatch(r"[0-9a-f]{64}", fields.get("Workbook SHA-256", "")) is not None
     )
-    return f"Phone: {fields['Phone']}" if valid else None
+    return ("phone", fields["Phone"], f"Phone: {fields['Phone']}") if valid_p5 else None
 
 
 def _current_project_native_source(
@@ -314,9 +406,10 @@ def _current_project_native_source(
     project: Project | None,
     retained_context: tuple[Evidence, Observation, Interpretation, Source] | None,
     *,
+    identity: CompanyIdentity,
     organization: str,
-    person_name: str | None,
-) -> set[tuple[str, str]]:
+    candidate: dict,
+) -> set[NativeContactFact]:
     if source.retained_evidence_id is None or project is None or retained_context is None:
         return set()
     evidence, observation, interpretation, native_source = retained_context
@@ -337,21 +430,70 @@ def _current_project_native_source(
     parsed_claims = extract_retained_permit_organizations(
         document, native_source.id, project=project
     )
-    supported = {
-        (str(citation.get("supports")), str(citation.get("quote")))
-        for parsed in parsed_claims
-        if _brand_key(parsed.organization) == _brand_key(organization)
-        and (not person_name or parsed.person_name == person_name)
-        for citation in parsed.citations
-        if citation.get("url") == source.url
-        and citation.get("supports")
-        in {
-            "public_contact",
-            "organization_person_role",
-            "person_project_assignment",
-            "permit_listed_contact",
-        }
-    }
+    supported: set[NativeContactFact] = set()
+    for parsed in parsed_claims:
+        if (
+            _brand_key(parsed.organization) != _brand_key(organization)
+            or parsed.person_name != candidate.get("person_name")
+            or parsed.title != candidate.get("title")
+            or parsed.category != candidate.get("category")
+            or parsed.organization_relationship != candidate.get("organization_relationship")
+            or parsed.person_organization_relationship
+            != candidate.get("person_organization_relationship")
+            or parsed.person_project_relationship != candidate.get("person_project_relationship")
+        ):
+            continue
+        for citation in parsed.citations:
+            support = str(citation.get("supports"))
+            quote = str(citation.get("quote") or "")
+            if citation.get("url") != source.url or support not in {
+                "public_contact",
+                "organization_person_role",
+                "person_project_assignment",
+                "permit_listed_contact",
+            }:
+                continue
+            if support != "public_contact":
+                supported.add(
+                    NativeContactFact(
+                        company_id=str(identity.id),
+                        source_url=source.url,
+                        source_hash=source.content_hash,
+                        support=support,
+                        quote=quote,
+                        person_name=parsed.person_name,
+                        title=parsed.title,
+                        category=parsed.category,
+                        organization_relationship=parsed.organization_relationship,
+                        person_organization_relationship=parsed.person_organization_relationship,
+                        person_project_relationship=parsed.person_project_relationship,
+                    )
+                )
+                continue
+            for method_row in parsed.public_contacts:
+                method = _normalized_method(method_row.get("kind"), method_row.get("value"))
+                if (
+                    method
+                    and method_row.get("source_url") == source.url
+                    and method_row.get("quote") == quote
+                ):
+                    supported.add(
+                        NativeContactFact(
+                            company_id=str(identity.id),
+                            source_url=source.url,
+                            source_hash=source.content_hash,
+                            support=support,
+                            quote=quote,
+                            person_name=parsed.person_name,
+                            title=parsed.title,
+                            category=parsed.category,
+                            organization_relationship=parsed.organization_relationship,
+                            person_organization_relationship=parsed.person_organization_relationship,
+                            person_project_relationship=parsed.person_project_relationship,
+                            method_kind=method[0],
+                            method_value=method[1],
+                        )
+                    )
     current = bool(
         source.project_id == project.id
         and source.url == evidence.url
@@ -387,6 +529,28 @@ def document_matches_company_identity(
     """
     del session, document, company_id, organization
     return False
+
+
+def _fact_matches_candidate(fact: NativeContactFact, candidate: dict, company_id: str) -> bool:
+    return (
+        fact.company_id == company_id
+        and fact.person_name == candidate.get("person_name")
+        and (fact.title is None or fact.title == candidate.get("title"))
+        and (fact.category is None or fact.category == candidate.get("category"))
+        and (
+            fact.organization_relationship is None
+            or fact.organization_relationship == candidate.get("organization_relationship")
+        )
+        and (
+            fact.person_organization_relationship is None
+            or fact.person_organization_relationship
+            == candidate.get("person_organization_relationship")
+        )
+        and (
+            fact.person_project_relationship is None
+            or fact.person_project_relationship == candidate.get("person_project_relationship")
+        )
+    )
 
 
 def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> None:
@@ -480,9 +644,9 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                 kept.append(candidate)
                 continue
             organization = str(candidate.get("organization") or "")
-            source_for_citation: dict[tuple[str, str], BuyingChainEvidence] = {}
-            verified_role_urls: set[str] = set()
-            verified_contact_urls: set[str] = set()
+            source_for_citation: dict[tuple[str, str, str], set[NativeContactFact]] = {}
+            verified_role_facts: set[NativeContactFact] = set()
+            verified_method_facts: set[NativeContactFact] = set()
             for citation in candidate.get("evidence", []):
                 support = citation.get("supports")
                 if support not in {
@@ -492,10 +656,15 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     "person_project_assignment",
                 }:
                     continue
-                source = sources.get(str(citation.get("id"))) or sources.get(
-                    str(citation.get("current_source_version_id"))
+                source = sources.get(str(citation.get("current_source_version_id"))) or sources.get(
+                    str(citation.get("id"))
                 )
                 if source is None:
+                    continue
+                source_version_id = str(
+                    citation.get("current_source_version_id") or citation.get("id") or ""
+                )
+                if str(source.id) != source_version_id:
                     continue
                 facts = supported_contact_facts(
                     session,
@@ -503,16 +672,23 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     organization=organization,
                     identity=identities.get(str(company_id)),
                     project=project,
-                    person_name=(
-                        str(candidate.get("person_name")) if candidate.get("person_name") else None
-                    ),
+                    candidate=candidate,
                     retained_context=(
                         retained_contexts.get(source.retained_evidence_id)
                         if source.retained_evidence_id
                         else None
                     ),
                 )
-                if (str(support), str(citation.get("quote") or "")) not in facts:
+                quote = str(citation.get("quote") or "")
+                matched_facts = {
+                    fact
+                    for fact in facts
+                    if fact.support == str(support)
+                    and fact.quote == quote
+                    and fact.source_url == str(citation.get("url") or "")
+                    and _fact_matches_candidate(fact, candidate, str(company_id))
+                }
+                if not matched_facts:
                     continue
                 if source.retained_evidence_id is None and support not in {
                     "public_contact",
@@ -523,16 +699,26 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     # person's employment or project assignment.
                     continue
                 url = str(citation.get("url") or "")
-                source_for_citation[(support, url)] = source
+                source_for_citation[(str(support), url, quote)] = matched_facts
                 if support in {"public_contact", "permit_listed_contact"}:
-                    verified_contact_urls.add(url)
+                    verified_method_facts.update(matched_facts)
                 else:
-                    verified_role_urls.add(url)
+                    verified_role_facts.update(matched_facts)
 
             candidate["public_contacts"] = [
                 contact
                 for contact in candidate.get("public_contacts", [])
-                if str(contact.get("source_url") or "") in verified_contact_urls
+                if any(
+                    fact.support in {"public_contact", "permit_listed_contact"}
+                    and fact.source_url == str(contact.get("source_url") or "")
+                    and fact.quote == str(contact.get("quote") or "")
+                    and (method := _normalized_method(contact.get("kind"), contact.get("value")))
+                    is not None
+                    and fact.method_kind == method[0]
+                    and fact.method_value == method[1]
+                    and _fact_matches_candidate(fact, candidate, str(company_id))
+                    for fact in verified_method_facts
+                )
             ]
             candidate["evidence"] = [
                 citation
@@ -543,9 +729,18 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     "organization_person_role",
                     "person_project_assignment",
                 }
-                or (citation.get("supports"), str(citation.get("url") or "")) in source_for_citation
+                or bool(
+                    source_for_citation.get(
+                        (
+                            str(citation.get("supports")),
+                            str(citation.get("url") or ""),
+                            str(citation.get("quote") or ""),
+                        ),
+                        set(),
+                    )
+                )
             ]
-            if candidate.get("person_name") and not verified_role_urls:
+            if candidate.get("person_name") and not verified_role_facts:
                 continue
             kept.append(candidate)
         view["candidates"] = kept

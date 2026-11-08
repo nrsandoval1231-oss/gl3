@@ -227,9 +227,14 @@ def _record_key(record: dict) -> tuple:
             str(record.get("claim_id") or ""),
             str(record.get("company_identity_id") or ""),
             str(record.get("person_identity_id") or ""),
+            str(record.get("company") or ""),
             str(record.get("name") or ""),
             str(record.get("title") or ""),
             str(record.get("role") or ""),
+            str(record.get("responsibility") or ""),
+            str(record.get("purchasing_authority") or ""),
+            str(record.get("authority_status") or ""),
+            str(record.get("deliverability") or ""),
             str(record.get("source_url") or ""),
         )
     return (
@@ -237,10 +242,17 @@ def _record_key(record: dict) -> tuple:
         str(record.get("claim_id") or ""),
         str(record.get("company_identity_id") or ""),
         str(record.get("person_identity_id") or ""),
+        str(record.get("company") or ""),
         str(record.get("kind") or ""),
         str(record.get("href") or ""),
         str(record.get("source_url") or ""),
+        str(record.get("name") or ""),
+        str(record.get("title") or ""),
+        str(record.get("role") or ""),
         str(record.get("responsibility") or ""),
+        str(record.get("purchasing_authority") or ""),
+        str(record.get("authority_status") or ""),
+        str(record.get("deliverability") or ""),
     )
 
 
