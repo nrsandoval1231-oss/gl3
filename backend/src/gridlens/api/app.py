@@ -216,8 +216,64 @@ class AssociatedAccountOut(BaseModel):
     evidence_refs: list[AssociatedAccountEvidenceRefOut]
 
 
+class CommercialBriefSourceOut(BaseModel):
+    title: str | None
+    url: str | None
+    evidence_id: str | None
+    date: str | None
+
+
+class CommercialBriefWhyOut(BaseModel):
+    text: str | None
+    source_date: str | None
+    scope: str | None
+    sources: list[CommercialBriefSourceOut]
+
+
+class CommercialBriefPowerOut(BaseModel):
+    amount_class: Literal["documented", "calculated", "estimated", "inferred", "unknown"]
+    scope: str | None
+    value: str | None
+    unit: str | None
+    status: str
+    limitations: list[str]
+
+
+class CommercialBriefContactOut(BaseModel):
+    contact: str
+    href: str
+    kind: Literal["call", "email", "contact"]
+    route_kind: Literal["person_method", "company_route"]
+    authority: str
+    deliverability: str
+    sources: list[CommercialBriefSourceOut]
+
+
+class CommercialBriefActionOut(BaseModel):
+    text: str
+    kind: str
+    source: CommercialBriefSourceOut | None
+
+
+class CommercialBriefFreshnessOut(BaseModel):
+    as_of: str | None
+    status: str
+    source_date: str | None
+
+
+class CommercialBriefOut(BaseModel):
+    version: str
+    why_now: CommercialBriefWhyOut
+    power_need: CommercialBriefPowerOut
+    best_contact: CommercialBriefContactOut | None
+    next_action: CommercialBriefActionOut
+    freshness: CommercialBriefFreshnessOut
+    limitations: list[str]
+    sources: list[CommercialBriefSourceOut]
+
+
 class OpportunityOut(BaseModel):
-    commercial_brief: dict[str, Any] | None = None
+    commercial_brief: CommercialBriefOut | None = None
     intelligence_card: IntelligenceCard | None = None
     associated_account: AssociatedAccountOut | None = None
     id: UUID
@@ -324,7 +380,7 @@ class PursuitWorkspacePageOut(BaseModel):
 
 
 class CustomerAccountNeedOut(BaseModel):
-    commercial_brief: dict[str, Any] | None = None
+    commercial_brief: CommercialBriefOut | None = None
     id: UUID
     project_id: UUID
     tier: str
@@ -446,7 +502,7 @@ class UnifiedSearchOut(BaseModel):
 
 
 class CustomerProjectOut(BaseModel):
-    commercial_brief: dict[str, Any] | None = None
+    commercial_brief: CommercialBriefOut | None = None
     id: UUID
     name: str
     location: str | None

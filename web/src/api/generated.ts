@@ -1416,6 +1416,100 @@ export interface components {
             /** Selected Facts */
             selected_facts: components["schemas"]["CommercialAssessmentFactSupportOut"][];
         };
+        /** CommercialBriefActionOut */
+        CommercialBriefActionOut: {
+            /** Text */
+            text: string;
+            /** Kind */
+            kind: string;
+            source: components["schemas"]["CommercialBriefSourceOut"] | null;
+        };
+        /** CommercialBriefContactOut */
+        CommercialBriefContactOut: {
+            /** Contact */
+            contact: string;
+            /** Href */
+            href: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "call" | "email" | "contact";
+            /**
+             * Route Kind
+             * @enum {string}
+             */
+            route_kind: "person_method" | "company_route";
+            /** Authority */
+            authority: string;
+            /** Deliverability */
+            deliverability: string;
+            /** Sources */
+            sources: components["schemas"]["CommercialBriefSourceOut"][];
+        };
+        /** CommercialBriefFreshnessOut */
+        CommercialBriefFreshnessOut: {
+            /** As Of */
+            as_of: string | null;
+            /** Status */
+            status: string;
+            /** Source Date */
+            source_date: string | null;
+        };
+        /** CommercialBriefOut */
+        CommercialBriefOut: {
+            /** Version */
+            version: string;
+            why_now: components["schemas"]["CommercialBriefWhyOut"];
+            power_need: components["schemas"]["CommercialBriefPowerOut"];
+            best_contact: components["schemas"]["CommercialBriefContactOut"] | null;
+            next_action: components["schemas"]["CommercialBriefActionOut"];
+            freshness: components["schemas"]["CommercialBriefFreshnessOut"];
+            /** Limitations */
+            limitations: string[];
+            /** Sources */
+            sources: components["schemas"]["CommercialBriefSourceOut"][];
+        };
+        /** CommercialBriefPowerOut */
+        CommercialBriefPowerOut: {
+            /**
+             * Amount Class
+             * @enum {string}
+             */
+            amount_class: "documented" | "calculated" | "estimated" | "inferred" | "unknown";
+            /** Scope */
+            scope: string | null;
+            /** Value */
+            value: string | null;
+            /** Unit */
+            unit: string | null;
+            /** Status */
+            status: string;
+            /** Limitations */
+            limitations: string[];
+        };
+        /** CommercialBriefSourceOut */
+        CommercialBriefSourceOut: {
+            /** Title */
+            title: string | null;
+            /** Url */
+            url: string | null;
+            /** Evidence Id */
+            evidence_id: string | null;
+            /** Date */
+            date: string | null;
+        };
+        /** CommercialBriefWhyOut */
+        CommercialBriefWhyOut: {
+            /** Text */
+            text: string | null;
+            /** Source Date */
+            source_date: string | null;
+            /** Scope */
+            scope: string | null;
+            /** Sources */
+            sources: components["schemas"]["CommercialBriefSourceOut"][];
+        };
         /** CommercialTriageCard */
         CommercialTriageCard: {
             /** Owner Organizations */
@@ -1900,10 +1994,7 @@ export interface components {
         };
         /** CustomerAccountNeedOut */
         CustomerAccountNeedOut: {
-            /** Commercial Brief */
-            commercial_brief?: {
-                [key: string]: unknown;
-            } | null;
+            commercial_brief?: components["schemas"]["CommercialBriefOut"] | null;
             /**
              * Id
              * Format: uuid
@@ -1980,10 +2071,7 @@ export interface components {
         };
         /** CustomerProjectOut */
         CustomerProjectOut: {
-            /** Commercial Brief */
-            commercial_brief?: {
-                [key: string]: unknown;
-            } | null;
+            commercial_brief?: components["schemas"]["CommercialBriefOut"] | null;
             /**
              * Id
              * Format: uuid
@@ -2945,10 +3033,7 @@ export interface components {
         };
         /** OpportunityOut */
         OpportunityOut: {
-            /** Commercial Brief */
-            commercial_brief?: {
-                [key: string]: unknown;
-            } | null;
+            commercial_brief?: components["schemas"]["CommercialBriefOut"] | null;
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**
@@ -3574,10 +3659,7 @@ export interface components {
         };
         /** PursuitWorkspaceItemOut */
         PursuitWorkspaceItemOut: {
-            /** Commercial Brief */
-            commercial_brief?: {
-                [key: string]: unknown;
-            } | null;
+            commercial_brief?: components["schemas"]["CommercialBriefOut"] | null;
             intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             associated_account?: components["schemas"]["AssociatedAccountOut"] | null;
             /**
