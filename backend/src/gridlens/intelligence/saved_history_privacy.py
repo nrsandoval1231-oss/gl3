@@ -134,8 +134,20 @@ def _uuid(value: Any) -> UUID | None:
         return None
 
 
+def _is_uuid_evidence_ref(value: Any, key: str) -> bool:
+    """Recognize only canonical UUIDs in the structured evidence_refs field."""
+    if key != "evidence_refs" or not isinstance(value, str) or not _UUID_REFERENCE.fullmatch(value):
+        return False
+    try:
+        return str(UUID(value)) == value.casefold()
+    except ValueError:
+        return False
+
+
 def _strings(value: Any, key: str = ""):
     if isinstance(value, str):
+        if _is_uuid_evidence_ref(value, key):
+            return
         if key not in _META:
             yield value
     elif isinstance(value, dict):
@@ -204,12 +216,8 @@ def _redact_all_contact_tokens(value: Any, key: str = "", contact_context: bool 
     contact methods and formatted telephone numbers remain unavailable.
     """
     if isinstance(value, str):
-        if key == "evidence_refs" and _UUID_REFERENCE.fullmatch(value):
-            try:
-                if str(UUID(value)) == value.casefold():
-                    return value
-            except ValueError:
-                pass
+        if _is_uuid_evidence_ref(value, key):
+            return value
         if key in _META:
             return value
         value = _EMAIL.sub("[redacted]", value)
@@ -275,6 +283,8 @@ def _redact(
     hidden_records: set[int] | None = None,
 ) -> Any:
     if isinstance(value, str):
+        if _is_uuid_evidence_ref(value, key):
+            return value
         if key in _META:
             return value
         if fail_closed:
