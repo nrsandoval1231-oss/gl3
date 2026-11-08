@@ -184,6 +184,70 @@ def test_generic_contact_is_not_promoted_to_authority_and_action_is_single():
     assert brief["best_contact"]["route_kind"] == "person_method"
     assert brief["next_action"]["kind"] == "confirm_need"
     assert brief["best_contact"]["authority"] == "Requires confirmation for this power package"
+    assert brief["next_action"]["text"] == (
+        "Email Buyer to confirm the activity-specific temporary power requirement."
+    )
+
+
+def test_next_action_ignores_legacy_prose_citations_and_redaction_placeholders():
+    brief = build_commercial_brief(
+        {
+            "commercial_preview": {
+                "next_action": (
+                    "Call Acme, phone [redacted] (source: https://example.test/file.xlsx) "
+                    "to confirm stage, MW, timing, duration and authority."
+                )
+            },
+            "contact_actions": [
+                {
+                    "kind": "call",
+                    "href": "tel:5125550142",
+                    "company": "Acme Incorporated",
+                    "responsibility": "General company contact path",
+                }
+            ],
+        },
+        now="2026-11-08",
+    )
+    action = brief["next_action"]
+    assert action["text"] == (
+        "Call Acme Incorporated to confirm the activity-specific temporary power requirement."
+    )
+    assert action["kind"] == "confirm_need"
+    assert "[redacted]" not in action["text"]
+    assert "source:" not in action["text"]
+    assert "https://" not in action["text"]
+
+
+def test_shortlist_scope_does_not_echo_unparsed_power_amounts():
+    brief = build_commercial_brief(
+        {
+            "activity": "construction-temporary",
+            "shortlist_assessment": {
+                "eligible": True,
+                "why_now": (
+                    "Published 2026-10-04: New data center construction; "
+                    "1.5 MW temporary construction load."
+                ),
+                "scope": "New data center construction; 1.5 MW temporary construction load.",
+                "evidence_refs": ["e-1"],
+            },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Construction permit",
+                    "url": "https://example.test/permit",
+                    "published_at": "2026-10-04",
+                    "current": True,
+                }
+            ],
+        },
+        now="2026-11-08",
+    )
+    assert brief["why_now"]["scope"] == "construction temporary"
+    assert "1.5 MW" not in brief["why_now"]["text"]
+    assert brief["power_need"]["status"] == "unknown"
+    assert brief["why_now"]["sources"][0]["url"] == "https://example.test/permit"
 
 
 def test_project_aliases_do_not_merge_distinct_need_ids():

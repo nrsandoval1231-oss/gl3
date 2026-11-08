@@ -393,6 +393,44 @@ def _find_evidence(item: dict, evidence_id: str | None) -> dict | None:
     return None
 
 
+def _activity_label(item: dict) -> str | None:
+    activity = item.get("activity") or item.get("activity_key")
+    if not isinstance(activity, str) or len(activity) > 80:
+        return None
+    label = re.sub(r"[-_]+", " ", activity).strip()
+    return label or None
+
+
+def _action_gap(item: dict, power: dict) -> str:
+    if power.get("status") == "conflict":
+        return "the conflicting power reports for this activity"
+    if any(
+        "temporary rental equipment need remains unconfirmed" in str(value)
+        for value in power.get("limitations", [])
+    ):
+        return "whether the reported activity load calls for temporary rental equipment"
+    if power.get("status") == "unknown":
+        return "the activity-specific temporary power requirement"
+    if not item.get("start_window"):
+        return "the project start window"
+    if not item.get("duration"):
+        return "the work duration"
+    return "the temporary power plan for this activity"
+
+
+def _next_action(item: dict, power: dict, contact: dict | None) -> str:
+    gap = _action_gap(item, power)
+    if contact is None:
+        return f"Research {gap} using current project sources."
+    verb = {"call": "Call", "email": "Email", "contact": "Contact"}.get(
+        str(contact.get("kind")), "Contact"
+    )
+    label = str(contact.get("contact") or "the company contact").strip()[:80]
+    if re.search(r"https?://|www\.|\[redacted\]|mailto:|tel:|\bsource:", label, re.I):
+        label = "the company contact"
+    return f"{verb} {label} to confirm {gap}."
+
+
 def build_commercial_brief(item: dict, *, now=None) -> dict:
     """Build a deterministic public projection; unsupported facts remain unknown."""
     item = dict(item)
@@ -436,9 +474,7 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
                     why_date = source_event_day or _iso(row.get("published_at"))
             conflicting_event_dates = len(bound_event_dates) > 1
             if why_sources and not mismatched_event_date and not conflicting_event_dates:
-                why_scope = (
-                    item.get("supported_action") or item.get("activity") or item.get("activity_key")
-                )
+                why_scope = _activity_label(item)
                 if why_date:
                     selected_source = why_sources[0]
                     event_label = selected_source.get("event_date_label") or (
@@ -469,7 +505,9 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
             row = _find_evidence(item, str(ref))
             if row:
                 resolved.append(row)
-        why_scope = assessment.get("scope")
+        # The assessment scope is free-form and may contain an unparsed amount.
+        # Keep the displayed rationale tied to this need's bounded activity key.
+        why_scope = _activity_label(item)
         cited_date = _date_in_text(assessment.get("why_now"))
         event_date_groups: dict[str, set[str]] = {}
         for row in resolved:
@@ -537,17 +575,11 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
     best_contact = _contact(actions)
     if best_contact is None:
         limitations.append("No privacy-filtered contact route is available.")
-    preview = item.get("commercial_preview")
-    if not isinstance(preview, dict):
-        preview = {}
-    action_text = (
-        preview.get("next_action") or item.get("commercial_next_action") or item.get("next_action")
-    )
     action_source = None
     if why_sources:
         action_source = why_sources[0]
-    if not isinstance(action_text, str) or not action_text.strip():
-        action_text = "Research the scoped power need and timing from current source evidence."
+    action_text = _next_action(item, power, best_contact)
+    if best_contact is None:
         limitations.append(
             "Next action is a research prompt; no buyer or purchase authority is established."
         )
@@ -597,7 +629,7 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
         "power_need": power,
         "best_contact": best_contact,
         "next_action": {
-            "text": action_text.strip(),
+            "text": action_text,
             "kind": "research" if not best_contact else "confirm_need",
             "source": action_source,
         },
