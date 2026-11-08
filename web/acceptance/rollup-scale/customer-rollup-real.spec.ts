@@ -332,7 +332,7 @@ for (const viewport of viewports) {
       const url = new URL(response.url())
       return url.pathname === '/api/opportunities/projects' && deNeedIds.has(url.searchParams.get('need_id') ?? '')
     }, { timeout: httpBudgetMs })
-    const detail = deGroup.getByRole('region', { name: 'Account projects' }).locator('[data-project-id]').first().getByRole('button', { name: /Open project detail/ })
+    const detail = deGroup.getByRole('region', { name: 'Account projects' }).locator('[data-project-id]').first().getByRole('button', { name: /Open (?:project detail|matching opportunity)/ })
     await detail.click()
     const detailResponse = await detailResponseWait
     expect(detailResponse.status(), 'Project detail identity request must return HTTP 200 from the real API').toBe(200)

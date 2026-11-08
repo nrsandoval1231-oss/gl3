@@ -1,6 +1,6 @@
 # Account-first Slice 1 validation — November 8
 
-Base: `3e1982ce6b36b951a634b75333eb08d27d83a097`. Branch: `feat/account-first-curated-experience`. [Draft PR #187](https://github.com/nrsandoval1231-oss/gl3/pull/187). This is the single sanitized receipt; exact final-head review and CI are attached to that handoff. Application source is frozen at `5c4bfd9ed08098abbd5662b0c5971be191c92a03`; subsequent changes are evidence/checkpoint updates, the single local disposable-database name guard and contact spacing rules. [Engineering and recovery](../../engineering/account-first-slice-20261107.md).
+Base: `3e1982ce6b36b951a634b75333eb08d27d83a097`. Branch: `feat/account-first-curated-experience`. [Draft PR #187](https://github.com/nrsandoval1231-oss/gl3/pull/187). This is the single sanitized receipt; exact final-head review and CI are attached to that handoff. Application source is frozen at `5c4bfd9ed08098abbd5662b0c5971be191c92a03`; subsequent changes are evidence/checkpoint updates, the single local disposable-database name guard, contact spacing rules and a real-rollup action-label locator correction. [Engineering and recovery](../../engineering/account-first-slice-20261107.md).
 
 All fixture businesses, people, amounts and contacts are **synthetic**. Reserved `.invalid`/`.test` hosts and 555 methods are not outreach targets. No authorized sanitized retained-data snapshot was available or accessed. No production deduplication, source coverage, SLA or automatic exhaustive need-alias reconciliation is claimed. No application provider execution, merge, deployment, production writes or credential changes occurred.
 
@@ -25,6 +25,8 @@ Commands run with fresh process-local authentication, providers disabled, zero r
 | `backend/.venv/Scripts/python.exe scripts/check_docs.py` | 110 documents, 522 local targets, 18 anchors passed after staging |
 | `backend/.venv/Scripts/python.exe -m pytest web/acceptance/pursuits-release/test_seed_safety.py -q` | **32 passed** |
 | `git diff --check` | Passed |
+
+A final push-CI rollup attempt exposed a stale test selector: its first row legitimately used “Open matching opportunity,” while the harness expected only “Open project detail.” The test now accepts either valid action on the same row; API identity, membership, history and 15s budgets are unchanged. Its focused real-API rerun passed all three viewports. The final exact-head CI status is recorded in the PR.
 
 The three backend skips are individually: optional local NC access probe unavailable; Windows has no RLIMIT_AS; Windows symlink privilege unavailable. No other backend test was skipped. The final 317-test run includes the reviewed contact-selection/ranking repairs and CI fixture corrections; typecheck/build passed again after CSS-only contact spacing rules. Final CI reruns browser gates on the exact presentation head.
 
