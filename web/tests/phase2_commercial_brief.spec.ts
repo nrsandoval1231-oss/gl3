@@ -51,7 +51,7 @@ function loadManifest(): Manifest {
 
 async function signIn(page: Page) {
   if (!password) throw new Error('Set GRIDLENS_TEST_PASSWORD to the private password for the disposable test API.')
-  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
