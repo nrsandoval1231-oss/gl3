@@ -137,6 +137,10 @@ def test_robots_exact_user_agent_group_precedes_wildcard_and_allow_wins_equal_pr
     assert evaluate_robots_policy(groups, "https://example.test/private/x").allowed
     grouped = "User-agent: *\nDisallow: /\n\nUser-agent: otherbot\nAllow: /\n"
     assert not evaluate_robots_policy(grouped, "https://example.test/public").allowed
+    partial_match = "User-agent: *\nAllow: /\n\nUser-agent: Grid\nDisallow: /blocked\n"
+    assert not evaluate_robots_policy(
+        partial_match, "https://example.test/blocked/contact"
+    ).allowed
 
 
 @pytest.mark.parametrize("status", [302, 401, 403, 429, 503])
