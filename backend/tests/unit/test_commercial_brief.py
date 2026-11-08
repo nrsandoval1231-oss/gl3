@@ -1,3 +1,5 @@
+from datetime import date
+
 from gridlens.domain.commercial_brief import VERSION, build_commercial_brief
 
 
@@ -194,9 +196,12 @@ def test_supported_amount_requires_source_bearing_claim_and_normalizes_unit():
     brief = build_commercial_brief(
         {
             "required_mw": "500 kW",
+            "activity": "construction",
             "power_need": {
                 "status": "SUPPORTED",
                 "value": "500 kW",
+                "scope": "construction",
+                "amount_class": "documented",
                 "evidence": [
                     {
                         "id": "e-1",
@@ -325,3 +330,152 @@ def test_conflicting_same_event_dates_and_overflow_abstain():
     )
     assert overflow["why_now"]["text"] is None
     assert overflow["power_need"]["value"] is None
+
+
+def test_accepted_source_demand_projects_only_with_matching_activity_scope():
+    evidence_hash = "a" * 64
+    semantic_hash = "b" * 64
+    from gridlens.domain.project_research import VERSION as RESEARCH_VERSION
+    from gridlens.domain.project_research import extract_project_claims
+    from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
+
+    quote = "Orion Data Center construction requires 500 kW."
+    project_id = "00000000-0000-0000-0000-000000000001"
+    need_id = "00000000-0000-0000-0000-000000000002"
+    claims = extract_project_claims(
+        quote,
+        references=["Orion Data Center"],
+        activity_key="construction",
+        published_at=date(2026, 10, 20),
+        today=date(2026, 11, 8),
+    )
+    retained_claim = {
+        **claims[0],
+        "project_id": project_id,
+        "need_id": need_id,
+        "evidence_id": "e-1",
+        "evidence_hash": evidence_hash,
+    }
+    item = {
+        "id": need_id,
+        "project_id": project_id,
+        "name": "Orion Data Center",
+        "location": "Austin, TX",
+        "activity": "construction",
+        "evidence": [
+            {
+                "id": "e-1",
+                "title": "Project electrical demand report",
+                "abstract": quote,
+                "url": "https://example.test/e-1",
+                "content_hash": evidence_hash,
+                "semantic_hash": semantic_hash,
+                "observation_hash": semantic_hash,
+                "evaluator_version": RESEARCH_VERSION,
+                "project_identity_key": "site-1",
+                "assessment": {
+                    "semantic_hash": semantic_hash,
+                    "evidence_hash": evidence_hash,
+                    "project_identity_key": "site-1",
+                    "acquisition_capture_version": CAPTURE_VERSION,
+                    "admission_status": "project_research_supplement",
+                    "target_need_id": need_id,
+                    "research_claims": [retained_claim],
+                },
+                "published_at": date(2026, 10, 20),
+                "observed_at": "2026-10-21T00:00:00+00:00",
+                "current": True,
+            }
+        ],
+    }
+    brief = build_commercial_brief(item, now="2026-11-08")
+    assert brief["power_need"]["value"] == "0.5"
+    assert brief["power_need"]["unit"] == "MW"
+    assert brief["power_need"]["scope"] == "construction"
+    assert brief["power_need"]["amount_class"] == "documented"
+
+    scoped_conflict = build_commercial_brief(
+        {
+            **item,
+            "power_need": {
+                "status": "SUPPORTED",
+                "value": "0.5 MW",
+                "scope": "IT capacity",
+                "amount_class": "documented",
+                "evidence": [
+                    {
+                        "id": "e-1",
+                        "url": "https://example.test/e-1",
+                        "content_hash": evidence_hash,
+                    }
+                ],
+            },
+        }
+    )
+    assert scoped_conflict["power_need"]["value"] is None
+    assert any(
+        "scope does not match" in value for value in scoped_conflict["power_need"]["limitations"]
+    )
+
+
+def test_project_event_date_must_match_its_current_citation():
+    brief = build_commercial_brief(
+        {
+            "event": {
+                "kind": "commissioning",
+                "label": "Commissioning starts",
+                "date": "2030-01-01",
+                "evidence_refs": ["e-1"],
+            },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Permit issued",
+                    "url": "https://example.test/permit",
+                    "event_date": "2026-10-20",
+                    "event_date_label": "Permit issued",
+                    "current": True,
+                }
+            ],
+        },
+        now="2026-11-08",
+    )
+    assert brief["why_now"]["text"] is None
+    assert brief["why_now"]["sources"] == []
+    assert any("does not match" in value for value in brief["limitations"])
+
+
+def test_fallback_event_with_conflicting_bound_dates_abstains():
+    brief = build_commercial_brief(
+        {
+            "event": {
+                "kind": "construction",
+                "label": "Construction",
+                "evidence_refs": ["e-1", "e-2"],
+            },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Site update",
+                    "url": "https://example.test/1",
+                    "event_date": "2026-10-20",
+                    "event_date_label": "Construction started",
+                    "published_at": "2026-10-20",
+                    "current": True,
+                },
+                {
+                    "id": "e-2",
+                    "title": "Site update",
+                    "url": "https://example.test/2",
+                    "event_date": "2026-10-21",
+                    "event_date_label": "Construction started",
+                    "published_at": "2026-10-22",
+                    "current": True,
+                },
+            ],
+        },
+        now="2026-11-08",
+    )
+    assert brief["why_now"]["text"] is None
+    assert brief["why_now"]["sources"] == []
+    assert any("Conflicting current dates" in value for value in brief["limitations"])

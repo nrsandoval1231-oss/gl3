@@ -62,6 +62,107 @@ def _power_references_current(references: list, current_evidence: Any) -> bool:
     return False
 
 
+def _research_activity_load(item: dict, *, today: date) -> dict | None:
+    """Re-run the existing exact project-research extractor over accepted claims."""
+    from gridlens.domain.project_research import (
+        VERSION as RESEARCH_VERSION,
+    )
+    from gridlens.domain.project_research import (
+        extract_project_claims,
+        project_claim_state,
+    )
+    from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
+
+    need_id = str(item.get("id") or "")
+    project_id = str(item.get("project_id") or "")
+    activity = item.get("activity") or item.get("activity_key")
+    subject = item.get("name")
+    if not need_id or not project_id or not isinstance(activity, str) or not activity:
+        return None
+    if not isinstance(subject, str) or not subject.strip():
+        return None
+    claims: list[dict] = []
+    references: dict[str, dict] = {}
+    for row in item.get("evidence", []) if isinstance(item.get("evidence"), list) else []:
+        if not isinstance(row, dict) or row.get("current") is not True:
+            continue
+        assessment = row.get("assessment")
+        if not isinstance(assessment, dict):
+            continue
+        if (
+            row.get("evaluator_version") != RESEARCH_VERSION
+            or assessment.get("acquisition_capture_version") != CAPTURE_VERSION
+            or assessment.get("admission_status") != "project_research_supplement"
+            or assessment.get("target_need_id") != need_id
+            or assessment.get("project_identity_key") != row.get("project_identity_key")
+            or assessment.get("evidence_hash") != row.get("content_hash")
+            or assessment.get("semantic_hash") != row.get("semantic_hash")
+        ):
+            continue
+        retained = assessment.get("research_claims")
+        if not isinstance(retained, list):
+            continue
+        published_at = row.get("published_at")
+        extracted = extract_project_claims(
+            str(row.get("abstract") or ""),
+            references=[subject, str(item.get("location") or "")],
+            activity_key=activity,
+            published_at=published_at if isinstance(published_at, date) else None,
+            today=today,
+        )
+        for claim in retained:
+            if not isinstance(claim, dict) or not (
+                claim.get("field") == "activity_load_mw"
+                and claim.get("project_id") == project_id
+                and claim.get("need_id") == need_id
+                and claim.get("activity_key") == activity
+                and claim.get("evidence_id") == str(row.get("id"))
+                and claim.get("evidence_hash") == row.get("content_hash")
+                and isinstance(claim.get("quote"), str)
+                and claim["quote"] in str(row.get("abstract") or "")
+            ):
+                continue
+            if not any(
+                parsed.get("field") == "activity_load_mw"
+                and parsed.get("value") == claim.get("value")
+                and parsed.get("quote") == claim.get("quote")
+                for parsed in extracted
+            ):
+                continue
+            evidence_id = str(row.get("id"))
+            evidence_ref = {
+                "id": evidence_id,
+                "url": row.get("url"),
+                "content_hash": row.get("content_hash"),
+            }
+            claims.append({**claim, "evidence": evidence_ref})
+            references[evidence_id] = evidence_ref
+    if not claims:
+        return None
+    state = project_claim_state(claims, today=today)["activity_load_mw"]
+    if state["status"] == "CONFLICT":
+        return {
+            "status": "CONFLICT",
+            "scope": activity,
+            "evidence": [],
+            "reported_activity_load": True,
+        }
+    if state["status"] != "SUPPORTED" or state["value"] is None:
+        return None
+    return {
+        "status": "SUPPORTED",
+        "value": f"{state['value']} MW",
+        "scope": activity,
+        "amount_class": "documented",
+        "evidence": [
+            references[str(claim["evidence"]["id"])]
+            for claim in state.get("claims", [])
+            if isinstance(claim.get("evidence"), dict)
+        ],
+        "reported_activity_load": True,
+    }
+
+
 def _date_in_text(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
@@ -123,7 +224,7 @@ def _valid_amount(value: Any) -> tuple[str, str] | None:
     return normalized, "MW"
 
 
-def _power(item: dict) -> dict:
+def _power(item: dict, *, today: date) -> dict:
     parsed_amount = _valid_amount(item.get("required_mw"))
     required = parsed_amount[0] if parsed_amount else None
     amount_class: str = "unknown"
@@ -136,17 +237,33 @@ def _power(item: dict) -> dict:
     )
     scope = str(scope).strip() if scope is not None else None
     text = " ".join(
-        str(item.get(key) or "") for key in ("power_summary", "power_need_summary", "required_mw")
+        str(item.get(key) or "")
+        for key in (
+            "power_summary",
+            "power_need_summary",
+            "required_mw",
+            "activity",
+            "activity_key",
+        )
     )
     out_of_scope = bool(
         re.search(r"\b(?:campus|nameplate|IT\s+(?:load|capacity)|design capacity)\b", text, re.I)
     )
     state = item.get("power_need")
+    limits_scope_conflict = False
+    if not isinstance(state, dict):
+        state = _research_activity_load(item, today=today)
     if isinstance(state, dict):
+        state_scope = state.get("scope")
         if state.get("status") == "CONFLICT":
             required = None
             status = "conflict"
             amount_class = "unknown"
+        elif not scope or (state_scope is not None and str(state_scope).strip() != scope):
+            required = None
+            status = "unknown"
+            amount_class = "unknown"
+            limits_scope_conflict = True
         elif (
             state.get("status") == "SUPPORTED"
             and isinstance(state.get("evidence"), list)
@@ -184,8 +301,14 @@ def _power(item: dict) -> dict:
         limits.append("Campus, IT, or equipment nameplate amount is not rental demand.")
     if item.get("evidence_overflow"):
         limits.append("Current source set exceeds the brief evidence bound; power claims withheld.")
+    if isinstance(state, dict) and state.get("reported_activity_load"):
+        limits.append(
+            "Source reports activity load; temporary rental equipment need remains unconfirmed."
+        )
     if not scope:
         limits.append("Power need scope is not established.")
+    if limits_scope_conflict:
+        limits.append("Power claim scope does not match this activity; amount withheld.")
     return {
         "amount_class": amount_class,
         "scope": scope,
@@ -272,20 +395,45 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
             refs = (
                 event.get("evidence_refs") if isinstance(event.get("evidence_refs"), list) else []
             )
+            mismatched_event_date = False
+            bound_event_dates: set[str] = set()
             for ref in refs if isinstance(refs, list) else []:
                 row = _find_evidence(item, str(ref))
                 if row:
+                    source_event_day = _iso(row.get("event_date"))
+                    declared_event_day = _iso(event.get("date"))
+                    if declared_event_day and source_event_day != declared_event_day:
+                        mismatched_event_date = True
+                        continue
+                    if source_event_day:
+                        bound_event_dates.add(source_event_day)
                     source = _source(row)
                     why_sources.append(source)
-                    why_date = _iso(event.get("date")) or source.get("date")
-            if why_sources:
+                    why_date = source_event_day or _iso(row.get("published_at"))
+            conflicting_event_dates = len(bound_event_dates) > 1
+            if why_sources and not mismatched_event_date and not conflicting_event_dates:
                 why_scope = (
                     item.get("supported_action") or item.get("activity") or item.get("activity_key")
                 )
                 if why_date:
-                    event_label = event.get("label") or event.get("kind") or "Source event"
+                    selected_source = why_sources[0]
+                    event_label = selected_source.get("event_date_label") or (
+                        "Published" if not selected_source.get("date") else "Source reported"
+                    )
                     event_scope = why_scope or "scope is not established"
                     why_text = f"{event_label} {why_date}: {event_scope}"
+            elif mismatched_event_date:
+                why_sources = []
+                why_date = None
+                limitations.append(
+                    "Project event date does not match its cited current source; why-now withheld."
+                )
+            elif conflicting_event_dates:
+                why_sources = []
+                why_date = None
+                limitations.append(
+                    "Conflicting current dates for the cited project event; why-now withheld."
+                )
     if isinstance(assessment, dict) and assessment.get("eligible") is True:
         refs = (
             assessment.get("evidence_refs")
@@ -345,7 +493,11 @@ def build_commercial_brief(item: dict, *, now=None) -> dict:
                 )
     elif not why_sources:
         limitations.append("No current source-backed event is available to explain why now.")
-    power = _power(item)
+    try:
+        power_as_of = date.fromisoformat(str(as_of)[:10])
+    except (TypeError, ValueError):
+        power_as_of = date.today()
+    power = _power(item, today=power_as_of)
     limitations.extend(power["limitations"])
     actions = item.get("contact_actions") or item.get("contact")
     best_contact = _contact(actions)

@@ -16,7 +16,10 @@ from sqlalchemy.orm import Session
 
 from gridlens.intelligence.buying_chain import buying_chain_views
 from gridlens.intelligence.identity_reconciliation import current_claim_identity_links
-from gridlens.intelligence.saved_history_privacy import _redact_all_contact_tokens
+from gridlens.intelligence.saved_history_privacy import (
+    _redact_all_contact_tokens,
+    project_saved_history_privacy,
+)
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
     BrowseRow,
@@ -102,10 +105,6 @@ def account_queue(
             json.dumps(compact, default=str),
             evidence=source_by_need.get(str(compact.get("id")), []),
         )
-        if need_summary:
-            need_summary["commercial_brief"] = _redact_all_contact_tokens(
-                need_summary["commercial_brief"]
-            )
         items.append(
             {
                 "company_identity_id": row["company_identity_id"],
@@ -119,6 +118,10 @@ def account_queue(
                 "highest_priority_need": need_summary,
             }
         )
+    _sanitize_account_briefs(
+        session,
+        [item["highest_priority_need"] for item in items if item.get("highest_priority_need")],
+    )
     return {
         "items": items,
         "total": total,
@@ -279,7 +282,6 @@ def account_browse_page(
             }
         )
         brief["best_contact"] = None
-        brief = _redact_all_contact_tokens(brief)
         compact["evidence"] = []
         output.append(
             {
@@ -302,6 +304,7 @@ def account_browse_page(
             }
         )
     next_offset = offset + len(output) if offset + len(output) < total else None
+    _sanitize_account_briefs(session, output)
     return {
         "items": output,
         "total": total,
@@ -629,7 +632,6 @@ def account_projects(
                 evidence=source_by_need.get(str(compact.get("id")), []),
             )
             if need is not None:
-                need["commercial_brief"] = _redact_all_contact_tokens(need["commercial_brief"])
                 needs_by_project[project_id].append(need)
     items = []
     for project in page:
@@ -648,6 +650,10 @@ def account_projects(
                 ),
             }
         )
+    _sanitize_account_briefs(
+        session,
+        [need for item in items for need in item["needs"]],
+    )
     return {
         "items": items,
         "total": total,
@@ -1151,7 +1157,7 @@ def _account_need(
 
 def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, list[dict[str, Any]]]:
     ids = [value for value in need_ids if value]
-    output = {str(value): [] for value in ids}
+    output: dict[str, list[dict[str, Any]]] = {str(value): [] for value in ids}
     if session is None or not ids:
         return output
     rows = (
@@ -1159,12 +1165,34 @@ def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, lis
             text(
                 """WITH accepted AS (
                SELECT DISTINCT ON (no.need_id,e.id)
-                      no.need_id,e.id,e.url,e.event_date,e.event_date_label,
-                      e.published_at,e.content_hash,e.extraction_location
+                      no.need_id,e.id,e.title,e.url,left(e.abstract, 8192) AS abstract,
+                      e.event_date,e.event_date_label,
+                      e.published_at,e.observed_at,e.content_hash,e.extraction_location,
+                      o.content_hash AS semantic_hash,i.evaluator_version,
+                      jsonb_build_object(
+                          'semantic_hash', i.assessment->'semantic_hash',
+                          'evidence_hash', i.assessment->'evidence_hash',
+                          'project_identity_key', i.assessment->'project_identity_key',
+                          'acquisition_capture_version',
+                          i.assessment->'acquisition_capture_version',
+                          'admission_status', i.assessment->'admission_status',
+                          'target_need_id', i.assessment->'target_need_id',
+                          'project_id', i.assessment->'project_id',
+                          'research_claims', jsonb_path_query_array(
+                              i.assessment->'research_claims',
+                              '$[*] ? (@.field == "activity_load_mw")'
+                          )
+                      ) AS assessment,
+                      s.id AS source_id,
+                      s.family AS source_family,s.retrieval_method,
+                      p.identity_key AS project_identity_key
                FROM need_observations no
                JOIN observations o ON o.id=no.observation_id
                JOIN evidence e ON e.observation_id=o.id
                JOIN interpretations i ON i.observation_id=o.id
+               JOIN sources s ON s.id=o.source_id
+               JOIN power_needs pn ON pn.id=no.need_id
+               JOIN projects p ON p.id=pn.project_id
                WHERE no.need_id=ANY(CAST(:need_ids AS uuid[]))
                  AND e.content_hash=o.content_hash AND i.content_hash=o.content_hash
                  AND i.status='accepted'
@@ -1185,19 +1213,34 @@ def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, lis
         .mappings()
         .all()
     )
+    overflow_needs: set[str] = set()
     for row in rows:
         if row["source_count"] > 40:
-            output[str(row["need_id"])].append({"overflow": True})
+            need_key = str(row["need_id"])
+            if need_key not in overflow_needs:
+                output[need_key].append({"overflow": True})
+                overflow_needs.add(need_key)
             continue
         output[str(row["need_id"])].append(
             {
                 "id": str(row["id"]),
-                "title": None,
+                "title": row["title"],
                 "url": row["url"],
+                "abstract": row["abstract"],
                 "event_date": row["event_date"],
                 "event_date_label": row["event_date_label"],
                 "published_at": row["published_at"],
+                "observed_at": row["observed_at"],
                 "content_hash": row["content_hash"],
+                "semantic_hash": row["semantic_hash"],
+                "assessment": row["assessment"],
+                "evaluator_version": row["evaluator_version"],
+                "source": {
+                    "id": row["source_id"],
+                    "family": row["source_family"],
+                    "retrieval_method": row["retrieval_method"],
+                },
+                "project_identity_key": row["project_identity_key"],
                 "extraction_location": row["extraction_location"],
                 "current": True,
             }
@@ -1212,5 +1255,35 @@ def _safe_need_summary(session, compact_text: str | None):
     )
     need = _account_need(compact_text, evidence=sources)
     if need:
-        need["commercial_brief"] = _redact_all_contact_tokens(need["commercial_brief"])
+        _sanitize_account_briefs(session, [need])
     return need
+
+
+def _sanitize_account_briefs(session, needs: list[dict[str, Any]]) -> None:
+    """Apply saved-history name/method suppression to one bounded response page."""
+    selected = [
+        need
+        for need in needs
+        if isinstance(need, dict)
+        and isinstance(need.get("commercial_brief"), dict)
+        and need.get("project_id")
+    ]
+    if not selected:
+        return
+    versions = [
+        {
+            "saved_card": {
+                "project_id": need["project_id"],
+                "commercial_brief": need["commercial_brief"],
+            }
+        }
+        for need in selected
+    ]
+    projected = project_saved_history_privacy(session, {"versions": versions}).get("versions", [])
+    for need, version in zip(selected, projected, strict=False):
+        card = version.get("saved_card") if isinstance(version, dict) else None
+        safe = card.get("commercial_brief") if isinstance(card, dict) else None
+        if isinstance(safe, dict):
+            safe = _redact_all_contact_tokens(safe)
+            safe["best_contact"] = None
+            need["commercial_brief"] = safe

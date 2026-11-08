@@ -1,15 +1,21 @@
 """Search account names from saved customer memberships without shrinking totals."""
 
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.intelligence.customer_accounts import account_browse_page, account_queue
+from gridlens.intelligence.contact_suppressions import global_person_suppression_key
+from gridlens.intelligence.customer_accounts import (
+    _safe_need_summary,
+    account_browse_page,
+    account_queue,
+)
 from gridlens.intelligence.pursuit_workspace import query_plan
 from gridlens.intelligence.saved_browse import POLICY_VERSION
 from gridlens.persistence.database import Base
@@ -18,10 +24,15 @@ from gridlens.persistence.models import (
     BrowseGeneration,
     BrowseRow,
     BrowseState,
+    BuyingChainClaim,
+    BuyingChainEvidence,
+    BuyingChainIdentityLink,
     CompanyIdentity,
+    PersonIdentity,
     Project,
     Source,
 )
+from gridlens.persistence.suppression_models import ContactSuppression
 from gridlens.settings import settings
 
 
@@ -222,3 +233,91 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         )
         assert stable_page["cohort_token"] == browse["cohort_token"]
         assert stable_page["items"][0]["company_identity_id"] == identity_id
+
+    hidden_name = "Suppressed Account Contact"
+    with search_db.begin() as session:
+        project = session.scalar(select(Project).order_by(Project.name))
+        row = session.scalar(select(BrowseRow).order_by(BrowseRow.rank_score.desc()))
+        person = PersonIdentity()
+        session.add(person)
+        session.flush()
+        claim = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="account-brief-contact",
+            fingerprint="a" * 64,
+            policy_version="fixture-v1",
+            organization="Acme Owner Holdings",
+            person_name=hidden_name,
+            title="Project director",
+            category="owner",
+            organization_relationship="owner",
+            person_organization_relationship="employee",
+            person_project_relationship="project_contact",
+            evidence_strength="high",
+            reason="Fixture for account summary privacy projection.",
+            citations=[],
+            public_contacts=[],
+            observed_at=now,
+        )
+        session.add(claim)
+        session.flush()
+        source = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://example.test/account-brief-contact",
+            title="Account contact source",
+            excerpt="Account contact source fixture.",
+            content_hash="b" * 64,
+            extraction_location="Fixture",
+            observed_at=now,
+            last_seen_at=now,
+            project_match_reason="Test scoped privacy record",
+        )
+        session.add(source)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=claim.id,
+                entity_type="person",
+                person_identity_id=person.id,
+                company_identity_id=None,
+                reason="Fixture person identity",
+                basis="strong_identifier",
+                source_evidence_id=source.id,
+                source_version_hash=source.content_hash,
+                state="current",
+            )
+        )
+        session.add(
+            ContactSuppression(
+                scope="person",
+                subject_key=global_person_suppression_key(person.id),
+                expected_version=0,
+                version=1,
+                action="suppress",
+                reason="fixture suppression",
+                actor="test",
+                idempotency_key="account-brief-person-suppression",
+            )
+        )
+        row.compact = {
+            **row.compact,
+            "commercial_preview": {
+                **row.compact["commercial_preview"],
+                "next_action": f"Confirm details with {hidden_name}",
+            },
+        }
+
+    with search_db() as session:
+        for projection in (
+            account_queue(session, search="aoh", limit=25, offset=0)["items"][0][
+                "highest_priority_need"
+            ],
+            account_browse_page(session, filters, limit=25, offset=0, token=None)["items"][0],
+            _safe_need_summary(
+                session,
+                json.dumps(
+                    session.scalar(select(BrowseRow).order_by(BrowseRow.rank_score.desc())).compact
+                ),
+            ),
+        ):
+            assert hidden_name not in repr(projection["commercial_brief"])
