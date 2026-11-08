@@ -21,6 +21,44 @@ from gridlens.persistence.suppression_models import ContactSuppression
 pytest_plugins = ["test_research_transitions", "test_retained_document_import"]
 
 
+def test_project_brief_contact_is_scoped_to_unique_representative_need():
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+    from gridlens.intelligence.project_results import _representative_need
+
+    sibling_action = {
+        "kind": "call",
+        "href": "tel:15125550100",
+        "name": "Sibling project contact",
+    }
+    item = {
+        "representative_need_id": "need-a",
+        "contact": [sibling_action],
+        "needs": [
+            {"id": "need-a", "contact_actions": []},
+            {"id": "need-b", "contact_actions": [sibling_action]},
+        ],
+    }
+
+    representative = _representative_need(item)
+    brief = build_optional_commercial_brief(
+        {"contact_actions": representative.get("contact_actions") or []}
+    )
+    assert brief["best_contact"] is None
+
+    for invalid_item in (
+        {**item, "representative_need_id": None},
+        {
+            **item,
+            "needs": [item["needs"][0], item["needs"][0], item["needs"][1]],
+        },
+    ):
+        unresolved = _representative_need(invalid_item)
+        unresolved_brief = build_optional_commercial_brief(
+            {"contact_actions": unresolved.get("contact_actions") or []}
+        )
+        assert unresolved_brief["best_contact"] is None
+
+
 @pytest.fixture
 def research_db():
     yield from _isolated_research_db.__wrapped__()

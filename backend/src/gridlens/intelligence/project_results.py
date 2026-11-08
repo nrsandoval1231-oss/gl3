@@ -33,6 +33,19 @@ def _contains_identity_pointer(value: Any) -> bool:
     return False
 
 
+def _representative_need(item: dict[str, Any]) -> dict[str, Any]:
+    """Return the uniquely identified representative need, never a sibling fallback."""
+    representative_id = item.get("representative_need_id")
+    if representative_id is None:
+        return {}
+    matches = [
+        need
+        for need in item.get("needs", [])
+        if isinstance(need, dict) and str(need.get("id")) == str(representative_id)
+    ]
+    return matches[0] if len(matches) == 1 else {}
+
+
 def _current_jev_decisions(session, evidence_ids: list[str]) -> dict[str, str]:
     """Return only pinned Jev decisions for each exact current demand evidence version."""
     if not evidence_ids:
@@ -785,14 +798,7 @@ def page(
     from gridlens.domain.commercial_brief import build_optional_commercial_brief
 
     for item in items:
-        representative = next(
-            (
-                need
-                for need in item["needs"]
-                if str(need.get("id")) == str(item.get("representative_need_id"))
-            ),
-            item["needs"][0] if item["needs"] else {},
-        )
+        representative = _representative_need(item)
         assessment = shortlist_by_need.get(str(representative.get("id")), {}) if shortlist else {}
         representative_evidence = evidence_by_need.get(str(representative.get("id")), [])
         brief_input = {
@@ -889,15 +895,8 @@ def page(
     # history sanitizer, which intentionally redacts all method tokens.
     # (Need-specific briefs likewise use their own filtered action list.)
     for item in items:
-        representative = next(
-            (
-                need
-                for need in item["needs"]
-                if str(need.get("id")) == str(item.get("representative_need_id"))
-            ),
-            item["needs"][0] if item["needs"] else {},
-        )
-        route_actions = representative.get("contact_actions") or item.get("contact") or []
+        representative = _representative_need(item)
+        route_actions = representative.get("contact_actions") or []
         action_brief = build_optional_commercial_brief(
             {"contact_actions": route_actions}
         ).get("best_contact")
