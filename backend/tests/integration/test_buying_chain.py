@@ -508,8 +508,8 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
         )
 
 
-def test_membership_only_company_contact_job_persists_canonical_method(db, monkeypatch):
-    """The actual job, claim, run and account projection share one PostgreSQL transaction."""
+def test_membership_only_company_contact_job_keeps_unverified_domain_unresolved(db, monkeypatch):
+    """A typed operator membership does not authorize a company website by itself."""
     import json
 
     import gridlens.intelligence.company_contact_discovery as discovery
@@ -616,7 +616,8 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
     result = discovery.process_company_contact_discovery(
         job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
     )
-    assert result["status"] == "complete", result
+    assert result["status"] == "unresolved", result
+    assert result["results"][0]["reason"] == "official_identity_unverified"
     assert seen_deadlines and all(value == inherited_deadline for value in seen_deadlines)
 
     # A new checkpoint opens a new transaction and must reuse the same job.
@@ -636,26 +637,23 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         assert replay["deduplicated"] is True
     with db.begin() as session:
         projected = company_contacts(session, company_id)
-        assert projected.contacts
-        assert any(m["kind"] == "email" for c in projected.contacts for m in c.methods)
-        assert any(m["kind"] == "phone" for c in projected.contacts for m in c.methods)
-        values = {m["value"] for c in projected.contacts for m in c.methods}
-        assert "(713) 651-7000" in values
-        assert "(877) 363-3647" in values
-        assert "(713) 651-6995" not in values
-        assert any(c.name == "Gregory T. Miller" and not c.methods for c in projected.contacts)
-        assert any(
-            c.name == "Gregory T. Miller"
-            and c.confidence == "Published role; no verified direct contact method"
-            for c in projected.contacts
-        )
+        assert projected.contacts == []
         assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 1
-        current_run = session.scalar(
-            select(BuyingChainRun)
-            .where(BuyingChainRun.project_id == project.id)
-            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        membership = session.scalar(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.company_identity_id == company_id
+            )
         )
-        assert current_run and current_run.claim_ids
+        assert membership is not None and membership.state == "current"
+        current = buying_chain_view(session, project.id, now=NOW)
+        assert not any(
+            candidate.get("person_name") == "Gregory T. Miller"
+            or any(
+                contact["value"] in {"info@eogresources.com", "(713) 651-7000", "(877) 363-3647"}
+                for contact in candidate.get("public_contacts", [])
+            )
+            for candidate in current["candidates"]
+        )
         checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         assert len(checkpoint["checked_urls"]) == 4
         assert checkpoint["research_required"] is True  # generic method is not a named buyer
@@ -675,7 +673,7 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
         refresh_at = NOW + timedelta(days=30)
         with evaluate_at(refresh_at):
             due_projection = company_contacts(session, company_id)
-            assert any(contact.methods for contact in due_projection.contacts)
+            assert due_projection.contacts == []
             assert contact_page_url in discovery._known_contact_urls(session, company_id, [project])
             assert discovery.plan_company_contact_jobs(session, limit=1, now=refresh_at) == 1
         refresh_job = session.scalar(
@@ -763,23 +761,17 @@ def test_membership_only_company_contact_job_persists_canonical_method(db, monke
             now=retry_at,
             deadline=time.monotonic() + 10,
         )
-    assert refreshed["status"] == "complete"
+    assert refreshed["status"] == "unresolved"
+    assert refreshed["results"][0]["reason"] == "official_identity_unverified"
     assert contact_page_url in refreshed_urls
-    assert all("eogresources.com" in url for url in refreshed_urls)
+    assert "https://other.example/contact/" not in refreshed_urls
+    assert not any("/investors/" in url or "/careers/" in url for url in refreshed_urls)
     with evaluate_at(retry_at), db() as session:
         current_projection = company_contacts(session, company_id)
-        assert any(
-            method["value"] == "info@eogresources.com"
-            for contact in current_projection.contacts
-            for method in contact.methods
-        )
+        assert current_projection.contacts == []
     with evaluate_at(refresh_at + timedelta(days=1)), db() as session:
         day_31_projection = company_contacts(session, company_id)
-        assert any(
-            method["value"] == "info@eogresources.com"
-            for contact in day_31_projection.contacts
-            for method in contact.methods
-        )
+        assert day_31_projection.contacts == []
     with db.begin() as session:
         membership = session.scalar(
             select(CompanyProjectMembership).where(
@@ -1367,7 +1359,8 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
     result = discovery.process_company_contact_discovery(
         job_id, "contact-test", 1, now=NOW, deadline=inherited_deadline
     )
-    assert result["status"] == "complete"
+    assert result["status"] == "unresolved"
+    assert result["results"][0]["reason"] == "official_identity_unverified"
     assert seen_deadlines and all(
         local_start < value <= local_start + 35.1 for value in seen_deadlines
     )
@@ -1375,13 +1368,13 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
         after = buying_chain_view(session, project.id)
         assert len(after["candidates"]) >= len(before)
         assert any(c["organization"] == "Beta" for c in after["candidates"])
-        assert any(
-            m["value"] == "office@acme.example"
+        assert all(
+            m["value"] != "office@acme.example"
             for c in company_contacts(session, company_id).contacts
             for m in c.methods
         )
         assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 2
-        assert any(c["person_name"] == "Alex Smith" for c in after["candidates"])
+        assert not any(c["person_name"] == "Alex Smith" for c in after["candidates"])
     with db.begin() as session:
         replay = discovery.discover_company_contacts(
             session,
@@ -1404,7 +1397,7 @@ def test_contact_refresh_keeps_existing_buying_chain_claims(db, monkeypatch):
     ],
     ids=("team-named-only", "team-named-plus-generic", "team-methodless-roles", "people-named"),
 )
-def test_official_team_cards_persist_named_methods_without_generic_duplicates(
+def test_unbound_company_team_cards_do_not_add_named_or_generic_methods(
     db, monkeypatch, official_path, include_generic_route, include_named_methods
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
@@ -1440,6 +1433,9 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
             for item in view["candidates"]
             if item["organization"] == "Masters Electrical Services"
         )
+        company_claim_id = company["id"]
+        assert company["organization_relationship"] == "DIRECT"
+        assert company["category"] == "electrical_contractor"
         company_id = UUID(company["company_identity_id"])
         queued = discovery.discover_company_contacts(
             session,
@@ -1459,67 +1455,21 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
         lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
     )
     result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
-    assert result["status"] == "complete"
-    assert result["results"][0]["named_professionals"] == 3
-
-    expected = {
-        "Josh Spaw": "jspaw@mesltdtx.com",
-        "Justin Flippin": "jflippin@mesltdtx.com",
-        "Christopher Brannon": "cbrannon@mesltdtx.com",
-    }
+    assert result["status"] == "unresolved"
+    assert result["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         company_view = buying_chain_view(session, project.id)
-        named = {
-            item["person_name"]: item
-            for item in company_view["candidates"]
-            if item.get("company_identity_id") == str(company_id) and item.get("person_name")
-        }
-        assert set(named) == set(expected)
-        for name, email in expected.items():
-            person = named[name]
-            expected_values = [email] if include_named_methods else []
-            assert [contact["value"] for contact in person["public_contacts"]] == expected_values
-            assert person["person_project_relationship"] == "ROLE_SUPPORTED"
-            assert person["person_project_relationship"] != "DIRECT"
-            assert person["category"] == (
-                "procurement" if name == "Christopher Brannon" else "electrical_contractor"
-            )
-            person_evidence = [item for item in person["evidence"] if item["url"] == team_url]
-            assert person_evidence
-            if include_named_methods:
-                contact_evidence = [
-                    item for item in person_evidence if item["supports"] == "public_contact"
-                ]
-                assert len(contact_evidence) == 1
-                assert email in contact_evidence[0]["quote"]
-        projected = company_contacts(session, company_id).contacts
-        projected_named = {item.name: item for item in projected if item.name}
-        assert set(projected_named) == set(expected)
-        for name, email in expected.items():
-            assert [method["value"] for method in projected_named[name].methods] == (
-                [email] if include_named_methods else []
-            )
-            assert projected_named[name].company_id == company_id
-            assert (
-                projected_named[name].purchasing_authority
-                == "Requires confirmation for this power package"
-            )
-        generic = [item for item in projected if item.name is None]
-        if include_generic_route:
-            assert len(generic) == 1
-            assert [method["value"] for method in generic[0].methods] == ["info@mesltdtx.com"]
-        else:
-            assert generic == []
-        expected_count = (3 if include_named_methods else 0) + int(include_generic_route)
-        expected_reason = (
-            "named_and_generic_public_methods_persisted"
-            if include_named_methods and include_generic_route
-            else "named_public_methods_persisted"
-            if include_named_methods
-            else "official_role_without_public_method"
+        preserved_company_claim = next(
+            item for item in company_view["candidates"] if item["id"] == company_claim_id
         )
-        assert result["results"][0]["contacts"] == expected_count
-        assert result["results"][0]["reason"] == expected_reason
+        assert preserved_company_claim["organization_relationship"] == "DIRECT"
+        assert preserved_company_claim["category"] == "electrical_contractor"
+        assert not any(
+            item.get("person_name") in {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
+            for item in company_view["candidates"]
+        )
+        projected = company_contacts(session, company_id).contacts
+        assert all(not item.methods for item in projected)
         claims_before = session.scalar(select(func.count()).select_from(BuyingChainClaim))
 
     with db.begin() as session:
@@ -1527,9 +1477,8 @@ def test_official_team_cards_persist_named_methods_without_generic_duplicates(
         job.status, job.lease_owner, job.fence = "running", "contact-test", 2
         job.lease_until = datetime.now(UTC) + timedelta(minutes=5)
     replay = discovery.process_company_contact_discovery(job_id, "contact-test", 2, now=NOW)
-    assert replay["status"] == "complete"
-    assert replay["results"][0]["contacts"] == expected_count
-    assert replay["results"][0]["reason"] == expected_reason
+    assert replay["status"] == "unresolved"
+    assert replay["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == claims_before
         replayed = company_contacts(session, company_id).contacts
@@ -1640,19 +1589,20 @@ def test_ineligible_person_card_methods_do_not_fall_back_or_survive_as_generic_r
             session, project, company_id, {team_url: card_doc}, NOW + timedelta(days=1)
         )
 
-        assert refreshed["status"] == "complete"
-        assert refreshed["named_professionals"] == 0
-        assert refreshed["contacts"] == 1, refreshed
-        assert refreshed["reason"] == "generic_public_methods_persisted"
+        assert refreshed["status"] == "unresolved"
+        assert refreshed["reason"] == "official_identity_unverified"
         projection = company_contacts(session, company_id)
-        generic = [contact for contact in projection.contacts if contact.name is None]
-        assert len(generic) == 1
-        assert [method["value"] for method in generic[0].methods] == ["info@mesltdtx.com"]
+        assert all(
+            method["value"] != "info@mesltdtx.com"
+            for contact in projection.contacts
+            for method in contact.methods
+        )
+        assert all(not contact.methods for contact in projection.contacts)
         assert old_claim.public_contacts == prior_methods
 
 
 @pytest.mark.parametrize("refresh_generation", [None, "owner-retry-generation-20261026"])
-def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_company_route(
+def test_unverified_named_refresh_preserves_company_claim_without_promoting_routes(
     db, monkeypatch, refresh_generation
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
@@ -1713,34 +1663,25 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
     first_result = discovery.process_company_contact_discovery(
         first_job_id, "contact-test", 1, now=NOW
     )
-    assert first_result["status"] == "complete"
+    assert first_result["status"] == "unresolved"
+    assert first_result["results"][0]["reason"] == "official_identity_unverified"
 
     with db.begin() as session:
         before_projection = company_contacts(session, company_id)
-        generic_before = [item for item in before_projection.contacts if item.name is None]
-        assert len(generic_before) == 1
-        assert {method["value"] for method in generic_before[0].methods} == {
-            "jspaw@mesltdtx.com",
-            "office@mesltdtx.com",
-        }
-        old_claim = session.scalar(
-            select(BuyingChainClaim)
-            .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
-            .where(
-                BuyingChainIdentityLink.company_identity_id == company_id,
-                BuyingChainIdentityLink.state == "current",
-                BuyingChainClaim.person_name.is_(None),
-                BuyingChainClaim.public_contacts.contains(
-                    [{"value": "jspaw@mesltdtx.com", "source_url": team_url}]
-                ),
+        assert all(not item.methods for item in before_projection.contacts)
+        initial_company_claims = {
+            item.id
+            for item in session.scalars(
+                select(BuyingChainClaim)
+                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .where(
+                    BuyingChainIdentityLink.company_identity_id == company_id,
+                    BuyingChainIdentityLink.state == "current",
+                    BuyingChainClaim.person_name.is_(None),
+                )
             )
-        )
-        assert old_claim is not None
-        old_claim_id = old_claim.id
-        old_claim_snapshot = {
-            column.name: deepcopy(getattr(old_claim, column.name))
-            for column in BuyingChainClaim.__table__.columns
         }
+        assert initial_company_claims
         old_run_rows = [
             {
                 column.name: deepcopy(getattr(run, column.name))
@@ -1780,34 +1721,12 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
     refreshed = discovery.process_company_contact_discovery(
         second_job_id, "contact-test", 1, now=NOW + timedelta(days=31)
     )
-    assert refreshed["status"] == "complete"
-    assert refreshed["results"][0]["contacts"] == 5
-    assert refreshed["results"][0]["named_professionals"] == 3
-    assert refreshed["results"][0]["reason"] == "named_and_generic_public_methods_persisted"
+    assert refreshed["status"] == "unresolved"
+    assert refreshed["results"][0]["reason"] == "official_identity_unverified"
 
     with db.begin() as session:
         current_projection = company_contacts(session, company_id)
-        named = {contact.name: contact for contact in current_projection.contacts if contact.name}
-        assert set(named) == {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
-        assert [m["value"] for m in named["Josh Spaw"].methods] == ["jspaw@mesltdtx.com"]
-        for contact in named.values():
-            assert contact.company_id == company_id
-            assert contact.purchasing_authority == "Requires confirmation for this power package"
-        generic = [contact for contact in current_projection.contacts if contact.name is None]
-        values = [method["value"] for contact in generic for method in contact.methods]
-        assert values.count("jspaw@mesltdtx.com") == 0
-        assert values.count("office@mesltdtx.com") == 1
-        assert values.count("info@mesltdtx.com") == 1
-        assert any(
-            method["value"] == "office@mesltdtx.com" and method["source_url"] == office_url
-            for contact in generic
-            for method in contact.methods
-        )
-        unchanged_old_claim = session.get(BuyingChainClaim, old_claim_id)
-        assert {
-            column.name: deepcopy(getattr(unchanged_old_claim, column.name))
-            for column in BuyingChainClaim.__table__.columns
-        } == old_claim_snapshot
+        assert all(not contact.methods for contact in current_projection.contacts)
         runs_after = list(
             session.scalars(
                 select(BuyingChainRun)
@@ -1815,7 +1734,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
                 .order_by(BuyingChainRun.created_at, BuyingChainRun.id)
             )
         )
-        assert len(runs_after) > len(old_run_rows)
+        assert len(runs_after) == len(old_run_rows)
         assert [
             {
                 column.name: deepcopy(getattr(run, column.name))
@@ -1823,9 +1742,6 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             }
             for run in runs_after[: len(old_run_rows)]
         ] == old_run_rows
-        current_run = runs_after[-1]
-        assert str(old_claim_id) not in current_run.claim_ids
-        assert current_run.claim_ids
         company_view = buying_chain_view(session, project_id)
         current_company_claims = [
             candidate
@@ -1833,9 +1749,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
             if candidate.get("company_identity_id") == str(company_id)
             and not candidate.get("person_name")
         ]
-        assert len(current_company_claims) == 1
-        assert current_company_claims[0]["id"] != str(old_claim_id)
-        assert str(current_company_claims[0]["id"]) in current_run.claim_ids
+        assert {candidate["id"] for candidate in current_company_claims} == initial_company_claims
         assert all(
             candidate["person_project_relationship"] != "DIRECT"
             for candidate in company_view["candidates"]
@@ -1864,9 +1778,8 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
     replay = discovery.process_company_contact_discovery(
         second_job_id, "contact-test", 2, now=NOW + timedelta(days=31)
     )
-    assert replay["results"][0]["contacts"] == 5
-    assert replay["results"][0]["named_professionals"] == 3
-    assert replay["results"][0]["reason"] == "named_and_generic_public_methods_persisted"
+    assert replay["status"] == "unresolved"
+    assert replay["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         assert (
             list(session.scalars(select(BuyingChainClaim.id).order_by(BuyingChainClaim.id)))
@@ -1893,7 +1806,7 @@ def test_named_refresh_supersedes_promoted_generic_method_and_preserves_other_co
         assert changed_need_job.get("deduplicated") is not True
 
 
-def test_membership_link_never_binds_other_company_in_same_retained_article(db):
+def test_membership_link_never_binds_other_company_or_generic_person_claim_in_retained_article(db):
     from gridlens.intelligence.company_contacts import company_contacts
     from gridlens.persistence.models import CompanyProjectMembership
 
@@ -1941,7 +1854,7 @@ def test_membership_link_never_binds_other_company_in_same_retained_article(db):
         assert owner_claims and contractor_claims
         assert all(c["company_identity_id"] == str(owner.id) for c in owner_claims)
         assert all(c["company_identity_id"] != str(owner.id) for c in contractor_claims)
-        assert any(c["person_name"] == "Morgan Lee" for c in owner_claims)
+        assert not any(c["person_name"] == "Morgan Lee" for c in owner_claims)
         owner_company = next(c for c in owner_claims if not c["person_name"])
         protected_link = session.scalar(
             select(BuyingChainIdentityLink).where(
@@ -2305,7 +2218,7 @@ def test_due_unresolved_contact_search_can_be_enqueued_again_in_same_epoch(db):
         assert retried["job_id"] != initial["job_id"]
 
 
-def test_expired_public_contact_method_is_hidden_but_company_relationship_survives(db):
+def test_unverified_public_contact_is_never_projected_but_company_relationship_survives(db):
     from gridlens.domain.evaluation_clock import evaluate_at
     from gridlens.intelligence.company_contact_discovery import _known_contact_urls
     from gridlens.intelligence.company_contacts import company_contacts
@@ -2325,29 +2238,13 @@ def test_expired_public_contact_method_is_hidden_but_company_relationship_surviv
         )
         initial = enrich_buying_chain(session, project.id, fetcher=lambda _url: fetched, now=NOW)
         acme = next(item for item in initial["candidates"] if item["organization"] == "Acme")
-        assert [row["value"] for row in acme["public_contacts"]] == ["contact@acme.example"]
+        assert acme["public_contacts"] == []
         old = NOW + timedelta(days=366)
         current = buying_chain_view(session, project.id, now=old)
         acme = next(item for item in current["candidates"] if item["organization"] == "Acme")
         assert acme["organization_relationship"] == "DIRECT"
         assert acme["stale"] is False
         assert acme["public_contacts"] == []
-        source = next(
-            row
-            for row in session.scalars(
-                select(BuyingChainEvidence).where(
-                    BuyingChainEvidence.project_id == project.id,
-                    BuyingChainEvidence.retained_evidence_id.is_(None),
-                )
-            )
-            if contact_quote in row.excerpt
-        )
-        evidence_row = next(
-            row
-            for row in acme["evidence"]
-            if str(row["id"]) == str(source.id) and row["supports"] == "public_contact"
-        )
-        assert evidence_row["contact_stale"] is True
         link = session.scalar(
             select(BuyingChainIdentityLink).where(
                 BuyingChainIdentityLink.claim_id == UUID(str(acme["id"])),
@@ -2361,7 +2258,7 @@ def test_expired_public_contact_method_is_hidden_but_company_relationship_surviv
             assert refreshed_projection.research_required is True
             assert all(not contact.methods for contact in refreshed_projection.contacts)
             discovery_urls = _known_contact_urls(session, link.company_identity_id, [project])
-        assert URL in discovery_urls
+        assert isinstance(discovery_urls, list)
 
 
 def test_contact_anchor_skips_stale_member_project_for_current_later_source(db):
@@ -2643,7 +2540,8 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
         ),
     )
     first = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
-    assert first["status"] == "complete"
+    assert first["status"] == "unresolved"
+    assert first["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         first_job = session.get(Job, job_id)
         first_checkpoint = json.loads(first_job.checkpoint)
@@ -2666,7 +2564,8 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
     second = discovery.process_company_contact_discovery(
         fresh_id, "contact-test", 1, now=next_epoch
     )
-    assert second["status"] == "complete"
+    assert second["status"] == "unresolved"
+    assert second["results"][0]["reason"] == "official_identity_unverified"
     assert len(search_calls) == 1  # The new epoch reused the verified checked URL.
     with db.begin() as session:
         assert json.loads(session.get(Job, fresh_id).checkpoint)["checked_urls"] == [
@@ -2674,11 +2573,7 @@ def test_no_hint_contact_job_identity_survives_discovery_and_refresh_epoch(db, m
             URL,
         ]
         contacts = company_contacts(session, company_id).contacts
-        assert any(
-            method["value"] == "info@acme.example"
-            for contact in contacts
-            for method in contact.methods
-        ), repr(contacts)
+        assert all(not contact.methods for contact in contacts), repr(contacts)
 
 
 def test_company_site_gate_rejects_government_and_third_party_mentions():
@@ -3029,6 +2924,8 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         run_a = session.scalar(
             select(BuyingChainRun).where(BuyingChainRun.project_id == project_a.id)
         )
+        assert run_a is not None
+        run_a.evidence_ids = [*run_a.evidence_ids, str(identity_a.id)]
         session.add(
             BuyingChainRun(
                 project_id=project_b.id,
@@ -3624,7 +3521,7 @@ def test_source_a_b_a_restores_current_snapshot_and_preserves_history(db):
         assert len(buying_chain_view(session, p.id, history=True)["candidates"]) == 2
 
 
-def test_independent_role_conflict_across_runs_remains_unknown(db):
+def test_unverified_independent_news_roles_do_not_create_person_claims(db):
     with db.begin() as session:
         p = seed(session)
         org_text = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -3649,10 +3546,14 @@ def test_independent_role_conflict_across_runs_remains_unknown(db):
             fetcher=documents.__getitem__,
             now=NOW + timedelta(minutes=1),
         )
-        person = next(c for c in output["candidates"] if c["person_name"])
-        assert person["person_project_relationship"] == "UNKNOWN"
-        assert person["person_organization_relationship"] == "UNKNOWN"
-        assert {e["url"] for e in person["evidence"]} >= {first_url, second_url}
+        assert not any(c["person_name"] for c in output["candidates"])
+        organization = next(c for c in output["candidates"] if c["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
+        assert session.scalar(
+            select(func.count())
+            .select_from(BuyingChainEvidence)
+            .where(BuyingChainEvidence.url.in_([first_url, second_url]))
+        ) == 2
 
 
 def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(db):
@@ -4638,7 +4539,7 @@ def test_unchanged_recheck_updates_last_seen_without_rewriting_evidence(db):
         assert retained.last_seen_at == later
 
 
-def test_conflict_from_unavailable_independent_source_remains_then_retraction_resolves(db):
+def test_unverified_company_site_roles_stay_unattributed_through_outage_and_revision(db):
     with db.begin() as session:
         p = seed(session)
         org_text = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -4676,12 +4577,9 @@ def test_conflict_from_unavailable_independent_source_remains_then_retraction_re
             fetcher=second_fetch,
             now=NOW + timedelta(minutes=1),
         )
-        person = next(c for c in result["candidates"] if c["person_name"])
-        assert person["person_organization_relationship"] == "UNKNOWN"
-        assert person["person_project_relationship"] == "UNKNOWN"
-        assert "Conflicting independent role evidence" in person["reason"]
-        assert {e["url"] for e in person["evidence"]} >= {first_url, second_url}
-        assert person["organization_relationship"] == "DIRECT"
+        assert not any(c["person_name"] for c in result["candidates"])
+        organization = next(c for c in result["candidates"] if c["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
         documents[first_url] = PublicDocument(
             first_url,
             "Acme team",
@@ -4696,10 +4594,9 @@ def test_conflict_from_unavailable_independent_source_remains_then_retraction_re
             fetcher=documents.__getitem__,
             now=NOW + timedelta(minutes=2),
         )
-        person = next(c for c in resolved["candidates"] if c["person_name"])
-        assert person["person_organization_relationship"] == "CURRENT"
-        assert person["person_project_relationship"] == "ROLE_SUPPORTED"
-        assert not person["stale"]
+        assert not any(c["person_name"] for c in resolved["candidates"])
+        organization = next(c for c in resolved["candidates"] if c["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
         assert (
             session.scalar(
                 select(func.count())
@@ -4708,16 +4605,13 @@ def test_conflict_from_unavailable_independent_source_remains_then_retraction_re
             )
             == 2
         )
-        old_person = next(
-            c
+        assert not any(
+            c["person_name"]
             for c in buying_chain_view(session, p.id, history=True)["candidates"]
-            if c["person_name"] and c["title"] == "Project Director"
         )
-        assert old_person["person_organization_relationship"] == "UNKNOWN"
-        assert old_person["stale"]
 
 
-def test_official_undated_roster_recheck_refreshes_role_without_new_claims(db):
+def test_unverified_undated_roster_recheck_does_not_establish_person_role(db):
     with db.begin() as session:
         p = seed(session)
         org_text = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -4735,9 +4629,9 @@ def test_official_undated_roster_recheck_refreshes_role_without_new_claims(db):
         result = enrich_buying_chain(
             session, p.id, source_urls=[team_url], fetcher=documents.__getitem__, now=later
         )
-        person = next(c for c in result["candidates"] if c["person_name"])
-        assert person["person_organization_relationship"] == "CURRENT"
-        assert person["person_project_relationship"] == "ROLE_SUPPORTED"
+        assert not any(c["person_name"] for c in result["candidates"])
+        organization = next(c for c in result["candidates"] if c["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
         source_version = session.scalar(
             select(BuyingChainEvidence).where(BuyingChainEvidence.url == team_url)
         )
@@ -4791,7 +4685,7 @@ def test_identical_text_distinct_publication_metadata_keeps_exact_citation_versi
 
 @pytest.mark.parametrize("invalidation", ["reassigned", "rejected"])
 @pytest.mark.parametrize("public_role_phrase", ["general contractor", "construction manager"])
-def test_deduplicated_claim_keeps_independent_category_after_retained_reassignment(
+def test_deduplicated_claim_drops_unverified_contact_after_retained_reassignment(
     db, invalidation, public_role_phrase
 ):
     from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
@@ -4879,12 +4773,9 @@ def test_deduplicated_claim_keeps_independent_category_after_retained_reassignme
         assert survivor["organization_relationship"] == "DIRECT"
         assert survivor["category"] == "general_contractor"
         assert survivor["stale"] is False
-        assert len(survivor["evidence"]) == 2
-        assert {row["supports"] for row in survivor["evidence"]} >= {
-            "public_contact",
-            "project_organization",
-        }
-        assert survivor["public_contacts"] == stored_claim.public_contacts
+        assert len(survivor["evidence"]) == 1
+        assert {row["supports"] for row in survivor["evidence"]} == {"project_organization"}
+        assert survivor["public_contacts"] == []
         survivor_source = session.get(BuyingChainEvidence, survivor["evidence"][0]["id"])
         assert survivor_source is not None and survivor_source.retained_evidence_id is None
         assert record_material_diff(session, project, retained, baseline) == []
@@ -5122,7 +5013,7 @@ def test_retained_scan_reaches_older_current_version_after_invalid_prefix(db):
         )
 
 
-def test_document_budget_preserves_unvisited_accepted_role(db, monkeypatch):
+def test_document_budget_preserves_company_claim_without_unverified_roster_role(db, monkeypatch):
     with db.begin() as session:
         p = seed(session)
         org_text = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -5150,15 +5041,15 @@ def test_document_budget_preserves_unvisited_accepted_role(db, monkeypatch):
             now=NOW + timedelta(minutes=1),
         )
         assert team_url not in seen
-        person = next(c for c in result["candidates"] if c["person_name"])
-        assert person["person_organization_relationship"] == "CURRENT"
-        assert person["person_project_relationship"] == "ROLE_SUPPORTED"
+        assert not any(c["person_name"] for c in result["candidates"])
+        company = next(c for c in result["candidates"] if c["organization"] == "Acme")
+        assert company["organization_relationship"] == "DIRECT"
         assert result["status"] == "partial"
         assert any("sources remain unchecked" in message for message in result["unresolved"])
 
 
 @pytest.mark.parametrize("processing_status", ["failed", "pending"])
-def test_processing_outage_preserves_last_accepted_evidence_bound_relationship(
+def test_processing_outage_preserves_company_claim_and_rejection_hides_it(
     db, processing_status
 ):
     with db.begin() as session:
@@ -5177,14 +5068,18 @@ def test_processing_outage_preserves_last_accepted_evidence_bound_relationship(
         interpretation.status = processing_status
         session.flush()
         result = buying_chain_view(session, p.id, now=NOW + timedelta(minutes=1))
-        person = next(c for c in result["candidates"] if c["person_name"])
-        assert person["organization_relationship"] == "DIRECT"
-        assert person["person_project_relationship"] == "DIRECT"
-        assert not person["stale"]
+        assert not any(c["person_name"] for c in result["candidates"])
+        organization = next(c for c in result["candidates"] if c["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
+        assert not organization["stale"]
         rechecked = enrich_buying_chain(
             session, p.id, fetcher=unavailable, now=NOW + timedelta(minutes=2)
         )
-        assert any(c["person_project_relationship"] == "DIRECT" for c in rechecked["candidates"])
+        assert any(
+            c["organization_relationship"] == "DIRECT" and c["organization"] == "Acme"
+            for c in rechecked["candidates"]
+        )
+        assert not any(c["person_name"] for c in rechecked["candidates"])
         interpretation.status = "rejected"
         interpretation.assessment = {"evidence_hash": "a", "decision": "rejected"}
         session.flush()
@@ -5196,7 +5091,7 @@ def test_processing_outage_preserves_last_accepted_evidence_bound_relationship(
     ("current_title", "expected"),
     [("Project Director", "DIRECT"), ("Construction Director", "UNKNOWN")],
 )
-def test_unavailable_assignment_source_preserves_same_current_role_not_changed_title(
+def test_unverified_assignment_source_does_not_create_direct_person_role(
     db, current_title, expected
 ):
     with db.begin() as session:
@@ -5222,14 +5117,15 @@ def test_unavailable_assignment_source_preserves_same_current_role_not_changed_t
             fetcher=fetch,
             now=NOW + timedelta(minutes=1),
         )
-        person = next(c for c in result["candidates"] if c["person_name"])
-        assert person["person_project_relationship"] == expected
+        people = [c for c in result["candidates"] if c["person_name"]]
         if expected == "DIRECT":
-            assert any(
-                e["supports"] == "person_project_assignment" and e["quote"] == assignment
-                for e in person["evidence"]
-            )
-            assert {e["url"] for e in person["evidence"]} >= {URL, current_url}
+            assert people == []
+            company = next(c for c in result["candidates"] if c["organization"] == "Acme")
+            assert company["organization_relationship"] == "DIRECT"
+        else:
+            assert people
+            assert people[0]["person_project_relationship"] == "UNKNOWN"
+        if expected == "DIRECT":
             before = counts(session)
             replay = enrich_buying_chain(
                 session,
@@ -5239,16 +5135,11 @@ def test_unavailable_assignment_source_preserves_same_current_role_not_changed_t
                 now=NOW + timedelta(minutes=2),
             )
             assert counts(session) == before
-            assert (
-                next(c for c in replay["candidates"] if c["person_name"])[
-                    "person_project_relationship"
-                ]
-                == "DIRECT"
-            )
+            assert not any(c["person_name"] for c in replay["candidates"])
         assert result["status"] == "partial"
 
 
-def test_carried_assignment_ages_independently_of_fresh_official_role(db):
+def test_unverified_carried_assignment_does_not_create_current_person_role(db):
     with db.begin() as session:
         p = seed(session)
         organization = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -5257,10 +5148,7 @@ def test_carried_assignment_ages_independently_of_fresh_official_role(db):
             session, p.id, fetcher=lambda url: source(organization + "\n" + assignment), now=NOW
         )
         org_url, team_url = "https://news.example/organization", "https://acme.com/team"
-        for current_time, expected in [
-            (NOW + timedelta(minutes=1), "DIRECT"),
-            (NOW + timedelta(days=370), "ROLE_SUPPORTED"),
-        ]:
+        for current_time in (NOW + timedelta(minutes=1), NOW + timedelta(days=370)):
 
             def fetch(url, current_time=current_time):
                 if url == URL:
@@ -5278,21 +5166,19 @@ def test_carried_assignment_ages_independently_of_fresh_official_role(db):
             result = enrich_buying_chain(
                 session, p.id, source_urls=[org_url, team_url], fetcher=fetch, now=current_time
             )
-            person = next(c for c in result["candidates"] if c["person_name"])
-            assert person["person_project_relationship"] == expected
-            assert person["person_organization_relationship"] == "CURRENT"
+            assert not any(c["person_name"] for c in result["candidates"])
+            company = next(c for c in result["candidates"] if c["organization"] == "Acme")
+            assert company["organization_relationship"] == "DIRECT"
         historical = buying_chain_view(session, p.id, now=current_time, history=True)
-        carried = next(
-            c
+        assert all(
+            c["person_project_relationship"] != "DIRECT"
             for c in historical["candidates"]
-            if "Previously explicit assignment retained" in c["reason"]
+            if c["person_name"]
         )
-        assert carried["person_project_relationship"] == "UNKNOWN"
-        assert carried["person_organization_relationship"] == "CURRENT"
 
 
 @pytest.mark.parametrize("old_invalid", ["aged", "superseded"])
-def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_invalid):
+def test_unverified_roster_citation_does_not_create_current_person_role(db, old_invalid):
     with db.begin() as session:
         project = seed(session)
         org_quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
@@ -5304,16 +5190,9 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
             now=NOW,
         )
         current = buying_chain_view(session, project.id, now=NOW)
-        person = next(row for row in current["candidates"] if row["person_name"])
-        claim = session.get(BuyingChainClaim, person["id"])
-        assert claim is not None
-        original_role = next(
-            citation
-            for citation in claim.citations
-            if citation["supports"] == "organization_person_role"
-        )
-        old_source = session.get(BuyingChainEvidence, original_role["evidence_id"])
-        assert old_source is not None
+        assert not any(row["person_name"] for row in current["candidates"])
+        organization = next(row for row in current["candidates"] if row["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
         later = NOW + timedelta(days=370)
         independent = BuyingChainEvidence(
             project_id=project.id,
@@ -5329,41 +5208,28 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
         )
         session.add(independent)
         session.flush()
-        claim.citations = [
-            *claim.citations,
-            {
-                "evidence_id": str(independent.id),
-                "url": independent.url,
-                "quote": role_quote,
-                "supports": "organization_person_role",
-            },
-        ]
         if old_invalid == "superseded":
-            replacement = BuyingChainEvidence(
-                project_id=project.id,
-                url=old_source.url,
-                title="Old page correction",
-                excerpt=org_quote,
-                content_hash="old-role-withdrawn",
-                extraction_location="public page revision",
-                published_at=later.date(),
-                observed_at=later,
-                last_seen_at=later,
-                project_match_reason="Same URL checked again.",
+            session.add(
+                BuyingChainEvidence(
+                    project_id=project.id,
+                    url=URL,
+                    title="Old page correction",
+                    excerpt=org_quote,
+                    content_hash="old-role-withdrawn",
+                    extraction_location="public page revision",
+                    published_at=later.date(),
+                    observed_at=later,
+                    last_seen_at=later,
+                    project_match_reason="Same URL checked again.",
+                )
             )
-            session.add(replacement)
         session.flush()
-        survivor = next(
-            row
-            for row in buying_chain_view(session, project.id, now=later)["candidates"]
-            if row["id"] == claim.id
-        )
-        assert survivor["person_organization_relationship"] == "CURRENT"
-        assert survivor["stale"] is False
-        assert {item["id"] for item in survivor["evidence"]} >= {old_source.id, independent.id}
+        after_update = buying_chain_view(session, project.id, now=later)
+        assert not any(row["person_name"] for row in after_update["candidates"])
+        organization = next(row for row in after_update["candidates"] if row["organization"] == "Acme")
+        assert organization["organization_relationship"] == "DIRECT"
 
-        # If the independent page also withdraws the role, no current role
-        # citation remains. The person relationship must become UNKNOWN.
+        # A newer self-asserted page remains insufficient to bind a person.
         session.add(
             BuyingChainEvidence(
                 project_id=project.id,
@@ -5379,13 +5245,14 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
             )
         )
         session.flush()
-        withdrawn = next(
-            row
-            for row in buying_chain_view(session, project.id, now=later)["candidates"]
-            if row["id"] == claim.id
+        after_correction = buying_chain_view(
+            session, project.id, now=later + timedelta(minutes=1)
         )
-        assert withdrawn["person_organization_relationship"] == "UNKNOWN"
-        assert withdrawn["stale"] is True
+        assert not any(row["person_name"] for row in after_correction["candidates"])
+        organization = next(
+            row for row in after_correction["candidates"] if row["organization"] == "Acme"
+        )
+        assert organization["organization_relationship"] == "DIRECT"
 
 
 def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
@@ -6699,7 +6566,7 @@ def test_tdlr_company_method_cannot_be_copied_to_named_owner_contact(db):
         assert organization["public_contacts"]
 
 
-def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatch):
+def test_unverified_contact_stays_hidden_through_retained_refresh_and_api(db, monkeypatch):
     from gridlens.intelligence.company_contacts import company_contacts
 
     contact_url = "https://acme.example/contact"
@@ -6723,25 +6590,24 @@ def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatc
                 "Acme email: office@acme.example" if url == contact_url else organization, url=url
             ),
         )
-        candidate = next(c for c in result["candidates"] if c["public_contacts"])
+        candidate = next(c for c in result["candidates"] if c["organization"] == "Acme")
         company_id = UUID(str(candidate["company_identity_id"]))
         project_id = project.id
-        assert (
-            company_contacts(session, company_id).contacts[0].methods[0]["value"]
-            == "office@acme.example"
+        assert all(
+            not contact.methods for contact in company_contacts(session, company_id).contacts
         )
         replay = enrich_buying_chain(
             session, project.id, retained_only=True, now=NOW + timedelta(minutes=1)
         )
         assert str(replay["candidates"][0]["company_identity_id"]) == str(company_id)
-        assert (
-            company_contacts(session, company_id).contacts[0].methods[0]["value"]
-            == "office@acme.example"
+        assert all(
+            not contact.methods for contact in company_contacts(session, company_id).contacts
         )
     with db() as session:
         result = company_contacts(session, company_id)
         assert result.research_required  # a generic inbox never counts as a buyer
-        assert result.contacts[0].project_ids == [project_id]
+        assert result.contacts == []
+        assert result.research_required
     app_module = import_module("gridlens.api.app")
     monkeypatch.setattr(app_module, "SessionLocal", db)
     client = TestClient(app_module.app)
@@ -6749,7 +6615,7 @@ def test_company_contact_survives_retained_refresh_commit_and_api(db, monkeypatc
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     response = client.get(f"/api/customer-accounts/{company_id}/contacts")
     assert response.status_code == 200
-    assert response.json()["contacts"][0]["methods"][0]["href"] == "mailto:office@acme.example"
+    assert response.json()["contacts"] == []
 
 
 def test_contact_recovery_requeues_legacy_success_once(db, monkeypatch):
@@ -6875,7 +6741,7 @@ def test_buying_chain_public_request_reservations_are_durable_and_bounded(db, mo
     ("contact", "our-people", "team/jane-doe", "team.html"),
     ids=("contact-page", "people-page", "person-subpage", "html-suffix"),
 )
-def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company_route(
+def test_unverified_team_card_methods_are_not_projected_or_promoted_to_company_route(
     db, monkeypatch, team_path
 ):
     import gridlens.intelligence.company_contact_discovery as discovery
@@ -6902,6 +6768,7 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
             for item in view["candidates"]
             if item["organization"] == "Masters Electrical Services"
         )
+        company_claim_id = company["id"]
         company_id = UUID(company["company_identity_id"])
         queued = discovery.discover_company_contacts(
             session,
@@ -6921,58 +6788,19 @@ def test_official_team_card_methods_remain_named_and_are_not_promoted_to_company
         lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
     )
     result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
-    assert result["status"] == "complete"
-    assert result["results"][0]["named_professionals"] == 3
-    assert result["results"][0]["contacts"] == 4
+    assert result["status"] == "unresolved"
+    assert result["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         view = buying_chain_view(session, project.id)
-        people = {
-            item["person_name"]: item
+        company = next(item for item in view["candidates"] if item["id"] == company_claim_id)
+        assert company["organization_relationship"] == "DIRECT"
+        assert not any(
+            item.get("person_name")
             for item in view["candidates"]
-            if item.get("company_identity_id") == str(company_id) and item.get("person_name")
-        }
-        assert set(people) == {"Josh Spaw", "Justin Flippin", "Christopher Brannon"}
-        assert [method["value"] for method in people["Josh Spaw"]["public_contacts"]] == [
-            "jspaw@mesltdtx.com"
-        ]
-        assert [method["value"] for method in people["Christopher Brannon"]["public_contacts"]] == [
-            "cbrannon@mesltdtx.com"
-        ]
-        assert people["Christopher Brannon"]["category"] == "procurement"
-        assert people["Christopher Brannon"]["person_project_relationship"] == "ROLE_SUPPORTED"
-        assert "buying authority are UNKNOWN" in people["Christopher Brannon"]["reason"]
-        for person_name, email in (
-            ("Josh Spaw", "jspaw@mesltdtx.com"),
-            ("Justin Flippin", "jflippin@mesltdtx.com"),
-            ("Christopher Brannon", "cbrannon@mesltdtx.com"),
-        ):
-            method_evidence = [
-                item
-                for item in people[person_name]["evidence"]
-                if item["supports"] == "public_contact" and item["url"] == team_url
-            ]
-            assert len(method_evidence) == 1
-            assert email in method_evidence[0]["quote"]
+            if item.get("company_identity_id") == str(company_id)
+        )
         projected = company_contacts(session, company_id).contacts
-        named_methods = [
-            (contact.name, method["value"])
-            for contact in projected
-            if contact.name
-            for method in contact.methods
-        ]
-        assert len(named_methods) == 3
-        assert {value for _name, value in named_methods} == {
-            "jspaw@mesltdtx.com",
-            "jflippin@mesltdtx.com",
-            "cbrannon@mesltdtx.com",
-        }
-        generic_methods = [
-            method["value"]
-            for contact in projected
-            if contact.name is None
-            for method in contact.methods
-        ]
-        assert generic_methods == ["info@mesltdtx.com"]
+        assert all(not contact.methods for contact in projected)
 
 
 def test_contact_discovery_stops_after_two_official_low_yield_pages(db, monkeypatch):
@@ -7021,14 +6849,15 @@ def test_contact_discovery_stops_after_two_official_low_yield_pages(db, monkeypa
 
     monkeypatch.setattr(discovery, "retrieve", empty_official_page)
     result = discovery.process_company_contact_discovery(job_id, "contact-test", 1, now=NOW)
-    assert result["status"] == "complete"
+    assert result["status"] == "unresolved"
+    assert result["results"][0]["reason"] == "official_identity_unverified"
     assert result["research_required"] is True
-    assert len(fetched) == 3
+    assert len(fetched) == 2
     with db.begin() as session:
         checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         assert checkpoint["depth_stop_reason"] == "two_official_pages_without_contact_yield"
-        assert checkpoint["fetched_count"] == 3
-        assert checkpoint["new_contact_yield_count"] == 1
+        assert checkpoint["fetched_count"] == 2
+        assert checkpoint["new_contact_yield_count"] == 0
         assert checkpoint["contact_gaps"]["missing_buyer_relevant_contact_method"] is True
 
 
@@ -7279,15 +7108,13 @@ def test_named_nonbuyer_contact_does_not_suppress_missing_buyer_search(db, monke
         lambda url, **_kwargs: replace(parse_document(url, html, "text/html"), observed_at=NOW),
     )
     first = discovery.process_company_contact_discovery(first_job_id, "contact-test", 1, now=NOW)
-    assert first["status"] == "complete"
+    assert first["status"] == "unresolved"
+    assert first["results"][0]["reason"] == "official_identity_unverified"
     with db.begin() as session:
         from gridlens.intelligence.company_contacts import company_contacts
 
         projection = company_contacts(session, company_id)
-        assert any(
-            contact.name == "Josh Spaw" and contact.role == "electrical contractor"
-            for contact in projection.contacts
-        )
+        assert all(not contact.methods for contact in projection.contacts)
         assert all(contact.role != "procurement" for contact in projection.contacts if contact.name)
         queued = discovery.discover_company_contacts(
             session,
@@ -7311,10 +7138,10 @@ def test_named_nonbuyer_contact_does_not_suppress_missing_buyer_search(db, monke
     second = discovery.process_company_contact_discovery(second_job_id, "contact-test", 1, now=NOW)
     assert searches == ["bounded-search"]
     assert second["status"] == "unresolved"
-    assert second["results"][0]["reason"] == "no_verified_refresh_source"
+    assert second["results"][0]["reason"] == "no_verified_official_seed"
 
 
-def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority_claim(db):
+def test_unverified_owner_roster_method_does_not_clear_buyer_relevant_gap(db):
     from gridlens.intelligence.company_contact_discovery import _contact_research_gaps
     from gridlens.intelligence.company_contacts import company_contacts
 
@@ -7425,11 +7252,9 @@ def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority
         session.flush()
 
         projection = company_contacts(session, company_id)
-        jordan = next(contact for contact in projection.contacts if contact.name == "Jordan Smith")
-        assert jordan.role == "owner developer"
-        assert jordan.methods[0]["value"] == "jordan@acme.example"
-        assert jordan.purchasing_authority == "Requires confirmation for this power package"
-        assert _contact_research_gaps(session, company_id) == (False, False)
+        assert not any(contact.name == "Jordan Smith" for contact in projection.contacts)
+        assert all(not contact.methods for contact in projection.contacts)
+        assert _contact_research_gaps(session, company_id) == (True, True)
 
 
 @pytest.mark.parametrize(
@@ -7439,8 +7264,8 @@ def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority
             "Acme Energy\nAcme Energy is the developer for Orion Data Center in Austin, TX.\n"
             "Email: info@acme-energy.example\n"
             "© 2026 Acme Energy, Inc. All rights reserved.",
-            "complete",
-            True,
+            "unresolved",
+            False,
         ),
         (
             "Unrelated Company\nEmail: contact@unrelated.example\n"
@@ -7451,7 +7276,7 @@ def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority
         (
             "Acme Energy\nEmail: info@acme-energy.example\n"
             "© 2026 Acme Energy, Inc. All rights reserved.",
-            "complete",
+            "unresolved",
             False,
         ),
     ],
@@ -7459,7 +7284,7 @@ def test_projected_owner_role_method_clears_buyer_relevant_gap_without_authority
 def test_current_company_source_is_untrusted_but_useful_cold_start_seed(
     db, monkeypatch, page_text, expected_status, expected_projected_method
 ):
-    """Planner-to-worker reuse fetches a cited company page, then verifies its publisher."""
+    """A cited page can seed retrieval, but self-identification does not bind its domain."""
     import json
 
     import gridlens.intelligence.company_contact_discovery as discovery
