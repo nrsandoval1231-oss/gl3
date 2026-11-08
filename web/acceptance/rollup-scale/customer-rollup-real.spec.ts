@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
-type Target = { id: string; name: string; project_count: number }
+type Target = { id: string; name: string; project_count: number; identity_count?: number }
 type Manifest = {
   synthetic_fixture: true
   generation_id: string
@@ -18,8 +19,12 @@ type Measurement = { viewport: string; label: string; path: string; elapsedUntil
 const httpBudgetMs = 15_000
 const uiBudgetMs = Number(process.env.CUSTOMER_ROLLUP_UI_READY_MS ?? 15_000)
 const measurements: Measurement[] = []
+const viewportReports: Array<Record<string, unknown>> = []
+const viewports = [{ label: '1440x900', width: 1440, height: 900 }, { label: '768x1024', width: 768, height: 1024 }, { label: '390x844', width: 390, height: 844 }]
 const manifestPath = process.env.CUSTOMER_ROLLUP_REAL_MANIFEST
+const outputDir = process.env.CUSTOMER_ROLLUP_REAL_OUTPUT_DIR
 if (!manifestPath) throw new Error('Set CUSTOMER_ROLLUP_REAL_MANIFEST to the disposable fixture manifest. No mock routes or local test payloads are accepted.')
+if (!outputDir) throw new Error('Set CUSTOMER_ROLLUP_REAL_OUTPUT_DIR outside web for real-browser evidence.')
 const manifestPromise = readFile(manifestPath, 'utf8').then(value => JSON.parse(value) as Manifest)
 const password = process.env.CUSTOMER_ROLLUP_REAL_PASSWORD
 if (!password) throw new Error('Set CUSTOMER_ROLLUP_REAL_PASSWORD to the disposable stack password. The fixture manifest contains no credentials.')
@@ -56,7 +61,9 @@ async function observeRealHttp(page: Page, viewport: string) {
 }
 
 async function openDeCentralEndpoint(page: Page, target: Target) {
-  const endpoint = `/api/opportunities/groups/${encodeURIComponent(target.id)}/open?${new URLSearchParams({ search: 'STORMCHASER', sector: 'oil_gas', sort: 'priority', limit: '25', region: 'Texas', stage: 'permit_issued', priority: 'ranked' })}`
+  // The searchable STORMCHASER fixture is New Mexico / well_permitted; keep
+  // the combined filters aligned with that exact source-backed synthetic row.
+  const endpoint = `/api/opportunities/groups/${encodeURIComponent(target.id)}/open?${new URLSearchParams({ search: 'STORMCHASER', sector: 'oil_gas', sort: 'priority', limit: '25', region: 'New Mexico', stage: 'well_permitted', priority: 'ranked' })}`
   const result = await page.evaluate(async url => {
     const response = await fetch(url, { credentials: 'same-origin' })
     return { status: response.status, body: await response.json() as { group: { id: string }; projects: { total: number; items: unknown[] } } }
@@ -65,6 +72,16 @@ async function openDeCentralEndpoint(page: Page, target: Target) {
   expect(result.body.group.id).toBe(target.id)
   expect(result.body.projects.total).toBe(target.project_count)
   expect(result.body.projects.items.length).toBeGreaterThan(0)
+}
+
+async function openDeCentralConflictingFilterEndpoint(page: Page, target: Target) {
+  const endpoint = `/api/opportunities/groups/${encodeURIComponent(target.id)}/open?${new URLSearchParams({ search: 'STORMCHASER', sector: 'oil_gas', sort: 'priority', limit: '25', region: 'Texas', stage: 'permit_issued', priority: 'ranked' })}`
+  const result = await page.evaluate(async url => {
+    const response = await fetch(url, { credentials: 'same-origin' })
+    return { status: response.status, body: await response.json() as { projects?: { total: number } } }
+  }, endpoint)
+  expect([200, 404], `Contradictory filters should return no eligible DE CENTRAL project: ${endpoint}`).toContain(result.status)
+  if (result.status === 200) expect(result.body.projects?.total).toBe(0)
 }
 
 async function openDeCentralFailedQueryEndpoint(page: Page, target: Target) {
@@ -94,47 +111,57 @@ async function assertCompanySortedFirstPage(page: Page, manifest: Manifest, targ
 
 async function waitForGroups(page: Page) {
   await expect(page.locator('.project-results')).toBeVisible({ timeout: uiBudgetMs })
-  await expect(page.locator('.project-results-count')).toContainText(/\d+ groups?/, { timeout: uiBudgetMs })
+  await expect(page.locator('.project-results-count')).toContainText(/\d+ accounts?/, { timeout: uiBudgetMs })
   await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0, { timeout: uiBudgetMs })
 }
 
 async function openTarget(page: Page, target: Target) {
+  const backToAccounts = page.getByRole('button', { name: 'Back to accounts' })
+  if (await backToAccounts.count()) {
+    await backToAccounts.click()
+    await waitForGroups(page)
+  }
   // Search is server-side. The returned persisted group id must be visible
   // before clicking it; the test never synthesizes a response.
-  const search = page.getByRole('textbox', { name: 'Search opportunities' })
+  const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   const result = page.waitForResponse(async response => {
     const url = new URL(response.url())
     if (url.pathname !== '/api/opportunities/groups' || url.searchParams.get('search') !== target.name) return false
     if (!response.ok()) return true
-    const body = await response.json() as { items: Array<{ id: string; name: string }> }
+    const body = await response.json() as { items: Array<{ id: string; name: string; identity_count?: number }> }
     return body.items.some(group => group.id === target.id && group.name === target.name)
   }, { timeout: uiBudgetMs })
   await search.fill(target.name)
-  await result
+  const groupSearchResponse = await result
+  if (target.identity_count !== undefined) {
+    const groupSearchBody = await groupSearchResponse.json() as { items: Array<{ id: string; identity_count?: number }> }
+    const matched = groupSearchBody.items.find(group => group.id === target.id)
+    expect(matched?.identity_count, `${target.name} must retain all ${target.identity_count} resolved company identities`).toBe(target.identity_count)
+  }
   await expect(page.locator('.customer-group').filter({ has: page.getByRole('button', { name: new RegExp(target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) })).toHaveCount(1, { timeout: uiBudgetMs })
   const group = page.locator('.customer-group').filter({ has: page.getByRole('button', { name: new RegExp(target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }) })
   await group.getByRole('button', { name: new RegExp(target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click()
-  await expect(group.getByRole('button', { name: new RegExp(target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) })).toHaveAttribute('aria-expanded', 'true', { timeout: uiBudgetMs })
-  return group
+  await expect(page).toHaveURL(new RegExp(`[?&]account=${encodeURIComponent(target.id)}(?:&|$)`), { timeout: uiBudgetMs })
+  const account = page.getByRole('region', { name: new RegExp(`(?:Company|Group) ${target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) })
+  await expect(account.getByRole('region', { name: 'Account projects' })).toBeVisible({ timeout: uiBudgetMs })
+  return account
 }
 
 async function readAllVisibleChildPages(page: Page, group: ReturnType<Page['locator']>, expected: number) {
   let observed = 0
   for (;;) {
-    await expect(group.locator('.project-card').first()).toBeVisible({ timeout: uiBudgetMs })
-    observed += await group.locator('.project-card').count()
-    const next = group.locator('.project-paging').getByRole('button', { name: 'Next' })
-    if (await next.count() === 0 || await next.isDisabled()) break
-    const previousPageLabel = await group.locator('.project-paging span').first().innerText()
+    await expect(group.locator('[data-project-id]').first()).toBeVisible({ timeout: uiBudgetMs })
+    observed = await group.locator('[data-project-id]').count()
+    const next = group.getByRole('button', { name: 'Load more projects' })
+    if (await next.count() === 0) break
     await next.click()
-    await expect(group.locator('.project-paging span').first()).not.toHaveText(previousPageLabel, { timeout: uiBudgetMs })
-    await expect(group.locator('.project-card').first()).toBeVisible({ timeout: uiBudgetMs })
+    await expect(group.locator('[data-project-id]')).toHaveCount(Math.min(expected, observed + 25), { timeout: uiBudgetMs })
   }
   expect(observed, 'Every child page should expose every project in the target group').toBe(expected)
   return observed
 }
 
-for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label: '768x1024', width: 768, height: 1024 }, { label: '390x844', width: 390, height: 844 }]) {
+for (const viewport of viewports) {
   test(`real customer rollup journeys at ${viewport.label}`, async ({ page }, testInfo) => {
     const manifest = await manifestPromise
     expect(manifest.synthetic_fixture, 'Fixture must identify synthetic-only data').toBe(true)
@@ -147,7 +174,9 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     expect(amazon.identity_count).toBe(3)
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     const forbiddenRequests = await observeRealHttp(page, viewport.label)
-    await page.goto('/?view=opportunities&groupBrowse=1')
+    // This lane validates the full legacy rollup cohort. Keep the curated
+    // account shortlist exercised by the separate account-first journeys.
+    await page.goto('/?view=opportunities&groupBrowse=1&shortlist=0')
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: uiBudgetMs })
     await page.getByLabel('Password', { exact: true }).fill(password)
     const coldResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/opportunities/groups', { timeout: httpBudgetMs })
@@ -165,6 +194,7 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${viewport.label} viewport must not have horizontal page overflow`).toBe(true)
     await assertCompanySortedFirstPage(page, manifest, de48)
     await openDeCentralEndpoint(page, de48)
+    await openDeCentralConflictingFilterEndpoint(page, de48)
     await openDeCentralFailedQueryEndpoint(page, de48)
 
     const warmResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/opportunities/groups', { timeout: httpBudgetMs })
@@ -175,6 +205,7 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     await warmResponse
     expect(warmUiMs, `Warm UI readiness must meet the explicit ${uiBudgetMs} ms budget`).toBeLessThanOrEqual(uiBudgetMs)
     await openDeCentralEndpoint(page, de48)
+    await openDeCentralConflictingFilterEndpoint(page, de48)
     await openDeCentralFailedQueryEndpoint(page, de48)
 
     // Exact full-cohort search implicated by the SQL profile; record and assert
@@ -184,7 +215,7 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
       return url.pathname === '/api/opportunities/groups' && url.searchParams.get('sector') === 'oil_gas' && url.searchParams.get('search') === 'DE CENTRAL' && url.searchParams.get('sort') === 'priority' && url.searchParams.get('limit') === '25'
     }, { timeout: httpBudgetMs })
     await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
-    await page.getByRole('textbox', { name: 'Search opportunities' }).fill('DE CENTRAL')
+    await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('DE CENTRAL')
     const failingSearchResponse = await failingSearch
     expect(failingSearchResponse.status()).toBe(200)
     const failingSearchBody = await failingSearchResponse.json() as { items: Array<{ id: string }>; total: number; limit: number }
@@ -195,13 +226,14 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
 
     // Exercise global filters and sort through the actual UI, then inspect the
     // resulting browser request. Global paging must expose a second page.
+    await page.getByText('More filters and sorting', { exact: true }).click()
     const requests: URL[] = []
     page.on('request', request => {
       const url = new URL(request.url())
       if (url.pathname === '/api/opportunities/groups') requests.push(url)
     })
     await page.getByRole('button', { name: 'All', exact: true }).click()
-    await page.getByRole('textbox', { name: 'Search opportunities' }).fill('')
+    await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('')
     await expect.poll(() => requests.at(-1)?.searchParams.get('search') ?? '', { timeout: uiBudgetMs }).toBe('')
     await waitForGroups(page)
     await page.getByRole('combobox', { name: 'Priority' }).selectOption('ranked')
@@ -240,14 +272,14 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     await expect.poll(() => requests.at(-1)?.searchParams.get('stage'), { timeout: uiBudgetMs }).toBe(stageValue)
     await waitForGroups(page)
     if (stageBody.total === 0) {
-      await expect(page.locator('.project-empty')).toContainText('No groups match this search.', { timeout: uiBudgetMs })
+      await expect(page.locator('.project-empty')).toContainText('No accounts match this search.', { timeout: uiBudgetMs })
       await expect(page.locator('.customer-group')).toHaveCount(0)
     } else {
       await expect(page.locator('.customer-group')).toHaveCount(stageBody.items.length, { timeout: uiBudgetMs })
     }
 
     // Clear the narrowing filters before asserting global pagination. A real
-    // region/stage intersection may legitimately contain fewer than 25 groups.
+    // region/stage intersection may legitimately contain fewer than 25 accounts.
     const clearRegionWait = page.waitForResponse(response => {
       const url = new URL(response.url())
       return url.pathname === '/api/opportunities/groups' && !url.searchParams.has('region') && url.searchParams.get('stage') === stageValue
@@ -290,7 +322,6 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     await waitForGroups(page)
     const deGroup = await openTarget(page, de48)
     await readAllVisibleChildPages(page, deGroup, de48.project_count)
-    const childPageLabel = await deGroup.locator('.project-paging span').first().innerText()
     const deNeedIds = new Set(de48.need_ids)
     const detailResponseWait = page.waitForResponse(response => {
       const url = new URL(response.url())
@@ -301,7 +332,7 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
       const url = new URL(response.url())
       return url.pathname === '/api/opportunities/projects' && deNeedIds.has(url.searchParams.get('need_id') ?? '')
     }, { timeout: httpBudgetMs })
-    const detail = deGroup.getByRole('button', { name: 'View project details' }).first()
+    const detail = deGroup.getByRole('region', { name: 'Account projects' }).locator('[data-project-id]').first().getByRole('button', { name: /Open project detail/ })
     await detail.click()
     const detailResponse = await detailResponseWait
     expect(detailResponse.status(), 'Project detail identity request must return HTTP 200 from the real API').toBe(200)
@@ -311,37 +342,42 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
     expect(preparedProjectResponse.status(), 'Project overview readback must return HTTP 200 from the real API').toBe(200)
     const preparedProjectBody = await preparedProjectResponse.json() as { items: Array<{ needs: Array<{ id: string }> }> }
     expect(preparedProjectBody.items.some(project => project.needs.some(need => need.id === detailBody.id)), 'Project overview must resolve the selected canonical need').toBe(true)
-    await expect(page.locator('.project-first-detail h2')).toBeVisible({ timeout: uiBudgetMs })
-    await expect(page.locator('.project-first-detail [role="status"]')).toHaveCount(0, { timeout: uiBudgetMs })
-    await expect(page.locator('.project-first-detail [role="alert"]')).toHaveCount(0)
-    const backButton = page.getByRole('button', { name: 'Back to power needs' })
+    const detailPanel = page.getByRole('complementary', { name: 'Opportunity detail' })
+    await expect(detailPanel.locator('h2').first()).toBeVisible({ timeout: uiBudgetMs })
+    await expect(detailPanel.getByText('Loading current project details…')).toHaveCount(0, { timeout: uiBudgetMs })
+    await expect(detailPanel.getByRole('alert')).toHaveCount(0)
+    await expect(detailPanel.getByText('The available source support is historical; confirm it before acting.')).toBeVisible({ timeout: uiBudgetMs })
+    const backButton = detailPanel.getByRole('button', { name: /Back to account/ })
     await expect(backButton).toBeVisible({ timeout: uiBudgetMs })
     await expect(backButton).toBeEnabled({ timeout: uiBudgetMs })
     await backButton.click()
-    await expect(page.locator('.project-results')).toBeVisible({ timeout: uiBudgetMs })
-    const restoredDeGroup = page.locator('.customer-group').filter({ has: page.getByRole('button', { name: new RegExp(de48.name) }) })
-    await expect(restoredDeGroup).toHaveCount(1, { timeout: uiBudgetMs })
-    await expect(restoredDeGroup.getByRole('button', { name: new RegExp(de48.name) })).toHaveAttribute('aria-expanded', 'true', { timeout: uiBudgetMs })
-    await expect(restoredDeGroup.locator('.project-paging span').first()).toHaveText(childPageLabel, { timeout: uiBudgetMs })
+    await expect(deGroup.getByRole('region', { name: 'Account projects' }).locator('[data-project-id]')).toHaveCount(48, { timeout: uiBudgetMs })
 
     const diamond = await openTarget(page, diamond159)
     await readAllVisibleChildPages(page, diamond, diamond159.project_count)
 
     const amazonGroup = await openTarget(page, amazon)
     await expect(amazonGroup).toContainText('3 separate company identities', { timeout: uiBudgetMs })
+    await expect(amazonGroup).toContainText('3 known projects', { timeout: uiBudgetMs })
     await readAllVisibleChildPages(page, amazonGroup, amazon.project_count)
 
     expect(forbiddenRequests, 'Browser attempted an external/non-loopback request').toEqual([])
     const httpEvidence = measurements.filter(item => item.viewport === viewport.label)
     for (const measurement of httpEvidence) {
-      expect(measurement.status, `${measurement.label} ${measurement.path} returned a non-success status`).toBeGreaterThanOrEqual(200)
-      expect(measurement.status, `${measurement.label} ${measurement.path} returned HTTP ${measurement.status}`).toBeLessThan(400)
+      const query = new URL(`http://127.0.0.1${measurement.path.replace(' [body complete]', '')}`)
+      const expectedNoMatch = query.pathname.endsWith(`/groups/${de48.id}/open`)
+        && query.searchParams.get('search') === 'STORMCHASER'
+        && query.searchParams.get('region') === 'Texas'
+        && query.searchParams.get('stage') === 'permit_issued'
+        && measurement.status === 404
+      expect(expectedNoMatch || (measurement.status >= 200 && measurement.status < 400), `${measurement.label} ${measurement.path} returned unexpected HTTP ${measurement.status}`).toBe(true)
       expect(measurement.elapsedUntilBodyCompleteMs, `${measurement.label} ${measurement.path} exceeded the retained ${httpBudgetMs} ms HTTP acceptance budget`).toBeLessThanOrEqual(httpBudgetMs)
     }
     expect(httpEvidence.some(item => item.path.startsWith('/api/opportunities/groups'))).toBe(true)
     const deOpenEvidence = httpEvidence.filter(item => item.path.includes(`/api/opportunities/groups/${de48.id}/open?`))
     const directOpenQuery = (item: Measurement) => new URL(`http://127.0.0.1${item.path.replace(' [body complete]', '')}`).searchParams
-    expect(deOpenEvidence.filter(item => directOpenQuery(item).get('search') === 'STORMCHASER')).toHaveLength(2)
+    expect(deOpenEvidence.filter(item => directOpenQuery(item).get('search') === 'STORMCHASER' && directOpenQuery(item).get('region') === 'New Mexico')).toHaveLength(2)
+    expect(deOpenEvidence.filter(item => directOpenQuery(item).get('search') === 'STORMCHASER' && directOpenQuery(item).get('region') === 'Texas')).toHaveLength(2)
     expect(deOpenEvidence.filter(item => directOpenQuery(item).get('search') === 'DE CENTRAL')).toHaveLength(2)
     expect(httpEvidence.some(item => {
       if (!item.path.includes(`/api/opportunities/groups/${de48.id}/projects?`)) return false
@@ -363,5 +399,58 @@ for (const viewport of [{ label: '1440x900', width: 1440, height: 900 }, { label
       body: JSON.stringify({ viewport: viewport.label, coldUiMs, warmUiMs, coldScope: 'first browser read from fresh Playwright context; server/PostgreSQL cache state unknown', warmScope: 'reload in same browser context and backend process', uiReadyBudgetMs: uiBudgetMs, httpAcceptanceBudgetMs: httpBudgetMs, elapsedSemantics: 'request event through Playwright requestfinished (response body complete), keyed by Request identity', responseMeasurements: httpEvidence, resourceTimings }, null, 2),
       contentType: 'application/json',
     })
+    const routeGroups = new Map<string, Measurement[]>()
+    for (const sample of httpEvidence) {
+      const pathname = new URL(`http://127.0.0.1${sample.path.replace(' [body complete]', '')}`).pathname
+      const key = `${sample.label} ${pathname}`
+      routeGroups.set(key, [...(routeGroups.get(key) ?? []), sample])
+    }
+    const percentile = (values: number[], p: number) => {
+      const sorted = [...values].sort((left, right) => left - right)
+      return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)]
+    }
+    const routeTimings = Object.fromEntries([...routeGroups].map(([route, samples]) => [route, {
+      n: samples.length,
+      p50_body_complete_ms: percentile(samples.map(sample => sample.elapsedUntilBodyCompleteMs), 0.5),
+      p95_body_complete_ms: percentile(samples.map(sample => sample.elapsedUntilBodyCompleteMs), 0.95),
+      statuses: [...new Set(samples.map(sample => sample.status))].sort((left, right) => left - right),
+    }]))
+    viewportReports.push({
+      viewport: viewport.label,
+      width: viewport.width,
+      height: viewport.height,
+      cold_ui_ready_ms: coldUiMs,
+      warm_reload_ready_ms: warmUiMs,
+      ui_ready_budget_ms: uiBudgetMs,
+      request_count: httpEvidence.length,
+      expected_negative_no_match_404_count: httpEvidence.filter(sample => {
+        const query = new URL(`http://127.0.0.1${sample.path.replace(' [body complete]', '')}`)
+        return query.pathname.endsWith(`/groups/${de48.id}/open`) && query.searchParams.get('region') === 'Texas' && query.searchParams.get('stage') === 'permit_issued' && sample.status === 404
+      }).length,
+      route_timings: routeTimings,
+      browser_resource_timings: resourceTimings,
+    })
+    if (viewportReports.length === viewports.length) {
+      await mkdir(outputDir, { recursive: true })
+      await writeFile(join(outputDir, 'customer-rollup-report.json'), JSON.stringify({
+        synthetic_fixture: true,
+        manifest: {
+          generation_id: manifest.generation_id,
+          row_count: manifest.total_rows,
+          account_group_count: manifest.group_count,
+          de_central_projects: de48.project_count,
+          diamondback_projects: diamond159.project_count,
+          amazon_projects: amazon.project_count,
+          amazon_company_identities: amazon.identity_count,
+        },
+        semantics: {
+          http_elapsed: 'Per route, request start through Playwright requestfinished (response body complete).',
+          cold_ui_ready: 'First list render in a fresh browser context; server/PostgreSQL cache state is unknown. n=1 per viewport.',
+          warm_reload_ready: 'Same-page reload in the same browser context/process. n=1 per viewport.',
+          route_groups: 'Aggregated separately by HTTP method and URL pathname, omitting query values.',
+        },
+        viewport_runs: viewportReports,
+      }, null, 2) + '\n')
+    }
   })
 }

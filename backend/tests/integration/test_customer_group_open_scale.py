@@ -76,7 +76,12 @@ def test_scale_corpus_search_open_and_child_pages_keep_complete_operator_group(
     # facets as additional cohort reads. This synthetic fixture has no contact
     # records; real contact-bearing pages retain the separate privacy-ledger
     # read performed by the shared serializer.
-    assert len(read_statements) <= 4
+    alias_input_reads = [
+        statement for statement in read_statements if "need_alias_assertions" in statement.lower()
+    ]
+    core_reads = [statement for statement in read_statements if statement not in alias_input_reads]
+    assert len(core_reads) <= 4
+    assert len(alias_input_reads) <= 1
     opened = response.json()
     assert opened["generation"] == manifest["generation_id"]
     assert opened["group"]["name"] == target["name"]
@@ -143,22 +148,36 @@ def test_scale_corpus_search_open_and_child_pages_keep_complete_operator_group(
             "limit": 25,
         },
     )
-    assert searched_open.status_code == 200, searched_open.text
-    filtered_page = searched_open.json()["projects"]
+    # The title match belongs to a different child than the Texas/permit
+    # filters, so it cannot qualify this operator under same-child semantics.
+    assert searched_open.status_code == 404, searched_open.text
+    account_name_open = client.get(
+        f"/api/opportunities/groups/{target['id']}/open",
+        params={
+            "search": "DE CENTRAL",
+            "sector": "oil_gas",
+            "region": "Texas",
+            "stage": "well_permitted",
+            "priority": "ranked",
+            "limit": 25,
+        },
+    )
+    assert account_name_open.status_code == 200, account_name_open.text
+    filtered_page = account_name_open.json()["projects"]
     assert filtered_page["total"] == 48
     filtered_next = client.get(
         f"/api/opportunities/groups/{target['id']}/projects",
         params={
-            "search": target["search"],
+            "search": "DE CENTRAL",
             "sector": "oil_gas",
             "region": "Texas",
-            "stage": "permit_issued",
+            "stage": "well_permitted",
             "priority": "ranked",
             "sort": "priority",
             "limit": 25,
             "offset": 25,
             "cohort_token": filtered_page["cohort_token"],
-            "parent_cohort_token": searched_open.json()["parent_cohort_token"],
+            "parent_cohort_token": account_name_open.json()["parent_cohort_token"],
         },
     )
     assert filtered_next.status_code == 200, filtered_next.text
@@ -171,7 +190,7 @@ def test_scale_corpus_search_open_and_child_pages_keep_complete_operator_group(
     assert first_filtered_ids.isdisjoint(second_filtered_ids)
     assert first_filtered_ids | second_filtered_ids == set(target["project_ids"])
 
-    detail_need_id = filtered_second["items"][0]["representative_need_id"]
+    detail_need_id = filtered_page["items"][0]["representative_need_id"]
     with saved_db() as session:
         eligible_detail_needs = session.scalar(
             select(func.count())

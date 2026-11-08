@@ -911,6 +911,7 @@
     "/api/opportunities/projects": {
       "get": {
         "summary": "Project Opportunities",
+        "description": "Serve one bounded opportunity page, optionally filtered to the evidence shortlist.",
         "operationId": "project_opportunities_api_opportunities_projects_get",
         "parameters": [
           {
@@ -1105,6 +1106,84 @@
         }
       }
     },
+    "/api/projects/{project_id}/account": {
+      "get": {
+        "summary": "Resolve Project Account",
+        "description": "Verify account context on a compatible project/need deep link.",
+        "operationId": "resolve_project_account_api_projects__project_id__account_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/companies/{company_id}/account": {
+      "get": {
+        "summary": "Resolve Company Account",
+        "description": "Translate a bookmarked company identity to its current shared account route.",
+        "operationId": "resolve_company_account_api_companies__company_id__account_get",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/opportunities/groups": {
       "get": {
         "summary": "Customer Opportunity Groups",
@@ -1246,6 +1325,16 @@
                 }
               ],
               "title": "Priority"
+            }
+          },
+          {
+            "name": "shortlist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Shortlist"
             }
           }
         ],
@@ -1438,6 +1527,16 @@
               ],
               "title": "Priority"
             }
+          },
+          {
+            "name": "shortlist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Shortlist"
+            }
           }
         ],
         "responses": {
@@ -1585,6 +1684,16 @@
                 }
               ],
               "title": "Priority"
+            }
+          },
+          {
+            "name": "shortlist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Shortlist"
             }
           }
         ],
@@ -15146,10 +15255,40 @@
             "format": "uuid",
             "title": "Need Id"
           },
+          "need_alias_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Need Alias Ids"
+          },
           "project_id": {
             "type": "string",
             "format": "uuid",
             "title": "Project Id"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
           },
           "stage": {
             "type": "string",

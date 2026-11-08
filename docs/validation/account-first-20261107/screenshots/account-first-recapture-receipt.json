@@ -1,0 +1,85 @@
+{
+  "synthetic_fixture": true,
+  "read_only": true,
+  "lane_database": "ui_pursuits_real_slice1m_test",
+  "state": "Customer accounts · Shortlist selected",
+  "forbidden_request_count": 0,
+  "unexpected_write_count": 0,
+  "horizontal_overflow": false,
+  "default_shortlist_captures": [
+    {
+      "label": "1648x928",
+      "width": 1648,
+      "height": 928,
+      "screenshot": "default-shortlist-1648x928.png"
+    },
+    {
+      "label": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "screenshot": "default-shortlist-1440x900.png"
+    },
+    {
+      "label": "1280x800",
+      "width": 1280,
+      "height": 800,
+      "screenshot": "default-shortlist-1280x800.png"
+    },
+    {
+      "label": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "screenshot": "default-shortlist-768x1024.png"
+    },
+    {
+      "label": "390x844",
+      "width": 390,
+      "height": 844,
+      "screenshot": "default-shortlist-390x844.png",
+      "mobile_layout": {
+        "pursuit_status_text": "1 of 48 opportunities in Pursuits",
+        "pursuit_status_width_px": 302,
+        "pursuit_status_to_contact_overlap": false,
+        "contact_to_button_overlap": false,
+        "choose_opportunity_height_px": 44
+      }
+    }
+  ],
+  "account_detail_captures": [
+    {
+      "label": "1648x928",
+      "width": 1648,
+      "height": 928,
+      "screenshot": "account-detail-1648x928.png"
+    },
+    {
+      "label": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "screenshot": "account-detail-1440x900.png"
+    },
+    {
+      "label": "1280x800",
+      "width": 1280,
+      "height": 800,
+      "screenshot": "account-detail-1280x800.png"
+    },
+    {
+      "label": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "screenshot": "account-detail-768x1024.png"
+    },
+    {
+      "label": "390x844",
+      "width": 390,
+      "height": 844,
+      "screenshot": "account-detail-390x844.png",
+      "mobile_layout": {
+        "matching_opportunity_height_px": 44,
+        "heading_to_meta_overlap": false,
+        "meta_to_button_overlap": false
+      }
+    }
+  ]
+}

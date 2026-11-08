@@ -4,10 +4,19 @@ import { BuyingChain } from '../buyingChain/BuyingChain'
 import { WorkspaceDetail, type WorkspaceTab } from './WorkspaceDetail'
 import { CalendarDays, ChartNoAxesColumnIncreasing, FileText, Mail, Phone, Target, UserRound, Zap } from 'lucide-react'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
+import { AUTH_SESSION_ENDED } from '../../state/sessionState'
 import './canonical-opportunity-detail.css'
 
-type Props = Parameters<typeof WorkspaceDetail>[0]
+type Props = Parameters<typeof WorkspaceDetail>[0] & { accountFirst?: boolean }
 type CanonicalTab = 'Overview' | 'Details' | 'Timeline' | 'Related'
+type AccountDetailSource = {
+  key: string
+  title: string
+  url: string | null
+  date: string | null
+  status: string
+  excerpt: string | null
+}
 
 function firstSentence(value: string | null | undefined) {
   const text = value?.trim()
@@ -49,25 +58,36 @@ function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_k
 
 /** Load and render selected opportunity detail using the active shortlist query mode. */
 export function CanonicalOpportunityDetail(props: Props) {
-  const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry } = props
+  const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry, accountFirst = false } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
   const detailShortlist = new URLSearchParams(window.location.search).get('shortlist') !== '0'
-  const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null }>({ needId: null, project: null })
+  const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null; validUntil: string | null }>({ needId: null, project: null, validUntil: null })
   const [projectStatus, setProjectStatus] = useState<{ needId: string | null; loading: boolean; error: string }>({ needId: null, loading: false, error: '' })
+  const [projectRefreshNonce, setProjectRefreshNonce] = useState(0)
+  const [needRefreshState, setNeedRefreshState] = useState<{ needId: string; item: NonNullable<Props['item']> } | null>(null)
+  const needRefreshPending = Boolean(accountFirst && item && needRefreshState?.needId === item.id && needRefreshState.item === item)
   // Do not expose metadata from the previous selection during the render before the effect runs.
-  const project = projectState.needId === item?.id ? projectState.project : null
+  const storedProject = projectState.needId === item?.id ? projectState.project : null
+  const storedExpiry = projectState.needId === item?.id && projectState.validUntil ? Date.parse(projectState.validUntil) : NaN
+  const project = storedProject && (!accountFirst || (!needRefreshPending && Number.isFinite(storedExpiry) && Date.now() < storedExpiry)) ? storedProject : null
   const projectLoading = projectStatus.needId === item?.id && projectStatus.loading
-  const projectError = projectStatus.needId === item?.id ? projectStatus.error : ''
+  const projectExpired = accountFirst && Boolean(storedProject) && Number.isFinite(storedExpiry) && Date.now() >= storedExpiry
+  const projectError = projectStatus.needId === item?.id
+    ? projectStatus.error || (projectExpired ? 'Prepared project details expired. Current project details are being refreshed.' : '')
+    : ''
 
   useEffect(() => {
     if (!item?.project_id) {
-      setProjectState({ needId: item?.id ?? null, project: null })
+      setProjectState({ needId: item?.id ?? null, project: null, validUntil: null })
       setProjectStatus({ needId: item?.id ?? null, loading: false, error: '' })
       return
     }
     const controller = new AbortController()
     const needId = item.id
     const shortlist = detailShortlist
+    const abortForSessionChange = () => controller.abort()
+    window.addEventListener(AUTH_SESSION_ENDED, abortForSessionChange)
+    window.addEventListener('gl3-clear-continuity', abortForSessionChange)
     setProjectStatus({ needId, loading: true, error: '' })
     const loadProject = async () => {
       try {
@@ -80,25 +100,82 @@ export function CanonicalOpportunityDetail(props: Props) {
           match = page.items.find(candidate => candidate.needs.some(need => need.id === needId))
         }
         if (controller.signal.aborted) return
-        setProjectState({ needId, project: match ?? null })
-        setProjectStatus({ needId, loading: false, error: match ? '' : 'Current project details could not be matched to this opportunity.' })
+        const validUntil = typeof page.valid_until === 'string' ? page.valid_until : null
+        const validUntilMs = validUntil ? Date.parse(validUntil) : NaN
+        const currentPage = !accountFirst || (Number.isFinite(validUntilMs) && Date.now() < validUntilMs)
+        const usableMatch = match && currentPage ? match : null
+        setProjectState({ needId, project: usableMatch, validUntil: usableMatch ? validUntil : null })
+        setProjectStatus({
+          needId,
+          loading: false,
+          error: usableMatch ? '' : match && !currentPage
+            ? 'The prepared project view expired before it could be displayed. Retry to load current details.'
+            : 'Current project details could not be matched to this opportunity.',
+        })
       } catch (cause) {
         if (!controller.signal.aborted) {
-          setProjectState({ needId, project: null })
+          setProjectState({ needId, project: null, validUntil: null })
           setProjectStatus({ needId, loading: false, error: cause instanceof Error ? cause.message : 'Current project details are unavailable.' })
         }
       }
     }
     void loadProject()
-    return () => controller.abort()
-  }, [item?.id, detailShortlist])
+    return () => {
+      window.removeEventListener(AUTH_SESSION_ENDED, abortForSessionChange)
+      window.removeEventListener('gl3-clear-continuity', abortForSessionChange)
+      controller.abort()
+    }
+  }, [item?.id, detailShortlist, projectRefreshNonce])
+
+  useEffect(() => {
+    const clearProject = () => {
+      setProjectState({ needId: null, project: null, validUntil: null })
+      setProjectStatus({ needId: null, loading: false, error: '' })
+      setNeedRefreshState(null)
+    }
+    window.addEventListener('gl3-clear-continuity', clearProject)
+    return () => window.removeEventListener('gl3-clear-continuity', clearProject)
+  }, [])
+
+  useEffect(() => {
+    if (needRefreshState && item?.id !== needRefreshState.needId) setNeedRefreshState(null)
+  }, [item?.id, needRefreshState])
+
+  useEffect(() => {
+    if (!accountFirst || !item?.id || !project || !projectState.validUntil) return
+    const expiry = Date.parse(projectState.validUntil)
+    if (!Number.isFinite(expiry)) return
+    const maximumTimerDelay = 2_147_000_000
+    let timer = 0
+    const checkExpiry = () => {
+      const remaining = expiry - Date.now()
+      if (remaining > 0) {
+        timer = window.setTimeout(checkExpiry, Math.min(remaining, maximumTimerDelay))
+        return
+      }
+      setProjectState(current => current.needId === item.id ? { needId: item.id, project: null, validUntil: null } : current)
+      setProjectStatus({ needId: item.id, loading: true, error: '' })
+      setProjectRefreshNonce(value => value + 1)
+      setNeedRefreshState({ needId: item.id, item })
+      onRetry()
+    }
+    timer = window.setTimeout(checkExpiry, Math.min(Math.max(0, expiry - Date.now()), maximumTimerDelay))
+    return () => window.clearTimeout(timer)
+  }, [accountFirst, item, project, projectState.validUntil, onRetry])
+
+  const retryProject = () => {
+    if (item?.id) setProjectStatus({ needId: item.id, loading: true, error: '' })
+    if (item?.id && item) setNeedRefreshState({ needId: item.id, item })
+    setProjectRefreshNonce(value => value + 1)
+    onRetry()
+  }
 
   if (!item) return <aside className="cod-panel" aria-label="Opportunity detail">
-    {(pending || loading || error) && <button type="button" className="cod-back" onClick={onBack}>Opportunities</button>}
-    <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select an opportunity to review its evidence and next action.'}</p>
+    {(pending || loading || error) && <button type="button" className="cod-back" onClick={onBack}>{accountFirst ? '← Back to account' : 'Opportunities'}</button>}
+    <p>{pending || loading ? 'Loading verified opportunity detail…' : accountFirst ? 'Select a project to review.' : 'Select an opportunity to review its evidence and next action.'}</p>
     {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Retry</button></p>}
   </aside>
-  if (tab === 'Evidence' || tab === 'Power gap' || tab === 'Research') return <WorkspaceDetail {...workspaceDetailProps(props)} />
+  if (!accountFirst && (tab === 'Evidence' || tab === 'Power gap' || tab === 'Research')) return <WorkspaceDetail {...workspaceDetailProps(props)} />
 
   const card = item.intelligence_card
   const equipmentDemand = equipmentDemandProjection(card)
@@ -108,7 +185,10 @@ export function CanonicalOpportunityDetail(props: Props) {
   const fullTitle = project?.name || item.browse_title || item.name
   const title = company && fullTitle.startsWith(`${company} · `) ? fullTitle.slice(company.length + 3) : fullTitle
   const location = project?.location || item.location || field('location')?.value || null
-  const summary = firstSentence(item.commercial_reason || item.assessment_reason || item.rationale)
+  const accountSummarySource = item.commercial_reason || item.assessment_reason
+  const summary = accountFirst
+    ? project && accountSummarySource ? firstSentence(accountSummarySource) : null
+    : firstSentence(item.commercial_reason || item.assessment_reason || item.rationale)
   const facilityDemand = field('facility_demand')
   const rawDemand = item.required_mw || facilityDemand?.value
   const demand = rawDemand
@@ -131,6 +211,7 @@ export function CanonicalOpportunityDetail(props: Props) {
   const renderedContactHrefs = new Set(people.flatMap(person => contactChannels(person.methods ?? [], person.sources ?? []).map(channel => normalizeContactHref(channel.href))))
   const evidence = item.evidence ?? []
   const sources = evidence.slice().sort((a, b) => (b.event_date || b.published_at || '').localeCompare(a.event_date || a.published_at || ''))
+  const accountSources = accountFirst ? accountDetailSources(item, project) : []
   const additionalCardEvidence = (card?.evidence ?? []).filter(source => {
     const href = safeSourceUrl(source.url)
     return Boolean(href && !sources.some(itemSource => safeSourceUrl(itemSource.url) === href))
@@ -154,6 +235,84 @@ export function CanonicalOpportunityDetail(props: Props) {
     ['Last updated', card?.last_intelligence_update ? displayDate(card.last_intelligence_update) : null],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
 
+  if (accountFirst) {
+    const supportedPower = item.required_mw?.trim() || null
+    const facilityDemandValue = facilityDemand?.value?.trim() || null
+    const hasConflict = Boolean(item.conflict_state && /conflict/i.test(item.conflict_state))
+    const hasHistoricalSupport = accountSources.some(source => /historical|withdrawn|superseded/i.test(source.status))
+    const hasCurrentSupport = accountSources.some(source => /current|verified/i.test(source.status))
+    const projectQualification = !project ? null : hasConflict
+      ? `Current evidence is conflicting (${item.conflict_state}); review the source records before acting.`
+      : hasHistoricalSupport && !hasCurrentSupport
+        ? 'The available source support is historical; confirm it before acting.'
+        : null
+    const accountPeople = project ? people : []
+    const selectedContact = accountPeople.find(person => contactChannels(person.methods ?? [], person.sources ?? []).length > 0) ?? accountPeople[0]
+    const contactMethods = selectedContact
+      ? prioritizePrimaryChannels(contactChannels(selectedContact.methods ?? [], selectedContact.sources ?? []))
+      : []
+    const phone = contactMethods.find(channel => channel.kind === 'phone')
+    const email = contactMethods.find(channel => channel.kind === 'email')
+    const renderedContactHrefs = new Set(contactMethods.map(channel => normalizeContactHref(channel.href)))
+    const companyRoutes = (project?.contact ?? []).flatMap(action => {
+      if (action.route_kind !== 'company_route') return []
+      const href = safeContactAction(action.kind, action.href)
+      const normalized = href ? normalizeContactHref(href) : ''
+      if (!href || !normalized || renderedContactHrefs.has(normalized)) return []
+      renderedContactHrefs.add(normalized)
+      return [{ ...action, href }]
+    })
+    const explicitSources = tab === 'Evidence' || tab === 'Research' || tab === 'Timeline' || tab === 'Buying chain'
+
+    return <aside className="cod-panel cod-account-first-detail" aria-label="Opportunity detail">
+      <div className="cod-heading">
+        <button type="button" className="cod-back" onClick={onBack}>← Back to account</button>
+        <div className="cod-title-row"><div>
+          <p className="cod-kicker">Project</p>
+          <h2>{title}</h2>
+          {(location || project?.event?.label) && <p className="cod-location">{[location, project?.event?.label, project?.event?.date ? displayDate(project.event.date) : null].filter(Boolean).join(' · ')}</p>}
+        </div></div>
+      </div>
+      {(projectLoading || (needRefreshPending && loading)) && <p className="cod-status" role="status">Refreshing current project and opportunity details…</p>}
+      {(projectError || error) && <p className="cod-status" role="alert">{projectError || error} <button type="button" onClick={retryProject}>Retry</button></p>}
+      {associationNotice && <p className="cod-status" role="status">{associationNotice}</p>}
+      {projectQualification && <p className="cod-status" role="status">{projectQualification}</p>}
+      {summary && <section className="cod-why" aria-label="Why this project matters"><p>{summary}</p></section>}
+      {project && (item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{item.commercial_next_action || item.next_action}</p></div></section> : null}
+      {project && (supportedPower || facilityDemandValue || timing) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
+        <h3>Project scope</h3>
+        <dl>{supportedPower && <div><dt>Activity-specific power need</dt><dd>{supportedPower}</dd></div>}
+          {!supportedPower && facilityDemandValue && <div><dt>Facility demand · source reported</dt><dd>{facilityDemandValue}{facilityDemand?.status ? ` · ${facilityDemand.status}` : ''}</dd></div>}
+          {timing && <div><dt>Power timing</dt><dd>{timing}</dd></div>}
+        </dl>
+      </section>}
+      {project && <section className="cod-contacts" aria-label="Project contact">
+        <h3><UserRound size={14} aria-hidden="true"/>Contact</h3>
+        {selectedContact ? <article>
+          <div className="cod-contact-row"><div className="cod-contact-id">
+            <strong>{selectedContact.name || selectedContact.company}</strong>
+            <p>{[selectedContact.title || selectedContact.role, selectedContact.name ? selectedContact.company : null].filter(Boolean).join(' · ')}</p>
+          </div><div className="cod-contact-buttons">
+            {phone && <a className="cod-contact-button" href={phone.href} aria-label={`Call ${phone.value}`}><Phone size={14} aria-hidden="true"/>Call</a>}
+            {email && <a className="cod-contact-button" href={email.href} aria-label={`Email ${email.value}`}><Mail size={14} aria-hidden="true"/>Email</a>}
+          </div></div>
+          {(phone || email) && <ul className="cod-contact-methods">{phone && <li><span>{phone.value}</span><small>{phone.verifiedAt ? `Source checked ${displayDate(phone.verifiedAt)}` : 'Public-source method; deliverability and authority are unconfirmed.'}</small></li>}{email && <li><span>{email.value}</span><small>{email.verifiedAt ? `Source checked ${displayDate(email.verifiedAt)}` : 'Public-source method; deliverability and authority are unconfirmed.'}</small></li>}</ul>}
+          {companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>)}
+        </article> : companyRoutes.length ? <article>{companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>)}</article> : <p className="cod-contact-missing">No appropriate business phone or email is available in retained contact evidence.</p>}
+      </section>}
+      <details className="cod-more-details cod-account-sources" open={explicitSources}>
+        <summary>Sources ({accountSources.length})</summary>
+        {accountSources.length ? accountSources.map(source => <article className="cod-related-source" key={source.key}>
+          {source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}
+          <span>{source.date ? displayDate(source.date) : 'Date unavailable'} · {source.status}</span>
+          {source.excerpt && <p>{source.excerpt}</p>}
+        </article>) : <p>No project-scoped source records are available.</p>}
+      </details>
+      {project && <AddToPursuit key={item.id} needId={item.id}/>}
+      {tab === 'Power gap' && <p className="cod-status">Only retained, supported project scope is shown above. Facility demand is not a rental-gap estimate.</p>}
+    </aside>
+  }
+
   return <aside className="cod-panel" aria-label="Opportunity detail">
     <div className="cod-heading">
       <button type="button" className="cod-back" onClick={onBack}>← Opportunities</button>
@@ -168,7 +327,9 @@ export function CanonicalOpportunityDetail(props: Props) {
       {(['Overview', 'Details', 'Timeline', 'Related'] as const).map(value => <button key={value} type="button" aria-pressed={canonicalTab === value} className={canonicalTab === value ? 'active' : ''} onClick={() => onTab(workspaceTabFor(value))}>{value}</button>)}
     </nav>
     {canonicalTab !== 'Overview' && <p className="cod-summary">{summary}</p>}
-    {(projectLoading || projectError || associationNotice) && <p className="cod-status" role={projectError ? 'status' : undefined}>{projectLoading ? 'Loading current project details…' : projectError || associationNotice}</p>}
+    {projectLoading && <p className="cod-status" role="status">Loading current project details…</p>}
+    {projectError && <p className="cod-status" role="alert">{projectError} <button type="button" onClick={onRetry}>Retry</button></p>}
+    {associationNotice && <p className="cod-status" role="status">{associationNotice}</p>}
 
     {canonicalTab === 'Overview' && <>
       <div className="cod-overview-body">
@@ -262,7 +423,7 @@ export function CanonicalOpportunityDetail(props: Props) {
     {canonicalTab === 'Related' && <section className="cod-tab-content"><h3>Related records</h3>
       {item.project_id ? <BuyingChain projectId={item.project_id} /> : <p>Project identity is not established, so related buying-chain records are unavailable.</p>}
       {project?.needs.filter(need => need.id !== item.id).length ? <section aria-label="Other source-backed records"><h4>Other source-backed records</h4>{project.needs.filter(need => need.id !== item.id).map(need => <button className="cod-related-need" type="button" key={need.id} onClick={() => dispatchEvent(new CustomEvent('gl3-open-need', { detail: need.id }))}>{need.browse_title || need.name || need.activity || 'Open related source-backed record'}{need.location ? ` · ${need.location}` : ''}</button>)}</section> : null}
-      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin} · {source.assessment_current === true ? 'Current support' : source.assessment_current === false ? 'Historical support' : 'Support status unavailable'}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
       <section aria-label="What's missing" className="cod-whats-missing"><h4>What’s missing</h4>{card?.research_gaps?.length ? <ul>{card.research_gaps.map(gap => <li key={gap.key}>{gap.label}</li>)}</ul> : item.missing_facts?.length ? <ul>{item.missing_facts.map(gap => <li key={gap}>{gap}</li>)}</ul> : <p>No explicit research gaps are recorded for this opportunity.</p>}</section>
     </section>}
   </aside>
@@ -355,4 +516,67 @@ function workspaceDetailProps(props: Props): Props {
     contacts: item.intelligence_card.contacts.map(contact => ({ ...contact, sources: safeSources(contact.sources) })),
   } : item.intelligence_card
   return { ...props, item: { ...item, evidence: safeSources(item.evidence), intelligence_card: card } }
+}
+
+function accountDetailSources(
+  item: NonNullable<Props['item']>,
+  project: import('../../api/client').ProjectResult | null,
+): AccountDetailSource[] {
+  const sources = new Map<string, AccountDetailSource>()
+  const add = (source: {
+    id?: string | null
+    reference?: string | null
+    retained_evidence_id?: string | null
+    content_hash?: string | null
+    title?: string | null
+    url?: string | null
+    source_date?: string | null
+    published_at?: string | null
+    event_date?: string | null
+    assessment_current?: boolean | null
+    verification_status?: string | null
+    status?: string | null
+    abstract?: string | null
+    source_origin?: string | null
+  }) => {
+    const title = source.title?.trim()
+    if (!title) return
+    const url = safeSourceUrl(source.url)
+    const date = source.event_date || source.source_date || source.published_at || null
+    const status = source.assessment_current === true
+      ? 'Current support'
+      : source.assessment_current === false
+        ? 'Historical support'
+        : source.verification_status || source.status || 'Support status unavailable'
+    const versionKey = source.content_hash || source.retained_evidence_id || date || title
+    const identity = url ? `${url}:${versionKey}` : `${source.reference || source.id || title}:${versionKey}`
+    if (sources.has(identity)) return
+    sources.set(identity, {
+      key: identity,
+      title,
+      url,
+      date,
+      status,
+      excerpt: source.abstract || source.source_origin || null,
+    })
+  }
+
+  for (const source of item.evidence ?? []) add(source)
+  for (const source of item.intelligence_card?.evidence ?? []) add(source)
+  for (const field of item.intelligence_card?.fields ?? []) {
+    for (const source of field.sources ?? []) add(source)
+  }
+  for (const contact of item.intelligence_card?.contacts ?? []) {
+    for (const source of contact.sources ?? []) add(source)
+  }
+  if (project?.event?.source) {
+    add({
+      reference: `project-event:${project.event.kind}:${project.event.date ?? ''}`,
+      title: project.event.label,
+      url: project.event.source,
+      source_date: project.event.date,
+      status: 'Project event reference',
+    })
+  }
+  return [...sources.values()].sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.title.localeCompare(b.title))
 }

@@ -147,9 +147,199 @@ def test_create_is_idempotent_per_opportunity(pursuit_env):
     listing = client.get("/api/commercial-pursuits", params={"need_id": need_id}).json()
     assert listing["counts"]["total"] == 1 and len(listing["items"]) == 1
     assert [a["kind"] for a in first.json()["activity"]] == ["created"]
+    with pursuit_env() as session:
+        session.get(PowerNeed, UUID(need_id)).active = False
+        session.commit()
+    inactive_retry = client.post("/api/commercial-pursuits", json={"need_id": need_id})
+    assert inactive_retry.status_code == 200
+    assert inactive_retry.json()["id"] == first.json()["id"]
     assert (
         client.post("/api/commercial-pursuits", json={"need_id": str(uuid4())}).status_code == 404
     )
+
+
+def test_concurrent_alias_and_root_create_serializes_to_one_pursuit(pursuit_env):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from test_need_aliases import _fixture_graph, _record
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+    barrier = Barrier(2)
+
+    def create(need_id):
+        client = TestClient(app)
+        barrier.wait()
+        return client.post("/api/commercial-pursuits", json={"need_id": str(need_id)})
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(create, (needs[0], needs[1])))
+    assert sorted(response.status_code for response in responses) == [200, 201]
+    assert responses[0].json()["id"] == responses[1].json()["id"]
+    assert responses[0].json()["need_id"] == str(needs[1])
+    with pursuit_env() as session:
+        pursuits = session.scalars(select(CommercialPursuit)).all()
+        assert len(pursuits) == 1
+        assert pursuits[0].need_id == needs[1]
+
+
+def test_distinct_needs_remain_distinct_pursuits_even_on_same_project(pursuit_env):
+    """Account/project association must not collapse separate power needs or their history."""
+    client = TestClient(app)
+    first_need_id = UUID(_need(pursuit_env))
+    with pursuit_env() as session:
+        first_need = session.get(PowerNeed, first_need_id)
+        second_need = PowerNeed(
+            project_id=first_need.project_id,
+            activity_key="data-center-expansion",
+            tier="Lead",
+            rationale="Separate synthetic power package",
+            required_mw="25",
+        )
+        session.add(second_need)
+        session.commit()
+        second_need_id = second_need.id
+
+    first = client.post("/api/commercial-pursuits", json={"need_id": str(first_need_id)}).json()
+    first = client.patch(
+        f"/api/commercial-pursuits/{first['id']}", json={"stage": "Engaged"}
+    ).json()
+    second = client.post("/api/commercial-pursuits", json={"need_id": str(second_need_id)}).json()
+
+    assert first["id"] != second["id"]
+    assert first["project_id"] == second["project_id"]
+    assert first["stage"] == "Engaged"
+    assert second["stage"] == "New"
+    assert first["account_id"] is None
+    assert first["account_name"] is None
+
+
+def test_alias_retry_returns_existing_canonical_pursuit(pursuit_env):
+    from test_need_aliases import _fixture_graph, _record
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+    client = TestClient(app)
+    canonical = client.post("/api/commercial-pursuits", json={"need_id": str(needs[1])})
+    assert canonical.status_code == 201
+    with pursuit_env() as session:
+        session.get(PowerNeed, needs[1]).active = False
+        session.commit()
+
+    retry = client.post("/api/commercial-pursuits", json={"need_id": str(needs[0])})
+    assert retry.status_code == 200
+    assert retry.json()["id"] == canonical.json()["id"]
+    assert str(needs[0]) in retry.json()["need_alias_ids"]
+    alias_filtered = client.get(
+        "/api/commercial-pursuits", params={"need_id": str(needs[0])}
+    ).json()
+    assert [item["id"] for item in alias_filtered["items"]] == [canonical.json()["id"]]
+
+
+def test_conflicted_alias_create_preserves_both_existing_pursuits(pursuit_env):
+    from test_need_aliases import _fixture_graph, _record
+
+    from gridlens.intelligence.need_aliases import record_alias
+    from gridlens.persistence.models import Evidence, NeedObservation, Observation
+
+    needs, _observation_id, evidence_id = _fixture_graph(pursuit_env)
+    with pursuit_env() as session:
+        _record(session, needs, evidence_id)
+        session.commit()
+
+    with pursuit_env() as session:
+        alias_need = session.get(PowerNeed, needs[0])
+        canonical_need = session.get(PowerNeed, needs[1])
+        alias_pursuit = CommercialPursuit(
+            need_id=alias_need.id,
+            project_id=alias_need.project_id,
+            stage="Contacted",
+        )
+        canonical_pursuit = CommercialPursuit(
+            need_id=canonical_need.id,
+            project_id=canonical_need.project_id,
+            stage="Engaged",
+        )
+        session.add_all([alias_pursuit, canonical_pursuit])
+        session.commit()
+        alias_pursuit_id = alias_pursuit.id
+        canonical_pursuit_id = canonical_pursuit.id
+    client = TestClient(app)
+    with pursuit_env() as session:
+        alias_need = session.get(PowerNeed, needs[2])
+        canonical_need = session.get(PowerNeed, needs[1])
+        alias_project = session.get(Project, alias_need.project_id)
+        canonical_project = session.get(Project, canonical_need.project_id)
+        alias_binding = {
+            "source_ref": f"{alias_project.source_id}:{alias_project.external_id}",
+            "activity_key": alias_need.activity_key,
+            "package_scope": "package-7",
+        }
+        canonical_binding = {
+            "source_ref": f"{canonical_project.source_id}:{canonical_project.external_id}",
+            "activity_key": canonical_need.activity_key,
+            "package_scope": "package-7",
+        }
+        quote = (
+            f"Package package-7: {alias_binding['source_ref']} "
+            f"({alias_binding['activity_key']}) and {canonical_binding['source_ref']} "
+            f"({canonical_binding['activity_key']}) refer to the same power package."
+        )
+        source = session.get(Source, alias_project.source_id)
+        observation = Observation(
+            source_id=source.id,
+            external_id=f"conflicted-alias-{uuid4().hex[:8]}",
+            title=quote,
+            abstract="Synthetic strict package alias proof",
+            url="https://synthetic.invalid/conflicted-alias",
+            content_hash="b" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            provenance={
+                "need_alias_assertion": {
+                    "package_scope": "package-7",
+                    "need_bindings": [alias_binding, canonical_binding],
+                    "same_package_quote": quote,
+                }
+            },
+        )
+        session.add(evidence)
+        session.flush()
+        session.add_all(
+            [
+                NeedObservation(need_id=needs[2], observation_id=observation.id),
+                NeedObservation(need_id=needs[1], observation_id=observation.id),
+            ]
+        )
+        record_alias(
+            session,
+            alias_need_id=needs[2],
+            canonical_need_id=needs[1],
+            evidence_id=evidence.id,
+            expected_evidence_hash=evidence.content_hash,
+            package_scope="package-7",
+            reason="Explicit synthetic package link",
+        )
+        session.commit()
+
+    conflicted = client.post("/api/commercial-pursuits", json={"need_id": str(needs[2])})
+    assert conflicted.status_code == 409
+    alias_after = client.get(f"/api/commercial-pursuits/{alias_pursuit_id}").json()
+    canonical_after = client.get(f"/api/commercial-pursuits/{canonical_pursuit_id}").json()
+    assert alias_after["stage"] == "Contacted"
+    assert canonical_after["stage"] == "Engaged"
 
 
 def test_stage_changes_persist_and_log_without_advancing_automatically(pursuit_env):

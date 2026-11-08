@@ -493,6 +493,17 @@ def test_project_results_route_requires_session(saved_db, monkeypatch):
         assert discovery_page["results_scope"] == "discovery"
         assert discovery_page["total"] > 0
         assert discovery_page["items"]
+        with saved_db() as session:
+            generation = current_generation(session)
+            assert discovery_page["generation_id"] == str(generation.id)
+            assert discovery_page["as_of"] == generation.built_at.isoformat()
+            assert discovery_page["valid_until"] == generation.valid_until.isoformat()
+            assert datetime.fromisoformat(discovery_page["valid_until"]) > datetime.now(UTC)
+            assert discovery_page["qualification_state"] == "current"
+            assert discovery_page["refresh_state"] == "current"
+        exact_need_id = discovery_page["items"][0]["needs"][0]["id"]
+        exact_need = client.get(f"/api/opportunities/needs/{exact_need_id}")
+        assert exact_need.status_code == 200, exact_need.text
         shortlist_response = client.get(
             "/api/opportunities/projects", params={"shortlist": "true", "limit": 1}
         )

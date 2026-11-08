@@ -23,6 +23,11 @@ from gridlens.domain.commercial_pursuits import (
     attention_reasons,
     valid_stage,
 )
+from gridlens.intelligence.need_aliases import (
+    NeedAliasError,
+    lock_need_alias_pursuits,
+    resolve_component,
+)
 from gridlens.persistence.commercial_pursuit_models import (
     CLOSED_STAGES,
     CommercialPursuit,
@@ -74,7 +79,10 @@ class ContactSummary(BaseModel):
 class PursuitOut(BaseModel):
     id: UUID
     need_id: UUID
+    need_alias_ids: list[UUID] = Field(default_factory=list)
     project_id: UUID
+    account_id: str | None = None
+    account_name: str | None = None
     stage: Stage
     title: str
     location: str | None
@@ -273,6 +281,23 @@ class _Preload:
             ):
                 self.tasks.setdefault(task.pursuit_id, []).append(task)
         self.contacts: dict[UUID, tuple[ContactSummary | None, str]] = {}
+        from gridlens.intelligence.need_aliases import need_alias_members
+
+        self.need_aliases = need_alias_members(session, need_ids)
+        # Resolve the exact account group once for the page. This is supplementary
+        # context; an unavailable current snapshot leaves the pursuit list usable.
+        from gridlens.intelligence.account_identity import account_identity_for_projects
+
+        try:
+            account_rows = account_identity_for_projects(session, project_ids)
+        except HTTPException:
+            account_rows = {}
+        self.accounts = {
+            project_id: (account["id"], account["name"])
+            if (account := account_rows.get(project_id))
+            else (None, None)
+            for project_id in project_ids
+        }
 
     def contact(self, session: Session, project_id: UUID) -> tuple[ContactSummary | None, str]:
         """Reuse the contact projection cached for this project's response page."""
@@ -307,7 +332,14 @@ def _view(
     out = PursuitOut(
         id=row.id,
         need_id=row.need_id,
+        need_alias_ids=[
+            need_id
+            for need_id in pre.need_aliases.get(row.need_id, (row.need_id,))
+            if need_id != row.need_id
+        ],
         project_id=row.project_id,
+        account_id=pre.accounts.get(row.project_id, (None, None))[0],
+        account_name=pre.accounts.get(row.project_id, (None, None))[1],
         stage=row.stage,  # type: ignore[arg-type]
         title=project.name if project else "Unavailable project",
         location=project.location if project else None,
@@ -426,7 +458,7 @@ def list_pursuits(
         for v in views
         if (not needs_attention or v.attention)
         and (not active_only or v.stage not in CLOSED_STAGES)
-        and (need_id is None or v.need_id == need_id)
+        and (need_id is None or v.need_id == need_id or need_id in v.need_alias_ids)
     ]
     items = matching[offset : offset + limit]
     with SessionLocal() as session:
@@ -454,28 +486,43 @@ def create_pursuit(body: CreateIn, response: Response):
     """Create or return the single pursuit attached to an active opportunity."""
     today = _today()
     with SessionLocal() as session:
-        need = session.get(PowerNeed, body.need_id)
-        if need is None or not need.active:
-            raise HTTPException(404, "Opportunity not found")
-        existing = session.scalar(
+        lock_need_alias_pursuits(session)
+        # Direct retries survive changes to current opportunity activity.
+        exact_existing = session.scalar(
             select(CommercialPursuit).where(CommercialPursuit.need_id == body.need_id)
         )
-        if existing is not None:
+        if exact_existing is not None:
             response.status_code = 200
-            return _view(session, existing, today, detail=True)
+            return _view(session, exact_existing, today, detail=True)
+        try:
+            resolution = resolve_component(session, body.need_id)
+        except NeedAliasError as exc:
+            raise HTTPException(409, "Opportunity identity is ambiguous") from exc
+        if resolution.conflicted:
+            raise HTTPException(409, "Opportunity identity is ambiguous")
+        if resolution.existing_pursuit is not None:
+            response.status_code = 200
+            return _view(session, resolution.existing_pursuit, today, detail=True)
+        need = session.get(PowerNeed, resolution.root_need_id)
+        if need is None or not need.active:
+            raise HTTPException(404, "Opportunity not found")
         row = CommercialPursuit(need_id=need.id, project_id=need.project_id, stage="New")
         session.add(row)
         try:
             session.flush()
         except IntegrityError:  # concurrent create: return the winner
             session.rollback()
-            winner = session.scalar(
-                select(CommercialPursuit).where(CommercialPursuit.need_id == body.need_id)
-            )
-            if winner is None:
+            winners = session.scalars(
+                select(CommercialPursuit).where(
+                    CommercialPursuit.need_id.in_(resolution.member_need_ids)
+                )
+            ).all()
+            if not winners:
                 raise
+            if len(winners) > 1:
+                raise HTTPException(409, "Opportunity identity is ambiguous") from None
             response.status_code = 200
-            return _view(session, winner, today, detail=True)
+            return _view(session, winners[0], today, detail=True)
         _log(session, row.id, "created", "Added to Pursuits")
         session.commit()
         session.refresh(row)

@@ -1,10 +1,11 @@
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test, type Page } from '@playwright/test'
+import type { OpportunityGroup } from '../src/api/client'
 
-const groups = [
-  { id: 'g-north', name: 'Northstar Energy', role: 'operator', group_kind: 'resolved_identity', project_count: 2, need_count: 3, priority_score: 71, sectors: ['oil_gas'] },
-  { id: 'g-name', name: 'Acme Power', role: 'customer', group_kind: 'same_name_unconfirmed', identity_count: 3, project_count: 4, need_count: 4, priority_score: null, sectors: ['oil_gas'] },
-  { id: 'g-cedar', name: 'Cedar Compute', role: 'customer', group_kind: 'resolved_identity', project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] },
+const groups: OpportunityGroup[] = [
+  { id: 'cg_north', name: 'Northstar Energy', role: 'operator', group_kind: 'resolved_identity', project_count: 2, total_known_project_count: 2, relevant_project_count: 1, need_count: 3, priority_score: 71, sectors: ['oil_gas'] },
+  { id: 'cg_name', name: 'Acme Power', role: 'customer', group_kind: 'same_name_unconfirmed', identity_count: 3, project_count: 4, total_known_project_count: 4, relevant_project_count: 0, need_count: 4, priority_score: null, sectors: [] },
+  { id: 'cg_cedar', name: 'Cedar Compute', role: 'customer', group_kind: 'resolved_identity', project_count: 1, total_known_project_count: 1, relevant_project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] },
 ]
 const project = (id: string, name: string, extra: Record<string, unknown> = {}) => ({ id, project_id: id, name, company: 'Northstar Energy', customer_identity_id: 'company-north', location: 'Midland, TX', sector: 'oil_gas', asset_type: 'Compressor station', priority_score: 71, representative_need_id: `need-${id}`, need_count: 1, needs: [{ id: `need-${id}`, project_id: id, tier: 'Prospect' }], event: null, contact: [], power_summary: null, power_summary_kind: 'unknown', next_action: null, updated_at: null, ...extra })
 const pursuit = { id: 'pursuit-1', need_id: 'need-p1', project_id: 'p1', stage: 'Engaged', title: 'Mesa pursuit', location: null, tier: 'Prospect', required_mw: null, start_window: null, contact: null, contact_status: 'unknown', attention: [], attention_labels: [], next_task: null, created_at: '2026-10-01T00:00:00Z', stage_changed_at: '2026-10-01T00:00:00Z' }
@@ -23,9 +24,10 @@ async function mock(page: Page, opts: { groupsStatus?: number; pursuits?: unknow
       const items = groups.filter(g => (!q || g.name.toLowerCase().includes(q)) && (!sector || sector === 'all' || g.sectors.includes(sector)))
       return route.fulfill({ json: { items, total: items.length, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'c1', generation: 'g' } })
     }
-    if (url.pathname === '/api/opportunities/projects') { projectQueries.push(url); return route.fulfill({ json: { items: [], total: 7, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g' } }) }
-    if (url.pathname === '/api/opportunities/groups/g-north/open') return route.fulfill({ json: { group: groups[0], parent_cohort_token: 'c1', generation: 'g', projects: { items: [project('p1', 'Mesa compressor', { power_summary: '12 MW reported' }), project('p2', 'Basin plant')], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'cp', generation: 'g' } } })
-    if (url.pathname === '/api/opportunities/groups/g-gone/open') return route.fulfill({ status: 404, json: {} })
+    if (url.pathname === '/api/opportunities/projects') { projectQueries.push(url); return route.fulfill({ json: { items: [], total: 7, count_unit: 'projects', limit: 1, offset: 0, cohort_token: 'p', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } }) }
+    if (url.pathname === '/api/opportunities/groups/cg_north/open') return route.fulfill({ json: { group: { ...groups[0], featured_project: project('p1', 'Mesa compressor', { power_summary: '12 MW reported', power_summary_kind: 'activity_requirement', contact: [{ kind: 'email', label: 'Email contact', href: 'mailto:buyer@northstar.example', name: 'Jordan Lee', title: 'Facilities Director' }], shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: 'A compressor project is under construction.', next_step: 'Confirm commissioning timing.' } }), total_known_project_count: 2 }, parent_cohort_token: 'c1', generation: 'g', valid_until: '2099-01-01T00:00:00Z', projects: { items: [project('p1', 'Mesa compressor', { power_summary: '12 MW reported', power_summary_kind: 'activity_requirement', contact: [{ kind: 'email', label: 'Email contact', href: 'mailto:buyer@northstar.example', name: 'Jordan Lee', title: 'Facilities Director' }] }), project('p2', 'Basin plant')], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'cp', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } } })
+    if (url.pathname === '/api/opportunities/groups/cg_name/open') return route.fulfill({ json: { group: { ...groups[1], sectors: [] }, parent_cohort_token: 'c1', generation: 'g', valid_until: '2099-01-01T00:00:00Z', projects: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'pc', generation: 'g', valid_until: '2099-01-01T00:00:00Z' } } })
+    if (url.pathname === '/api/opportunities/groups/cg_gone/open') return route.fulfill({ status: 404, json: {} })
     if (url.pathname === '/api/commercial-pursuits') {
       const all = (opts.pursuits ?? []) as unknown[]
       const limit = Number(url.searchParams.get('limit') ?? 100), offset = Number(url.searchParams.get('offset') ?? 0)
@@ -50,20 +52,19 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await expect(panel).toContainText('not a count of confirmed companies')
   await expect(panel.getByRole('heading', { name: 'Companies', level: 1 })).toBeVisible()
   const table = panel.getByRole('table', { name: 'Companies' })
-  await expect(table.getByRole('columnheader')).toHaveText(['Company', 'Projects', 'Priority score', 'Open'])
+  await expect(table.getByRole('columnheader')).toHaveText(['Company', 'Projects', 'Open'])
   await expect(table.getByRole('row').nth(1)).toContainText('Northstar Energy')
-  await expect(table.getByRole('row').nth(1)).toContainText('71')
+  await expect(table.getByRole('row').nth(1)).not.toContainText('71')
   await expect(table.getByRole('row').nth(2)).toContainText('Acme Power')
   await expect(table.getByRole('row').nth(2)).toContainText('Name group')
   await expect(table.getByRole('row').nth(2)).toContainText('Same source-reported name; company identities are not linked.')
   await expect(table.getByRole('row').nth(2)).toContainText('3 separate company identities')
   await expect(table.getByRole('row').nth(2)).not.toContainText('Customer')
-  await expect(table.getByRole('row').nth(3)).toContainText('Unranked')
+  await expect(table.getByRole('row').nth(3)).not.toContainText('Priority score')
   await expect(table).not.toContainText('Total MW')
   await expect(table).not.toContainText(/\b0 MW\b/)
   await expect(panel).toContainText('Total MW and linked pursuits are not part of the company list')
-  await expect(page.getByRole('link', { name: 'Browse customer accounts' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Browse operator and customer groups' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Back to Opportunities' })).toHaveAttribute('href', /shortlist=1/)
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('cedar')
   await expect(table.getByRole('row')).toHaveCount(2)
   await expect(panel.getByRole('status')).toContainText('1 operator/customer group matching search')
@@ -82,15 +83,15 @@ test('opening a company uses panel/company params, keeps context on back/forward
   await expect(panel.getByRole('table', { name: 'Companies' }).getByRole('row')).toHaveCount(2)
   await panel.getByRole('button', { name: 'Open Northstar Energy' }).click()
   await expect(page).toHaveURL(/panel=companies/)
-  await expect(page).toHaveURL(/company=g-north/)
+  await expect(page).toHaveURL(/company=cg_north/)
   const company = page.getByRole('region', { name: 'Company Northstar Energy' })
   await expect(company.getByRole('heading', { name: 'Northstar Energy', exact: true })).toBeVisible()
-  await expect(company).toContainText('Power: 12 MW reported')
-  await expect(company).toContainText('Power: Unknown')
-  await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('1 pursuit')
+  await expect(company).toContainText('12 MW reported')
+  await expect(company).not.toContainText('Power: Unknown')
+  await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit')
   await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit · Engaged')
-  await expect(company.getByRole('region', { name: 'Key contacts' })).toContainText('Research Required')
-  await expect(company.getByRole('link', { name: /Open opportunity Mesa compressor/ })).toHaveAttribute('href', /need=need-p1/)
+  await expect(company.getByRole('region', { name: 'Account overview' }).getByRole('link', { name: 'Email Jordan Lee' })).toHaveAttribute('href', 'mailto:buyer@northstar.example')
+  await expect(company.getByRole('button', { name: /Open project detail Mesa compressor/ })).toBeVisible()
   await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toBeHidden()
   await page.goBack()
   await expect(page).not.toHaveURL(/company=/)
@@ -101,8 +102,10 @@ test('opening a company uses panel/company params, keeps context on back/forward
   await expect(page).not.toHaveURL(/company=/)
   await expect(page).toHaveURL(/panel=companies/)
   await page.getByRole('button', { name: 'Open Northstar Energy' }).click()
-  await page.getByRole('link', { name: /Open opportunity Mesa compressor/ }).click()
+  await page.getByRole('button', { name: /Open project detail Mesa compressor/ }).click()
   await expect(page).toHaveURL(/need=need-p1/)
+  await expect(page).toHaveURL(/account=cg_north/)
+  await expect(page).toHaveURL(/project=p1/)
   await expect(page.getByRole('region', { name: 'Companies' })).toHaveCount(0)
   await page.goBack()
   await expect(page.getByRole('region', { name: 'Company Northstar Energy' })).toBeVisible()
@@ -110,9 +113,9 @@ test('opening a company uses panel/company params, keeps context on back/forward
 
 test('company deep link reloads, unavailable company and list errors are honest', async ({ page }) => {
   await mock(page, { pursuits: [] })
-  await page.goto('/?view=workspace&panel=companies&company=g-north')
-  await expect(page.getByRole('region', { name: 'Linked pursuits' })).toContainText('0 pursuits')
-  await page.goto('/?view=workspace&panel=companies&company=g-gone')
+  await page.goto('/?view=workspace&panel=companies&company=cg_north')
+  await expect(page.getByRole('region', { name: 'Linked pursuits' })).toContainText('No pursuits are linked')
+  await page.goto('/?view=workspace&panel=companies&company=cg_gone')
   await expect(page.getByRole('alert')).toContainText('no longer available')
 })
 
@@ -154,20 +157,20 @@ test('header Companies item while a company is open returns to the directory and
   await expect(page.getByRole('searchbox', { name: 'Search companies', exact: true })).toBeVisible()
   await expect(page).not.toHaveURL(/company=/)
   await page.goBack()
-  await expect(page).toHaveURL(/company=g-north/)
+  await expect(page).toHaveURL(/company=cg_north/)
   await expect(page.getByRole('region', { name: 'Company Northstar Energy' })).toBeVisible()
 })
 
 test('session end clears company names, projects, contacts and linked pursuits', async ({ page }) => {
   await mock(page, { pursuits: [pursuit] })
-  await page.goto('/?view=workspace&panel=companies&company=g-north')
+  await page.goto('/?view=workspace&panel=companies&company=cg_north')
   const company = page.getByRole('region', { name: 'Company Northstar Energy' })
-  await expect(company.getByRole('region', { name: 'Key contacts' })).toContainText('Research Required')
+  await expect(company.getByRole('region', { name: 'Account overview' }).getByRole('link', { name: 'Email Jordan Lee' })).toBeVisible()
   await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit')
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-clear-continuity')))
   const panel = page.getByRole('region', { name: 'Companies' })
   await expect(panel.getByRole('alert')).toContainText('Your session ended. Sign in again.')
-  for (const text of ['Northstar Energy', 'Cedar Compute', 'Mesa pursuit', 'Mesa compressor', 'Research Required', 'Checking your pursuits', '7 projects']) await expect(page.getByText(text)).toHaveCount(0)
+  for (const text of ['Northstar Energy', 'Cedar Compute', 'Mesa pursuit', 'Mesa compressor', 'Jordan Lee', 'Checking your pursuits', '7 projects']) await expect(page.getByText(text)).toHaveCount(0)
   await expect(page.getByRole('table', { name: 'Companies' })).toHaveCount(0)
 })
 
@@ -181,15 +184,14 @@ test('session end on the directory clears group names and counts', async ({ page
   await expect(page.getByText(/operator\/customer groups/)).toHaveCount(0)
 })
 
-test('same-name groups are described as groups, with singular identity wording', async ({ page }) => {
+test('same-name groups remain visibly unresolved rather than being described as one confirmed account', async ({ page }) => {
   await mock(page, { pursuits: [] })
   const solo = { ...groups[1], identity_count: 1 }
   await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [solo], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'c1', generation: 'g' } }))
-  await page.route('**/api/opportunities/groups/g-name/open**', route => route.fulfill({ json: { group: solo, parent_cohort_token: 'c1', generation: 'g', projects: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'pc', generation: 'g' } } }))
-  await page.goto('/?view=workspace&panel=companies&company=g-name')
+  await page.goto('/?view=workspace&panel=companies&company=cg_name')
   const group = page.getByRole('region', { name: 'Group Acme Power' })
-  await expect(group).toContainText('1 separate company identity')
-  await expect(group).not.toContainText('1 separate company identities')
+  await expect(group).toContainText('Same source-reported name; company identities are not linked.')
+  await expect(group).toContainText('4 known projects')
   await expect(group.getByRole('button', { name: '← Back to the directory' })).toBeVisible()
 })
 
@@ -204,7 +206,6 @@ test('linked pursuits include a pursuit that is only on the second page of the s
   const panel = page.getByRole('region', { name: 'Companies' })
   await panel.getByRole('button', { name: 'Open Northstar Energy' }).click()
   const linked = page.getByRole('region', { name: 'Company Northstar Energy' }).getByRole('region', { name: 'Linked pursuits' })
-  await expect(linked).toContainText('1 pursuit')
   await expect(linked).toContainText('Mesa pursuit · Engaged')
   await expect(linked).not.toContainText('may be incomplete')
   expect(pages.slice(0, 2)).toEqual(['200:null', '200:200'])
@@ -216,12 +217,12 @@ test('a capped pursuit load says the linked count may be incomplete', async ({ p
   await page.goto('/?view=workspace&panel=companies')
   await page.getByRole('region', { name: 'Companies' }).getByRole('button', { name: 'Open Northstar Energy' }).click()
   const linked = page.getByRole('region', { name: 'Company Northstar Energy' }).getByRole('region', { name: 'Linked pursuits' })
-  await expect(linked).toContainText('Only the first 2000 of 2300 pursuits could be checked')
+  await expect(linked).toContainText('Only the first 2000 pursuits could be checked; links may be incomplete.')
 })
 
 test('a background pursuit 401 clears company names, projects, contacts and linked pursuits', async ({ page }) => {
   await mock(page, { pursuits: [pursuit] })
-  await page.goto('/?view=workspace&panel=companies&company=g-north')
+  await page.goto('/?view=workspace&panel=companies&company=cg_north')
   const company = page.getByRole('region', { name: 'Company Northstar Energy' })
   await expect(company.getByRole('region', { name: 'Linked pursuits' })).toContainText('Mesa pursuit')
   // The client announces this event on a background pursuit 401 (never gl3-clear-continuity).

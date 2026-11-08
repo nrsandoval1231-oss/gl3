@@ -313,6 +313,8 @@ jobs:
           TYPESAFE_API_KEY: ""
           BRIEFS_DAILY_REQUEST_LIMIT: "0"
           PURSUITS_DAILY_MODEL_LIMIT: "0"
+      - name: Disposable browser seeder safety regressions
+        run: uv run --project backend pytest web/acceptance/pursuits-release/test_seed_safety.py -q
       - name: Representative customer rollup with real backend
         run: |
           set -euo pipefail
@@ -321,6 +323,8 @@ jobs:
           export DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gridlens_rollup_scale_browser_test"
           export TEST_DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/gridlens_rollup_scale_backend_test"
           export CUSTOMER_ROLLUP_REAL_PASSWORD="${GRIDLENS_TEST_PASSWORD}"
+          export CUSTOMER_ROLLUP_REAL_OUTPUT_DIR="${RUNNER_TEMP}/rollup-scale-playwright"
+          mkdir -p "$CUSTOMER_ROLLUP_REAL_OUTPUT_DIR"
           (cd backend && uv run alembic upgrade head)
           uv run --project backend python web/acceptance/rollup-scale/seed.py --manifest-output "${RUNNER_TEMP}/rollup-scale-manifest.json"
           export CUSTOMER_ROLLUP_REAL_MANIFEST="${RUNNER_TEMP}/rollup-scale-manifest.json"
@@ -337,6 +341,43 @@ jobs:
           TYPESAFE_API_KEY: ""
           BRIEFS_DAILY_REQUEST_LIMIT: "0"
           PURSUITS_DAILY_MODEL_LIMIT: "0"
+      - name: Persisted pursuits browser journey with real backend
+        run: |
+          set -euo pipefail
+          docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE ui_pursuits_real_test'
+          docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE ui_pursuits_backend_test'
+          export DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/ui_pursuits_real_test"
+          export TEST_DATABASE_URL="postgresql+psycopg://gridlens:${POSTGRES_PASSWORD}@127.0.0.1:5432/ui_pursuits_backend_test"
+          export PURSUITS_RELEASE_REAL_MANIFEST="${RUNNER_TEMP}/pursuits-manifest.json"
+          export PURSUITS_RELEASE_REAL_OUTPUT_DIR="${RUNNER_TEMP}/pursuits-playwright"
+          export PURSUITS_RELEASE_REAL_PASSWORD="${GRIDLENS_TEST_PASSWORD}"
+          mkdir -p "$PURSUITS_RELEASE_REAL_OUTPUT_DIR"
+          (cd backend && uv run alembic upgrade head)
+          uv run --project backend python web/acceptance/pursuits-release/seed.py --manifest-output "$PURSUITS_RELEASE_REAL_MANIFEST"
+          (cd web && npx playwright test -c acceptance/pursuits-release/playwright.config.ts)
+        env:
+          PURSUITS_RELEASE_REAL: "1"
+          PURSUITS_RELEASE_REAL_START_STACK: "1"
+          PURSUITS_RELEASE_WEB_ORIGIN: http://127.0.0.1:15294
+          GRIDLENS_API_PORT: "18192"
+          TRUSTED_ORIGINS: http://127.0.0.1:15294
+          COOKIE_SECURE: "false"
+          WORKER_AUTO_REFRESH: "false"
+          OPENAI_API_KEY: ""
+          TYPESAFE_API_KEY: ""
+          BRIEFS_DAILY_REQUEST_LIMIT: "0"
+          PURSUITS_DAILY_MODEL_LIMIT: "0"
+      - name: Retain synthetic acceptance screenshots and measurements
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: account-first-acceptance-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/pursuits-playwright/**/screenshots/*.png
+            ${{ runner.temp }}/pursuits-playwright/performance.json
+            ${{ runner.temp }}/rollup-scale-playwright/customer-rollup-report.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Retain browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -345,6 +386,8 @@ jobs:
           path: |
             web/playwright-report/
             web/test-results/
+            ${{ runner.temp }}/rollup-scale-playwright/
+            ${{ runner.temp }}/pursuits-playwright/
           retention-days: 7
           if-no-files-found: ignore
 

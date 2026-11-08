@@ -9,8 +9,20 @@ const categories = [
   ['review_exception', 'Review exception'],
 ] as const
 
+function reportChangeIntent() {
+  const saved = new URLSearchParams(location.search).get('panel') === 'reports' ? history.state?.reportChanges : null
+  return { offset: Number.isSafeInteger(saved?.offset) && saved.offset >= 0 ? saved.offset as number : 0, expanded: saved?.expanded === true }
+}
+
+function rememberReportChangeIntent(offset: number, expanded: boolean) {
+  if (new URLSearchParams(location.search).get('panel') !== 'reports') return
+  // Retain navigation intent only; private change records are always read anew.
+  history.replaceState({ ...history.state, reportChanges: { offset, expanded } }, '', location.href)
+}
+
 export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void }) {
-  const [offset, setOffset] = useState(0)
+  const [offset, setOffset] = useState(() => reportChangeIntent().offset)
+  const [expanded, setExpanded] = useState(() => reportChangeIntent().expanded)
   const [reload, setReload] = useState(0)
   const [result, setResult] = useState<WorkspaceChanges | null>(null)
   const [loading, setLoading] = useState(false)
@@ -19,6 +31,7 @@ export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (
   const [history, setHistory] = useState<WorkspaceHistoricalNeed | null>(null)
   const [historyError, setHistoryError] = useState('')
   const historySequence = useRef(0)
+  const changePage = (next: number) => { rememberReportChangeIntent(next, expanded); setOffset(next) }
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true); setError(''); setResult(null)
@@ -43,7 +56,7 @@ export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (
   }, [historyNeedId])
 
   return <section className="wh-changes" aria-label="Material changes">
-    <details>
+    <details open={expanded} onToggle={event => { const next = event.currentTarget.open; rememberReportChangeIntent(offset, next); setExpanded(next) }}>
       <summary>Material changes · {loading ? 'Loading' : result?.total_unreviewed ?? 'Unavailable'} recent change items</summary>
       <p>Global retained changes · counts are material change items. Change records are read-only; source-health exceptions remain visible.</p>
       {result && <>
@@ -71,7 +84,7 @@ export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (
         {history && <><h3>{history.name} · {history.activity}</h3><p>{history.location ?? 'Location unknown'} · Inactive historical need · Stored state updated {new Date(history.updated_at).toLocaleString()}</p><p>{history.rationale}</p><p>Required power {history.required_mw ?? 'Unknown'} · Start {history.start_window ?? 'Unknown'} · Duration {history.duration ?? 'Unknown'} · Supply {history.supply}</p>{history.evidence.length > 0 && <details><summary>Preserved historical evidence</summary>{history.evidence.map(evidence => <p key={`${evidence.url}:${evidence.content_hash}`}><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a> · Published {evidence.published_at ?? 'date unknown'} · Event {evidence.event_date ?? 'date unknown'} · Retrieved {new Date(evidence.retrieved_at).toLocaleString()} · {evidence.content_hash}</p>)}</details>}</>}
       </section>}
       {result?.source_health_exceptions.length ? <section aria-label="Source health exceptions"><h3>Source-health exceptions</h3><ul>{result.source_health_exceptions.map(item => <li key={item.source_id}>{item.source_id} · {item.status}{item.error ? ` · ${item.error}` : ''}{item.parse_failures ? ` · ${item.parse_failures} parse failures` : ''}</li>)}</ul></section> : null}
-      {result && <footer className="wh-change-footer"><span>Showing {result.items.length ? result.offset + 1 : 0}–{result.offset + result.items.length} of {result.total_unreviewed} changes</span><button aria-label="Previous changes" disabled={result.offset === 0 || loading} onClick={() => setOffset(Math.max(0, result.offset - result.limit))}>Previous changes</button><button aria-label="Next changes" disabled={result.next_offset === null || loading} onClick={() => setOffset(result.next_offset ?? 0)}>Next changes</button></footer>}
+      {result && <footer className="wh-change-footer"><span>Showing {result.items.length ? result.offset + 1 : 0}–{result.offset + result.items.length} of {result.total_unreviewed} changes</span><button aria-label="Previous changes" disabled={result.offset === 0 || loading} onClick={() => changePage(Math.max(0, result.offset - result.limit))}>Previous changes</button><button aria-label="Next changes" disabled={result.next_offset === null || loading} onClick={() => changePage(result.next_offset ?? 0)}>Next changes</button></footer>}
     </details>
   </section>
 }

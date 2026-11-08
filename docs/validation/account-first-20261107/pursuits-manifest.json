@@ -1,0 +1,14 @@
+{
+  "account_name": "DE CENTRAL Synthetic Operator",
+  "contact_project_id": "917ba0dc-dbc1-4c02-baee-6af963d5db29",
+  "migration_revision": "0051_canonical_need_aliases",
+  "second_page_need_id": "e871bdbe-5ba3-40b2-a91e-b7df4d842d70",
+  "second_page_project_id": "8d569766-9734-4373-87f9-35ca448f095a",
+  "synthetic_fixture": true,
+  "target_group_id": "cg_7917a514f19099ee070e7829a0fab68f",
+  "target_group_name": "DE CENTRAL Synthetic Operator",
+  "target_name": "STORMCHASER Synthetic Asset",
+  "target_need_id": "66d58664-4bd2-4ce9-8d73-53a156e71a46",
+  "target_project_id": "876d27c2-177c-4171-9f00-42fd4b9877e2",
+  "total_rows": 2098
+}

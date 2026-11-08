@@ -124,7 +124,10 @@ def _write_customer_projection(
     from gridlens.intelligence.customer_accounts import (
         _current_conflicted_memberships,
         _current_customer_claims,
+        _primary_role_selections,
+        _retracted_primary_projects,
     )
+    from gridlens.intelligence.customer_primary import project_sectors
 
     selected: dict[tuple[UUID, UUID], tuple[str, str]] = {}
     supporting_refs: dict[UUID, set[str]] = {}
@@ -132,6 +135,15 @@ def _write_customer_projection(
     scoped_memberships = _current_customer_claims(
         session, project_ids=project_scope, include_conflicts=True
     )
+    browse_project_ids = set(
+        session.scalars(
+            select(BrowseRow.project_id).where(BrowseRow.generation_id == generation_id).distinct()
+        )
+    )
+    if project_scope is not None:
+        browse_project_ids.intersection_update(project_scope)
+    sectors_by_project = project_sectors(session, browse_project_ids, generation_id=generation_id)
+    selections = _primary_role_selections(session, scoped_memberships, sectors_by_project)
     affected_identities = {identity_id for identity_id, _project_id, _claim in scoped_memberships}
     if project_scope is not None and previous_generation_id is not None:
         affected_identities.update(
@@ -147,19 +159,18 @@ def _write_customer_projection(
         if project_scope is not None and affected_identities
         else scoped_memberships
     )
-    identities_by_project: dict[UUID, set[UUID]] = {}
-    for identity_id, project_id, _claim in scoped_memberships:
-        identities_by_project.setdefault(project_id, set()).add(identity_id)
-    conflicts = {project_id for project_id, ids in identities_by_project.items() if len(ids) > 1}
+    conflicts = {
+        project_id for project_id, selection in selections.items() if selection.status == "conflict"
+    }
     membership_conflicts: dict[UUID, set[tuple[UUID, str]]] = {}
     for project_id, identity_id, organization_name in _current_conflicted_memberships(
         session, project_scope
     ):
         membership_conflicts.setdefault(project_id, set()).add((identity_id, organization_name))
-        identities_by_project.setdefault(project_id, set()).add(identity_id)
-    conflicts.update(
-        project_id for project_id, ids in identities_by_project.items() if len(ids) > 1
-    )
+    retracted_projects = _retracted_primary_projects(session, browse_project_ids)
+    # The shared selector already applies primary-role precedence to these
+    # operator negatives. Do not publish a contradictory unresolved row when a
+    # data-center owner remains the valid primary association.
     for identity_id, _project_id, claim in raw_memberships:
         refs = {
             str(citation["evidence_id"])
@@ -172,14 +183,13 @@ def _write_customer_projection(
             current_update = evidence_updates.get(identity_id)
             if current_update is None or observed_at > current_update:
                 evidence_updates[identity_id] = observed_at
-    for identity_id, project_id, claim in scoped_memberships:
-        if project_id in conflicts:
+    for project_id, selection in selections.items():
+        if selection.status != "selected" or selection.company_identity_id is None:
             continue
-        key = (identity_id, project_id)
-        current = selected.get(key)
-        value = (claim.organization, claim.category)
-        if current is None or value[0].casefold() < current[0].casefold():
-            selected[key] = value
+        selected[(selection.company_identity_id, project_id)] = (
+            selection.organization_name or "",
+            selection.role or "",
+        )
     reference_ids = {
         UUID(reference)
         for references in supporting_refs.values()
@@ -268,12 +278,12 @@ def _write_customer_projection(
     unresolved: set[tuple[UUID, str, str, str]] = set()
     selected_projects = {selected_project for _identity, selected_project in selected}
     for project_id in project_ids - selected_projects:
-        if project_id in conflicts or project_id in membership_conflicts:
+        if project_id in conflicts:
             project = projects[project_id]
             reason = (
-                "A source-backed operator changed after an attributed retraction; review required."
-                if project_id in membership_conflicts
-                else "Multiple current customer identities require review."
+                "A primary customer relationship is conflicted or withdrawn; review required."
+                if project_id in membership_conflicts or project_id in retracted_projects
+                else "A primary customer identity is ambiguous or withdrawn; review required."
             )
             unresolved.add(
                 (

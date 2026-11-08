@@ -16,18 +16,6 @@
   isolation: isolate;
 }
 
-.canonical-header::before {
-  position: absolute;
-  z-index: -1;
-  top:0;right:50px;width:145px;height:53px;
-  background-image: url('/ui/canonical/canonical-header-architecture.png');
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  content: "";
-  pointer-events: none;
-  opacity:.65;
-}
-
 .canonical-header__brand {
   display: inline-flex;
   justify-self: start;

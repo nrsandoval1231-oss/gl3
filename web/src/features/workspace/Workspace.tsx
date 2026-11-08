@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
+import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
 import { LoginPage } from '../auth/LoginPage'
 import { WorkspaceDetail, workspaceTabs, type WorkspaceTab } from './WorkspaceDetail'
 import { ResearchView } from '../pursuits/ResearchView'
@@ -45,6 +45,7 @@ function panelFromUrl(): 'companies' | 'reports' | null {
 }
 function pushPanel(panel: 'companies' | 'reports' | null) {
   const params = getParams(); params.set('view', 'workspace')
+  // The active panel controls rendering; retain the caller's browse mode for Back.
   params.delete('company'); if (!panel) { params.delete('cq'); params.delete('cs') } if (panel) params.set('panel', panel); else params.delete('panel')
   const url = `/?${params}`
   // Re-selecting the panel already shown must not stack identical history entries.
@@ -105,6 +106,8 @@ export function WorkspaceHome() {
     setSignalScope(scope)
   }
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+  const [legacyAccountResolution, setLegacyAccountResolution] = useState<{ accountId: string; status: 'loading' | 'unavailable' | 'error'; message?: string } | null>(null)
+  const [legacyAccountRetry, setLegacyAccountRetry] = useState(0)
   const [filters, setFilters] = useState<WorkspaceFilters>(() => currentView() === 'opportunities' ? initialFilters() : { sort: 'priority', offset: 0 })
   const [page, setPage] = useState<WorkspacePage | null>(null)
   const [pageIdentity, setPageIdentity] = useState<{ request: string; revision: number } | null>(null)
@@ -114,6 +117,9 @@ export function WorkspaceHome() {
   const [detailError, setDetailError] = useState('')
   const [detailIdentity, setDetailIdentity] = useState<{ id: string; revision: number } | null>(null)
   const [accountAssociationNotice, setAccountAssociationNotice] = useState('')
+  const accountAssociationNoticeNeed = useRef<string | null>(null)
+  const workspaceBrowseResume = useRef<Record<string, string>>({})
+  const [validatedAccountContext, setValidatedAccountContext] = useState<{ key: string; status: 'valid' | 'unavailable' } | null>(null)
   const [tab, setTab] = useState<Tab>(() => workspaceTabFromParams(getParams()))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -144,21 +150,69 @@ export function WorkspaceHome() {
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
   const accountBrowse = getParams().get('accountBrowse') === '1'
-  const groupBrowse = getParams().get('groupBrowse') === '1' && getParams().get('projectBrowse') !== '1'
+  const legacyAccountId = accountBrowse ? getParams().get('account') ?? '' : ''
+  const legacyAccountRoute = accountBrowse && !navigationPanel
+  const groupBrowse = getParams().get('projectBrowse') !== '1' && (getParams().get('groupBrowse') === '1' || getParams().get('accountBrowse') !== '1')
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
+  const routeAccountId = getParams().get('account') ?? ''
+  const routeNeedId = getParams().get('need') ?? ''
+  const accountContextKey = `${routeAccountId}:${routeNeedId}`
+  const accountContextStatus = routeAccountId.startsWith('cg_') && routeNeedId && groupBrowse
+    ? validatedAccountContext?.key === accountContextKey ? validatedAccountContext.status : 'pending'
+    : 'valid'
   useEffect(() => {
-    if (!detailCurrent || !selected) return
+    if (!detailCurrent || !selected || selected.id !== routeNeedId) return
     const params = getParams(), expectedAccount = params.get('account')
-    if (!expectedAccount) { setAccountAssociationNotice(''); return }
+    if (!expectedAccount) {
+      if (accountAssociationNoticeNeed.current !== selected.id) { accountAssociationNoticeNeed.current = null; setAccountAssociationNotice('') }
+      return
+    }
+    const clearAccountContext = (message: string) => {
+      const current = getParams()
+      if (current.get('account') !== expectedAccount || current.get('need') !== selected.id) return
+      current.delete('account'); current.delete('project')
+      history.replaceState(history.state, '', `/${current.size ? `?${current}` : ''}`)
+      setValidatedAccountContext(null); accountAssociationNoticeNeed.current = selected.id; setAccountAssociationNotice(message)
+      dispatchEvent(new Event('gl3-account-route'))
+    }
+    if (expectedAccount.startsWith('cg_') && params.get('groupBrowse') === '1') {
+      const contextKey = `${expectedAccount}:${selected.id}`
+      if (!selected.project_id) {
+        clearAccountContext('This project has no current account assignment. The saved account link was cleared.')
+        return
+      }
+      const controller = new AbortController()
+      const selection = selectionSequence.current
+      client.resolveProjectAccount(selected.project_id, controller.signal).then(account => {
+        if (controller.signal.aborted || selection !== selectionSequence.current || getParams().get('account') !== expectedAccount || getParams().get('need') !== selected.id) return
+        if (account.id !== expectedAccount) {
+          clearAccountContext('This project belongs to a different current account. The saved account link was cleared.')
+          return
+        }
+        const canonicalProjectId = 'project_id' in account && typeof account.project_id === 'string' ? account.project_id : null
+        if (canonicalProjectId && getParams().get('project') !== canonicalProjectId) {
+          const current = getParams(); current.set('project', canonicalProjectId)
+          history.replaceState(history.state, '', `/?${current}`)
+        }
+        setValidatedAccountContext({ key: contextKey, status: 'valid' }); accountAssociationNoticeNeed.current = null; setAccountAssociationNotice('')
+      }).catch((cause: unknown) => {
+        if (controller.signal.aborted || selection !== selectionSequence.current || getParams().get('account') !== expectedAccount || getParams().get('need') !== selected.id) return
+        if (cause instanceof OpportunityGroupUnavailableError) {
+          clearAccountContext('The selected project is not currently assigned to this account. The saved account link was cleared.')
+        } else {
+          setValidatedAccountContext({ key: contextKey, status: 'unavailable' })
+          setAccountAssociationNotice(cause instanceof OpportunityBrowsePendingError ? 'Account membership is temporarily unavailable; the selected project remains open.' : 'Account membership could not be confirmed; the selected project remains open.')
+        }
+      })
+      return () => controller.abort()
+    }
     const association = selected.associated_account
-    if (association?.support_status === 'current' && association.company_identity_id === expectedAccount) { setAccountAssociationNotice(''); return }
-    params.delete('account'); params.delete('project')
-    history.replaceState(history.state, '', `/${params.size ? `?${params}` : ''}`)
-    setAccountAssociationNotice(association
+    if (association?.support_status === 'current' && association.company_identity_id === expectedAccount) { accountAssociationNoticeNeed.current = null; setAccountAssociationNotice(''); return }
+    clearAccountContext(association
       ? `The saved account link was cleared. Current evidence associates this need with ${association.name}.`
       : 'The saved account link was cleared because current evidence does not support an account association for this need.')
-  }, [detailCurrent, selected?.id, selected?.associated_account?.company_identity_id, selected?.associated_account?.support_status])
+  }, [detailCurrent, selected?.id, selected?.project_id, selected?.associated_account?.company_identity_id, selected?.associated_account?.support_status, routeAccountId, routeNeedId])
   let detailItem: WorkspaceDetail | null = null
   if (detailCurrent && selected) {
     detailItem = pageCurrent || !accountBrowse ? selected : { ...selected, ...commercialPreview(undefined), next_action: 'Recommendation unavailable while the current opportunity cohort is unavailable.' }
@@ -236,6 +290,35 @@ export function WorkspaceHome() {
   }, [detailCurrent, detailNavigation, pendingNeedId, selected?.id, view])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
+    if (!legacyAccountRoute || !authenticated) return
+    const params = getParams()
+    const requestedId = params.get('account') ?? ''
+    if (!requestedId) {
+      params.delete('accountBrowse'); params.delete('cohort_token'); params.delete('offset')
+      history.replaceState(history.state, '', `/?${params}`)
+      dispatchEvent(new PopStateEvent('popstate'))
+      return
+    }
+    if (requestedId.startsWith('cg_')) {
+      params.delete('accountBrowse'); params.delete('cohort_token'); params.delete('offset'); params.set('groupBrowse', '1')
+      history.replaceState(history.state, '', `/?${params}`)
+      dispatchEvent(new PopStateEvent('popstate'))
+      return
+    }
+    const controller = new AbortController()
+    setLegacyAccountResolution({ accountId: requestedId, status: 'loading' })
+    client.resolveCompanyAccount(requestedId, controller.signal).then(account => {
+      if (controller.signal.aborted || getParams().get('account') !== requestedId || getParams().get('accountBrowse') !== '1') return
+      const next = getParams(); next.delete('accountBrowse'); next.delete('cohort_token'); next.delete('offset'); next.set('groupBrowse', '1'); next.set('account', account.id)
+      history.replaceState(history.state, '', `/?${next}`)
+      setLegacyAccountResolution(null)
+      dispatchEvent(new PopStateEvent('popstate'))
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted && getParams().get('account') === requestedId && getParams().get('accountBrowse') === '1') setLegacyAccountResolution(cause instanceof OpportunityGroupUnavailableError ? { accountId: requestedId, status: 'unavailable' } : { accountId: requestedId, status: 'error', message: cause instanceof Error ? cause.message : 'Could not resolve this saved account.' })
+    })
+    return () => controller.abort()
+  }, [legacyAccountRoute, legacyAccountId, authenticated, legacyAccountRetry])
+  useEffect(() => {
     // Remove shell-owned result/detail state as child panels clear their own retained data.
     const onSessionEnded = () => {
       ++selectionSequence.current
@@ -252,7 +335,7 @@ export function WorkspaceHome() {
   // Account browsing remains available as an explicit secondary route. Ordinary
   // opportunities use the project projection in ProjectResults.
   useEffect(() => {
-    if (!authenticated || view !== 'opportunities' || !accountBrowse) return
+    if (!authenticated || view !== 'opportunities' || !accountBrowse || legacyAccountRoute || navigationPanel) return
     const controller = new AbortController(); setLoading(true); setError('')
     client.workspace(filters, controller.signal).then(value => {
       if (controller.signal.aborted) return
@@ -260,7 +343,7 @@ export function WorkspaceHome() {
       setPage(value); setPageIdentity({ request: workspaceRequestKey(filters), revision }); setLoading(false)
     }).catch((cause: Error) => { if (!controller.signal.aborted) { setLoading(false); if (cause instanceof OpportunityCohortChangedError && (filters.offset || filters.cohort_token)) { const next = { ...filters, offset: 0, cohort_token: undefined }; setFilters(next); setPageIdentity(null); setError('The opportunity list changed. Reloaded from the first page.'); const params = getParams(); params.set('offset', '0'); params.delete('cohort_token'); history.replaceState(history.state, '', `/?${params}`) } else { setError(cause.message); if (/session ended/i.test(cause.message)) setAuthenticated(false) } } })
     return () => controller.abort()
-  }, [authenticated, view, accountBrowse, JSON.stringify(filters), revision])
+  }, [authenticated, view, accountBrowse, legacyAccountRoute, navigationPanel, JSON.stringify(filters), revision])
   useEffect(() => {
     const onPop = () => {
       const p = getParams(); let id = p.get('need')
@@ -329,7 +412,7 @@ export function WorkspaceHome() {
     if (item && window.matchMedia('(max-width: 1050px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.cod-back, .wh-back')?.focus()) }
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
-  const navigate = (nextView: 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals', pursuitId?: string) => {
+  const navigate = (nextView: 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals', pursuitId?: string, panel?: 'companies' | 'reports') => {
     moreMenu.current?.removeAttribute('open')
     if (nextView === 'pursuits' && view === 'pursuits') {
       // Already on the page: push the list/deep-link URL and let the page re-read it (no remount, filter kept).
@@ -347,14 +430,16 @@ export function WorkspaceHome() {
     setView(nextView)
     if (view === 'signals') signalParams.current = getParams()
     const currentBrowse = getParams()
+    if (view === 'opportunities') workspaceBrowseResume.current = Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse', 'projectBrowse', 'shortlist', 'region', 'stage', 'priority', 'account', 'project', 'matchedNeed', 'need', 'section'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
     const savedBrowse: Record<string, string> = view === 'opportunities'
-      ? Object.fromEntries(['q', 'sector', 'sort', 'offset', 'cohort_token', 'groupBrowse', 'projectBrowse', 'shortlist', 'region', 'stage', 'priority'].flatMap(key => currentBrowse.has(key) ? [[key, currentBrowse.get(key)!]] : []))
-      : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? {}
+      ? workspaceBrowseResume.current
+      : (history.state?.workspaceBrowse as Record<string, string> | undefined) ?? workspaceBrowseResume.current
     const params = nextView === 'opportunities' ? workspaceParams(filters)
       : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
       : new URLSearchParams({ view: nextView })
     if (nextView === 'pursuits' && pursuitId) params.set('pursuit', pursuitId)
     if (nextView === 'opportunities') for (const [key, value] of Object.entries(savedBrowse)) params.set(key, value)
+    if (panel) params.set('panel', panel)
     if (nextView === 'signals') { params.set('view', 'signals'); params.delete('need'); params.delete('section') }
     history.pushState({ ...history.state, workspaceBrowse: savedBrowse }, '', `/?${params}`)
   }
@@ -393,7 +478,7 @@ export function WorkspaceHome() {
     activeDestination={navigationPanel ?? (view === 'pursuits' ? 'pursuits' : 'opportunities')}
     badges={{ pursuits: pursuitStore.counts.active }}
     onNavigate={destination => {
-      if (destination === 'companies' || destination === 'reports') { setNavigationPanel(destination); if (view !== 'opportunities') navigate('opportunities'); pushPanel(destination) }
+      if (destination === 'companies' || destination === 'reports') { setNavigationPanel(destination); if (view !== 'opportunities') navigate('opportunities', undefined, destination); else pushPanel(destination) }
       else { setNavigationPanel(null); if (navigationPanel) pushPanel(null); navigate(destination) }
     }}
     search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
@@ -403,7 +488,8 @@ export function WorkspaceHome() {
   if (view === 'pursuits') return <div className="workspace-home">{header}<main className="pu-main"><PursuitsPage/></main></div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
   if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout wh-signal-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { updateSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/></div></main></div>
-  if (accountBrowse) {
+  if (legacyAccountRoute) return <div className="workspace-home">{header}<main className="wh-single-view" aria-live="polite">{legacyAccountResolution?.status === 'unavailable' ? <section role="alert"><h1>Saved account unavailable</h1><p>This company could not be matched to a current account.</p><button type="button" onClick={() => { setNavigationPanel('companies'); pushPanel('companies') }}>Open Companies</button></section> : legacyAccountResolution?.status === 'error' ? <section role="alert"><h1>Account resolution failed</h1><p>{legacyAccountResolution.message}</p><button type="button" onClick={() => setLegacyAccountRetry(value => value + 1)}>Retry</button><button type="button" onClick={() => { setNavigationPanel('companies'); pushPanel('companies') }}>Open Companies</button></section> : <p role="status">Resolving saved account…</p>}</main></div>
+  if (accountBrowse && !navigationPanel) {
     const setLegacyFilter = (key: keyof WorkspaceFilters, value: string) => { const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; if (key === 'industry_group') next.industry = undefined; if (key === 'industry' && value.trim()) next.industry_group = undefined; setFilters(next); setPageIdentity(null); const params = workspaceParams(next); params.set('accountBrowse', '1'); const account = getParams().get('account'); if (account) params.set('account', account); history.pushState(history.state, '', `/?${params}`) }
     const setLegacyPage = (offset: number, cohort_token: string | undefined) => { snapshotList(); const next = { ...filters, offset, cohort_token }; setFilters(next); setPageIdentity(null); const params = workspaceParams(next); params.set('accountBrowse', '1'); const account = getParams().get('account'); if (account) params.set('account', account); history.pushState(history.state, '', `/?${params}`) }
     return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout wh-opportunity-layout"><section className="wh-list" aria-label={visiblePage?.count_unit === 'company accounts' ? 'Account results' : 'Secondary opportunity list'}>
@@ -418,7 +504,7 @@ export function WorkspaceHome() {
     </section><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/></div></main></div>
   }
   const ResultsView = groupBrowse ? ProjectResults : CanonicalOpportunityResults
-  const DetailView = groupBrowse ? WorkspaceDetail : CanonicalOpportunityDetail
+  const DetailView = accountBrowse ? WorkspaceDetail : CanonicalOpportunityDetail
   return <div className="workspace-home">
     {header}
     {researchHost}
@@ -426,16 +512,16 @@ export function WorkspaceHome() {
       <button type="button" className="canonical-navigation-back" aria-label="Close navigation panel" onClick={() => { setNavigationPanel(null); pushPanel(null) }}>← Back to Opportunities</button>
       {navigationPanel === 'companies' ? <CompaniesPanel onNeed={id => { setNavigationPanel(null); openActiveNeed({ id }) }}/> : <ReportsPanel onSelectActiveNeed={need => { setNavigationPanel(null); openActiveNeed(need) }}/>}
     </section></main>}
-    <main hidden={Boolean(navigationPanel)} className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
+    {!navigationPanel && <main className={`wh-main project-first-main ${groupBrowse ? "" : "canonical-workspace-main"}`}>
       <div className={`wh-layout wh-opportunity-layout project-first-layout ${selected || pendingNeedId ? 'project-detail-open' : ''}`}>
-        <CanonicalOpportunityKpis/>
-        <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} onNeed={openActiveNeed} onBrowseChange={() => {
+        {!groupBrowse && <CanonicalOpportunityKpis/>}
+        <ResultsView selectedNeedId={selected?.id ?? pendingNeedId ?? undefined} accountContextStatus={accountContextStatus} onNeed={openActiveNeed} onBrowseChange={() => {
           updateSelectedNeedContext(null); ++selectionSequence.current
           setDetailIdentity(null); setSelected(null); setPendingNeedId(null); setDetailLoading(false); setDetailError(''); setTab('Overview')
         }}/>
-        {(!groupBrowse || selected || pendingNeedId) && <DetailView item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
+        {(!groupBrowse || selected || pendingNeedId) && <DetailView item={detailItem} accountFirst={groupBrowse} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} associationNotice={accountAssociationNotice} projectFirst={!accountBrowse} onTab={next => { setTab(next); if (selected) { const steps = history.state?.workspaceTabSteps ?? 0; const directEntry = history.state?.workspaceDirectEntry || !history.state?.workspaceDetail; writeUrl(filters, selected.id, next, true, currentAccountContext()); history.replaceState({ ...history.state, workspaceTabSteps: steps + 1, workspaceDirectEntry: directEntry }, '', location.href) } }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)}/>}
       </div>
-    </main>
+    </main>}
   </div>
 }
 function commercialPreview(row: WorkspaceNeed | null | undefined) {

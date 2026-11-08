@@ -73,7 +73,9 @@ def test_customer_group_routes_validate_queries_and_cohort_tokens(saved_db, monk
     assert child.status_code == 200, child.text
     assert child.json()["items"]
 
-    opened = client.get(f"/api/opportunities/groups/{group_id}/open")
+    opened = client.get(
+        f"/api/opportunities/groups/{group_id}/open", params={"search": "Synthetic"}
+    )
     assert opened.status_code == 200, opened.text
     opened_payload = opened.json()
     assert opened_payload["group"] == parent_payload["items"][0]

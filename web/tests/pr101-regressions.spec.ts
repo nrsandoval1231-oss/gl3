@@ -15,8 +15,14 @@ const need = {
 
 const workspaceResponse = (items: readonly unknown[] = [need]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'workspace-token', count_unit: 'power needs', changes_available: false })
 
+const project = {
+  id: 'project-a', project_id: 'project-a', name: 'Austin data center', company: 'Example operator', location: 'Austin, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null, representative_need_id: 'need-a', need_count: 1,
+  needs: [{ id: 'need-a', project_id: 'project-a', tier: 'Signal', activity: 'construction', browse_title: 'Austin data center', location: 'Austin, TX' }],
+  event: null, contact: [], contact_people: [], power_summary: null, power_summary_kind: 'unknown', next_action: 'Confirm the fixture details.', updated_at: null,
+}
+
 async function authenticated(page: import('@playwright/test').Page) {
-  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route(url => new URL(url).pathname === '/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
 }
 
@@ -31,8 +37,12 @@ function opportunityHeaders(token: string, offset: number, nextOffset: number | 
 
 test('legacy environment links preserve supported tab, lens, tier, and grouped browse offset', async ({ page }) => {
   await authenticated(page)
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: workspaceResponse() }))
+  await page.route('**/api/opportunities/projects?*', route => {
+    const selectedNeed = new URL(route.request().url()).searchParams.has('need_id')
+    return route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: selectedNeed ? 1 : 25, offset: 0, cohort_token: selectedNeed ? 'selected-project' : 'project-page', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } })
+  })
   let detailReads = 0
   await page.route('**/api/opportunities/needs/need-a*', route => { detailReads += 1; return route.fulfill({ json: need }) })
   const browseRequests: URL[] = []
@@ -43,14 +53,14 @@ test('legacy environment links preserve supported tab, lens, tier, and grouped b
     return route.fulfill({ status: 200, contentType: 'application/json', headers: opportunityHeaders('legacy-page', offset, null), body: JSON.stringify([need]) })
   })
 
-  await page.goto('/environment?view=environment&mode=evidence&need=need-a&lens=data_center&groupBrowse=1')
+  await page.goto('/environment?view=environment&mode=evidence&need=need-a&lens=data_center&projectBrowse=1&shortlist=0')
   await expect.poll(() => {
     const params = new URL(page.url()).searchParams
     return [params.get('view'), params.get('industry'), params.get('section'), params.get('need')]
   }).toEqual(['workspace', 'data_center', 'evidence', 'need-a'])
   await expect.poll(() => detailReads).toBeGreaterThan(0)
   await expect(page.locator('.wh-detail').getByRole('button', { name: 'Evidence', exact: true })).toHaveClass(/active/)
-  await expect(page.locator('.wh-evidence-table').getByRole('link', { name: 'Construction filing' })).toBeVisible()
+  await expect(page.locator('.wh-detail').getByRole('link', { name: 'Construction filing' })).toBeVisible()
   await page.goto('/environment?view=environment&mode=browse&level=Leads&lens=data_center&records=50')
   await expect(page.getByRole('heading', { name: 'Leads' })).toBeVisible()
   await expect.poll(() => new URL(page.url()).searchParams.get('offset')).toBe('50')
@@ -80,11 +90,12 @@ test('secondary technical diagnostics keeps the filtered inbox URL and readback 
   await expect.poll(() => requests.at(-1)?.searchParams.get('offset')).toBe('25')
 })
 
-test('default landing hides the legacy queue and briefing controls', async ({ page }) => {
+test('default account-first landing hides the legacy queue and briefing controls', async ({ page }) => {
   await authenticated(page)
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic' } }))
-  await page.goto('/?groupBrowse=1')
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'empty', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } }))
+  await page.goto('/?view=workspace')
   await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
   await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
-  await expect(page.getByText('No groups match this search.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByText('No accounts are available in this scope.')).toBeVisible()
 })

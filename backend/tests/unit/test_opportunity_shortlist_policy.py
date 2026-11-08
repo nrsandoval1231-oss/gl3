@@ -199,7 +199,9 @@ def test_drilling_permission_and_existing_registration_are_not_demand():
         ),
     ],
 )
-def test_retained_news_headline_and_abstract_are_meaningful_events(title, abstract):
+def test_retained_news_headline_and_abstract_are_meaningful_events_not_physical_identity(
+    title, abstract
+):
     result = assess(
         source(
             "",
@@ -212,7 +214,7 @@ def test_retained_news_headline_and_abstract_are_meaningful_events(title, abstra
     )
     assert result["eligible"]
     assert result["why_now"].startswith("Published 2026-10-27:")
-    assert result["duplicate_key"]
+    assert result["duplicate_key"] is None
 
 
 def test_colon_in_unstructured_news_prose_does_not_suppress_scope_fallback():

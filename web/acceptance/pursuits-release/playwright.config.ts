@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const configDir = fileURLToPath(new URL('.', import.meta.url))
 
 if (process.env.PURSUITS_RELEASE_REAL !== '1') {
   throw new Error('Set PURSUITS_RELEASE_REAL=1 to opt into the isolated real-backend pursuits lane.')
@@ -26,14 +29,14 @@ const webServer = startStack
   ? [
       {
         command: `uv run --offline uvicorn gridlens.api.app:app --host 127.0.0.1 --port ${apiPort} --no-proxy-headers`,
-        cwd: '../backend',
+        cwd: resolve(configDir, '../../../backend'),
         port: apiPort,
         reuseExistingServer: false,
         timeout: 30_000,
       },
       {
         command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`,
-        cwd: '.',
+        cwd: resolve(configDir, '../..'),
         port: webPort,
         reuseExistingServer: false,
         timeout: 30_000,

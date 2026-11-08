@@ -1,4 +1,4 @@
-# Current work graph — November 2 progress saved
+# Current work graph â€” November 2 progress saved
 
 | Work | State | Evidence / next action |
 |---|---|---|
@@ -25,3 +25,7 @@ Combined validation at `d02dbb81`: full local `scripts/check.ps1` with `PYTEST_A
 Independent Astra review passed the integrated source, maximum-diff, conflict-order, retry, citation and privacy probes; the last listing correction receives scoped re-review. All 14 added sources remain disabled; existing source enablement is unchanged.
 
 Next: confirm final-head CI and the last scoped review, merge 180 before 181, then verify main CI and remaining open PRs. Final GitHub PR/CI state is authoritative after this checkpoint. Sources remain disabled; repository validation does not prove live-source coverage or production operation.
+
+## November 7 account-first Slice 1
+
+Implemented and locally verified from `3e1982ce`: [bounded implementation and acceptance](../docs/engineering/account-first-slice-20261107.md). Six Luna lanes completed; independent Astra scoped review passed. Exact committed-candidate review, draft PR and final CI remain the next handoff gates. Lead runtime model identity is not certified. No merge/deployment/provider authority. Older NEXT/PR statuses above are dated history, not current GitHub/runtime observations.

@@ -1,0 +1,50 @@
+{
+  "synthetic_fixture": true,
+  "read_only": true,
+  "lane_database": "ui_pursuits_real_slice1m_test",
+  "state": "Companies · DE CENTRAL Synthetic Operator account detail",
+  "forbidden_request_count": 0,
+  "unexpected_write_count": 0,
+  "captures": [
+    {
+      "label": "1648x928",
+      "width": 1648,
+      "height": 928,
+      "scroll_y": 0,
+      "screenshot": "companies-account-detail-1648x928.png"
+    },
+    {
+      "label": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "scroll_y": 0,
+      "screenshot": "companies-account-detail-1440x900.png"
+    },
+    {
+      "label": "1280x800",
+      "width": 1280,
+      "height": 800,
+      "scroll_y": 0,
+      "screenshot": "companies-account-detail-1280x800.png"
+    },
+    {
+      "label": "768x1024",
+      "width": 768,
+      "height": 1024,
+      "scroll_y": 0,
+      "screenshot": "companies-account-detail-768x1024.png"
+    },
+    {
+      "label": "390x844",
+      "width": 390,
+      "height": 844,
+      "scroll_y": 0,
+      "screenshot": "companies-account-detail-390x844.png",
+      "mobile_targets": {
+        "back_px": 44,
+        "project_action_px": 44
+      }
+    }
+  ],
+  "horizontal_overflow": false
+}

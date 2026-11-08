@@ -37,7 +37,7 @@ export type PursuitTask = { id: string; description: string; due_date: string | 
 export type PursuitActivity = { id: string; kind: string; summary: string; detail: string | null; occurred_at: string }
 export type PursuitContact = { name: string | null; role: string | null; company: string | null; phone: string | null; email: string | null }
 export type CommercialPursuit = {
-  id: string; need_id: string; project_id: string; stage: PursuitStage; title: string; location: string | null; tier: string
+  id: string; need_id: string; need_alias_ids?: string[]; project_id: string; account_id?: string | null; account_name?: string | null; stage: PursuitStage; title: string; location: string | null; tier: string
   required_mw: string | null; start_window: string | null; contact: PursuitContact | null; contact_status: 'available' | 'missing' | 'unknown'
   attention: string[]; attention_labels: string[]; next_task: PursuitTask | null; created_at: string; stage_changed_at: string
   tasks?: PursuitTask[] | null; activity?: PursuitActivity[] | null
@@ -46,7 +46,7 @@ export type CommercialPursuitList = { items: CommercialPursuit[]; counts: { tota
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ShortlistAssessment = { eligible: boolean; reasons: string[]; evidence_refs: string[]; why_now: string | null; next_step: string | null; source_subject?: string | null; scope?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
-export type ProjectResult = { id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
+export type ProjectResult = { eligible_need_ids?: string[]; id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_amount_class?: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
 export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
 /** Reject browse metadata that has expired before the client can display it. */
 function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
@@ -79,8 +79,8 @@ function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sect
       !Array.isArray(body.limitations) || !body.limitations.every(item => typeof item === 'string')) invalid()
   return body as unknown as DemandSummary
 }
-export type OpportunityGroup = { id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
-export type OpportunityGroupsPage = BrowseGenerationMetadata & { items: OpportunityGroup[]; total: number; count_unit: 'groups'; limit: number; offset: number; cohort_token: string; generation: string; facets?: { regions: string[]; stages: string[] } }
+export type OpportunityGroup = { pursued_eligible_need_count?: number; matched_need_id?: string | null; matched_project_id?: string | null; eligible_need_count?: number; featured_project?: ProjectResult | null; relevant_project_count?: number; total_known_project_count?: number; id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
+export type OpportunityGroupsPage = BrowseGenerationMetadata & { totals?: { accounts: number; projects: number; needs: number }; items: OpportunityGroup[]; total: number; count_unit: 'groups'; limit: number; offset: number; cohort_token: string; generation: string; facets?: { regions: string[]; stages: string[] } }
 export type CustomerRollupFilters = { region?: string; stage?: string; priority?: 'ranked' | 'unranked' | '' }
 export type CustomerRollupSort = 'priority' | 'priority_asc' | 'company' | 'updated'
 export type OpportunityGroupOpen = BrowseGenerationMetadata & { group: OpportunityGroup; projects: ProjectResultsPage; parent_cohort_token: string; generation: string }
@@ -316,7 +316,7 @@ export const client = {
     if (!response.ok) throw new Error(`Could not load identified power demand (${response.status}).`)
     return parseDemandSummary(await response.json() as unknown, sector)
   },
-  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
+  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
@@ -328,11 +328,12 @@ export const client = {
     requireCurrentBrowseGeneration(value)
   return value
   },
-  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
+  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
     if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+    if (response.status === 404) throw new OpportunityGroupUnavailableError()
     if (response.status === 409) throw new OpportunityCohortChangedError()
     throwIfBrowsePending(response)
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
@@ -340,7 +341,7 @@ export const client = {
     requireCurrentBrowseGeneration(value)
     return value
   },
-  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority'] }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
+  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })
@@ -361,7 +362,23 @@ export const client = {
     if (response.status === 401) throw new Error('Your session ended. Sign in again.')
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(`Could not load projects (${response.status}).`)
-    return response.json() as Promise<ProjectResultsPage>
+    const value: unknown = await response.json()
+    const record = (input: unknown): input is Record<string, unknown> => typeof input === 'object' && input !== null && !Array.isArray(input)
+    const nonEmpty = (input: unknown): input is string => typeof input === 'string' && input.trim().length > 0
+    const rowsAreValid = record(value) && Array.isArray(value.items) && value.items.every(project =>
+      record(project) && nonEmpty(project.id) && nonEmpty(project.project_id) && nonEmpty(project.name)
+      && Array.isArray(project.needs) && project.needs.every(need => record(need) && nonEmpty(need.id)),
+    )
+    const pageIsValid = record(value)
+      && rowsAreValid
+      && Number.isSafeInteger(value.total) && (value.total as number) >= 0
+      && value.count_unit === 'projects'
+      && Number.isSafeInteger(value.limit) && (value.limit as number) > 0
+      && Number.isSafeInteger(value.offset) && (value.offset as number) >= 0
+      && nonEmpty(value.cohort_token)
+      && nonEmpty(value.generation)
+    if (!pageIsValid) throw new Error('Current project results could not be confirmed. Refresh to retry.')
+    return value as ProjectResultsPage
   },
   search: (query: string, signal?: AbortSignal) => api<GlobalSearchResult>(`/api/search?${new URLSearchParams({ q: query, limit: '20' })}`, { signal }),
   workspace: async (filters: WorkspaceFilters = {}, signal?: AbortSignal): Promise<WorkspacePage> => {
@@ -373,6 +390,26 @@ export const client = {
     if (response.status === 409) throw new OpportunityCohortChangedError()
     if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
     return response.json() as Promise<WorkspacePage>
+  },
+  resolveProjectAccount: async (projectId: string, signal?: AbortSignal): Promise<Pick<OpportunityGroup, 'id' | 'name' | 'group_kind'> & { project_id?: string }> => {
+    const response = await sessionFetch(`/api/projects/${encodeURIComponent(projectId)}/account`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+    if (response.status === 404) throw new OpportunityGroupUnavailableError()
+    throwIfBrowsePending(response)
+    if (!response.ok) throw new Error(`Could not verify the current account (${response.status}).`)
+    const account = await response.json() as Pick<OpportunityGroup, 'id' | 'name' | 'group_kind'> & { project_id?: string }
+    if (!account || typeof account.id !== 'string' || !account.id.startsWith('cg_') || typeof account.name !== 'string') throw new Error('The current account response is unavailable.')
+    return account
+  },
+  resolveCompanyAccount: async (companyId: string, signal?: AbortSignal): Promise<Pick<OpportunityGroup, 'id' | 'name' | 'group_kind'>> => {
+    const response = await sessionFetch(`/api/companies/${encodeURIComponent(companyId)}/account`, { credentials: 'same-origin', signal })
+    if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+    if (response.status === 404) throw new OpportunityGroupUnavailableError()
+    throwIfBrowsePending(response)
+    if (!response.ok) throw new Error(`Could not resolve the current account (${response.status}).`)
+    const account = await response.json() as Pick<OpportunityGroup, 'id' | 'name' | 'group_kind'>
+    if (!account || typeof account.id !== 'string' || !account.id.startsWith('cg_') || typeof account.name !== 'string') throw new Error('The current account response is unavailable.')
+    return account
   },
   companyContacts: async (companyIdentityId: string, signal?: AbortSignal): Promise<components['schemas']['CompanyContacts']> => {
     const response = await sessionFetch(`/api/customer-accounts/${encodeURIComponent(companyIdentityId)}/contacts`, { credentials: 'same-origin', signal })

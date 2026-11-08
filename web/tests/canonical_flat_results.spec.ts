@@ -142,7 +142,7 @@ test('shortlist cards keep their actions and browse controls inside the results 
   await mockDemandSummary(page)
   await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: pageFixture }))
   await page.route('**/api/opportunities/needs/n1*', route => route.fulfill({ json: { id: 'n1', project_id: 'p1', name: 'Northstar Mesa Compressor', browse_title: 'Mesa Compressor', location: 'Midland, TX', tier: 'Signal', activity: 'compression', required_mw: null, start_window: null, duration: null, supply: 'Unknown', rationale: 'Synthetic source fixture.', workflow_status: 'New', evidence: [], missing_facts: [] } }))
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   const card = page.locator('.cfr-table tbody tr').first()
   await expect(card).toBeVisible()
   const assertWithinBounds = async () => page.evaluate(() => {
@@ -480,5 +480,9 @@ test('malformed browse payload fails safely while an exact selected need remains
 
   await page.goto('/?view=workspace&projectBrowse=1&need=n2')
   await expect(page.getByRole('heading', { name: 'Exact selected need' })).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText('Current project results could not be confirmed')
+  const results = page.getByRole('region', { name: 'Project opportunities' })
+  const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(results.getByRole('alert')).toContainText('Current project results could not be confirmed')
+  await expect(detail.getByRole('alert')).toContainText('Current project results could not be confirmed')
+  await expect(page.getByText(/Cannot read properties of undefined|Cannot read properties of null/)).toHaveCount(0)
 })

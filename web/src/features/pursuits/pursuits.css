@@ -116,3 +116,4 @@
 }
 @media(prefers-reduced-motion:reduce){.pu-card,.pu-skeleton{transition:none;animation:none}}
 .pu-more{display:grid;gap:8px;justify-items:start;padding:10px 2px;color:#5b6f83;font-size:12px}.pu-more p{margin:0}
+.pu-account-groups{display:grid;gap:16px}.pu-account-group h2{margin:10px 0 8px;color:var(--gl-harbor-navy);font-size:15px}.pu-account-group .pu-cards{gap:8px}

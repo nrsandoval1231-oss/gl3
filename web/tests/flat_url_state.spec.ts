@@ -25,7 +25,7 @@ async function mock(page: Page) {
     if (url.pathname === '/api/opportunities/projects') {
       requests.push(url)
       const offset = Number(url.searchParams.get('offset') ?? 0)
-      return route.fulfill({ json: { items: offset ? second : first, total: 4, count_unit: 'projects', limit: 3, offset, cohort_token: 'flat-url', generation: 'g', results_scope: 'discovery' } })
+      return route.fulfill({ json: { items: offset ? second : first, total: 4, count_unit: 'projects', limit: 3, offset, cohort_token: 'flat-url', generation: 'g', results_scope: 'discovery', valid_until: '2099-01-01T00:00:00Z' } })
     }
     const match = /\/api\/opportunities\/needs\/(n\d)$/.exec(url.pathname)
     if (match) return route.fulfill({ json: detail(match[1]) })
@@ -36,7 +36,7 @@ async function mock(page: Page) {
 }
 const params = (page: Page) => new URL(page.url()).searchParams
 const rows = (page: Page) => page.locator('.cfr-table tbody tr')
-const bookmark = '/?view=workspace&shortlist=0&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&sort=updated'
+const bookmark = '/?view=workspace&projectBrowse=1&shortlist=0&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&sort=updated'
 
 test('an old bookmark seeds region, stage and priority, filters the page, and drops the unsupported sort', async ({ page }) => {
   await mock(page)
@@ -84,7 +84,7 @@ test('changing and clearing page filters writes and removes their URL params', a
 
 test('a bookmarked filter value absent from the page shows the empty page-filter state and Clear recovers', async ({ page }) => {
   await mock(page)
-  await page.goto('/?view=workspace&shortlist=0&region=Nowhere%2C+ZZ&priority=bogus')
+  await page.goto('/?view=workspace&projectBrowse=1&shortlist=0&region=Nowhere%2C+ZZ&priority=bogus')
   await expect(page.getByText('No projects match these page filters.')).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toHaveValue('Nowhere, ZZ')
   await expect(page.getByRole('combobox', { name: 'Priority', exact: true })).toHaveValue('')
@@ -95,7 +95,7 @@ test('a bookmarked filter value absent from the page shows the empty page-filter
 
 test('a stale Priority bookmark is ignored and removed in Shortlist view', async ({ page }) => {
   await mock(page)
-  await page.goto('/?view=workspace&shortlist=1&priority=unranked')
+  await page.goto('/?view=workspace&projectBrowse=1&shortlist=1&priority=unranked')
   await expect(rows(page)).toHaveCount(3)
   await expect(page.getByRole('combobox', { name: 'Priority', exact: true })).toHaveCount(0)
   await expect.poll(() => params(page).has('priority')).toBe(false)
@@ -104,7 +104,7 @@ test('a stale Priority bookmark is ignored and removed in Shortlist view', async
 
 test('paging with a selected need clears the selection and URL consistently, and reload does not resurrect it', async ({ page }) => {
   const requests = await mock(page)
-  await page.goto('/?view=workspace')
+  await page.goto('/?view=workspace&projectBrowse=1')
   await expect(rows(page)).toHaveCount(3)
   await page.locator('[data-need-row="n1"]').click()
   await expect(page).toHaveURL(/need=n1/)

@@ -438,6 +438,40 @@ class PowerNeed(Base):
     )
 
 
+class NeedAliasAssertion(Base):
+    """Versioned, source-bound assertion that two needs describe one package."""
+
+    __tablename__ = "need_alias_assertions"
+    __table_args__ = (
+        CheckConstraint("alias_need_id <> canonical_need_id", name="ck_need_alias_not_self"),
+        CheckConstraint(
+            "state IN ('current','retracted','conflicted','superseded')",
+            name="ck_need_alias_state",
+        ),
+        UniqueConstraint("alias_need_id", "version", name="uq_need_alias_version"),
+        Index(
+            "uq_need_alias_current",
+            "alias_need_id",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
+        Index("ix_need_alias_canonical", "canonical_need_id"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    alias_need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), nullable=False)
+    canonical_need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), nullable=False)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"), nullable=False)
+    evidence_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    package_scope: Mapped[str] = mapped_column(String(240), nullable=False)
+    basis: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(String(20), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class CallFactVersion(Base):
     """Immutable, attributed operator fact version scoped to one exact need."""
 
