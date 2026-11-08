@@ -2649,6 +2649,35 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(
                 grouped_question.receipt["after_input_hash"]
                 == grouped_question.context["before"]["input_hash"]
             )
+            import time
+
+            with factory.begin() as session:
+                job = session.scalar(select(Job).where(Job.target_id == question_id))
+                job.status = "queued"
+                job.lease_owner = None
+                job.lease_until = None
+                job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+                session.get(PursuitResearchQuestion, question_id).status = "SEARCHING"
+            followup_job_id, followup_fence = lease_question(factory, question_id)
+            worker._finish(
+                followup_job_id,
+                "question-test",
+                followup_fence,
+                question_id,
+                "RESOLVED",
+                time.monotonic(),
+            )
+            with factory() as session:
+                followups = list(
+                    session.scalars(
+                        select(PursuitResearchQuestion).where(
+                            PursuitResearchQuestion.parent_id == question_id
+                        )
+                    )
+                )
+                assert len(followups) == 1
+                assert followups[0].context["grouped_planner"] is True
+                assert set(followups[0].context["before"]["related_need_ids"]) == pair_ids
 
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     second_day = first_day + timedelta(days=1)
