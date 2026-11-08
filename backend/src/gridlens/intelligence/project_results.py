@@ -640,21 +640,20 @@ def page(
     # ids. This keeps saved compact JSON small and avoids treating an old
     # generation reference as current source support.
     visible_need_ids = {
-        UUID(str(need["id"]))
-        for item in items
-        for need in item["needs"]
-        if need.get("id")
+        UUID(str(need["id"])) for item in items for need in item["needs"] if need.get("id")
     }
     evidence_by_need: dict[str, list[dict[str, Any]]] = {
         str(identity): [] for identity in visible_need_ids
     }
     if visible_need_ids:
-        source_rows = session.execute(
-            text(
-                """SELECT DISTINCT ON (no.need_id, e.id)
+        source_rows = (
+            session.execute(
+                text(
+                    """WITH accepted AS (
+                   SELECT DISTINCT ON (no.need_id, e.id)
                           no.need_id, e.id, e.title, e.url, e.event_date,
                           e.published_at, e.content_hash, e.extraction_location,
-                          e.event_date_label, i.status
+                          e.event_date_label
                    FROM need_observations no
                    JOIN observations o ON o.id=no.observation_id
                    JOIN evidence e ON e.observation_id=o.id
@@ -664,11 +663,26 @@ def page(
                      AND i.content_hash=o.content_hash
                      AND i.status='accepted'
                      AND coalesce(i.assessment->>'decision','accepted')='accepted'
-                   ORDER BY no.need_id, e.id, i.id DESC"""
-            ),
-            {"need_ids": list(visible_need_ids)},
-        ).mappings().all()
+                   ORDER BY no.need_id, e.id, i.id DESC
+                   ), ranked AS (
+                   SELECT accepted.*,
+                          count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                          row_number() OVER (
+                              PARTITION BY accepted.need_id ORDER BY accepted.id
+                          ) AS source_rank
+                   FROM accepted
+                   )
+                   SELECT * FROM ranked WHERE source_rank <= 41"""
+                ),
+                {"need_ids": list(visible_need_ids)},
+            )
+            .mappings()
+            .all()
+        )
         for source in source_rows:
+            if source["source_count"] > 40:
+                evidence_by_need[str(source["need_id"])].append({"overflow": True})
+                continue
             payload = {
                 "id": str(source["id"]),
                 "title": source["title"],
@@ -688,12 +702,14 @@ def page(
 
     for item in items:
         representative = next(
-            (need for need in item["needs"] if str(need.get("id")) == str(item.get("representative_need_id"))),
+            (
+                need
+                for need in item["needs"]
+                if str(need.get("id")) == str(item.get("representative_need_id"))
+            ),
             item["needs"][0] if item["needs"] else {},
         )
-        assessment = (
-            shortlist_by_need.get(str(representative.get("id")), {}) if shortlist else {}
-        )
+        assessment = shortlist_by_need.get(str(representative.get("id")), {}) if shortlist else {}
         representative_evidence = evidence_by_need.get(str(representative.get("id")), [])
         brief_input = {
             **representative,
@@ -741,12 +757,12 @@ def page(
             for brief, _need in briefs
         )
     if privacy_versions:
-        privacy_projected = project_saved_history_privacy(
-            session, {"versions": privacy_versions}
-        )["versions"]
+        privacy_projected = project_saved_history_privacy(session, {"versions": privacy_versions})[
+            "versions"
+        ]
         offset = 0
         for _item, briefs in brief_cards:
-            for brief, need in briefs:
+            for _brief, need in briefs:
                 safe = _redact_all_contact_tokens(
                     privacy_projected[offset]["saved_card"]["commercial_brief"]
                 )
@@ -761,7 +777,11 @@ def page(
     # (Need-specific briefs likewise use their own filtered action list.)
     for item in items:
         representative = next(
-            (need for need in item["needs"] if str(need.get("id")) == str(item.get("representative_need_id"))),
+            (
+                need
+                for need in item["needs"]
+                if str(need.get("id")) == str(item.get("representative_need_id"))
+            ),
             item["needs"][0] if item["needs"] else {},
         )
         action_brief = build_optional_commercial_brief(

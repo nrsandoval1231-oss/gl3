@@ -135,9 +135,11 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
     need_ids = [compact.get("id") for compact in rows if compact.get("id")]
     evidence_by_need: dict[str, list[dict[str, Any]]] = {str(identity): [] for identity in need_ids}
     if need_ids:
-        source_rows = session.execute(
-            text(
-                """SELECT DISTINCT ON (no.need_id, e.id)
+        source_rows = (
+            session.execute(
+                text(
+                    """WITH accepted AS (
+                       SELECT DISTINCT ON (no.need_id, e.id)
                           no.need_id, e.id, e.title, e.url, e.event_date,
                           e.event_date_label, e.published_at, e.content_hash,
                           e.extraction_location
@@ -149,11 +151,26 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
                      AND e.content_hash=o.content_hash AND i.content_hash=o.content_hash
                      AND i.status='accepted'
                      AND coalesce(i.assessment->>'decision','accepted')='accepted'
-                   ORDER BY no.need_id,e.id,i.id DESC"""
-            ),
-            {"need_ids": need_ids},
-        ).mappings().all()
+                   ORDER BY no.need_id,e.id,i.id DESC
+                   ), ranked AS (
+                   SELECT accepted.*,
+                          count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                          row_number() OVER (
+                              PARTITION BY accepted.need_id ORDER BY accepted.id
+                          ) AS source_rank
+                   FROM accepted
+                   )
+                   SELECT * FROM ranked WHERE source_rank <= 41"""
+                ),
+                {"need_ids": need_ids},
+            )
+            .mappings()
+            .all()
+        )
         for source in source_rows:
+            if source["source_count"] > 40:
+                evidence_by_need[str(source["need_id"])].append({"overflow": True})
+                continue
             evidence_by_need[str(source["need_id"])].append(
                 {
                     "id": str(source["id"]),
@@ -186,13 +203,13 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
                 headers={"Retry-After": "5", "X-Qualification-State": "pending"},
             )
         item = {
-                **compact,
-                "commercial_disposition": preview["disposition"],
-                "commercial_reason": preview["reason"],
-                "commercial_next_question": preview["next_question"],
-                "commercial_next_action": preview["next_action"],
-                "commercial_organization": preview.get("organization"),
-            }
+            **compact,
+            "commercial_disposition": preview["disposition"],
+            "commercial_reason": preview["reason"],
+            "commercial_next_question": preview["next_question"],
+            "commercial_next_action": preview["next_action"],
+            "commercial_organization": preview.get("organization"),
+        }
         item["commercial_brief"] = build_optional_commercial_brief(
             {
                 **item,

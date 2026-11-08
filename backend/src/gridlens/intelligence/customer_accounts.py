@@ -629,9 +629,7 @@ def account_projects(
                 evidence=source_by_need.get(str(compact.get("id")), []),
             )
             if need is not None:
-                need["commercial_brief"] = _redact_all_contact_tokens(
-                    need["commercial_brief"]
-                )
+                need["commercial_brief"] = _redact_all_contact_tokens(need["commercial_brief"])
                 needs_by_project[project_id].append(need)
     items = []
     for project in page:
@@ -1156,10 +1154,12 @@ def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, lis
     output = {str(value): [] for value in ids}
     if session is None or not ids:
         return output
-    rows = session.execute(
-        text(
-            """SELECT DISTINCT ON (no.need_id,e.id)
-                      no.need_id,e.id,e.event_date,e.event_date_label,
+    rows = (
+        session.execute(
+            text(
+                """WITH accepted AS (
+               SELECT DISTINCT ON (no.need_id,e.id)
+                      no.need_id,e.id,e.url,e.event_date,e.event_date_label,
                       e.published_at,e.content_hash,e.extraction_location
                FROM need_observations no
                JOIN observations o ON o.id=no.observation_id
@@ -1169,16 +1169,31 @@ def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, lis
                  AND e.content_hash=o.content_hash AND i.content_hash=o.content_hash
                  AND i.status='accepted'
                  AND coalesce(i.assessment->>'decision','accepted')='accepted'
-               ORDER BY no.need_id,e.id,i.id DESC"""
-        ),
-        {"need_ids": ids},
-    ).mappings().all()
+               ORDER BY no.need_id,e.id,i.id DESC
+               ), ranked AS (
+               SELECT accepted.*,
+                      count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                      row_number() OVER (
+                          PARTITION BY accepted.need_id ORDER BY accepted.id
+                      ) AS source_rank
+               FROM accepted
+               )
+               SELECT * FROM ranked WHERE source_rank <= 41"""
+            ),
+            {"need_ids": ids},
+        )
+        .mappings()
+        .all()
+    )
     for row in rows:
+        if row["source_count"] > 40:
+            output[str(row["need_id"])].append({"overflow": True})
+            continue
         output[str(row["need_id"])].append(
             {
                 "id": str(row["id"]),
                 "title": None,
-                "url": None,
+                "url": row["url"],
                 "event_date": row["event_date"],
                 "event_date_label": row["event_date_label"],
                 "published_at": row["published_at"],

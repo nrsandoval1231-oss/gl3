@@ -145,7 +145,9 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert selected["next_action"] == lower_need["commercial_preview"]["next_action"]
         assert grouped["commercial_brief"]["version"]
         assert grouped["needs"][0]["commercial_brief"]["power_need"]["value"] is None
-        assert grouped["commercial_brief"]["best_contact"]["href"] == "mailto:private@example.invalid"
+        assert (
+            grouped["commercial_brief"]["best_contact"]["href"] == "mailto:private@example.invalid"
+        )
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(

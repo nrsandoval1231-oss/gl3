@@ -189,10 +189,16 @@ def test_company_search_matches_membership_alias_and_preserves_account_totals(se
         assert alias_queue["items"][0]["last_evidence_update"] == now
         assert alias_queue["items"][0]["qualification_tiers"] == ["Lead"]
         assert alias_queue["items"][0]["highest_priority_need"]["id"] == str(need_ids[0])
-        assert alias_queue["items"][0]["highest_priority_need"]["commercial_brief"]["best_contact"] is None
+        assert (
+            alias_queue["items"][0]["highest_priority_need"]["commercial_brief"]["best_contact"]
+            is None
+        )
         all_accounts = account_queue(session, search=None, limit=25, offset=0)
         assert all_accounts["total"] == alias_queue["total"]
-        assert all_accounts["items"][0]["company_identity_id"] == alias_queue["items"][0]["company_identity_id"]
+        assert (
+            all_accounts["items"][0]["company_identity_id"]
+            == alias_queue["items"][0]["company_identity_id"]
+        )
         assert account_queue(session, search="missing", limit=25, offset=0)["total"] == 0
         assert account_queue(session, search=None, limit=25, offset=1)["items"] == []
 

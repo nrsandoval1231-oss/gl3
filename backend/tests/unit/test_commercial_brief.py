@@ -91,7 +91,12 @@ def test_stale_or_noncurrent_event_reference_does_not_create_why_now():
     row["current"] = False
     brief = build_commercial_brief(
         {
-            "event": {"kind": "permit_issued", "label": "Permit issued", "date": "2026-10-20", "evidence_refs": ["e-1"]},
+            "event": {
+                "kind": "permit_issued",
+                "label": "Permit issued",
+                "date": "2026-10-20",
+                "evidence_refs": ["e-1"],
+            },
             "evidence": [row],
         },
         now="2026-11-08",
@@ -148,15 +153,26 @@ def test_source_event_requires_exact_evidence_reference_and_scope():
     )
     assert brief["why_now"]["source_date"] == "2026-10-20"
     assert brief["why_now"]["sources"][0]["evidence_id"] == "e-1"
-    assert brief["why_now"]["sources"][0]["url"] is None
+    assert brief["why_now"]["sources"][0]["url"] == "https://example.test/e-1"
 
 
 def test_generic_contact_is_not_promoted_to_authority_and_action_is_single():
     brief = build_commercial_brief(
         {
             "contact_actions": [
-                {"kind": "contact", "href": "https://example.test/contact", "company": "Acme", "responsibility": "General company contact path"},
-                {"kind": "email", "href": "mailto:buyer@example.test", "name": "Buyer", "responsibility": "Project contact", "purchasing_authority": "Requires confirmation for this power package"},
+                {
+                    "kind": "contact",
+                    "href": "https://example.test/contact",
+                    "company": "Acme",
+                    "responsibility": "General company contact path",
+                },
+                {
+                    "kind": "email",
+                    "href": "mailto:buyer@example.test",
+                    "name": "Buyer",
+                    "responsibility": "Project contact",
+                    "purchasing_authority": "Requires confirmation for this power package",
+                },
             ]
         }
     )
@@ -181,8 +197,22 @@ def test_supported_amount_requires_source_bearing_claim_and_normalizes_unit():
             "power_need": {
                 "status": "SUPPORTED",
                 "value": "500 kW",
-                "evidence": [{"id": "e-1", "url": "https://example.test/e-1"}],
+                "evidence": [
+                    {
+                        "id": "e-1",
+                        "url": "https://example.test/e-1",
+                        "content_hash": "a" * 64,
+                    }
+                ],
             },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "url": "https://example.test/e-1",
+                    "content_hash": "a" * 64,
+                    "current": True,
+                }
+            ],
         }
     )
     assert brief["power_need"]["value"] == "0.5"
@@ -190,6 +220,108 @@ def test_supported_amount_requires_source_bearing_claim_and_normalizes_unit():
 
 
 def test_source_output_omits_raw_excerpts():
-    brief = build_commercial_brief({"evidence": [_source(text="secret@example.test") ]})
+    brief = build_commercial_brief({"evidence": [_source(text="secret@example.test")]})
     assert "abstract" not in brief["sources"][0]
     assert "secret@example.test" not in repr(brief)
+
+
+def test_power_claim_reference_must_match_current_version_and_url():
+    item = {
+        "power_need": {
+            "status": "SUPPORTED",
+            "value": "500 kW",
+            "evidence": [{"id": "e-old", "url": "https://example.test/old"}],
+        },
+        "evidence": [
+            {
+                "id": "e-new",
+                "url": "https://example.test/new",
+                "content_hash": "b" * 64,
+                "current": True,
+            }
+        ],
+    }
+    assert build_commercial_brief(item)["power_need"]["value"] is None
+
+
+def test_publication_dates_differing_do_not_conflict_with_one_event_date():
+    brief = build_commercial_brief(
+        {
+            "shortlist_assessment": {
+                "eligible": True,
+                "why_now": "Published 2026-10-20: electric construction",
+                "scope": "electric construction",
+                "evidence_refs": ["e-1", "e-2"],
+            },
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Report A",
+                    "url": "https://example.test/a",
+                    "published_at": "2026-10-20",
+                    "current": True,
+                },
+                {
+                    "id": "e-2",
+                    "title": "Report B",
+                    "url": "https://example.test/b",
+                    "published_at": "2026-10-21",
+                    "current": True,
+                },
+            ],
+        },
+        now="2026-11-08",
+    )
+    assert brief["why_now"]["source_date"] == "2026-10-20"
+    assert brief["why_now"]["text"].startswith("Published 2026-10-20")
+    assert "Conflicting current dates" not in " ".join(brief["limitations"])
+
+
+def test_conflicting_same_event_dates_and_overflow_abstain():
+    evidence = [
+        {
+            "id": f"e-{day}",
+            "title": "Event report",
+            "url": f"https://example.test/{day}",
+            "event_date": f"2026-10-{day}",
+            "event_date_label": "construction start",
+            "current": True,
+        }
+        for day in ("20", "21")
+    ]
+    conflicting = build_commercial_brief(
+        {
+            "shortlist_assessment": {
+                "eligible": True,
+                "why_now": "Construction starts 2026-10-20",
+                "scope": "construction",
+                "evidence_refs": ["e-20", "e-21"],
+            },
+            "evidence": evidence,
+        },
+        now="2026-11-08",
+    )
+    assert conflicting["why_now"]["text"] is None
+    assert any("Conflicting current dates" in value for value in conflicting["limitations"])
+
+    overflow = build_commercial_brief(
+        {
+            "shortlist_assessment": {
+                "eligible": True,
+                "why_now": "Construction starts",
+                "scope": "construction",
+                "evidence_refs": ["e-20"],
+            },
+            "evidence": evidence + [{"overflow": True}],
+            "required_mw": "10 MW",
+            "power_need": {
+                "status": "SUPPORTED",
+                "value": "10 MW",
+                "amount_class": "documented",
+                "evidence": [{"id": "e-20", "url": "https://example.test/20"}],
+            },
+        },
+        now="2026-11-08",
+    )
+    assert overflow["why_now"]["text"] is None
+    assert overflow["power_need"]["value"] is None
