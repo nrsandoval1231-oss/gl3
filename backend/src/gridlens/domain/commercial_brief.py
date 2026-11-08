@@ -186,12 +186,12 @@ def _calendar_day(value: Any) -> date | None:
 
 
 def _freshness_date(evidence: dict, *, as_of: date) -> date | None:
+    # Event dates describe the reported project timeline, not when the source
+    # was published. In particular, a past expected milestone cannot refresh
+    # an otherwise undated source record.
     publication_value = evidence.get("published_at")
-    if publication_value is not None:
-        publication_day = _calendar_day(publication_value)
-        return publication_day if publication_day is not None and publication_day <= as_of else None
-    event_day = _calendar_day(evidence.get("event_date"))
-    return event_day if event_day is not None and event_day <= as_of else None
+    publication_day = _calendar_day(publication_value)
+    return publication_day if publication_day is not None and publication_day <= as_of else None
 
 
 def _accepted_sources(item: dict) -> list[dict]:

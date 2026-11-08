@@ -45,7 +45,9 @@ def test_unknown_power_timing_and_authority_stay_unknown():
     assert brief["best_contact"]["authority"] == "No buyer authority established"
     assert brief["best_contact"]["deliverability"].startswith("Unknown")
     assert brief["freshness"]["as_of"] == "2026-11-08T12:00:00Z"
-    assert brief["freshness"]["source_age_days"] == 19
+    assert brief["freshness"]["source_date"] is None
+    assert brief["freshness"]["source_age_days"] is None
+    assert brief["freshness"]["status"] == "source_age_unknown"
 
 
 def test_conflicting_power_and_unmatched_or_conflicting_dates_abstain():
@@ -321,6 +323,28 @@ def test_future_publication_date_is_not_reported_as_fresh():
                     "title": "Future-dated source",
                     "url": "https://example.test/future",
                     "published_at": "2027-01-01",
+                    "current": True,
+                }
+            ]
+        },
+        now="2026-11-08",
+    )
+    assert brief["freshness"]["source_date"] is None
+    assert brief["freshness"]["source_age_days"] is None
+    assert brief["freshness"]["status"] == "source_age_unknown"
+
+
+def test_past_expected_event_without_publication_date_is_not_freshness_evidence():
+    brief = build_commercial_brief(
+        {
+            "evidence": [
+                {
+                    "id": "e-1",
+                    "title": "Expected construction schedule",
+                    "url": "https://example.test/schedule",
+                    "event_date": "2026-11-01",
+                    "event_date_label": "Expected construction start",
+                    "observed_at": "2026-11-07T00:00:00+00:00",
                     "current": True,
                 }
             ]
