@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
 from gridlens.persistence.models import (
+    BuyingChainClaim,
     Evidence,
     Interpretation,
     Observation,
@@ -170,6 +171,26 @@ def test_retained_tdlr_contact_requires_split_semantic_and_raw_hash_bindings(
                 for item in no_identity_ids["candidates"]
                 if item["organization"] == OWNER and item["person_name"] is None
             )
-            assert no_id_owner["public_contacts"] == []
+            assert "company_identity_id" not in no_id_owner
+            assert any(
+                contact["kind"] == "phone" and contact["value"] == "(713) 555-0100"
+                for contact in no_id_owner["public_contacts"]
+            )
+
+            claim = session.get(BuyingChainClaim, no_id_owner["id"])
+            assert claim is not None
+            claim.public_contacts = [
+                {**claim.public_contacts[0], "value": "(713) 999-0100"}
+            ]
+            session.flush()
+            mismatched = buying_chain_view(
+                session, project.id, now=NOW, include_identity_ids=False
+            )
+            mismatched_owner = next(
+                item
+                for item in mismatched["candidates"]
+                if item["organization"] == OWNER and item["person_name"] is None
+            )
+            assert mismatched_owner["public_contacts"] == []
         else:
             assert owner is None

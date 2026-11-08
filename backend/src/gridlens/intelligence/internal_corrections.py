@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import CATEGORY_PRIORITY
-from gridlens.intelligence.buying_chain import buying_chain_view
+from gridlens.intelligence.buying_chain import _buying_chain_current_view
 from gridlens.intelligence.buying_chain_corrections import _ordered_correction_chain
 from gridlens.intelligence.company_graph import _relationship_state
 from gridlens.intelligence.contact_suppressions import SuppressionConflict
@@ -140,7 +140,7 @@ def correct_buying_chain_claim(
             raise ValueError("contact status cannot be operator supplied")
         if source_evidence_id is None or not source_version_hash:
             raise ValueError("correct actions require a cited evidence ID and version hash")
-        current = buying_chain_view(session, project_id)
+        current = _buying_chain_current_view(session, project_id)
         candidate = next(
             (item for item in current.get("candidates", []) if item.get("id") == claim_id), None
         )

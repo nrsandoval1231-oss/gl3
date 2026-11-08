@@ -1188,13 +1188,7 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
 
 def _retain_unchecked_contacts(session, project_id, candidates, saved, retrieved_urls, now):
     """A bounded or failed refresh is not evidence that an existing method vanished."""
-    prior_view = buying_chain_view(
-        session,
-        project_id,
-        now=now,
-        include_identity_ids=False,
-        _apply_privacy=False,
-    )
+    prior_view = _buying_chain_current_view(session, project_id, now=now)
     for previous in prior_view["candidates"]:
         if previous.get("stale") or previous.get("retracted"):
             continue
@@ -1257,13 +1251,7 @@ def _retain_unchecked_assignments(
     assignment that the normal view still validates for freshness and conflicts.
     Different titles, UNKNOWN roles and successfully retracted sources never qualify.
     """
-    prior_view = buying_chain_view(
-        session,
-        project_id,
-        now=now,
-        include_identity_ids=False,
-        _apply_privacy=False,
-    )
+    prior_view = _buying_chain_current_view(session, project_id, now=now)
     prior_candidates = {str(item["id"]): item for item in prior_view["candidates"]}
     for prior_id, previous in prior_candidates.items():
         if previous["person_project_relationship"] != "DIRECT":
@@ -1362,13 +1350,7 @@ def enrich_buying_chain(
     # Refresh comparisons must use the actual persisted claim state.  A public
     # privacy projection redacts that state and can otherwise make unchanged
     # claims look newly absent (or changed) on every refresh.
-    buying_chain_baseline = buying_chain_view(
-        session,
-        project.id,
-        now=now,
-        include_identity_ids=False,
-        _apply_privacy=False,
-    )
+    buying_chain_baseline = _buying_chain_current_view(session, project.id, now=now)
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -1954,13 +1936,7 @@ def enrich_buying_chain(
             after_rows = [
                 row
                 for row in field_rows(
-                    buying_chain_view(
-                        session,
-                        project.id,
-                        now=now,
-                        include_identity_ids=False,
-                        _apply_privacy=False,
-                    )
+                    _buying_chain_current_view(session, project.id, now=now)
                 )
             ]
             before_rows = [row for row in field_rows(buying_chain_baseline)]
@@ -2322,15 +2298,14 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             item.update(scrub(item))
 
 
-def buying_chain_views(
+def _buying_chain_current_views(
     session: Session,
     project_ids: set[UUID],
     *,
     now: datetime | None = None,
     history: bool = False,
-    _identity_validation: bool = False,
 ) -> dict[str, dict]:
-    """Bulk-load the canonical selected-project buying-chain projections."""
+    """Build private current-evidence projections for internal proof algorithms."""
     if not project_ids:
         return {}
     projects = {
@@ -2483,29 +2458,33 @@ def buying_chain_views(
             )
 
     views = {
-        str(project_id): buying_chain_view(
+        str(project_id): _build_buying_chain_view(
             session,
             project_id,
             now=now,
             history=history,
             preload=preload,
-            include_identity_ids=False,
-            _apply_privacy=False,
         )
         for project_id in project_ids
         if project_id in projects
     }
-    if _identity_validation:
-        # Internal source identity checks require current claim/evidence
-        # provenance, but must not depend on public contact attribution or
-        # suppression projections. The default public path below stays intact.
-        _attach_identity_ids(session, list(views.values()))
-        return views
+    _attach_identity_ids(session, list(views.values()))
+    return views
+
+
+def buying_chain_views(
+    session: Session,
+    project_ids: set[UUID],
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+) -> dict[str, dict]:
+    """Bulk-load public project projections with suppression and attribution guards."""
+    views = _buying_chain_current_views(session, project_ids, now=now, history=history)
     _apply_contact_privacy(
         session,
         [candidate for view in views.values() for candidate in view.get("candidates", [])],
     )
-    _attach_identity_ids(session, list(views.values()))
     from gridlens.intelligence.company_contact_attribution import filter_unbound_company_contacts
 
     filter_unbound_company_contacts(session, views.values())
@@ -2514,15 +2493,13 @@ def buying_chain_views(
     return views
 
 
-def buying_chain_view(
+def _build_buying_chain_view(
     session: Session,
     project_id: UUID,
     *,
     now: datetime | None = None,
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
-    include_identity_ids: bool = True,
-    _apply_privacy: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -2821,8 +2798,6 @@ def buying_chain_view(
         history,
         decisions=preload.corrections.get(project_id, []) if preload else None,
     )
-    if _apply_privacy:
-        _apply_contact_privacy(session, candidates)
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
@@ -2851,16 +2826,41 @@ def buying_chain_view(
         "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
-    if include_identity_ids:
-        _attach_identity_ids(session, [result])
-    if include_identity_ids or _apply_privacy:
-        from gridlens.intelligence.company_contact_attribution import (
-            filter_unbound_company_contacts,
-        )
+    return result
 
-        filter_unbound_company_contacts(session, [result])
-    if _apply_privacy:
-        _apply_permit_summary_privacy(session, result)
+
+def _buying_chain_current_view(
+    session: Session,
+    project_id: UUID,
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+) -> dict:
+    """Private current-evidence view for internal proof and carry algorithms."""
+    result = _build_buying_chain_view(session, project_id, now=now, history=history)
+    _attach_identity_ids(session, [result])
+    return result
+
+
+def buying_chain_view(
+    session: Session,
+    project_id: UUID,
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+    include_identity_ids: bool = True,
+) -> dict:
+    """Return a public project view with suppression and attribution guards."""
+    result = _buying_chain_current_view(session, project_id, now=now, history=history)
+    _apply_contact_privacy(session, result.get("candidates", []))
+    from gridlens.intelligence.company_contact_attribution import filter_unbound_company_contacts
+
+    filter_unbound_company_contacts(session, [result])
+    _apply_permit_summary_privacy(session, result)
+    if not include_identity_ids:
+        for candidate in result.get("candidates", []):
+            candidate.pop("company_identity_id", None)
+            candidate.pop("person_identity_id", None)
     return result
 
 
