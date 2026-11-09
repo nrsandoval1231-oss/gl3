@@ -341,7 +341,7 @@ test('expiry requires a fresh exact need and project projection before contacts 
   releaseNeedRefresh()
   await expect(detail.locator('[aria-label="Best contact"]')).toHaveCount(0)
   expect(needReads).toBeGreaterThan(initialNeedReads)
-  expect(projectReads).toBeGreaterThanOrEqual(2)
+  await expect.poll(() => projectReads).toBeGreaterThanOrEqual(2)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveCount(0)
