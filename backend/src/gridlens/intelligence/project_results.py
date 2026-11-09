@@ -811,8 +811,8 @@ def page(
         if not representative_evidence:
             # Activity is a stored scope label, but without a current source it
             # is not part of this evidence-backed summary.
-            for key in ("power_scope", "power_activity", "activity", "activity_key"):
-                brief_input.pop(key, None)
+            for activity_field in ("power_scope", "power_activity", "activity", "activity_key"):
+                brief_input.pop(activity_field, None)
         item["commercial_brief"] = build_optional_commercial_brief(brief_input)
         item["commercial_brief"]["best_contact"] = None
         brief_cards.append((item, [(item["commercial_brief"], None)]))
@@ -828,8 +828,8 @@ def page(
                 "contact_actions": need.get("contact_actions") or [],
             }
             if not need_evidence:
-                for key in ("power_scope", "power_activity", "activity", "activity_key"):
-                    need_input.pop(key, None)
+                for activity_field in ("power_scope", "power_activity", "activity", "activity_key"):
+                    need_input.pop(activity_field, None)
             need_brief_inputs.append((need, need_input))
         for need, need_input in need_brief_inputs:
             need["commercial_brief"] = build_optional_commercial_brief(need_input)
@@ -838,7 +838,7 @@ def page(
         )
         item.pop("_representative_metadata", None)
 
-    privacy_targets = []
+    privacy_targets: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]] = []
     for item, briefs in brief_cards:
         lineage_is_bounded = len(item["project_ids"]) == 1
         has_contact_data = item["_has_contact_records"]
