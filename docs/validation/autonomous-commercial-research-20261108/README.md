@@ -7,7 +7,7 @@ This record separates implemented source, deterministic fixtures, independent re
 [Final sanitized comparison](matched-fixture-summary-a4e326d8.json) records the independently executed v5 pair at baseline `bc433650ce4706dddfb5b30d78a502e3b528f54e` and candidate `a4e326d87650218b2c978e139c1ccb442952c015`. Earlier [ffc3](matched-fixture-summary-ffc3c890.json) and [e598](matched-fixture-summary-e5983baa.json) pairs remain historical source-specific references. Raw captures/logs remain ignored under `.artifacts/phase2/`.
 
 - Fixture SHA256: `15e29ff076b6f1c02a3cd11ac18c76a86e716f34d3daa660b23ae93da3531111`.
-- Imported test-module SHA256 (raw capture `imported_module_sha256`): `7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6`.
+- Imported GridLens package marker SHA256 (`gridlens.__file__`, raw capture `imported_module_sha256`): `7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6`.
 - Evaluator SHA256 (nested `commercial.evaluator_sha256`): `fde98d53cde8a7b16d24e4518c9f7e11ca35664576bcda025e503651a8abdcd2`.
 - V5 before/after aggregate of **346 tracked files**: `c03a7f2c57169adeaecfad7453f92cf7b20db685749dbe816ca92330d2144835`, unchanged. Scope is `backend/src`, `web/src`, and `scripts/phase2_metrics.py`; algorithm is SHA-256 over UTF-8 compact JSON of sorted relative-path/byte-SHA256 entries. This explicit v5 scope is different from earlier 416-file receipts. Both captures and comparison passed with same-HEAD/clean-source guards; imported application module hashes were verified.
 
