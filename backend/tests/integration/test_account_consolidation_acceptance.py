@@ -677,9 +677,10 @@ def test_supported_subsidiary_keeps_legal_identity_and_contact_authority_separat
                     person_id = candidate.get("person_identity_id")
                     if person_id not in expected_company_by_person:
                         continue
-                    assert candidate.get("company_identity_id") == expected_company_by_person[
-                        person_id
-                    ]
+                    assert (
+                        candidate.get("company_identity_id")
+                        == expected_company_by_person[person_id]
+                    )
                     assert any(
                         evidence.get("supports") == "public_contact"
                         and evidence.get("current_support") is True
@@ -747,9 +748,9 @@ def test_supported_subsidiary_keeps_legal_identity_and_contact_authority_separat
             for candidate in view["candidates"]
             if candidate.get("person_identity_id")
         ]
-        assert {
-            candidate["person_identity_id"] for candidate in contact_candidates
-        } == set(expected_company_by_person)
+        assert {candidate["person_identity_id"] for candidate in contact_candidates} == set(
+            expected_company_by_person
+        )
         parent_contact = next(
             item for item in contact_candidates if item["person_identity_id"] == str(people[0].id)
         )

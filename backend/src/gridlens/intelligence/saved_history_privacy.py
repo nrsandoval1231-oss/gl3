@@ -9,7 +9,7 @@ from copy import deepcopy
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.contact_suppressions import (
@@ -24,7 +24,10 @@ from gridlens.intelligence.contact_suppressions import (
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainCorrection,
+    BuyingChainEvidence,
     BuyingChainIdentityLink,
+    ChangeEvent,
+    Evidence,
 )
 
 MAX_HISTORY_PROJECTS = 64
@@ -32,6 +35,7 @@ MAX_HISTORY_CLAIMS = 256
 MAX_HISTORY_LINKS = 512
 MAX_HISTORY_METHODS = 128
 MAX_HISTORY_KEYS = 2048
+MAX_CHANGE_EVENTS = 250
 _EMAIL = re.compile(r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
 _PHONE = re.compile(r"\+?\d[\d(). \t-]{5,}\d")
 _NANP = re.compile(r"(?<!\d)(?:\+?1[ \t.-]?)?(?:\(\d{3}\)|\d{3})[ \t.-]?\d{3}[ \t.-]?\d{4}(?!\d)")
@@ -54,6 +58,8 @@ _META = frozenset(
         "input_fingerprint",
         "evidence_id",
         "evidence_ids",
+        "buying_chain_evidence_id",
+        "buying_chain_evidence_ids",
         "content_hash",
         "hash",
         "reference",
@@ -383,6 +389,8 @@ def project_saved_history_privacy(
     *,
     _claim_ids: set[UUID] | None = None,
     _contact_tokens_only: bool = False,
+    _validated_event_claim_ids_by_card: dict[int, set[UUID]] | None = None,
+    _current_event_claim_ids_by_project: dict[UUID, set[UUID]] | None = None,
 ) -> dict[str, Any]:
     """Project copied cards using bounded retained project/claim identity history.
 
@@ -411,6 +419,14 @@ def project_saved_history_privacy(
         return result
     outer_projects = _project_ids(item)
     projects_by_card = {id(card): outer_projects | _project_ids(card) for card in cards}
+    validated_claims_by_card: dict[int, set[UUID]] = {id(card): set() for card in cards}
+    if _validated_event_claim_ids_by_card is not None:
+        for card_index, card in enumerate(cards):
+            requested = _validated_event_claim_ids_by_card.get(card_index, set())
+            if isinstance(requested, set) and len(requested) <= MAX_HISTORY_CLAIMS:
+                validated_claims_by_card[id(card)] = {
+                    claim_id for claim_id in requested if isinstance(claim_id, UUID)
+                }
     projects = set().union(*projects_by_card.values())
     overflow = len(projects) > MAX_HISTORY_PROJECTS
     claims: Sequence[BuyingChainClaim] = []
@@ -432,6 +448,16 @@ def project_saved_history_privacy(
             claim for claim in claims if (claim.project_id, claim.entity_key) in selected_pairs
         ]
     claim_ids = {claim.id for claim in claims}
+    claims_by_project_and_id = {(claim.project_id, claim.id) for claim in claims}
+    for card in cards:
+        validated_claims_by_card[id(card)] = {
+            claim_id
+            for claim_id in validated_claims_by_card[id(card)]
+            if any(
+                project_id in projects_by_card[id(card)] and claim_id == candidate_id
+                for project_id, candidate_id in claims_by_project_and_id
+            )
+        }
     links: Sequence[BuyingChainIdentityLink] = []
     corrections: Sequence[BuyingChainCorrection] = []
     if claim_ids and not overflow:
@@ -465,6 +491,60 @@ def project_saved_history_privacy(
         for pair in companies.keys() | people.keys()
         if len(companies[pair]) > 1 or len(people[pair]) > 1
     }
+    # A change-event caller may identify the exact claim only after matching
+    # its semantic row and same-side source version to the current public view.
+    # That proof can tolerate historical superseded aliases, but never active
+    # ambiguity, invalid link states, or missing current ownership.
+    links_by_pair: dict[tuple[UUID, str], list[BuyingChainIdentityLink]] = defaultdict(list)
+    for link in links:
+        claim = claims_by_id.get(link.claim_id)
+        if claim is not None:
+            links_by_pair[(claim.project_id, claim.entity_key)].append(link)
+    validated_pairs_by_card: dict[int, set[tuple[UUID, str]]] = {}
+    for card in cards:
+        validated_pairs: set[tuple[UUID, str]] = set()
+        for claim in claims:
+            if claim.id not in validated_claims_by_card[id(card)]:
+                continue
+            pair = (claim.project_id, claim.entity_key)
+            if pair not in ambiguous_pairs:
+                continue
+            pair_links = links_by_pair.get(pair, [])
+            if not pair_links or any(
+                link.state not in {"current", "superseded"}
+                or (link.entity_type == "company" and link.company_identity_id is None)
+                or (link.entity_type == "person" and link.person_identity_id is None)
+                or link.entity_type not in {"company", "person"}
+                for link in pair_links
+            ):
+                continue
+            valid_aliases = True
+            current_claim_ids = (
+                _current_event_claim_ids_by_project.get(claim.project_id, set())
+                if _current_event_claim_ids_by_project is not None
+                else set()
+            )
+            if claim.id not in current_claim_ids:
+                continue
+            for entity_type in {link.entity_type for link in pair_links}:
+                typed_links = [link for link in pair_links if link.entity_type == entity_type]
+                current_ids = {
+                    (link.company_identity_id, link.person_identity_id)
+                    for link in typed_links
+                    if link.state == "current" and link.claim_id in current_claim_ids
+                }
+                proved_ids = {
+                    (link.company_identity_id, link.person_identity_id)
+                    for link in typed_links
+                    if link.state == "current" and link.claim_id == claim.id
+                }
+                if len(current_ids) != 1 or proved_ids != current_ids:
+                    valid_aliases = False
+                    break
+            if valid_aliases:
+                validated_pairs.add(pair)
+        validated_pairs_by_card[id(card)] = validated_pairs
+    key_ambiguous_pairs = ambiguous_pairs - set().union(*validated_pairs_by_card.values())
     correction_values: dict[UUID, list[dict]] = defaultdict(list)
     for correction in corrections[:MAX_HISTORY_LINKS]:
         correction_values[correction.claim_id].append(correction.values or {})
@@ -472,6 +552,7 @@ def project_saved_history_privacy(
     owned_methods: dict[UUID, set[tuple[str, str]]] = {}
     names: dict[UUID, set[str]] = {}
     organizations: dict[UUID, set[str]] = {}
+    names_by_pair: dict[tuple[UUID, str], set[str]] = defaultdict(set)
     for claim in claims:
         pair = (claim.project_id, claim.entity_key)
         values = correction_values[claim.id]
@@ -480,6 +561,7 @@ def project_saved_history_privacy(
             for name in [claim.person_name, *(value.get("person_name") for value in values)]
             if name
         }
+        names_by_pair[pair].update(names[claim.id])
         organizations[claim.id] = {
             str(name).strip()
             for name in [claim.organization, *(value.get("organization") for value in values)]
@@ -498,7 +580,7 @@ def project_saved_history_privacy(
         overflow |= len(methods) > MAX_HISTORY_METHODS
         for company_id in companies[pair]:
             keys.add(("company", company_suppression_key(company_id)))
-            if pair in ambiguous_pairs:
+            if pair in key_ambiguous_pairs:
                 continue
             _add_keys(
                 keys,
@@ -507,8 +589,27 @@ def project_saved_history_privacy(
             _add_keys(
                 keys,
                 (
-                    ("method", method_suppression_key(company_id, None, kind, method))
+                    ("method", method_suppression_key(company_id, name, kind, method))
                     for kind, method in methods
+                    for name in {None, *names[claim.id]}
+                ),
+            )
+    for pair, pair_names in names_by_pair.items():
+        if pair in key_ambiguous_pairs:
+            continue
+        for company_id in companies[pair]:
+            _add_keys(
+                keys,
+                (("person", person_suppression_key(company_id, name)) for name in pair_names),
+            )
+            _add_keys(
+                keys,
+                (
+                    ("method", method_suppression_key(company_id, name, kind, method))
+                    for claim in claims
+                    if (claim.project_id, claim.entity_key) == pair
+                    for kind, method in owned_methods[claim.id]
+                    for name in {None, *pair_names}
                 ),
             )
         _add_keys(
@@ -517,7 +618,12 @@ def project_saved_history_privacy(
         )
         _add_keys(
             keys,
-            (("method", global_method_suppression_key(kind, method)) for kind, method in methods),
+            (
+                ("method", global_method_suppression_key(kind, method))
+                for claim in claims
+                if (claim.project_id, claim.entity_key) == pair
+                for kind, method in owned_methods[claim.id]
+            ),
         )
     methods_by_card = {id(card): _methods(card) for card in cards}
     record_claims: dict[int, set[UUID]] = {}
@@ -526,6 +632,7 @@ def project_saved_history_privacy(
     for card in cards:
         card_claims = [claim for claim in claims if claim.project_id in projects_by_card[id(card)]]
         pairs = {(claim.project_id, claim.entity_key) for claim in card_claims}
+        card_ambiguous_pairs = ambiguous_pairs - validated_pairs_by_card[id(card)]
         for record in _contact_records(card):
             pointer = record.get("claim_id")
             if pointer is None and record.get("id") in {str(claim.id) for claim in card_claims}:
@@ -558,7 +665,7 @@ def project_saved_history_privacy(
         # A lone retained DB account is an unambiguous scope for older prose
         # that has no claim pointer. Never cross-product unrelated accounts.
         account_ids = set().union(*(companies[pair] for pair in pairs)) if pairs else set()
-        if (len(account_ids) == 1 or _contact_tokens_only) and not (pairs & ambiguous_pairs):
+        if (len(account_ids) == 1 or _contact_tokens_only) and not (pairs & card_ambiguous_pairs):
             companies_by_card[id(card)] = account_ids
             _add_keys(
                 keys,
@@ -572,14 +679,15 @@ def project_saved_history_privacy(
             pair = (claim.project_id, claim.entity_key)
             methods = owned_methods[claim.id]
             overflow |= len(methods) > MAX_HISTORY_METHODS
-            if pair in ambiguous_pairs:
+            if pair in card_ambiguous_pairs:
                 continue
             _add_keys(
                 keys,
                 (
-                    ("method", method_suppression_key(company_id, None, kind, method))
+                    ("method", method_suppression_key(company_id, name, kind, method))
                     for company_id in companies[pair]
                     for kind, method in methods
+                    for name in {None, *names_by_pair[pair]}
                 ),
             )
     for methods in methods_by_card.values():
@@ -593,11 +701,12 @@ def project_saved_history_privacy(
     for card in cards:
         hidden, hidden_claims, hidden_methods = set(), set(), set()
         card_projects = projects_by_card[id(card)]
+        card_ambiguous_pairs = ambiguous_pairs - validated_pairs_by_card[id(card)]
         for claim in claims:
             if claim.project_id not in card_projects:
                 continue
             pair = (claim.project_id, claim.entity_key)
-            ambiguous = pair in ambiguous_pairs
+            ambiguous = pair in card_ambiguous_pairs
             company_hidden = any(
                 states.get(("company", company_suppression_key(company_id))) == "suppress"
                 for company_id in companies[pair]
@@ -608,11 +717,11 @@ def project_saved_history_privacy(
             ) or any(
                 states.get(("person", person_suppression_key(company_id, name))) == "suppress"
                 for company_id in companies[pair]
-                for name in names[claim.id]
+                for name in names_by_pair[pair]
             )
             if company_hidden or person_hidden or ambiguous:
                 hidden_claims.add(claim.id)
-                hidden.update(names[claim.id])
+                hidden.update(names_by_pair[pair])
                 if company_hidden:
                     hidden.update(organizations[claim.id])
             for kind, method in owned_methods[claim.id]:
@@ -622,10 +731,11 @@ def project_saved_history_privacy(
                     or ambiguous
                     or any(
                         states.get(
-                            ("method", method_suppression_key(company_id, None, kind, method))
+                            ("method", method_suppression_key(company_id, name, kind, method))
                         )
                         == "suppress"
                         for company_id in companies[pair]
+                        for name in {None, *names_by_pair[pair]}
                     )
                 ):
                     hidden_methods.add(_method_parts(kind, method))
@@ -634,7 +744,7 @@ def project_saved_history_privacy(
             for claim in claims
             if claim.project_id in card_projects
         }
-        if card_pairs & ambiguous_pairs or hidden_claims:
+        if card_pairs & card_ambiguous_pairs or hidden_claims:
             # Unattributed contact tokens cannot safely be assigned to one of
             # the conflicting identities. Preserve explicitly owned methods
             # belonging to other unambiguous subjects in this same cohort.
@@ -642,7 +752,7 @@ def project_saved_history_privacy(
                 _method_parts(kind, method)
                 for claim in claims
                 if claim.project_id in card_projects
-                and (claim.project_id, claim.entity_key) not in ambiguous_pairs
+                and (claim.project_id, claim.entity_key) not in card_ambiguous_pairs
                 and claim.id not in hidden_claims
                 for kind, method in owned_methods[claim.id]
             }
@@ -701,3 +811,604 @@ def project_saved_history_privacy(
     if notes_projection is not None:
         result["notes"] = notes_projection["notes"]
     return result
+
+
+_CHANGE_ROLE_FIELDS = frozenset({"buyer", "contractor"})
+_CHANGE_ROW_FIELDS = (
+    "organization",
+    "person_name",
+    "title",
+    "category",
+    "organization_relationship",
+    "person_project_relationship",
+)
+_CHANGE_ROLE_SUPPORT = frozenset(
+    {
+        "project_organization",
+        "organization_category",
+        "organization_person_role",
+        "person_project_assignment",
+    }
+)
+
+
+def project_change_events_public(
+    session: Session,
+    entries: Sequence[tuple[ChangeEvent, dict[str, Any], str, str]],
+    *,
+    include_source_ids: bool = False,
+) -> list[dict[str, Any] | None]:
+    """Privacy-project copied change events without modifying their stored history.
+
+    Buyer/contractor rows are displayable only when the exact original row and
+    its same-side source version still occur in the current public projection.
+    A new-side source never authenticates an unbound prior snapshot.
+    """
+    if not entries:
+        return []
+    if len(entries) > MAX_CHANGE_EVENTS:
+        return [None for _ in entries]
+    valid_entries = []
+    valid_positions = []
+    for index, entry in enumerate(entries):
+        if (
+            not isinstance(entry, tuple)
+            or len(entry) != 4
+            or not isinstance(entry[0], ChangeEvent)
+            or not isinstance(entry[1], dict)
+            or not isinstance(entry[2], str)
+            or not isinstance(entry[3], str)
+        ):
+            continue
+        event, item, before_key, after_key = entry
+        if (event.field_name or "").casefold() not in _CHANGE_ROLE_FIELDS:
+            valid_entries.append(entry)
+            valid_positions.append(index)
+            continue
+        source_rows = item.get("sources", [])
+        if not isinstance(source_rows, list) or len(source_rows) > MAX_HISTORY_METHODS:
+            continue
+        malformed = False
+        for state in (
+            item.get(before_key),
+            item.get(after_key),
+            event.prior_state,
+            event.new_state,
+        ):
+            if state is None:
+                continue
+            if not isinstance(state, dict) or not isinstance(state.get("value"), list):
+                malformed = True
+                break
+            if len(state["value"]) > MAX_HISTORY_CLAIMS or any(
+                not isinstance(row, dict)
+                or any(
+                    row.get(key) is not None and not isinstance(row.get(key), str)
+                    for key in _CHANGE_ROW_FIELDS
+                )
+                for row in state["value"]
+            ):
+                malformed = True
+                break
+            if "buying_chain_evidence_ids" in state:
+                ids = state["buying_chain_evidence_ids"]
+                if (
+                    not isinstance(ids, list)
+                    or len(ids) > MAX_HISTORY_METHODS
+                    or any(_uuid(value) is None for value in ids)
+                ):
+                    malformed = True
+                    break
+        if not malformed:
+            valid_entries.append(entry)
+            valid_positions.append(index)
+
+    if len(valid_entries) != len(entries):
+        result: list[dict[str, Any] | None] = [None for _ in entries]
+        if valid_entries:
+            valid_results = project_change_events_public(
+                session,
+                valid_entries,
+                include_source_ids=include_source_ids,
+            )
+            for index, value in zip(valid_positions, valid_results, strict=True):
+                result[index] = value
+        return result
+
+    project_ids = {event.project_id for event, _, _, _ in entries if event.project_id is not None}
+    if len(project_ids) > MAX_HISTORY_PROJECTS:
+        return [None for _ in entries]
+
+    from gridlens.intelligence.buying_chain import buying_chain_views
+
+    views = buying_chain_views(session, project_ids) if project_ids else {}
+    claims_by_project: dict[UUID, list[BuyingChainClaim]] = defaultdict(list)
+    claims: Sequence[BuyingChainClaim] = []
+    overflow_projects: set[UUID] = set()
+    if project_ids:
+        ranked_claim_ids = (
+            select(
+                BuyingChainClaim.id.label("claim_id"),
+                BuyingChainClaim.project_id.label("project_id"),
+                func.row_number()
+                .over(
+                    partition_by=BuyingChainClaim.project_id,
+                    order_by=BuyingChainClaim.id,
+                )
+                .label("row_number"),
+            )
+            .where(BuyingChainClaim.project_id.in_(project_ids))
+            .subquery()
+        )
+        claims = session.scalars(
+            select(BuyingChainClaim)
+            .join(ranked_claim_ids, ranked_claim_ids.c.claim_id == BuyingChainClaim.id)
+            .where(ranked_claim_ids.c.row_number <= MAX_HISTORY_CLAIMS + 1)
+            .order_by(ranked_claim_ids.c.project_id, BuyingChainClaim.id)
+        ).all()
+        for claim in claims:
+            claims_by_project[claim.project_id].append(claim)
+
+    overflow_projects.update(
+        project_id
+        for project_id, rows in claims_by_project.items()
+        if len(rows) > MAX_HISTORY_CLAIMS
+    )
+    claim_ids = {claim.id for claim in claims}
+    corrections_by_claim: dict[UUID, list[dict[str, Any]]] = defaultdict(list)
+    if claim_ids:
+        ranked_correction_ids = (
+            select(
+                BuyingChainCorrection.id.label("correction_id"),
+                BuyingChainClaim.project_id.label("project_id"),
+                func.row_number()
+                .over(
+                    partition_by=BuyingChainClaim.project_id,
+                    order_by=BuyingChainCorrection.id,
+                )
+                .label("row_number"),
+            )
+            .join(BuyingChainClaim, BuyingChainClaim.id == BuyingChainCorrection.claim_id)
+            .where(BuyingChainCorrection.claim_id.in_(claim_ids))
+            .subquery()
+        )
+        corrections = session.scalars(
+            select(BuyingChainCorrection)
+            .join(
+                ranked_correction_ids,
+                ranked_correction_ids.c.correction_id == BuyingChainCorrection.id,
+            )
+            .where(ranked_correction_ids.c.row_number <= MAX_HISTORY_LINKS + 1)
+            .order_by(ranked_correction_ids.c.project_id, BuyingChainCorrection.id)
+        ).all()
+        corrections_by_project: dict[UUID, int] = defaultdict(int)
+        claims_by_id = {claim.id: claim for claim in claims}
+        for correction in corrections:
+            correction_claim = claims_by_id.get(correction.claim_id)
+            if correction_claim is None:
+                continue
+            corrections_by_project[correction_claim.project_id] += 1
+            corrections_by_claim[correction_claim.id].append(correction.values or {})
+        overflow_projects.update(
+            project_id
+            for project_id, count in corrections_by_project.items()
+            if count > MAX_HISTORY_LINKS
+        )
+
+    from gridlens.intelligence.buying_chain import has_public_research_provenance
+
+    projected: list[dict[str, Any] | None] = []
+    privacy_cards: dict[UUID, list[int]] = defaultdict(list)
+    validated_claim_ids_by_index: dict[int, set[UUID]] = {}
+    source_claims_by_index: dict[int, dict[str, set[str]]] = {}
+    row_claims_by_index: dict[int, dict[str, list[str]]] = {}
+    for event, original, before_key, after_key in entries:
+        project_id = event.project_id
+        if project_id is not None and project_id in overflow_projects:
+            projected.append(None)
+            continue
+
+        item = deepcopy(original)
+        view = views.get(str(project_id), {}) if project_id is not None else {}
+        candidates = [
+            candidate for candidate in view.get("candidates", []) if not candidate.get("stale")
+        ]
+        authorized_names = {
+            str(candidate["person_name"]).strip()
+            for candidate in candidates
+            if candidate.get("person_name")
+        }
+        authorized_titles = {
+            str(candidate["title"]).strip() for candidate in candidates if candidate.get("title")
+        }
+        hidden_names: set[str] = set()
+        hidden_titles: set[str] = set()
+        rejected_names: set[str] = set()
+        rejected_titles: set[str] = set()
+        validated_event_claim_ids: set[UUID] = set()
+        validated_event_methods: list[dict[str, Any]] = []
+        source_claims: dict[str, set[str]] = defaultdict(set)
+        row_claims: dict[str, list[str]] = {}
+        project_claims = claims_by_project.get(project_id, []) if project_id is not None else []
+        for claim in project_claims:
+            if claim.person_name and claim.person_name.strip() not in authorized_names:
+                hidden_names.add(claim.person_name.strip())
+            if claim.title and claim.title.strip() not in authorized_titles:
+                hidden_titles.add(claim.title.strip())
+            for correction_values in corrections_by_claim.get(claim.id, []):
+                person_name = correction_values.get("person_name")
+                title = correction_values.get("title")
+                if isinstance(person_name, str) and person_name.strip() not in authorized_names:
+                    hidden_names.add(person_name.strip())
+                if isinstance(title, str) and title.strip() not in authorized_titles:
+                    hidden_titles.add(title.strip())
+
+        is_role_event = (event.field_name or "").casefold() in _CHANGE_ROLE_FIELDS
+        if is_role_event:
+            event_source_ids: set[str] = set()
+            if event.buying_chain_evidence_id is not None:
+                event_source_ids.add(str(event.buying_chain_evidence_id))
+            new_state = event.new_state if isinstance(event.new_state, dict) else {}
+            listed_ids = new_state.get("buying_chain_evidence_ids", [])
+            if isinstance(listed_ids, list) and len(listed_ids) <= MAX_HISTORY_METHODS:
+                event_source_ids.update(str(value) for value in listed_ids)
+            else:
+                event_source_ids.clear()
+
+            source_by_id = {}
+            parsed_ids = []
+            source_lookup_ids = set(event_source_ids)
+            for state_key in (before_key, after_key):
+                state = item.get(state_key)
+                raw_ids = (
+                    state.get("buying_chain_evidence_ids", []) if isinstance(state, dict) else []
+                )
+                if isinstance(raw_ids, list) and len(raw_ids) <= MAX_HISTORY_METHODS:
+                    source_lookup_ids.update(str(value) for value in raw_ids)
+            if len(source_lookup_ids) > MAX_HISTORY_METHODS:
+                source_lookup_ids.clear()
+            for raw in source_lookup_ids:
+                try:
+                    parsed_ids.append(UUID(raw))
+                except (TypeError, ValueError, AttributeError):
+                    parsed_ids = []
+                    break
+            if parsed_ids:
+                source_by_id = {
+                    str(source.id): source
+                    for source in session.scalars(
+                        select(BuyingChainEvidence).where(BuyingChainEvidence.id.in_(parsed_ids))
+                    )
+                }
+
+            def source_refs_for(
+                state: Any,
+                *,
+                new_side: bool,
+                candidate_rows: list[dict] = candidates,
+                new_side_ids: set[str] = event_source_ids,
+                source_rows: dict = source_by_id,
+                project_key: UUID | None = project_id,
+                rejected_name_tokens: set[str] = rejected_names,
+                rejected_title_tokens: set[str] = rejected_titles,
+                validated_ids: set[UUID] = validated_event_claim_ids,
+                validated_methods: list[dict[str, Any]] = validated_event_methods,
+                source_bindings: dict[str, set[str]] = source_claims,
+            ) -> dict[str, tuple[str, str]]:
+                if not isinstance(state, dict):
+                    return {}
+                if not isinstance(state.get("value"), list):
+                    state["value"] = []
+                    return {}
+                side_ids: set[str] = set()
+                if new_side:
+                    side_ids = set(new_side_ids)
+                else:
+                    raw_ids = state.get("buying_chain_evidence_ids", [])
+                    if isinstance(raw_ids, list) and len(raw_ids) <= MAX_HISTORY_METHODS:
+                        side_ids = {str(value) for value in raw_ids}
+                    else:
+                        return {}
+                accepted: dict[str, tuple[str, str]] = {}
+                kept_rows: list[dict[str, Any]] = []
+                for row in state["value"]:
+                    if not isinstance(row, dict):
+                        continue
+                    semantic = tuple(row.get(key) for key in _CHANGE_ROW_FIELDS)
+                    matches = [
+                        candidate
+                        for candidate in candidate_rows
+                        if tuple(candidate.get(key) for key in _CHANGE_ROW_FIELDS) == semantic
+                    ]
+                    if len(matches) != 1:
+                        if row.get("person_name"):
+                            rejected_name_tokens.add(str(row["person_name"]).strip())
+                        if row.get("title"):
+                            rejected_title_tokens.add(str(row["title"]).strip())
+                        continue
+                    candidate = matches[0]
+                    person_scoped = bool(row.get("person_name"))
+                    needed_supports = (
+                        {"organization_person_role", "person_project_assignment"}
+                        if person_scoped
+                        else _CHANGE_ROLE_SUPPORT
+                    )
+                    citations = candidate.get("evidence", [])
+                    facts = []
+                    if isinstance(citations, list):
+                        for citation in citations:
+                            if not isinstance(citation, dict):
+                                continue
+                            source_id = str(citation.get("id") or "")
+                            if (
+                                source_id not in side_ids
+                                or source_id != str(citation.get("current_source_version_id") or "")
+                                or not citation.get("current_support")
+                                or citation.get("supports") not in needed_supports
+                            ):
+                                continue
+                            source = source_rows.get(source_id)
+                            source_hash = str(citation.get("content_hash") or "")
+                            source_url = str(citation.get("url") or "")
+                            if (
+                                source is None
+                                or source.project_id != project_key
+                                or source.content_hash != source_hash
+                                or source.url != source_url
+                            ):
+                                continue
+                            facts.append((source_id, source_url, source_hash))
+                    if not facts:
+                        if row.get("person_name"):
+                            rejected_name_tokens.add(str(row["person_name"]).strip())
+                        if row.get("title"):
+                            rejected_title_tokens.add(str(row["title"]).strip())
+                        continue
+                    candidate_id = _uuid(candidate.get("id"))
+                    if candidate_id is not None:
+                        validated_ids.add(candidate_id)
+                    contacts = candidate.get("public_contacts", [])
+                    if isinstance(contacts, list):
+                        validated_methods.extend(
+                            contact for contact in contacts if isinstance(contact, dict)
+                        )
+                    for source_id, source_url, source_hash in facts:
+                        accepted[source_id] = (source_url, source_hash)
+                        source_bindings[source_id].add(str(candidate_id))
+                    # These copied records retain claim ownership through the
+                    # generic privacy wrapper; neither these pointers nor any
+                    # serialized field can grant the private lineage exception.
+                    kept_rows.append({**row, "claim_id": str(candidate_id)})
+                state["value"] = kept_rows
+                return accepted
+
+            # Prior state has no causal evidence pointers in current records;
+            # it therefore fails closed unless its own original side carries IDs.
+            before_state = item.get(before_key)
+            after_state = item.get(after_key)
+            before_sources = source_refs_for(before_state, new_side=False)
+            after_sources = source_refs_for(after_state, new_side=True)
+            allowed_sources = before_sources | after_sources
+            original_rows = [
+                row
+                for state in (event.prior_state, event.new_state)
+                if isinstance(state, dict) and isinstance(state.get("value"), list)
+                for row in state["value"]
+                if isinstance(row, dict)
+            ]
+            original_organization_rows = {
+                tuple(row.get(key) for key in _CHANGE_ROW_FIELDS)
+                for row in original_rows
+                if not row.get("person_name") and not row.get("title")
+            }
+            # Pure organization-history sources can establish causal project
+            # provenance even when a withdrawal means no current relationship
+            # candidate cites that document. They cannot restore a role row.
+            event_org_sources: dict[str, tuple[str, str]] = {}
+            organization_provenance_claims: dict[UUID, BuyingChainClaim] = {}
+            for source_id in event_source_ids:
+                source = source_by_id.get(source_id)
+                if source is None or source.project_id != project_id:
+                    continue
+                source_claims_in_history = [
+                    claim
+                    for claim in project_claims
+                    if isinstance(claim.citations, list)
+                    and any(
+                        isinstance(citation, dict) and citation.get("url") == source.url
+                        for citation in claim.citations
+                    )
+                ]
+                # A generic person/contact source cannot come back through
+                # organization provenance, even if a particular event side
+                # happens to omit its person row. Historical URL lineages cover
+                # withdrawal versions that intentionally have no current claim.
+                if not source_claims_in_history or any(
+                    claim.person_name
+                    or claim.title
+                    or claim.public_contacts
+                    or any(
+                        isinstance(citation, dict)
+                        and citation.get("url") == source.url
+                        and citation.get("supports")
+                        in {
+                            "organization_person_role",
+                            "person_project_assignment",
+                            "public_contact",
+                            "permit_listed_contact",
+                        }
+                        for citation in claim.citations
+                    )
+                    for claim in source_claims_in_history
+                ):
+                    continue
+                if not any(
+                    tuple(getattr(claim, key) for key in _CHANGE_ROW_FIELDS)
+                    in original_organization_rows
+                    for claim in source_claims_in_history
+                ):
+                    continue
+                valid_source = has_public_research_provenance(source)
+                if source.retained_evidence_id is not None:
+                    from gridlens.intelligence.company_contact_attribution import (
+                        _source_hash_is_current,
+                    )
+
+                    retained_source = session.get(Evidence, source.retained_evidence_id)
+                    valid_source = bool(
+                        retained_source is not None
+                        and source.url == retained_source.url
+                        and source.excerpt
+                        == f"{retained_source.title}\n{retained_source.abstract or ''}"
+                        and _source_hash_is_current(
+                            source, retained_version=retained_source.content_hash
+                        )
+                    )
+                if valid_source:
+                    event_org_sources[source_id] = (source.url, source.content_hash)
+                    for claim in source_claims_in_history:
+                        organization_provenance_claims[claim.id] = claim
+                        source_claims[source_id].add(str(claim.id))
+            allowed_sources.update(event_org_sources)
+            item["sources"] = [
+                source
+                for source in item.get("sources", [])
+                if isinstance(source, dict)
+                and str(source.get("id") or "") in allowed_sources
+                and source.get("url") == allowed_sources[str(source.get("id"))][0]
+                and (
+                    "content_hash" not in source
+                    or source.get("content_hash") == allowed_sources[str(source.get("id"))][1]
+                )
+            ]
+            if validated_event_methods:
+                # Existing saved-history privacy uses structured methods to
+                # apply company/person/global controls across historical aliases.
+                # This temporary field is removed after that projection.
+                item["public_contacts"] = validated_event_methods
+            bound_contacts = []
+            for claim in organization_provenance_claims.values():
+                bound_contacts.append(
+                    {
+                        "claim_id": str(claim.id),
+                        "organization": claim.organization,
+                        "sources": [
+                            source
+                            for source in item["sources"]
+                            if str(claim.id) in source_claims.get(str(source.get("id")), set())
+                        ],
+                    }
+                )
+            for state_key in (before_key, after_key):
+                state = item.get(state_key)
+                rows = state.get("value") if isinstance(state, dict) else None
+                if not isinstance(rows, list):
+                    continue
+                row_claims[state_key] = [str(row.get("claim_id")) for row in rows]
+                for row in rows:
+                    bound_contacts.append(
+                        {
+                            **row,
+                            "sources": [
+                                source
+                                for source in item["sources"]
+                                if str(row.get("claim_id"))
+                                in source_claims.get(str(source.get("id")), set())
+                            ],
+                        }
+                    )
+            item["contacts"] = bound_contacts
+            validated_claim_ids_by_index[len(projected)] = validated_event_claim_ids
+            source_claims_by_index[len(projected)] = dict(source_claims)
+            row_claims_by_index[len(projected)] = row_claims
+
+        event_rows: list[dict[str, Any]] = []
+        for state_key in (before_key, after_key):
+            state = item.get(state_key)
+            values = state.get("value") if isinstance(state, dict) else None
+            if isinstance(values, list):
+                event_rows.extend(row for row in values if isinstance(row, dict))
+        event_names = {
+            str(row["person_name"]).strip() for row in event_rows if row.get("person_name")
+        }
+        event_titles = {str(row["title"]).strip() for row in event_rows if row.get("title")}
+        hidden_names.difference_update(event_names)
+        hidden_titles.difference_update(event_titles)
+        hidden_names.update(rejected_names - event_names)
+        hidden_titles.update(rejected_titles - event_titles)
+
+        hidden = hidden_names | hidden_titles
+        return_item = _redact(item, hidden, set(), set()) if hidden else item
+        projected.append(return_item)
+        if project_id is not None:
+            privacy_cards[project_id].append(len(projected) - 1)
+
+    # Batch the existing saved-history alias/suppression projector once per
+    # bounded project cohort instead of issuing one history query per event.
+    for project_id, indexes in privacy_cards.items():
+        local_validated_claim_ids: dict[int, set[UUID]] = {}
+        for card_index, projected_index in enumerate(indexes):
+            local_validated_claim_ids[card_index] = validated_claim_ids_by_index.get(
+                projected_index, set()
+            )
+        wrapped = {
+            "project_id": str(project_id),
+            "versions": [{"saved_card": projected[index]} for index in indexes],
+        }
+        sanitized = project_saved_history_privacy(
+            session,
+            wrapped,
+            _validated_event_claim_ids_by_card=local_validated_claim_ids,
+            _current_event_claim_ids_by_project={
+                project_id: {
+                    claim_id
+                    for candidate in views.get(str(project_id), {}).get("candidates", [])
+                    if not candidate.get("stale")
+                    and (claim_id := _uuid(candidate.get("id"))) is not None
+                },
+            },
+        )
+        versions = sanitized.get("versions", [])
+        if len(versions) != len(indexes):
+            for index in indexes:
+                projected[index] = None
+            continue
+        for index, version in zip(indexes, versions, strict=True):
+            if not isinstance(version, dict) or not isinstance(version.get("saved_card"), dict):
+                projected[index] = None
+            else:
+                saved_card = version["saved_card"]
+                saved_card.pop("public_contacts", None)
+                visible_claims = {
+                    str(record.get("claim_id"))
+                    for record in saved_card.pop("contacts", [])
+                    if isinstance(record, dict)
+                }
+                for state_key in ("prior", "new", "before_state", "after_state"):
+                    state = saved_card.get(state_key)
+                    rows = state.get("value") if isinstance(state, dict) else None
+                    if not isinstance(rows, list):
+                        continue
+                    if state_key in row_claims_by_index.get(index, {}):
+                        state["value"] = [
+                            {key: value for key, value in row.items() if key != "claim_id"}
+                            for row in rows
+                            if isinstance(row, dict) and str(row.get("claim_id")) in visible_claims
+                        ]
+                source_bindings = source_claims_by_index.get(index, {})
+                if source_bindings:
+                    saved_card["sources"] = [
+                        source
+                        for source in saved_card.get("sources", [])
+                        if not isinstance(source, dict)
+                        or str(source.get("id") or "") not in source_bindings
+                        or bool(source_bindings[str(source.get("id"))] & visible_claims)
+                    ]
+                projected[index] = _redact_all_contact_tokens(saved_card)
+    if not include_source_ids:
+        for final_item in projected:
+            if isinstance(final_item, dict) and isinstance(final_item.get("sources"), list):
+                for source in final_item["sources"]:
+                    if isinstance(source, dict):
+                        source.pop("id", None)
+    return projected

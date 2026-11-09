@@ -338,6 +338,8 @@ def _enrich_displayed_items(session: Session, items: list[dict]) -> None:
     )
     chain_ids: set[UUID] = set()
     event_chain_ids: dict[int, list[UUID]] = {}
+    from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_METHODS
+
     for event in events:
         ids = (
             (event.new_state or {}).get(
@@ -346,15 +348,20 @@ def _enrich_displayed_items(session: Session, items: list[dict]) -> None:
             if isinstance(event.new_state, dict)
             else [str(event.buying_chain_evidence_id)]
         )
-        if event.buying_chain_evidence_id is not None and isinstance(ids, list):
-            parsed = []
+        if (
+            event.buying_chain_evidence_id is not None
+            and isinstance(ids, list)
+            and len(ids) <= MAX_HISTORY_METHODS
+        ):
+            parsed: list[UUID] = []
             for value in ids:
                 try:
                     chain_id = UUID(str(value))
-                except ValueError:
-                    continue
+                except (ValueError, TypeError, AttributeError):
+                    parsed = []
+                    break
                 parsed.append(chain_id)
-                chain_ids.add(chain_id)
+            chain_ids.update(parsed)
             event_chain_ids[event.id] = parsed
     chain_by_id = (
         {
@@ -398,6 +405,7 @@ def _enrich_displayed_items(session: Session, items: list[dict]) -> None:
                 if (chain_source := chain_by_id.get(source_id)) is not None:
                     sources.append(
                         {
+                            "id": str(chain_source.id),
                             "title": chain_source.title,
                             "url": chain_source.url,
                             "published_at": chain_source.published_at,
@@ -486,7 +494,24 @@ def workspace_changes(
     )
     counts = Counter(item["category"] for item in candidates)
     displayed = candidates[offset : offset + limit]
+    event_by_key = {
+        f"change:{item['_event'].id}": item["_event"] for item in displayed if "_event" in item
+    }
     _enrich_displayed_items(session, displayed)
+    from gridlens.intelligence.saved_history_privacy import project_change_events_public
+
+    event_entries = [
+        (event_by_key[item["event_key"]], item, "before_state", "after_state")
+        for item in displayed
+        if item.get("event_key") in event_by_key
+    ]
+    event_projections = iter(project_change_events_public(session, event_entries))
+    public_items = []
+    for item in displayed:
+        projected = next(event_projections) if item.get("event_key") in event_by_key else item
+        if projected is not None:
+            public_items.append(projected)
+    displayed = public_items
     keys = [item["event_key"] for item in displayed]
     next_offset = offset + limit if offset + limit < len(candidates) else None
     return {

@@ -250,8 +250,7 @@ def test_unlinked_mixed_organization_text_redacts_rejected_person_and_methods():
         "url": "https://example.test/Alice Smith/contact?email=alice@acme.example",
         "supports": "project_organization",
         "quote": (
-            "Acme LLC is the project developer; Alice Smith can be reached at "
-            "alice@acme.example."
+            "Acme LLC is the project developer; Alice Smith can be reached at alice@acme.example."
         ),
         "current_support": True,
     }
@@ -309,10 +308,7 @@ def test_unlinked_mixed_organization_text_redacts_rejected_person_and_methods():
             {
                 **person_evidence,
                 "supports": "organization_category",
-                "quote": (
-                    "Acme LLC is the project developer; Public contact: "
-                    "alice@acme.example."
-                ),
+                "quote": ("Acme LLC is the project developer; Public contact: alice@acme.example."),
             },
             contact_evidence,
         ],

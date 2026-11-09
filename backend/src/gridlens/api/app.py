@@ -5048,9 +5048,27 @@ def signal_decision_counts():
 
 def _change_sources(session, event: ChangeEvent) -> list[dict]:
     if event.buying_chain_evidence_id is not None:
-        stored_ids = (event.new_state or {}).get("buying_chain_evidence_ids")
-        ids = stored_ids if isinstance(stored_ids, list) else [event.buying_chain_evidence_id]
-        sources = [session.get(BuyingChainEvidence, UUID(str(source_id))) for source_id in ids]
+        from gridlens.intelligence.saved_history_privacy import MAX_HISTORY_METHODS
+
+        state = event.new_state if isinstance(event.new_state, dict) else {}
+        ids = state.get("buying_chain_evidence_ids", [event.buying_chain_evidence_id])
+        if not isinstance(ids, list) or len(ids) > MAX_HISTORY_METHODS:
+            return []
+        try:
+            parsed_ids = [UUID(str(source_id)) for source_id in ids]
+        except (ValueError, TypeError, AttributeError):
+            return []
+        by_id = (
+            {
+                source.id: source
+                for source in session.scalars(
+                    select(BuyingChainEvidence).where(BuyingChainEvidence.id.in_(parsed_ids))
+                )
+            }
+            if parsed_ids
+            else {}
+        )
+        sources = [by_id[source_id] for source_id in parsed_ids if source_id in by_id]
     else:
         sources = [session.get(Evidence, event.evidence_id)] if event.evidence_id else []
     return [
@@ -5067,6 +5085,8 @@ def _change_sources(session, event: ChangeEvent) -> list[dict]:
 
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])
 def changes():
+    from gridlens.intelligence.saved_history_privacy import project_change_events_public
+
     with SessionLocal() as session:
         today = chicago_today()
         rows = session.execute(
@@ -5083,20 +5103,53 @@ def changes():
             )
             .order_by(ChangeEvent.created_at.desc())
         ).all()
-        return [
-            {
-                "kind": event.kind,
-                "title": buying.title if buying else evidence.title,
-                "url": buying.url if buying else evidence.url,
-                "published_at": (
-                    (buying.published_at if buying else evidence.published_at).isoformat()
-                    if (buying.published_at if buying else evidence.published_at)
-                    else None
-                ),
-                "sources": _change_sources(session, event),
-            }
+        entries = [
+            (
+                event,
+                {
+                    "kind": event.kind,
+                    "title": buying.title
+                    if buying
+                    else evidence.title
+                    if evidence
+                    else "Source unavailable",
+                    "url": buying.url if buying else evidence.url if evidence else "",
+                    "published_at": (
+                        (buying.published_at if buying else evidence.published_at).isoformat()
+                        if (buying or evidence)
+                        and (buying.published_at if buying else evidence.published_at)
+                        else None
+                    ),
+                    "sources": _change_sources(session, event),
+                    "prior": event.prior_state,
+                    "new": event.new_state,
+                },
+                "prior",
+                "new",
+            )
             for event, evidence, buying in rows
         ]
+        result = []
+        for start in range(0, len(entries), 250):
+            batch = entries[start : start + 250]
+            projected = project_change_events_public(session, batch, include_source_ids=True)
+            for (event, original, _, _), item in zip(batch, projected, strict=True):
+                if item is None:
+                    item = {
+                        "kind": event.kind,
+                        "published_at": original["published_at"],
+                        "sources": [],
+                    }
+                if event.field_name in {"buyer", "contractor"}:
+                    primary = next(iter(item["sources"]), {})
+                    item["title"] = primary.get("title", "Source withheld")
+                    item["url"] = primary.get("url", "")
+                item.pop("prior", None)
+                item.pop("new", None)
+                item.setdefault("title", "Source withheld")
+                item.setdefault("url", "")
+                result.append(item)
+        return result
 
 
 @app.get(
@@ -5218,22 +5271,37 @@ def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, g
             .order_by(ChangeEvent.created_at.desc(), ChangeEvent.id.desc())
             .limit(limit)
         ).all()
-        return [
-            {
-                "kind": e.kind,
-                "field": e.field_name,
-                "prior": e.prior_state,
-                "new": e.new_state,
-                "evidence_id": str(e.evidence_id) if e.evidence_id else None,
-                "buying_chain_evidence_id": (
-                    str(e.buying_chain_evidence_id) if e.buying_chain_evidence_id else None
-                ),
-                "sources": _change_sources(session, e),
-                "source_date": e.source_date,
-                "detected_at": e.created_at,
-            }
-            for e in events
+        from gridlens.intelligence.saved_history_privacy import project_change_events_public
+
+        entries = [
+            (
+                event,
+                {
+                    "kind": event.kind,
+                    "field": event.field_name,
+                    "prior": event.prior_state,
+                    "new": event.new_state,
+                    "evidence_id": str(event.evidence_id) if event.evidence_id else None,
+                    "buying_chain_evidence_id": (
+                        str(event.buying_chain_evidence_id)
+                        if event.buying_chain_evidence_id
+                        else None
+                    ),
+                    "sources": _change_sources(session, event),
+                    "source_date": event.source_date,
+                    "detected_at": event.created_at,
+                },
+                "prior",
+                "new",
+            )
+            for event in events
         ]
+        projected = project_change_events_public(
+            session,
+            entries,
+            include_source_ids=True,
+        )
+        return [item for item in projected if item is not None]
 
 
 @app.get(

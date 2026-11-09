@@ -338,8 +338,7 @@ def test_project_state_redacts_rejected_mixed_contact_text_and_keeps_native_phon
             for citation in public_owner["citations"]
         )
         assert any(
-            citation["supports"] == "organization_category"
-            and "[redacted]" in citation["quote"]
+            citation["supports"] == "organization_category" and "[redacted]" in citation["quote"]
             for citation in public_owner["citations"]
         )
         assert owner_claim.citations == raw_owner_citations

@@ -771,9 +771,7 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     kept.append(candidate)
                     continue
                 candidate["public_contacts"] = []
-                local_terms_by_candidate[id(candidate)].update(
-                    _contact_values(original_contacts)
-                )
+                local_terms_by_candidate[id(candidate)].update(_contact_values(original_contacts))
                 candidate["evidence"] = [
                     citation
                     for citation in candidate.get("evidence", [])
@@ -903,19 +901,15 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
             local_terms = local_terms_by_candidate.get(id(candidate), set())
             candidate_terms = company_terms | local_terms
             if isinstance(candidate.get("reason"), str):
-                candidate["reason"] = _safe_projection_text(
-                    candidate["reason"], candidate_terms
-                )
+                candidate["reason"] = _safe_projection_text(candidate["reason"], candidate_terms)
             candidate["evidence"] = [
                 citation
-                if _citation_key(citation) in allowed_citations_by_candidate.get(
-                    id(candidate), set()
-                )
+                if _citation_key(citation)
+                in allowed_citations_by_candidate.get(id(candidate), set())
                 else _safe_projection_text(
                     citation,
-                    candidate_terms | blocked_terms_by_source.get(
-                        _citation_locator(citation), set()
-                    ),
+                    candidate_terms
+                    | blocked_terms_by_source.get(_citation_locator(citation), set()),
                 )
                 for citation in candidate.get("evidence", [])
             ]
