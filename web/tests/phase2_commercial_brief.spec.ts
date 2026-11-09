@@ -129,6 +129,29 @@ test('source-backed disposable account brief survives responsive navigation and 
     await expect(powerClaim).toContainText(classLabel)
   }
 
+  // Capture five authenticated API reads before screenshot and detail work.
+  const readSamples: { status: number; elapsed_ms: number }[] = []
+  for (let i = 0; i < 5; i += 1) {
+    const start = performance.now()
+    const response = await page.request.get('/api/opportunities/groups?sector=all&search=' + encodeURIComponent(manifest.account.name) + '&limit=25&offset=0&sort=priority&shortlist=true')
+    readSamples.push({ status: response.status(), elapsed_ms: Math.round((performance.now() - start) * 100) / 100 })
+    expect(response.ok()).toBeTruthy()
+    const body = await response.json() as { items: OpportunityGroup[] }
+    const found = body.items.find(item => item.id === manifest.account.group_id)
+    expect(found, 'account group is present in live API response').toBeTruthy()
+    expect(found?.featured_project?.commercial_brief?.why_now?.text).toBe(manifest.brief.why_now_text)
+    expect(found?.featured_project?.commercial_brief?.power_need?.scope ?? null).toBe(manifest.brief.power_scope)
+    expect(found?.featured_project?.commercial_brief?.power_need?.value ?? null).toBe(manifest.brief.power_value)
+    if (manifest.contact_source_need_id) {
+      const selectedNeed = found?.featured_project?.needs?.find(need => need.id === manifest.contact_source_need_id)
+      expect(selectedNeed?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
+    } else {
+      expect(found?.featured_project?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
+    }
+  }
+  await testInfo.attach('phase2-read-latency.json', { body: JSON.stringify({ read_count: readSamples.length, reads: readSamples }, null, 2), contentType: 'application/json' })
+  console.log(`PHASE2_HTTP_N5 ${JSON.stringify(readSamples)}`)
+
   // Capture the same real API-backed customer card at the five agreed viewports.
   const viewports = [
     { width: 1648, height: 928 }, { width: 1440, height: 900 }, { width: 1280, height: 800 },
@@ -188,30 +211,19 @@ test('source-backed disposable account brief survives responsive navigation and 
   await expect(recommendedAction).not.toContainText(/\[redacted\]|https?:\/\//i)
   await expect.poll(() => needReads).toContain(manifest.featured.need_id)
 
-  const readSamples: { status: number; elapsed_ms: number }[] = []
-  for (let i = 0; i < 5; i += 1) {
-    const start = performance.now()
-    const response = await page.request.get('/api/opportunities/groups?sector=all&search=' + encodeURIComponent(manifest.account.name) + '&limit=25&offset=0&sort=priority&shortlist=true')
-    readSamples.push({ status: response.status(), elapsed_ms: Math.round((performance.now() - start) * 100) / 100 })
-    expect(response.ok()).toBeTruthy()
-    const body = await response.json() as { items: OpportunityGroup[] }
-    const found = body.items.find(item => item.id === manifest.account.group_id)
-    expect(found, 'account group is present in live API response').toBeTruthy()
-    expect(found?.featured_project?.commercial_brief?.why_now?.text).toBe(manifest.brief.why_now_text)
-    expect(found?.featured_project?.commercial_brief?.power_need?.scope ?? null).toBe(manifest.brief.power_scope)
-    expect(found?.featured_project?.commercial_brief?.power_need?.value ?? null).toBe(manifest.brief.power_value)
-    if (manifest.contact_source_need_id) {
-      const selectedNeed = found?.featured_project?.needs?.find(need => need.id === manifest.contact_source_need_id)
-      expect(selectedNeed?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
-    } else {
-      expect(found?.featured_project?.commercial_brief?.best_contact?.href).toBe(manifest.brief.best_contact_href)
-    }
-  }
-  await testInfo.attach('phase2-read-latency.json', { body: JSON.stringify({ read_count: readSamples.length, reads: readSamples }, null, 2), contentType: 'application/json' })
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Pursuits' }).click()
   await expect(page.getByRole('heading', { name: 'Pursuits', exact: true })).toBeVisible()
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Opportunities' }).click()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toBeVisible()
+  const restoredNeedDetail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(restoredNeedDetail).toBeVisible()
+  await expect(restoredNeedDetail.getByRole('heading', { name: featuredProject!.name, exact: true })).toBeVisible()
+  await expect(restoredNeedDetail.getByRole('region', { name: 'Best contact' }).getByRole('link')).toHaveAttribute('href', manifest.brief.best_contact_href)
+  await expect(restoredNeedDetail.getByRole('region', { name: 'Recommended next action' })).toContainText(manifest.brief.next_action)
+  await expect(restoredNeedDetail.getByRole('region', { name: 'Recommended next action' })).not.toContainText(/\[redacted\]|https?:\/\//i)
+  await restoredNeedDetail.getByRole('button', { name: /Back to account/ }).click()
+  await expect(detail).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
+  for (const project of manifest.account.projects) await expect(detail).toContainText(project.name)
   await page.locator('.wh-account > summary').click()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
