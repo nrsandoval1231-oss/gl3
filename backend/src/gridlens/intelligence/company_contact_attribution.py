@@ -10,6 +10,7 @@ provenance before their contact claims remain visible.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -39,6 +40,14 @@ _NATIVE_IDENTITY_SOURCE_REASONS = {
 _PROJECT_SCOPED_NATIVE_SOURCE_REASONS = {
     "exact houston sold permit project, permit type, date and site match the selected project."
 }
+_CONTACT_BEARING_SUPPORTS = frozenset(
+    {
+        "public_contact",
+        "permit_listed_contact",
+        "organization_person_role",
+        "person_project_assignment",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -573,6 +582,43 @@ def _fact_matches_method(
     )
 
 
+def _citation_key(citation: dict) -> tuple[str, str, str]:
+    return (
+        str(citation.get("supports") or ""),
+        str(citation.get("url") or ""),
+        str(citation.get("quote") or ""),
+    )
+
+
+def _citation_locator(citation: dict) -> tuple[str, str]:
+    return (
+        str(citation.get("current_source_version_id") or citation.get("id") or ""),
+        str(citation.get("url") or ""),
+    )
+
+
+def _contact_values(contacts: object) -> set[str]:
+    if not isinstance(contacts, list):
+        return set()
+    return {
+        value.strip()
+        for contact in contacts
+        if isinstance(contact, dict)
+        and isinstance((value := contact.get("value")), str)
+        and value.strip()
+    }
+
+
+def _safe_projection_text(value: object, hidden_terms: set[str]) -> object:
+    """Redact rejected actor/contact text from the public view only."""
+    from gridlens.intelligence.saved_history_privacy import (
+        _redact,
+        _redact_all_contact_tokens,
+    )
+
+    return _redact_all_contact_tokens(_redact(value, hidden_terms, set(), set()))
+
+
 def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> None:
     """Hide website contacts/roles lacking identity proof from current projections.
 
@@ -665,6 +711,10 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
     for view in views:
         project_id = str(view.get("project_id") or "")
         project = projects.get(project_id)
+        blocked_terms_by_company: dict[str, set[str]] = defaultdict(set)
+        blocked_terms_by_source: dict[tuple[str, str], set[str]] = defaultdict(set)
+        local_terms_by_candidate: dict[int, set[str]] = defaultdict(set)
+        allowed_citations_by_candidate: dict[int, set[tuple[str, str, str]]] = defaultdict(set)
         existing_project_organizations = {
             _brand_key(str(candidate.get("organization") or ""))
             for candidate in view.get("candidates", [])
@@ -679,7 +729,17 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
         for candidate in view.get("candidates", []):
             company_id = candidate.get("company_identity_id")
             if not company_id:
+                original_contacts = list(candidate.get("public_contacts") or [])
                 if candidate.get("person_name"):
+                    rejected_terms = {
+                        str(candidate[key]).strip()
+                        for key in ("person_name", "title")
+                        if isinstance(candidate.get(key), str) and candidate[key].strip()
+                    }
+                    rejected_terms.update(_contact_values(original_contacts))
+                    local_terms_by_candidate[id(candidate)].update(rejected_terms)
+                    for citation in candidate.get("evidence", []):
+                        blocked_terms_by_source[_citation_locator(citation)].update(rejected_terms)
                     organization_evidence = [
                         citation
                         for citation in candidate.get("evidence", [])
@@ -711,6 +771,9 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     kept.append(candidate)
                     continue
                 candidate["public_contacts"] = []
+                local_terms_by_candidate[id(candidate)].update(
+                    _contact_values(original_contacts)
+                )
                 candidate["evidence"] = [
                     citation
                     for citation in candidate.get("evidence", [])
@@ -729,6 +792,8 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                 kept.append(candidate)
                 continue
             organization = str(candidate.get("organization") or "")
+            original_contacts = list(candidate.get("public_contacts") or [])
+            original_citations = list(candidate.get("evidence") or [])
             source_for_citation: dict[tuple[str, str, str], set[NativeContactFact]] = {}
             verified_role_facts: set[NativeContactFact] = set()
             verified_method_facts: set[NativeContactFact] = set()
@@ -790,35 +855,68 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                 else:
                     verified_role_facts.update(matched_facts)
 
-            candidate["public_contacts"] = [
+            allowed_contacts = [
                 contact
-                for contact in candidate.get("public_contacts", [])
+                for contact in original_contacts
                 if any(
                     _fact_matches_method(fact, contact, candidate, str(company_id))
                     for fact in verified_method_facts
                 )
             ]
+            candidate["public_contacts"] = allowed_contacts
+            rejected_method_values = _contact_values(
+                [contact for contact in original_contacts if contact not in allowed_contacts]
+            )
+            blocked_terms_by_company[str(company_id)].update(rejected_method_values)
+            local_terms_by_candidate[id(candidate)].update(rejected_method_values)
+            allowed_citations_by_candidate[id(candidate)].update(source_for_citation)
             candidate["evidence"] = [
                 citation
                 for citation in candidate.get("evidence", [])
-                if citation.get("supports")
-                not in {
-                    "public_contact",
-                    "organization_person_role",
-                    "person_project_assignment",
-                }
-                or bool(
-                    source_for_citation.get(
-                        (
-                            str(citation.get("supports")),
-                            str(citation.get("url") or ""),
-                            str(citation.get("quote") or ""),
-                        ),
-                        set(),
-                    )
-                )
+                if citation.get("supports") not in _CONTACT_BEARING_SUPPORTS
+                or _citation_key(citation) in source_for_citation
             ]
             if candidate.get("person_name") and not verified_role_facts:
+                rejected_terms = {
+                    str(candidate[key]).strip()
+                    for key in ("person_name", "title")
+                    if isinstance(candidate.get(key), str) and candidate[key].strip()
+                }
+                blocked_terms_by_company[str(company_id)].update(rejected_terms)
+                local_terms_by_candidate[id(candidate)].update(rejected_terms)
+                for citation in original_citations:
+                    blocked_terms_by_source[_citation_locator(citation)].update(rejected_terms)
                 continue
+            if candidate.get("title") and not any(
+                fact.title == candidate.get("title") for fact in verified_role_facts
+            ):
+                rejected_title = str(candidate["title"]).strip()
+                if rejected_title:
+                    blocked_terms_by_company[str(company_id)].add(rejected_title)
+                    local_terms_by_candidate[id(candidate)].add(rejected_title)
+                candidate["title"] = None
             kept.append(candidate)
+        for candidate in kept:
+            company_terms = blocked_terms_by_company.get(
+                str(candidate.get("company_identity_id") or ""), set()
+            )
+            local_terms = local_terms_by_candidate.get(id(candidate), set())
+            candidate_terms = company_terms | local_terms
+            if isinstance(candidate.get("reason"), str):
+                candidate["reason"] = _safe_projection_text(
+                    candidate["reason"], candidate_terms
+                )
+            candidate["evidence"] = [
+                citation
+                if _citation_key(citation) in allowed_citations_by_candidate.get(
+                    id(candidate), set()
+                )
+                else _safe_projection_text(
+                    citation,
+                    candidate_terms | blocked_terms_by_source.get(
+                        _citation_locator(citation), set()
+                    ),
+                )
+                for citation in candidate.get("evidence", [])
+            ]
         view["candidates"] = kept

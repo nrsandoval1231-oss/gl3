@@ -241,3 +241,107 @@ def test_unlinked_person_candidate_keeps_only_its_current_project_organization_f
     assert combined["person_project_relationship"] == "UNKNOWN"
     assert combined["public_contacts"] == []
     assert [row["supports"] for row in combined["evidence"]] == ["project_organization"]
+
+
+def test_unlinked_mixed_organization_text_redacts_rejected_person_and_methods():
+    person_evidence = {
+        "id": "evidence-current-1",
+        "current_source_version_id": "evidence-current-1",
+        "url": "https://example.test/Alice Smith/contact?email=alice@acme.example",
+        "supports": "project_organization",
+        "quote": (
+            "Acme LLC is the project developer; Alice Smith can be reached at "
+            "alice@acme.example."
+        ),
+        "current_support": True,
+    }
+    contact_evidence = {
+        "id": "evidence-current-1",
+        "current_source_version_id": "evidence-current-1",
+        "url": person_evidence["url"],
+        "supports": "permit_listed_contact",
+        "quote": "Alice Smith phone (713) 555-0100",
+        "current_support": True,
+    }
+    person = {
+        "company_identity_id": None,
+        "organization": "Acme LLC",
+        "person_name": "Alice Smith",
+        "person_identity_id": "unverified-person-id",
+        "title": "Project Director",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "DIRECT",
+        "person_project_relationship": "DIRECT",
+        "public_contacts": [
+            {
+                "kind": "email",
+                "value": "alice@acme.example",
+                "source_url": person_evidence["url"],
+                "quote": "Alice Smith email: alice@acme.example",
+            }
+        ],
+        "evidence": [person_evidence, contact_evidence],
+    }
+    organization = {
+        "company_identity_id": None,
+        "organization": "Acme LLC",
+        "person_name": None,
+        "title": "Project Director",
+        "organization_relationship": "DIRECT",
+        "person_organization_relationship": "UNKNOWN",
+        "person_project_relationship": "UNKNOWN",
+        "public_contacts": [
+            {
+                "kind": "phone",
+                "value": "(713) 555-0100",
+                "source_url": person_evidence["url"],
+                "quote": "Acme LLC contact (713) 555-0100",
+            }
+        ],
+        "evidence": [
+            {
+                **person_evidence,
+                "quote": (
+                    "Acme LLC is the project developer; Alice Smith can be reached at "
+                    "alice@acme.example or (713) 555-0100."
+                ),
+            },
+            {
+                **person_evidence,
+                "supports": "organization_category",
+                "quote": (
+                    "Acme LLC is the project developer; Public contact: "
+                    "alice@acme.example."
+                ),
+            },
+            contact_evidence,
+        ],
+    }
+    raw_person_quote = person_evidence["quote"]
+    raw_org_quote = organization["evidence"][0]["quote"]
+    view = {"candidates": [person, organization]}
+
+    filter_unbound_company_contacts(None, [view])
+
+    assert view["candidates"] == [organization]
+    assert organization["organization"] == "Acme LLC"
+    assert organization["public_contacts"] == []
+    assert [row["supports"] for row in organization["evidence"]] == [
+        "project_organization",
+        "organization_category",
+    ]
+    category_citation = organization["evidence"][1]
+    assert category_citation["current_support"] is True
+    assert "[redacted]" in category_citation["quote"]
+    projected = repr(organization)
+    for token in (
+        "Alice Smith",
+        "Project Director",
+        "alice@acme.example",
+        "(713) 555-0100",
+        "/Alice Smith/contact",
+    ):
+        assert token not in projected
+    assert "Acme LLC" in projected
+    assert person_evidence["quote"] == raw_person_quote
+    assert raw_org_quote not in projected
