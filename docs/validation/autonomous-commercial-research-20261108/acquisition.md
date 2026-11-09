@@ -2,6 +2,8 @@
 
 This is a code/test map for Lane A, not a claim that the full Phase 2 acceptance has passed. The listed fixtures are deterministic; no Firecrawl provider call or live source request was made for this audit.
 
+Later integrated PostgreSQL acceptance found a grouped-planner versus exact-worker fingerprint mismatch. The repair persists the original planning mode through worker validation, completion and follow-up jobs; legacy jobs retain their exact mode. Independent scoped review covers grouped execution, changed-source refusal, follow-up propagation and legacy execution. The actual cross-lane fixture now sends all eight questions through retained/native route checks without self-invalidating input aborts. Disabled discovery still produces eight honest blocked outcomes, not eight accepted findings. A separate post-reservation/pre-dispatch interruption regression verifies reuse of one durable reservation and logical call under a renewed fence.
+
 ## Acceptance map
 
 | Acceptance | Current implementation and gates | Existing deterministic evidence | Audit limit |

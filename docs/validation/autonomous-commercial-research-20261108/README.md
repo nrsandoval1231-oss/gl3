@@ -42,6 +42,20 @@ uv run --project backend python scripts/phase2_metrics.py compare --baseline <ne
 
 Use verified source roots; changing `PYTHONPATH` alone is insufficient because pytest config sets its own source path. The runner verifies imported source paths, hashes and checkout revision. A source/evaluator change requires a new pair. Do not compare this fixture with the historical November 7 population or purposive sample.
 
+## Final browser seed
+
+The final disposable seed is `.artifacts/phase2/browser_fixture_final_ffc3c890.json`, SHA256 `5933feb2dd2c90e8a643aa7911652e8dfebbfb75b7c6e1a49da0a8e618ea10f3`. Its source commit is `960218831bfa6d93edeecf01b94927d4fba34fb8`, a documentation-only descendant of the matched source. Independent verification matched all 18 imported candidate module hashes plus production/harness/acceptance bytes to the accepted pair. Fixture and evaluator hashes above also match.
+
+The new browser application and backend test databases are separate on the task-owned loopback cluster and migrated to 0051. The application fixture retains two accounts, four physical projects and five needs; the primary account has three projects/four needs, with a separate conflicting-identifier lookalike. Two company jobs succeeded, eight question jobs honestly blocked, and logical-call, budget and settlement counts are zero. External transport is deterministic only. This seed receipt is separate from a passing browser journey, which is still pending.
+
+For reproduction, migrate each new disposable browser database from `backend/` with `uv run alembic upgrade head`. Then invoke the existing seed runner from the repository root:
+
+```powershell
+uv run --project backend python scripts/phase2_metrics.py seed-browser --database gl3_phase2_browser_fixture_test --manifest-output <new-browser-manifest.json> --source-root backend/src
+```
+
+Set `DATABASE_URL` to the exact browser fixture application database and `TEST_DATABASE_URL` to the separate browser backend test database; both use the task-owned loopback endpoint. Generate authentication values privately in process and leave provider keys blank/budgets zero. The browser runner uses `GRIDLENS_PHASE2_MANIFEST` and its own process-local test password, password hash and session secret. No credential is written into the manifest. Existing receipt paths must not be overwritten.
+
 ## Adversarial evidence map
 
 | Contract | Meaningful deterministic evidence |
@@ -53,7 +67,7 @@ Use verified source roots; changing `PYTHONPATH` alone is insufficient because p
 | Exact publisher/method/person/source-version attribution and current cached reads | Native attribution/action unit tests and RRC/P5/Houston/TDLR integration cases; unverified website binding abstains |
 | Method suppression after a genuinely visible native phone | `test_phase2_native_contact_privacy.py`: nonempty company/project routes before suppression, absent immediately afterward without rebuild |
 | Alias/history privacy and valid UUID evidence references | Saved-history/account privacy tests; original controlled UUID replay failed twice on old source and passes both unchanged assertions at `b21a95e0` after the fixture-order and full sanitizer fixes |
-| Retained rows, private lifecycle/identity evidence and public abstention | Full claim/evidence snapshots and LEI/EIN conflict/current-version/person-isolation assertions in `test_buying_chain.py`; final full-module run pending |
+| Retained rows, private lifecycle/identity evidence and public abstention | Full claim/evidence snapshots and LEI/EIN conflict/current-version/person-isolation assertions in `test_buying_chain.py`: 124 passed/one warning; contact-assertion unit module 27 passed at `9192548b` |
 | Session/navigation, no browser provider/outreach actions, responsive four-tab UX | Generic browser suite observed 324 passes; final real Phase 2 browser run and five card/two detail captures pending |
 
 Earlier failed comparisons, fixture runs and source findings remain failures in their diagnostic logs. The first pair comparison failed due to nested receipt-hash handling; the repaired CLI has round-trip, mismatch and overwrite checks. Original UUID failures were independently reproduced with controlled legitimate UUID allocations; the repair preserves valid pointers while redacting phone/email controls.
