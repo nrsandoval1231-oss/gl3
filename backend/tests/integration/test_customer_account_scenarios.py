@@ -1,5 +1,6 @@
 """Synthetic canonical-path acceptance cases for customer account projections."""
 
+from copy import deepcopy
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
@@ -39,6 +40,18 @@ from gridlens.persistence.models import (
     Source,
 )
 from gridlens.settings import settings
+
+
+def _without_volatile_brief_as_of(items):
+    """Ignore only the read-time clock field when comparing rebuilt projections."""
+    normalized = deepcopy(items)
+    for item in normalized:
+        need = item.get("highest_priority_need")
+        brief = need.get("commercial_brief") if isinstance(need, dict) else None
+        freshness = brief.get("freshness") if isinstance(brief, dict) else None
+        if isinstance(freshness, dict):
+            freshness.pop("as_of", None)
+    return normalized
 
 
 @pytest.fixture
@@ -532,7 +545,15 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
         incremental_items = current["items"]
     assert rebuild(scenario_db)["status"] == "published"
     with scenario_db() as session:
-        assert account_queue(session, search=None, limit=25, offset=0)["items"] == incremental_items
+        rebuilt_items = account_queue(session, search=None, limit=25, offset=0)["items"]
+        assert [item["company_identity_id"] for item in rebuilt_items] == [
+            item["company_identity_id"] for item in incremental_items
+        ]
+        # `freshness.as_of` intentionally records the current read time.
+        # Compare every other source, claim, qualification, and account field.
+        assert _without_volatile_brief_as_of(rebuilt_items) == _without_volatile_brief_as_of(
+            incremental_items
+        )
     assert first_build["generation_id"] != refreshed["generation_id"]
 
     # An operator change after human retraction is visible for review, while an
