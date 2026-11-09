@@ -465,15 +465,48 @@ def test_memory_guard_failure_stops_before_acquisition_target(monkeypatch):
 
 
 def test_public_reader_uses_hard_boundary_before_dns(monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.ingestion.adapters.public_site_policy import HostApproval
+
     calls = []
+
+    def isolated(function_path, args, kwargs, **options):
+        calls.append((function_path, args, kwargs, options))
+        if function_path.endswith(":_fetch_robots_direct"):
+            return 404, b"", "93.184.216.34"
+        return PublicDocument(args[0], "Synthetic contact page", "Synthetic public text.")
+
     monkeypatch.setattr(
         "gridlens.ingestion.adapters.buying_chain_public.run_isolated",
-        lambda *args, **kwargs: calls.append((args, kwargs)),
+        isolated,
     )
-    retrieve("https://acme.com", deadline=123, max_bytes=100)
-    assert calls[0][0][0].endswith(":_retrieve_direct")
-    assert calls[0][1]["deadline"] == 123
-    assert calls[0][0][2]["max_bytes"] == 100
+    with pytest.raises(PublicAccessRestricted, match="host_not_approved"):
+        retrieve("https://acme.com", deadline=123, max_bytes=100)
+    assert calls == []
+
+    requests = []
+    approval = HostApproval(
+        hostname="acme.com",
+        terms_review_ref="synthetic-acme-review",
+        reviewed_at=datetime.now(UTC) - timedelta(minutes=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
+        modes=frozenset({"direct"}),
+    )
+    result = retrieve(
+        "https://acme.com/contact",
+        deadline=123,
+        max_bytes=100,
+        approval=approval,
+        before_request=requests.append,
+    )
+    assert result.title == "Synthetic contact page"
+    assert requests == ["https://acme.com/robots.txt", "https://acme.com/contact"]
+    assert calls[0][0].endswith(":_fetch_robots_direct")
+    assert calls[1][0].endswith(":_retrieve_direct")
+    assert calls[1][3]["deadline"] == 123
+    assert calls[1][2]["max_bytes"] == 100
 
 
 def test_api_projection_requires_current_capture_for_public_supplement():

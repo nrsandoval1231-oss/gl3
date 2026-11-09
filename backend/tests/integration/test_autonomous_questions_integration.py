@@ -2073,10 +2073,16 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             fetcher=lambda _url: document,
             now=now,
         )
-        person = next(c for c in before["candidates"] if c["person_name"])
+        assert not any(c["person_name"] for c in before["candidates"])
+        person = next(
+            c
+            for c in chain._buying_chain_current_view(session, project.id, now=now)["candidates"]
+            if c["person_name"]
+        )
         assert person["person_project_relationship"] == "DIRECT"
-        # Existing supported contact state may have been admitted by a different
-        # exact-source parser; the generic role parser intentionally avoids emails.
+        # This fixture exercises private carry-forward of an older synthetic method
+        # citation. Its generic publisher is deliberately not a public company
+        # authority, so the public projection must continue to redact the method.
         stored = session.get(BuyingChainClaim, person["id"])
         citation = stored.citations[0]
         stored.citations = [
@@ -2098,12 +2104,18 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             }
         ]
         session.flush()
-        person = next(
+        citations_before = [dict(citation) for citation in stored.citations]
+        private_before = next(
             c
-            for c in chain.buying_chain_view(session, project.id, now=now)["candidates"]
+            for c in chain._buying_chain_current_view(session, project.id, now=now)["candidates"]
             if c["person_name"]
         )
-        assert person["public_contacts"]
+        evidence_before = [dict(item) for item in private_before["evidence"]]
+        assert private_before["public_contacts"] == stored.public_contacts
+        assert not any(
+            c["person_name"]
+            for c in chain.buying_chain_view(session, project.id, now=now)["candidates"]
+        )
 
         def forbidden(*_a, **_kw):
             pytest.fail("Retained-only pass must not refetch prior external contact source")
@@ -2115,10 +2127,19 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             fetcher=forbidden,
             now=now + timedelta(minutes=1),
         )
-        preserved = next(c for c in after["candidates"] if c["person_name"])
+        preserved = next(
+            c
+            for c in chain._buying_chain_current_view(
+                session, project.id, now=now + timedelta(minutes=1)
+            )["candidates"]
+            if c["person_name"]
+        )
         assert preserved["person_project_relationship"] == "DIRECT"
-        assert preserved["public_contacts"] == person["public_contacts"]
-        assert preserved["organization_relationship"] == person["organization_relationship"]
+        assert preserved["public_contacts"] == private_before["public_contacts"]
+        assert preserved["organization_relationship"] == private_before["organization_relationship"]
+        assert stored.citations == citations_before
+        assert preserved["evidence"] == evidence_before
+        assert not any(c["person_name"] for c in after["candidates"])
         assert not preserved.get("purchasing_authority")
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
 
