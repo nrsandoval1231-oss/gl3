@@ -99,18 +99,8 @@ def rank_candidate(candidate: ResearchCandidate, *, now: datetime) -> dict[str, 
         if candidate.missing_contact_method
         else 0
     )
-    contact_depth_score = (
-        commercial + utility + resolvability + contact_gap
-    )
-    score = (
-        commercial
-        + urgency
-        + utility
-        + resolvability
-        + cost
-        + freshness
-        + contact_gap
-    )
+    contact_depth_score = commercial + utility + resolvability + contact_gap
+    score = commercial + urgency + utility + resolvability + cost + freshness + contact_gap
     reasons = [
         f"commercial_value:{commercial}",
         f"urgency:{urgency}",

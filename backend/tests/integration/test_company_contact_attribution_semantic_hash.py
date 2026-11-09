@@ -145,9 +145,7 @@ def test_retained_tdlr_contact_requires_split_semantic_and_raw_hash_bindings(
 ):
     with session_factory.begin() as session:
         project = _seed_tdlr(session, raw_hash_matches=raw_hash_matches)
-        view = enrich_buying_chain(
-            session, project.id, retained_only=True, now=NOW
-        )
+        view = enrich_buying_chain(session, project.id, retained_only=True, now=NOW)
 
         owner = next(
             (
@@ -179,13 +177,9 @@ def test_retained_tdlr_contact_requires_split_semantic_and_raw_hash_bindings(
 
             claim = session.get(BuyingChainClaim, no_id_owner["id"])
             assert claim is not None
-            claim.public_contacts = [
-                {**claim.public_contacts[0], "value": "(713) 999-0100"}
-            ]
+            claim.public_contacts = [{**claim.public_contacts[0], "value": "(713) 999-0100"}]
             session.flush()
-            mismatched = buying_chain_view(
-                session, project.id, now=NOW, include_identity_ids=False
-            )
+            mismatched = buying_chain_view(session, project.id, now=NOW, include_identity_ids=False)
             mismatched_owner = next(
                 item
                 for item in mismatched["candidates"]

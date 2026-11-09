@@ -1934,10 +1934,7 @@ def enrich_buying_chain(
                 ]
 
             after_rows = [
-                row
-                for row in field_rows(
-                    _buying_chain_current_view(session, project.id, now=now)
-                )
+                row for row in field_rows(_buying_chain_current_view(session, project.id, now=now))
             ]
             before_rows = [row for row in field_rows(buying_chain_baseline)]
             removed = Counter(map(semantic_key, before_rows)) - Counter(

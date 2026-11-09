@@ -211,9 +211,7 @@ def test_automatic_identity_mutation_vetoes_old_target_and_historical_controls(
 
 def test_unrelated_account_method_control_does_not_block_new_identity_lineage(factory):
     with factory.begin() as session:
-        claim, _old_id, _historical_id, target_id, _person_id = _seed_lineage(
-            session, "alpha"
-        )
+        claim, _old_id, _historical_id, target_id, _person_id = _seed_lineage(session, "alpha")
         _other_claim, _other_old, _other_history, unrelated_id, _other_person = _seed_lineage(
             session, "unrelated"
         )

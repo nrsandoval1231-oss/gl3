@@ -168,9 +168,7 @@ def test_search_missing_configuration_is_visible_without_request():
 def test_search_http_restriction_and_rate_limit_are_stable(status, failure_code):
     from gridlens.ingestion.adapters.pursuit_acquisition import retrieval_failure
 
-    with httpx.Client(
-        transport=httpx.MockTransport(lambda _: httpx.Response(status))
-    ) as client:
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(status))) as client:
         with pytest.raises(httpx.HTTPStatusError) as error:
             discover_urls(
                 "project",

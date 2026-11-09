@@ -115,9 +115,7 @@ def _automatic_identity_mutation_allowed(
         for claim in lineage_claims
         if claim.person_name and claim.person_name.strip()
     }
-    ledger_keys = {
-        ("company", company_suppression_key(company_id)) for company_id in company_ids
-    }
+    ledger_keys = {("company", company_suppression_key(company_id)) for company_id in company_ids}
     ledger_keys.update(
         ("person", person_suppression_key(company_id, name))
         for company_id in company_ids
@@ -412,16 +410,14 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             for peer in current_by_claim.values()
             if peer.get("company_identity_id")
             and project_by_current_claim.get(peer["id"]) == claim.project_id
-            and organization_key(str(peer.get("organization") or ""))
-            == organization_key_for_claim
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
         }
         lineage_context = [
             current_claim_models[peer_id]
             for peer_id, peer in current_by_claim.items()
             if peer_id in current_claim_models
             and project_by_current_claim.get(peer_id) == claim.project_id
-            and organization_key(str(peer.get("organization") or ""))
-            == organization_key_for_claim
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
         ]
         if claim not in lineage_context:
             lineage_context.append(claim)
@@ -817,8 +813,7 @@ def _ensure_current_membership_links(
             for peer_id, peer in current_by_claim.items()
             if peer_id in current_claim_models
             and current_project_by_claim.get(peer_id) == claim.project_id
-            and organization_key(str(peer.get("organization") or ""))
-            == organization_key_for_claim
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
         ]
         if claim not in lineage_context:
             lineage_context.append(claim)

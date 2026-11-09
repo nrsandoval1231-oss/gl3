@@ -183,11 +183,14 @@ def test_source_only_brief_scrubs_tokens_without_claim_history(research_db):
         )
         assert accepted["disposition"] == "ACCEPTED", accepted.get("reason") or accepted
         evidence_id = accepted["evidence_id"]
-        assert session.scalar(
-            select(func.count(BuyingChainClaim.id)).where(
-                BuyingChainClaim.project_id == project.id
+        assert (
+            session.scalar(
+                select(func.count(BuyingChainClaim.id)).where(
+                    BuyingChainClaim.project_id == project.id
+                )
             )
-        ) == 0
+            == 0
+        )
         session.add(
             ContactSuppression(
                 scope="method",
@@ -228,9 +231,7 @@ def test_source_only_brief_scrubs_tokens_without_claim_history(research_db):
     assert not any("from contact_suppressions" in statement for statement in statements)
 
 
-def test_native_split_semantic_and_evidence_hash_still_resolves_source(
-    retained_db, monkeypatch
-):
+def test_native_split_semantic_and_evidence_hash_still_resolves_source(retained_db, monkeypatch):
     import hashlib
     import json
 
@@ -281,9 +282,7 @@ def test_native_split_semantic_and_evidence_hash_still_resolves_source(
             )
         )
         need_id = session.scalar(
-            select(NeedObservation.need_id).where(
-                NeedObservation.observation_id == observation.id
-            )
+            select(NeedObservation.need_id).where(NeedObservation.observation_id == observation.id)
         )
         assert interpretation is not None and current_evidence is not None and need_id
         assert interpretation.status == "accepted"
@@ -335,7 +334,6 @@ def test_native_split_semantic_and_evidence_hash_still_resolves_source(
         }
         session.flush()
         assert not _current_brief_sources(session, [str(need_id)])[str(need_id)]
-
 
 
 def test_failed_research_refresh_retains_last_good_commercial_brief(canonical_runtime, monkeypatch):
@@ -413,8 +411,7 @@ def test_failed_research_refresh_retains_last_good_commercial_brief(canonical_ru
         question = session.get(PursuitResearchQuestion, question_id)
         assert question.status == "FAILED", question.receipt
         assert any(
-            check.get("disposition") == "FAILED"
-            for check in question.receipt["source_checks"]
+            check.get("disposition") == "FAILED" for check in question.receipt["source_checks"]
         )
         need = session.get(PowerNeed, need_id)
         assert need.required_mw is None

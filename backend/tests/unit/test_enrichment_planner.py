@@ -90,8 +90,13 @@ def test_project_and_need_volume_does_not_increase_research_utility():
         needs=single.needs
         + tuple(
             SimpleNamespace(
-                id=uuid4(), tier="Signal", start_window=None, required_mw=None,
-                duration=None, supply="Unknown", active=True,
+                id=uuid4(),
+                tier="Signal",
+                start_window=None,
+                required_mw=None,
+                duration=None,
+                supply="Unknown",
+                active=True,
             )
             for _ in range(30)
         ),
@@ -128,8 +133,7 @@ def test_depth_profile_is_stable_across_clock_changes_and_tracks_opportunity_evi
     assert select_research_profile(low, now=NOW) == "contact-depth-v1:standard"
     assert select_research_profile(high, now=NOW) == "contact-depth-v1:standard"
     assert (
-        select_research_profile(high, now=NOW + timedelta(days=365))
-        == "contact-depth-v1:standard"
+        select_research_profile(high, now=NOW + timedelta(days=365)) == "contact-depth-v1:standard"
     )
     deep = replace(high, research_profile="contact-depth-v1:deep")
     assert research_digest(deep) != research_digest(high)

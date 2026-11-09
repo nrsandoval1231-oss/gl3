@@ -23,9 +23,7 @@ from gridlens.settings import settings
 
 def _contains_identity_pointer(value: Any) -> bool:
     if isinstance(value, dict):
-        if any(
-            key in value for key in ("claim_id", "company_identity_id", "person_identity_id")
-        ):
+        if any(key in value for key in ("claim_id", "company_identity_id", "person_identity_id")):
             return True
         return any(_contains_identity_pointer(child) for child in value.values())
     if isinstance(value, list):
@@ -740,8 +738,7 @@ def page(
             item["contact"]
             or item["contact_people"]
             or any(
-                need.get("contact_actions") or need.get("contact_people")
-                for need in item["needs"]
+                need.get("contact_actions") or need.get("contact_people") for need in item["needs"]
             )
         )
         records.extend(item["contact"])
@@ -786,9 +783,7 @@ def page(
                 for source in attached:
                     if isinstance(source, dict) and isinstance(source.get("published_at"), str):
                         try:
-                            source["published_at"] = date.fromisoformat(
-                                source["published_at"][:10]
-                            )
+                            source["published_at"] = date.fromisoformat(source["published_at"][:10])
                         except ValueError:
                             pass
             evidence_by_need[str(need.get("id"))] = attached if isinstance(attached, list) else []
@@ -847,9 +842,7 @@ def page(
     for item, briefs in brief_cards:
         lineage_is_bounded = len(item["project_ids"]) == 1
         has_contact_data = item["_has_contact_records"]
-        has_identity_pointer = any(
-            _contains_identity_pointer(brief) for brief, _need in briefs
-        )
+        has_identity_pointer = any(_contains_identity_pointer(brief) for brief, _need in briefs)
         if (
             item["_has_history_claims"]
             or not lineage_is_bounded
@@ -882,9 +875,7 @@ def page(
         privacy_projected = project_saved_history_privacy(session, {"versions": privacy_versions})[
             "versions"
         ]
-        for (item, _brief, need), version in zip(
-            privacy_targets, privacy_projected, strict=True
-        ):
+        for (item, _brief, need), version in zip(privacy_targets, privacy_projected, strict=True):
             safe = _redact_all_contact_tokens(version["saved_card"]["commercial_brief"])
             if need is None:
                 item["commercial_brief"] = safe
@@ -897,9 +888,9 @@ def page(
     for item in items:
         representative = _representative_need(item)
         route_actions = representative.get("contact_actions") or []
-        action_brief = build_optional_commercial_brief(
-            {"contact_actions": route_actions}
-        ).get("best_contact")
+        action_brief = build_optional_commercial_brief({"contact_actions": route_actions}).get(
+            "best_contact"
+        )
         item["commercial_brief"]["best_contact"] = action_brief
         for need in item["needs"]:
             need["commercial_brief"]["best_contact"] = build_optional_commercial_brief(
