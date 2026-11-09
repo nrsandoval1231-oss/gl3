@@ -1,16 +1,17 @@
 # Phase 2 validation — November 8, 2026
 
-This record separates implemented source, deterministic fixtures, independent review and final acceptance. **Final acceptance is pending.** No merge, deployment, operational retained-data mutation, credential change, source activation, paid-provider request or outreach is authorized by this task.
+This record separates implemented source, deterministic fixtures, independent review and final acceptance. **Local validation is complete at source `a4e326d87650218b2c978e139c1ccb442952c015`.** Independent source review is accepted; the resulting draft PR and exact-head CI are the publication record. No merge, deployment, operational retained-data mutation, credential change, source activation, paid-provider request or outreach is authorized by this task.
 
 ## Same-fixture reference
 
-[Current sanitized comparison](matched-fixture-summary-ffc3c890.json) records an independently executed pair at baseline `bc433650ce4706dddfb5b30d78a502e3b528f54e` and candidate `43398c5fcdd36b53c5ec44c14c4ae345200e967b`, containing the independently reviewed `ffc3c890` production repair. The [earlier e598 comparison](matched-fixture-summary-e5983baa.json) remains a historical source-specific reference. Raw captures/logs remain ignored under `.artifacts/phase2/`.
+[Final sanitized comparison](matched-fixture-summary-a4e326d8.json) records the independently executed v5 pair at baseline `bc433650ce4706dddfb5b30d78a502e3b528f54e` and candidate `a4e326d87650218b2c978e139c1ccb442952c015`. Earlier [ffc3](matched-fixture-summary-ffc3c890.json) and [e598](matched-fixture-summary-e5983baa.json) pairs remain historical source-specific references. Raw captures/logs remain ignored under `.artifacts/phase2/`.
 
 - Fixture SHA256: `15e29ff076b6f1c02a3cd11ac18c76a86e716f34d3daa660b23ae93da3531111`.
-- Evaluator SHA256: `fde98d53cde8a7b16d24e4518c9f7e11ca35664576bcda025e503651a8abdcd2`.
-- Before/after aggregate of 416 production/harness files: `f86b9015c3d27f6a4d40757f68303a5732e3734898e06a1aafb96668f854b378`, unchanged during the 29.77-second quiet window. Both capture tests passed; comparison exited zero. Later documentation/test-only commits do not change these measured source hashes.
+- Imported test-module SHA256 (raw capture `imported_module_sha256`): `7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6`.
+- Evaluator SHA256 (nested `commercial.evaluator_sha256`): `fde98d53cde8a7b16d24e4518c9f7e11ca35664576bcda025e503651a8abdcd2`.
+- V5 before/after aggregate of **346 tracked files**: `c03a7f2c57169adeaecfad7453f92cf7b20db685749dbe816ca92330d2144835`, unchanged. Scope is `backend/src`, `web/src`, and `scripts/phase2_metrics.py`; algorithm is SHA-256 over UTF-8 compact JSON of sorted relative-path/byte-SHA256 entries. This explicit v5 scope is different from earlier 416-file receipts. Both captures and comparison passed with same-HEAD/clean-source guards; imported application module hashes were verified.
 
-| Synthetic fixture metric | Baseline | Candidate ffc3 |
+| Synthetic fixture metric | Baseline | Candidate a4 |
 |---|---:|---:|
 | Canonical accounts / physical projects / needs | 2 / 4 / 5 | 2 / 4 / 5 |
 | Common source-backed Why now + justified action | 4 / 5 | 4 / 5 |
@@ -21,14 +22,14 @@ This record separates implemented source, deterministic fixtures, independent re
 | Paid-provider logical requests | 0 | 0 |
 | Synthetic mocked provider dollars | $0 | $0 |
 | Actual provider cost | Unknown/unverified | Unknown/unverified |
-| In-process account-project read p50 / p95, milliseconds | 4.46 / 12.19 | 16.01 / 24.77 |
-| Fixture workflow elapsed, milliseconds | 5,741.98 | 11,576.75 |
+| In-process account-project read p50 / p95, milliseconds | 4.77 / 12.21 | 16.17 / 25.75 |
+| Fixture workflow elapsed, milliseconds | 5,695.35 | 11,711.77 |
 
 The candidate removed an unverified `acme.test` method while retaining the RRC method; this is a quality filter, not increased contact coverage. Structured-field presence is separate from the unchanged common usefulness measure. All four power amounts remain unknown: candidate scopes are two construction-temporary, one commissioning and one campus-capacity. No campus, IT or nameplate MW is added to rental demand. Zero fixture conflicts does not establish conflict-free production data.
 
-Ten initial jobs were scheduled; the later bounded retry makes eleven recorded outcomes (three successful jobs and eight failed/blocked research outcomes). Those eight are not accepted findings or completed commercial research. The fixture checks replay/entity/spend deduplication and outage recovery; the candidate reaches retained/native route checks and reports disabled discovery honestly.
+Ten initial jobs were scheduled; the later bounded retry makes eleven recorded outcomes (three successful jobs and eight failed/blocked research outcomes). Those eight are not accepted findings or completed commercial research. The fixture checks replay/entity/spend deduplication and outage recovery; the candidate reaches retained/native route checks and reports disabled discovery honestly. This fixture recorded zero buyer handoffs; separate real PostgreSQL planner-order and claim-only handoff tests prove that contract. Zero mock dollars/zero paid calls per four useful fixture needs is not a verified live cost per accepted enrichment.
 
-There was one matched capture per source. Read latency uses five repeated **direct in-process `account_projects` database reads**, not HTTP. Cold-cache state was not controlled. Candidate reads and workflow were slower. Pytest wall times were 8.61 and 14.42 seconds. Hardware: Intel Core Ultra 5 225F, 10 cores, 31.5 GiB RAM, local Windows; Python 3.11.16, PostgreSQL 18.6, uv 0.13.4. This small synthetic fixture is not production coverage, production lead quality, a billing receipt or a scale benchmark. Final browser HTTP measurements are separate and pending.
+There was one matched capture per source. Read latency uses five repeated **direct in-process `account_projects` database reads**, not HTTP. Cold-cache state was not controlled. Candidate reads and workflow were slower. Pytest wall times were 10.10 and 14.48 seconds. Hardware: Intel Core Ultra 5 225F, 10 cores, 31.5 GiB RAM, local Windows; Python 3.11.16, PostgreSQL 18.6, uv 0.13.4. This small synthetic fixture is not production coverage, production lead quality, a billing receipt or a scale benchmark. The source-specific browser HTTP measurement below is a separate surface, with no matched HTTP baseline.
 
 ## Reproduction boundary
 
@@ -58,12 +59,12 @@ Set `DATABASE_URL` to the exact browser fixture application database and `TEST_D
 
 ## Real browser journey and HTTP measurements
 
-The final persisted Phase 2 Playwright journey passed one test in 12.5 seconds. It verifies source-backed card claims, the permitted contact, five widths without horizontal overflow, account open/history, exact physical-project IDs and canonical titles, selected-need contact/action after tab restoration and Back to account, no automatic write requests, and signout/session cleanup. API/Vite servers stopped afterward; ports 8152/5179 had no listeners. Screenshot files are under the ignored passing run directory `.artifacts/phase2/playwright-final-9192548b-r3/phase2_commercial_brief-so-d429d-ation-and-remains-read-only/phase2-viewports/`:
+The historical r3 persisted Phase 2 Playwright journey passed one test in 12.5 seconds before the later backend privacy repair. It verified source-backed card claims, the permitted contact, five widths without horizontal overflow, account open/history, exact physical-project IDs and canonical titles, selected-need contact/action after tab restoration and Back to account, no automatic write requests, and signout/session cleanup on that revision. API/Vite servers stopped afterward; ports 8152/5179 had no listeners. Screenshot files are under the ignored passing run directory `.artifacts/phase2/playwright-final-9192548b-r3/phase2_commercial_brief-so-d429d-ation-and-remains-read-only/phase2-viewports/`:
 
 - Cards: `1648x928.png`, `1440x900.png`, `1280x800.png`, `768x1024.png`, `390x844.png`.
 - Account detail: `account-detail-1440x900.png`, `account-detail-390x844.png`.
 
-The tested spec is committed as `976283ff9118d8ef3b70e71f29fd9f9685ddfc55`; frontend typecheck and diff check pass. Root independently inspected all seven final images: released brand/four tabs, compact contact/action and optional Sources remain intact, with no material visual finding, visible technical clutter or horizontal overflow.
+The tested spec is committed as `976283ff9118d8ef3b70e71f29fd9f9685ddfc55`; frontend typecheck and diff check pass. Root independently inspected all seven r3 images: released brand/four tabs, compact contact/action and optional Sources remain intact, with no material visual finding, visible technical clutter or horizontal overflow. These images, HTTP samples and the original manifest are **pre-privacy-repair**, as well as pre-format/type-repair. Unchanged UI bytes support the visual brand/layout observation, not proof of current backend behavior. The final exact-head CI must supply its own fresh seed, real browser journey and screenshots for current runtime acceptance. No local rerun or relabeled old manifest is implied.
 
 Five authenticated sequential HTTP reads of `/api/opportunities/groups?sector=all&search=Acme%20Incorporated&limit=25&offset=0&sort=priority&shortlist=true` all returned 200 and the expected account/brief. Samples were 165.31, 115.90, 113.87, 173.60 and 111.79 milliseconds; p50 is 115.90 ms and nearest-rank p95 is 173.60 ms. They ran after the initial card load in the same warm local application/database process, before screenshots/detail work, with other heavy gates paused. The hardware/runtime is the local configuration described above. This is one candidate-only development HTTP measurement with n=5, separate from the matched direct database-read surface; it establishes no production or scale SLA and is not a baseline/candidate HTTP comparison.
 
@@ -81,7 +82,7 @@ Two preceding browser runs failed test expectations about restored navigation, r
 | Method suppression after a genuinely visible native phone | `test_phase2_native_contact_privacy.py`: nonempty company/project routes before suppression, absent immediately afterward without rebuild |
 | Alias/history privacy and valid UUID evidence references | Saved-history/account privacy tests; original controlled UUID replay failed twice on old source and passes both unchanged assertions at `b21a95e0` after the fixture-order and full sanitizer fixes |
 | Retained rows, private lifecycle/identity evidence and public abstention | Full claim/evidence snapshots and LEI/EIN conflict/current-version/person-isolation assertions in `test_buying_chain.py`: 124 passed/one warning; contact-assertion unit module 27 passed at `9192548b` |
-| Session/navigation, no browser provider/outreach actions, responsive four-tab UX | Earlier generic browser suite observed 324 passes; final real Phase 2 browser journey passed one test with five card/two detail captures. Broad final gate remains separate |
+| Session/navigation, no browser provider/outreach actions, responsive four-tab UX | Full canonical gate at a4 passed 324 generic browser tests; source-specific real Phase 2 journey passed one test with five card/two detail captures. Final exact-head CI also seeds and runs all real lanes |
 
 Earlier failed comparisons, fixture runs and source findings remain failures in their diagnostic logs. The first pair comparison failed due to nested receipt-hash handling; the repaired CLI has round-trip, mismatch and overwrite checks. Original UUID failures were independently reproduced with controlled legitimate UUID allocations; the repair preserves valid pointers while redacting phone/email controls.
 
@@ -93,4 +94,10 @@ Firecrawl metadata-only search has deterministic contract/recovery tests; remote
 
 The `ffc3c890` private-evidence/public-publication separation passed independent scoped review: 20 repository tests and five targeted diagnostic probes, including old/target company and person suppression, native alignment, bounded overflow refusal, cached privacy, and public history/omit-ID modes. Private proof and carry-forward readers preserve raw current evidence; public modes always apply current attribution and suppression. This is scoped source acceptance, not final whole-candidate approval.
 
-Final full backend/frontend/dependency/migration/brand checks, final integrated Astra head attestation, draft PR and exact-head CI are still required. The latest-source matched pair, real browser journey and visual inspection are accepted for their recorded source/fixture hashes. No schema migration has been added; migration/drift verification and rollback notes must be recorded at final handoff.
+The first complete gate attempt failed canonical formatting before tests; the next failed four local mypy typing errors before tests. Both remain failed receipts. The complete run at `e7a13271` then failed 14 tests, with 5,161 passed, three skipped and 11 warnings in 656.98 seconds. Independent RCA found genuine private-state/public-publication defects; those were repaired rather than masked by empty fixture assertions.
+
+The coherent candidate `a4e326d87650218b2c978e139c1ccb442952c015` passed 201 affected tests, then 31 publication/workspace checks after a local annotation correction. Its 25 publication cases cover real native positives, historical suppression scopes, original-side provenance, no-ID/two-person isolation, organization withdrawal, forged payload keys, malformed inputs and valid-neighbor preservation. Independent exact-source review accepted the repaired boundary. Central locked formatting changed four files with identical parsed ASTs and touched no migrations.
+
+Root's full canonical run at `a4e326d8` has passed locked install/dependency audit (zero vulnerabilities), Ruff lint/format (578 files), mypy (266 source files), schema upgrade to 0051 and no-drift check. Backend result is **5,202 passed, three skipped, 11 warnings in 546.59 seconds**. Actual skips are the missing local NC Commerce access probe, unavailable Windows `RLIMIT_AS`, and unavailable Windows symlink privilege. Frontend locked install/audit (zero vulnerabilities), typecheck, production build and **324 generic browser tests (2.1 minutes)** pass. The complete script exited zero in **734.08 seconds**; API/Vite teardown was verified with no listeners on its owned ports.
+
+Final local gates, stable-source v5 comparison, brand validation (216 assets/eight semantic AA pairs), and maintained documentation checks pass. Independent exact-source acceptance is recorded for a4; final receipt/head review and the resulting draft PR/exact-head CI are publication gates recorded by GitHub. Earlier real rollup 3/3 and Pursuits 1/1 readiness runs predate the final privacy repair and have only graph-derived source provenance; they are not current-source acceptance. Exact-head CI runs fresh rollup, Pursuits and Phase 2 real fixtures. No schema migration was added. A future code rollback must retain equivalent public change-read privacy or withhold those surfaces; never rewrite private audit history or downgrade schema. No merge, deployment, operational retained-data mutation, source activation, credential change, paid call or outreach occurred.
