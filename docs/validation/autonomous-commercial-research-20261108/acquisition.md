@@ -1,4 +1,4 @@
-# Phase 2 acquisition and planning audit — November 8, 2026
+# Phase 2 acquisition and planning audit â€” November 8, 2026
 
 This is a code/test map for Lane A, not a claim that the full Phase 2 acceptance has passed. The listed fixtures are deterministic; no Firecrawl provider call or live source request was made for this audit.
 
@@ -33,4 +33,3 @@ No paid smoke test is authorized here. If separately authorized later, it must u
 The adapter targets the official [v2 Search endpoint](https://docs.firecrawl.dev/api-reference/endpoint/search) with web-only sources, a maximum of ten results, and a bounded millisecond timeout; it consumes `success` and `data.web[*].url`, never snippets. It targets the official [v2 Scrape endpoint](https://docs.firecrawl.dev/api-reference/endpoint/scrape) with markdown only, basic proxy, TLS verification, no actions/headers, fresh/no-cache options, and bounded response bytes/deadline. The returned source URL/final URL, status, content type, text completeness and length are validated before constructing a document.
 
 The endpoint schema documents these request/response fields and error classes, including 429. It does not establish the current pricing/account contract; unit costs remain explicit local settings. No live API contract probe was run.
-

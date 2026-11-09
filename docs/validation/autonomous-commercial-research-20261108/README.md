@@ -46,7 +46,7 @@ Use verified source roots; changing `PYTHONPATH` alone is insufficient because p
 
 The final disposable seed is `.artifacts/phase2/browser_fixture_final_ffc3c890.json`, SHA256 `5933feb2dd2c90e8a643aa7911652e8dfebbfb75b7c6e1a49da0a8e618ea10f3`. Its source commit is `960218831bfa6d93edeecf01b94927d4fba34fb8`, a documentation-only descendant of the matched source. Independent verification matched all 18 imported candidate module hashes plus production/harness/acceptance bytes to the accepted pair. Fixture and evaluator hashes above also match.
 
-The new browser application and backend test databases are separate on the task-owned loopback cluster and migrated to 0051. The application fixture retains two accounts, four physical projects and five needs; the primary account has three projects/four needs, with a separate conflicting-identifier lookalike. Two company jobs succeeded, eight question jobs honestly blocked, and logical-call, budget and settlement counts are zero. External transport is deterministic only. This seed receipt is separate from a passing browser journey, which is still pending.
+The new browser application and backend test databases are separate on the task-owned loopback cluster and migrated to 0051. The application fixture retains two accounts, four physical projects and five needs; the primary account has three projects/four needs, with a separate conflicting-identifier lookalike. Two company jobs succeeded, eight question jobs honestly blocked, and logical-call, budget and settlement counts are zero. External transport is deterministic only.
 
 For reproduction, migrate each new disposable browser database from `backend/` with `uv run alembic upgrade head`. Then invoke the existing seed runner from the repository root:
 
@@ -55,6 +55,19 @@ uv run --project backend python scripts/phase2_metrics.py seed-browser --databas
 ```
 
 Set `DATABASE_URL` to the exact browser fixture application database and `TEST_DATABASE_URL` to the separate browser backend test database; both use the task-owned loopback endpoint. Generate authentication values privately in process and leave provider keys blank/budgets zero. The browser runner uses `GRIDLENS_PHASE2_MANIFEST` and its own process-local test password, password hash and session secret. No credential is written into the manifest. Existing receipt paths must not be overwritten.
+
+## Real browser journey and HTTP measurements
+
+The final persisted Phase 2 Playwright journey passed one test in 12.5 seconds. It verifies source-backed card claims, the permitted contact, five widths without horizontal overflow, account open/history, exact physical-project IDs and canonical titles, selected-need contact/action after tab restoration and Back to account, no automatic write requests, and signout/session cleanup. API/Vite servers stopped afterward; ports 8152/5179 had no listeners. Screenshot files are under the ignored passing run directory `.artifacts/phase2/playwright-final-9192548b-r3/phase2_commercial_brief-so-d429d-ation-and-remains-read-only/phase2-viewports/`:
+
+- Cards: `1648x928.png`, `1440x900.png`, `1280x800.png`, `768x1024.png`, `390x844.png`.
+- Account detail: `account-detail-1440x900.png`, `account-detail-390x844.png`.
+
+The tested spec is committed as `976283ff9118d8ef3b70e71f29fd9f9685ddfc55`; frontend typecheck and diff check pass. Root independently inspected all seven final images: released brand/four tabs, compact contact/action and optional Sources remain intact, with no material visual finding, visible technical clutter or horizontal overflow.
+
+Five authenticated sequential HTTP reads of `/api/opportunities/groups?sector=all&search=Acme%20Incorporated&limit=25&offset=0&sort=priority&shortlist=true` all returned 200 and the expected account/brief. Samples were 165.31, 115.90, 113.87, 173.60 and 111.79 milliseconds; p50 is 115.90 ms and nearest-rank p95 is 173.60 ms. They ran after the initial card load in the same warm local application/database process, before screenshots/detail work, with other heavy gates paused. The hardware/runtime is the local configuration described above. This is one candidate-only development HTTP measurement with n=5, separate from the matched direct database-read surface; it establishes no production or scale SLA and is not a baseline/candidate HTTP comparison.
+
+Two preceding browser runs failed test expectations about restored navigation, rather than application source behavior. Their traces/screenshots remain separate failed receipts; the test now verifies the actual selected-detail restoration, exact parent-account route and canonical project mapping. Only the fresh r3 pass is acceptance evidence.
 
 ## Adversarial evidence map
 
@@ -68,7 +81,7 @@ Set `DATABASE_URL` to the exact browser fixture application database and `TEST_D
 | Method suppression after a genuinely visible native phone | `test_phase2_native_contact_privacy.py`: nonempty company/project routes before suppression, absent immediately afterward without rebuild |
 | Alias/history privacy and valid UUID evidence references | Saved-history/account privacy tests; original controlled UUID replay failed twice on old source and passes both unchanged assertions at `b21a95e0` after the fixture-order and full sanitizer fixes |
 | Retained rows, private lifecycle/identity evidence and public abstention | Full claim/evidence snapshots and LEI/EIN conflict/current-version/person-isolation assertions in `test_buying_chain.py`: 124 passed/one warning; contact-assertion unit module 27 passed at `9192548b` |
-| Session/navigation, no browser provider/outreach actions, responsive four-tab UX | Generic browser suite observed 324 passes; final real Phase 2 browser run and five card/two detail captures pending |
+| Session/navigation, no browser provider/outreach actions, responsive four-tab UX | Earlier generic browser suite observed 324 passes; final real Phase 2 browser journey passed one test with five card/two detail captures. Broad final gate remains separate |
 
 Earlier failed comparisons, fixture runs and source findings remain failures in their diagnostic logs. The first pair comparison failed due to nested receipt-hash handling; the repaired CLI has round-trip, mismatch and overwrite checks. Original UUID failures were independently reproduced with controlled legitimate UUID allocations; the repair preserves valid pointers while redacting phone/email controls.
 
@@ -80,4 +93,4 @@ Firecrawl metadata-only search has deterministic contract/recovery tests; remote
 
 The `ffc3c890` private-evidence/public-publication separation passed independent scoped review: 20 repository tests and five targeted diagnostic probes, including old/target company and person suppression, native alignment, bounded overflow refusal, cached privacy, and public history/omit-ID modes. Private proof and carry-forward readers preserve raw current evidence; public modes always apply current attribution and suppression. This is scoped source acceptance, not final whole-candidate approval.
 
-Final full backend/frontend/dependency/migration/brand checks, real browser receipts, final integrated Astra head attestation, draft PR and exact-head CI are still required. The latest-source matched pair is accepted for the recorded production/harness hashes. No schema migration has been added; migration/drift verification and rollback notes must be recorded at final handoff.
+Final full backend/frontend/dependency/migration/brand checks, final integrated Astra head attestation, draft PR and exact-head CI are still required. The latest-source matched pair, real browser journey and visual inspection are accepted for their recorded source/fixture hashes. No schema migration has been added; migration/drift verification and rollback notes must be recorded at final handoff.
