@@ -25,6 +25,7 @@ from gridlens.ingestion.adapters.buying_chain_public import (
 )
 from gridlens.intelligence.buying_chain import (
     _attach_identity_ids,
+    _buying_chain_current_view,
     buying_chain_view,
     buying_chain_views,
     enrich_buying_chain,
@@ -481,6 +482,24 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
     with db.begin() as session:
         current = company_contacts(session, identity_a.id)
         assert current.contacts == []
+        raw_claims_before = {
+            str(claim_id): {
+                column.name: deepcopy(getattr(session.get(BuyingChainClaim, claim_id), column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for claim_id in legacy_claim_ids
+        }
+        evidence_before = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project_a.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
         current_view = buying_chain_view(session, project_a.id, now=NOW)
         assert not any(candidate.get("public_contacts") for candidate in current_view["candidates"])
         from gridlens.intelligence.company_contacts import project_contacts
@@ -500,12 +519,32 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
         assert all(
             session.get(BuyingChainClaim, claim_id).public_contacts for claim_id in legacy_claim_ids
         )
-        history = buying_chain_view(session, project_a.id, now=NOW, history=True)
+        history = _buying_chain_current_view(
+            session, project_a.id, now=NOW, history=True
+        )
         assert any(
             candidate.get("public_contacts")
             for candidate in history["candidates"]
             if candidate["id"] in legacy_claim_ids
         )
+        assert {
+            str(claim_id): {
+                column.name: deepcopy(getattr(session.get(BuyingChainClaim, claim_id), column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for claim_id in legacy_claim_ids
+        } == raw_claims_before
+        assert {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project_a.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        } == evidence_before
 
 
 def test_membership_only_company_contact_job_keeps_unverified_domain_unresolved(db, monkeypatch):
@@ -3739,7 +3778,7 @@ def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(
             )
         )
         session.flush()
-        prior = buying_chain_view(session, project.id, now=NOW)["candidates"]
+        prior = _buying_chain_current_view(session, project.id, now=NOW)["candidates"]
         assert len(prior) == 1
         assert prior[0]["person_organization_relationship"] == "UNKNOWN"
         assert prior[0]["stale"] is True
@@ -3750,17 +3789,20 @@ def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(
             "project_identity_key": other_project.identity_key,
         }
         session.flush()
-        view = buying_chain_view(session, project.id, now=NOW)
+        view = _buying_chain_current_view(session, project.id, now=NOW)
         assert [row["id"] for row in view["candidates"]] == [current_claim.id]
         assert view["candidates"][0]["person_organization_relationship"] == "CURRENT"
         assert view["candidates"][0]["person_project_relationship"] == "ROLE_SUPPORTED"
         assert view["candidates"][0]["stale"] is False
         assert all(quote["id"] != old_source.id for quote in view["candidates"][0]["evidence"])
-        history = buying_chain_view(session, project.id, history=True)["candidates"]
+        history = _buying_chain_current_view(session, project.id, history=True)["candidates"]
         assert {row["id"] for row in history} == {
             old_claim.id,
             current_claim.id,
         }
+        public_view = buying_chain_view(session, project.id, now=NOW)
+        assert not any(row.get("person_name") for row in public_view["candidates"])
+        assert all(not row.get("public_contacts") for row in public_view["candidates"])
 
 
 def test_fetch_failure_preserves_accepted_chain_and_records_blocker(db):
@@ -3798,11 +3840,14 @@ def test_stale_role_does_not_erase_direct_organization_relationship(db):
             ),
             now=NOW,
         )
-        aged = buying_chain_view(session, p.id, now=NOW + timedelta(days=370))
+        aged = _buying_chain_current_view(session, p.id, now=NOW + timedelta(days=370))
         person = next(c for c in aged["candidates"] if c["person_name"])
         assert person["person_project_relationship"] == "UNKNOWN"
         assert person["organization_relationship"] == "DIRECT"
         assert person["stale"]
+        public_aged = buying_chain_view(session, p.id, now=NOW + timedelta(days=370))
+        assert not any(c.get("person_name") for c in public_aged["candidates"])
+        assert all(not c.get("public_contacts") for c in public_aged["candidates"])
 
 
 def test_api_auth_origin_unknown_project_and_url_bound(db, monkeypatch):
@@ -4741,11 +4786,14 @@ def test_dated_news_retrieval_does_not_rejuvenate_historical_role(db):
         result = enrich_buying_chain(
             session, p.id, fetcher=lambda url: source(text, observed=later), now=later
         )
-        person = next(c for c in result["candidates"] if c["person_name"])
+        private_result = _buying_chain_current_view(session, p.id, now=later)
+        person = next(c for c in private_result["candidates"] if c["person_name"])
         assert person["person_organization_relationship"] == "UNKNOWN"
         assert person["person_project_relationship"] == "UNKNOWN"
         assert person["stale"]
         assert {e["published_at"] for e in person["evidence"]} == {date(2026, 9, 20)}
+        assert not any(c.get("person_name") for c in result["candidates"])
+        assert all(not c.get("public_contacts") for c in result["candidates"])
 
 
 def test_identical_text_distinct_publication_metadata_keeps_exact_citation_versions(db):
@@ -4898,7 +4946,9 @@ def test_deduplicated_claim_drops_unverified_contact_after_retained_reassignment
         }
         assert evidence_after_projection == evidence_before_projection
         assert record_material_diff(session, project, retained, baseline) == []
-        history = buying_chain_view(session, project.id, now=NOW, history=True)["candidates"]
+        history = _buying_chain_current_view(
+            session, project.id, now=NOW, history=True
+        )["candidates"]
         assert any(row["id"] == claim_id for row in history)
 
 
@@ -5066,7 +5116,14 @@ def test_partial_citation_survival_downgrades_role_and_excludes_all_invalid_clai
             "project_identity_key": "another-project",
         }
         session.flush()
-        current = buying_chain_view(session, project.id, now=NOW)["candidates"]
+        raw_claim_snapshots = {
+            str(claim.id): {
+                column.name: deepcopy(getattr(claim, column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for claim in (person, invalid_only, role_only, assignment_loss)
+        }
+        current = _buying_chain_current_view(session, project.id, now=NOW)["candidates"]
         by_claim = {row["id"]: row for row in current}
         assert set(by_claim) == {person.id, role_only.id, assignment_loss.id}
         partial = by_claim[person.id]
@@ -5085,13 +5142,25 @@ def test_partial_citation_survival_downgrades_role_and_excludes_all_invalid_clai
         assert downgraded["organization_relationship"] == "DIRECT"
         assert downgraded["person_organization_relationship"] == "CURRENT"
         assert downgraded["person_project_relationship"] == "ROLE_SUPPORTED"
-        history = buying_chain_view(session, project.id, now=NOW, history=True)["candidates"]
+        history = _buying_chain_current_view(
+            session, project.id, now=NOW, history=True
+        )["candidates"]
         assert {row["id"] for row in history} == {
             person.id,
             invalid_only.id,
             role_only.id,
             assignment_loss.id,
         }
+        assert {
+            str(claim.id): {
+                column.name: deepcopy(getattr(session.get(BuyingChainClaim, claim.id), column.name))
+                for column in BuyingChainClaim.__table__.columns
+            }
+            for claim in (person, invalid_only, role_only, assignment_loss)
+        } == raw_claim_snapshots
+        public_current = buying_chain_view(session, project.id, now=NOW)["candidates"]
+        assert not any(row.get("person_name") for row in public_current)
+        assert all(not row.get("public_contacts") for row in public_current)
 
 
 def test_retained_scan_reaches_older_current_version_after_invalid_prefix(db):
@@ -5237,13 +5306,18 @@ def test_unverified_assignment_source_does_not_create_direct_person_role(
             now=NOW + timedelta(minutes=1),
         )
         people = [c for c in result["candidates"] if c["person_name"]]
+        private_result = _buying_chain_current_view(
+            session, p.id, now=NOW + timedelta(minutes=1)
+        )
+        private_people = [c for c in private_result["candidates"] if c["person_name"]]
+        assert private_people
+        assert private_people[0]["person_project_relationship"] == expected
         if expected == "DIRECT":
             assert people == []
             company = next(c for c in result["candidates"] if c["organization"] == "Acme")
             assert company["organization_relationship"] == "DIRECT"
         else:
-            assert people
-            assert people[0]["person_project_relationship"] == "UNKNOWN"
+            assert people == []
         if expected == "DIRECT":
             before = counts(session)
             replay = enrich_buying_chain(
@@ -5384,13 +5458,7 @@ def test_private_role_freshness_survives_unverified_public_abstention(db, old_in
         after_update = buying_chain_view(session, project.id, now=later)
         organization = next(row for row in after_update["candidates"] if row["organization"] == "Acme")
         assert organization["organization_relationship"] == "DIRECT"
-        private_after_update = buying_chain_view(
-            session,
-            project.id,
-            now=later,
-            include_identity_ids=False,
-            _apply_privacy=False,
-        )
+        private_after_update = _buying_chain_current_view(session, project.id, now=later)
         person = next(
             row for row in private_after_update["candidates"] if row["person_name"] == "Alice Smith"
         )
@@ -5448,12 +5516,8 @@ def test_private_role_freshness_survives_unverified_public_abstention(db, old_in
             row for row in after_correction["candidates"] if row["organization"] == "Acme"
         )
         assert organization["organization_relationship"] == "DIRECT"
-        private_after_correction = buying_chain_view(
-            session,
-            project.id,
-            now=later + timedelta(minutes=1),
-            include_identity_ids=False,
-            _apply_privacy=False,
+        private_after_correction = _buying_chain_current_view(
+            session, project.id, now=later + timedelta(minutes=1)
         )
         private_person = next(
             row
@@ -6394,33 +6458,83 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
             )
             is None
         )
-        for view in (
-            buying_chain_view(session, project.id),
-            buying_chain_views(session, {project.id})[str(project.id)],
-        ):
-            regenerated_view = next(
+        raw_regenerated_snapshot = {
+            column.name: deepcopy(getattr(regenerated, column.name))
+            for column in BuyingChainClaim.__table__.columns
+        }
+        raw_evidence_snapshot = {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        }
+        private_current = _buying_chain_current_view(session, project.id)
+        private_history = _buying_chain_current_view(session, project.id, history=True)
+        for private_view in (private_current, private_history):
+            raw_person = next(
                 candidate
-                for candidate in view["candidates"]
+                for candidate in private_view["candidates"]
                 if str(candidate["id"]) == str(regenerated.id)
             )
-            assert regenerated_view.get("company_identity_id") is None
-            assert not regenerated_view.get("suppressed")
-            assert not regenerated_view["public_contacts"]
-            rendered = str(regenerated_view)
-            assert "(512) 555-0100" not in rendered
-            assert "512-555-0100" not in rendered
-            assert "+15125550100" not in rendered
-        for view in (
+            assert raw_person["person_name"] == "Jordan Smith"
+            assert any(
+                contact.get("value") == "(512) 555-0100"
+                for contact in raw_person["public_contacts"]
+            )
+            assert any(
+                citation.get("supports") == "public_contact"
+                for citation in raw_person["evidence"]
+            )
+            assert raw_person.get("company_identity_id") is None
+
+        public_views = (
             buying_chain_view(session, project.id),
             buying_chain_view(session, project.id, history=True),
             buying_chain_views(session, {project.id})[str(project.id)],
-        ):
-            person_view = next(
-                candidate
-                for candidate in view["candidates"]
-                if candidate.get("person_name") == "Jordan Smith"
+        )
+        for view in public_views:
+            public_actor = next(
+                (
+                    candidate
+                    for candidate in view["candidates"]
+                    if str(candidate["id"]) == str(regenerated.id)
+                ),
+                None,
             )
-            assert not person_view["public_contacts"]
+            if public_actor is not None:
+                assert public_actor.get("person_name") is None
+                assert not public_actor["public_contacts"]
+                rendered = str(public_actor)
+                assert "Jordan Smith" not in rendered
+                assert "(512) 555-0100" not in rendered
+                assert "512-555-0100" not in rendered
+                assert "+15125550100" not in rendered
+            assert any(
+                candidate["organization"] == owner and not candidate.get("person_name")
+                for candidate in view["candidates"]
+            )
+        assert {
+            column.name: deepcopy(
+                getattr(session.get(BuyingChainClaim, regenerated.id), column.name)
+            )
+            for column in BuyingChainClaim.__table__.columns
+        } == raw_regenerated_snapshot
+        assert {
+            str(row.id): {
+                column.name: deepcopy(getattr(row, column.name))
+                for column in BuyingChainEvidence.__table__.columns
+            }
+            for row in session.scalars(
+                select(BuyingChainEvidence)
+                .where(BuyingChainEvidence.project_id == project.id)
+                .order_by(BuyingChainEvidence.id)
+            )
+        } == raw_evidence_snapshot
 
 
 def test_same_project_company_identity_alignment_rejects_other_project_source_or_name():
@@ -6698,6 +6812,7 @@ def _seed_tdlr_retained_project(session, case, *, bound_project_key=None):
                 assessment={
                     "evidence_hash": observation_hash,
                     "decision": "accepted",
+                    "semantic_hash": observation_hash,
                     "project_identity_key": bound_project_key or project.identity_key,
                     "subject": project.name,
                     "location": project.location,

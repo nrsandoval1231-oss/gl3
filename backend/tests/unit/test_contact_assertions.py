@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 import gridlens.intelligence.contact_assertions as contact_assertions
 from gridlens.domain.opportunity_intelligence import contact_projection
-from gridlens.intelligence.buying_chain import buying_chain_view
+from gridlens.intelligence import company_contact_attribution
+from gridlens.intelligence.buying_chain import _buying_chain_current_view, buying_chain_view
 from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
     SuppressionConflict,
@@ -509,7 +510,15 @@ def test_correction_writer_rejects_forged_role_and_wrong_project_replay(contact_
             )
 
 
-def test_method_suppression_redacts_current_and_history_buying_chain_reads(contact_db):
+def test_method_suppression_ledger_projection_redacts_current_and_history_reads(
+    contact_db, monkeypatch
+):
+    """Exercise ledger redaction with an explicit attribution test double.
+
+    The fixture's example.test source is synthetic and does not establish public
+    company authority. This unit isolates the independent suppression ledger
+    behavior after the attribution layer has supplied a native-supported fact.
+    """
     with contact_db() as session:
         company, project, claim, _source = _seed_published_contact(session)
         refreshed_claim = BuyingChainClaim(
@@ -547,6 +556,14 @@ def test_method_suppression_redacts_current_and_history_buying_chain_reads(conta
         )
         run = session.query(BuyingChainRun).filter_by(project_id=project.id).one()
         run.claim_ids = [str(claim.id), str(refreshed_claim.id)]
+        before = _buying_chain_current_view(session, project.id)
+        before_claim = next(
+            row for row in before["candidates"] if row["id"] == refreshed_claim.id
+        )
+        assert any(
+            method.get("value") == "avery@example.test"
+            for method in before_claim["public_contacts"]
+        )
         key = method_suppression_key(
             company.id, claim.person_name, "email", "mailto:avery@example.test"
         )
@@ -561,6 +578,18 @@ def test_method_suppression_redacts_current_and_history_buying_chain_reads(conta
             idempotency_key="method-hide-current-history",
         )
         session.flush()
+
+        def fixture_attribution_test_double(_session, _views):
+            # This unit isolates the suppression ledger. The synthetic fixture
+            # is not evidence of company authority; attribution is covered by
+            # the separate source-bound integration tests.
+            return None
+
+        monkeypatch.setattr(
+            company_contact_attribution,
+            "filter_unbound_company_contacts",
+            fixture_attribution_test_double,
+        )
         current = buying_chain_view(session, project.id)
         historical = buying_chain_view(session, project.id, history=True)
         assert any(row["id"] == refreshed_claim.id for row in current["candidates"])
