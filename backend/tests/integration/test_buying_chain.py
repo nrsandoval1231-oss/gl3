@@ -519,9 +519,7 @@ def test_late_same_name_identity_conflict_hides_legacy_site_contact_but_keeps_hi
         assert all(
             session.get(BuyingChainClaim, claim_id).public_contacts for claim_id in legacy_claim_ids
         )
-        history = _buying_chain_current_view(
-            session, project_a.id, now=NOW, history=True
-        )
+        history = _buying_chain_current_view(session, project_a.id, now=NOW, history=True)
         assert any(
             candidate.get("public_contacts")
             for candidate in history["candidates"]
@@ -1715,7 +1713,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             }
             for item in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -1728,7 +1729,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             str(claim.id): [deepcopy(citation) for citation in claim.citations]
             for claim in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -1810,7 +1814,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             }
             for candidate in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -1826,7 +1833,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             str(candidate.id): [deepcopy(citation) for citation in candidate.citations]
             for candidate in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -1878,7 +1888,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             }
             for candidate in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -1891,7 +1904,10 @@ def test_unverified_named_refresh_preserves_company_claim_without_promoting_rout
             str(candidate.id): [deepcopy(citation) for citation in candidate.citations]
             for candidate in session.scalars(
                 select(BuyingChainClaim)
-                .join(BuyingChainIdentityLink, BuyingChainIdentityLink.claim_id == BuyingChainClaim.id)
+                .join(
+                    BuyingChainIdentityLink,
+                    BuyingChainIdentityLink.claim_id == BuyingChainClaim.id,
+                )
                 .where(
                     BuyingChainIdentityLink.company_identity_id == company_id,
                     BuyingChainIdentityLink.state == "current",
@@ -2778,13 +2794,32 @@ def test_project_scoped_identity_refresh_reuses_batched_candidate_views(db, monk
         claim_ids = [str(item["id"]) for item in result["candidates"]]
         assert claim_ids
         single_view_calls = []
+        batch_view_calls = []
+        real_single_view = identity_reconciliation._buying_chain_current_view
+        real_batch_view = identity_reconciliation._buying_chain_current_views
+
+        def observe_single_view(*args, **kwargs):
+            single_view_calls.append((args, kwargs))
+            return real_single_view(*args, **kwargs)
+
+        def observe_batch_view(*args, **kwargs):
+            batch_view_calls.append((args, kwargs))
+            return real_batch_view(*args, **kwargs)
+
         monkeypatch.setattr(
             identity_reconciliation,
-            "buying_chain_view",
-            lambda *args, **kwargs: single_view_calls.append((args, kwargs)),
+            "_buying_chain_current_view",
+            observe_single_view,
+        )
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "_buying_chain_current_views",
+            observe_batch_view,
         )
         ensure_project_scoped_identity_links(session, claim_ids)
         assert single_view_calls == []
+        assert len(batch_view_calls) == 1
+        assert batch_view_calls[0][0][1] == {project.id}
 
 
 def test_replay_preserves_reviewed_identity_link_on_second_current_citation(db):
@@ -3676,11 +3711,14 @@ def test_unverified_independent_news_roles_do_not_create_person_claims(db):
         assert not any(c["person_name"] for c in output["candidates"])
         organization = next(c for c in output["candidates"] if c["organization"] == "Acme")
         assert organization["organization_relationship"] == "DIRECT"
-        assert session.scalar(
-            select(func.count())
-            .select_from(BuyingChainEvidence)
-            .where(BuyingChainEvidence.url.in_([first_url, second_url]))
-        ) == 2
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainEvidence)
+                .where(BuyingChainEvidence.url.in_([first_url, second_url]))
+            )
+            == 2
+        )
 
 
 def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(db):
@@ -4739,8 +4777,7 @@ def test_unverified_company_site_roles_stay_unattributed_through_outage_and_revi
             == 2
         )
         assert not any(
-            c["person_name"]
-            for c in buying_chain_view(session, p.id, history=True)["candidates"]
+            c["person_name"] for c in buying_chain_view(session, p.id, history=True)["candidates"]
         )
 
 
@@ -4946,9 +4983,9 @@ def test_deduplicated_claim_drops_unverified_contact_after_retained_reassignment
         }
         assert evidence_after_projection == evidence_before_projection
         assert record_material_diff(session, project, retained, baseline) == []
-        history = _buying_chain_current_view(
-            session, project.id, now=NOW, history=True
-        )["candidates"]
+        history = _buying_chain_current_view(session, project.id, now=NOW, history=True)[
+            "candidates"
+        ]
         assert any(row["id"] == claim_id for row in history)
 
 
@@ -5142,9 +5179,9 @@ def test_partial_citation_survival_downgrades_role_and_excludes_all_invalid_clai
         assert downgraded["organization_relationship"] == "DIRECT"
         assert downgraded["person_organization_relationship"] == "CURRENT"
         assert downgraded["person_project_relationship"] == "ROLE_SUPPORTED"
-        history = _buying_chain_current_view(
-            session, project.id, now=NOW, history=True
-        )["candidates"]
+        history = _buying_chain_current_view(session, project.id, now=NOW, history=True)[
+            "candidates"
+        ]
         assert {row["id"] for row in history} == {
             person.id,
             invalid_only.id,
@@ -5237,9 +5274,7 @@ def test_document_budget_preserves_company_claim_without_unverified_roster_role(
 
 
 @pytest.mark.parametrize("processing_status", ["failed", "pending"])
-def test_processing_outage_preserves_company_claim_and_rejection_hides_it(
-    db, processing_status
-):
+def test_processing_outage_preserves_company_claim_and_rejection_hides_it(db, processing_status):
     with db.begin() as session:
         p = seed(session)
         retained = session.scalar(select(Evidence))
@@ -5306,9 +5341,7 @@ def test_unverified_assignment_source_does_not_create_direct_person_role(
             now=NOW + timedelta(minutes=1),
         )
         people = [c for c in result["candidates"] if c["person_name"]]
-        private_result = _buying_chain_current_view(
-            session, p.id, now=NOW + timedelta(minutes=1)
-        )
+        private_result = _buying_chain_current_view(session, p.id, now=NOW + timedelta(minutes=1))
         private_people = [c for c in private_result["candidates"] if c["person_name"]]
         assert private_people
         assert private_people[0]["person_project_relationship"] == expected
@@ -5456,7 +5489,9 @@ def test_private_role_freshness_survives_unverified_public_abstention(db, old_in
             )
         }
         after_update = buying_chain_view(session, project.id, now=later)
-        organization = next(row for row in after_update["candidates"] if row["organization"] == "Acme")
+        organization = next(
+            row for row in after_update["candidates"] if row["organization"] == "Acme"
+        )
         assert organization["organization_relationship"] == "DIRECT"
         private_after_update = _buying_chain_current_view(session, project.id, now=later)
         person = next(
@@ -5509,9 +5544,7 @@ def test_private_role_freshness_survives_unverified_public_abstention(db, old_in
                 .order_by(BuyingChainEvidence.id)
             )
         }
-        after_correction = buying_chain_view(
-            session, project.id, now=later + timedelta(minutes=1)
-        )
+        after_correction = buying_chain_view(session, project.id, now=later + timedelta(minutes=1))
         organization = next(
             row for row in after_correction["candidates"] if row["organization"] == "Acme"
         )
@@ -6487,8 +6520,7 @@ def test_tdlr_company_alignment_preserves_scoped_method_suppression(db, monkeypa
                 for contact in raw_person["public_contacts"]
             )
             assert any(
-                citation.get("supports") == "public_contact"
-                for citation in raw_person["evidence"]
+                citation.get("supports") == "public_contact" for citation in raw_person["evidence"]
             )
             assert raw_person.get("company_identity_id") is None
 
@@ -6933,7 +6965,6 @@ def test_unverified_contact_stays_hidden_through_retained_refresh_and_api(db, mo
         )
         candidate = next(c for c in result["candidates"] if c["organization"] == "Acme")
         company_id = UUID(str(candidate["company_identity_id"]))
-        project_id = project.id
         assert all(
             not contact.methods for contact in company_contacts(session, company_id).contacts
         )
@@ -7835,15 +7866,54 @@ def test_refresh_baseline_uses_unredacted_internal_view(db, monkeypatch):
     """Privacy overlays must not make persisted claims look absent to refresh."""
     from gridlens.intelligence import buying_chain as service
 
-    real_view = service.buying_chain_view
-    calls = []
+    real_private_view = service._buying_chain_current_view
+    private_views = []
 
-    def observe_view(session, project_id, **kwargs):
-        calls.append(kwargs.get("_apply_privacy", True))
-        return real_view(session, project_id, **kwargs)
+    def observe_private_view(session, project_id, **kwargs):
+        view = real_private_view(session, project_id, **kwargs)
+        private_views.append(view)
+        return view
 
-    monkeypatch.setattr(service, "buying_chain_view", observe_view)
+    monkeypatch.setattr(service, "_buying_chain_current_view", observe_private_view)
     with db.begin() as session:
         project = seed(session, external_id="privacy-refresh-baseline")
-        service.enrich_buying_chain(session, project.id, fetcher=lambda _url: None, now=NOW)
-    assert False in calls
+        text = (
+            "Acme is the general contractor for Orion Data Center in Austin, TX. "
+            "Alice Smith is Project Director at Acme for Orion Data Center in Austin, TX. "
+            "Alice Smith email: alice@example.test."
+        )
+        service.enrich_buying_chain(
+            session, project.id, fetcher=lambda url: source(text, url=url), now=NOW
+        )
+        raw_before_refresh = real_private_view(session, project.id)
+        raw_person_before_refresh = next(
+            candidate
+            for candidate in raw_before_refresh["candidates"]
+            if candidate.get("person_name") == "Alice Smith"
+        )
+        assert any(
+            method.get("value") == "alice@example.test"
+            for method in raw_person_before_refresh["public_contacts"]
+        )
+        private_views.clear()
+        refreshed = service.enrich_buying_chain(
+            session, project.id, fetcher=lambda _url: None, now=NOW + timedelta(minutes=1)
+        )
+        assert private_views
+        assert any(
+            candidate.get("person_name") == "Alice Smith" and candidate["public_contacts"]
+            for view in private_views
+            for candidate in view["candidates"]
+        ), [
+            [
+                (
+                    candidate.get("person_name"),
+                    candidate.get("public_contacts"),
+                    candidate.get("person_project_relationship"),
+                    candidate.get("stale"),
+                )
+                for candidate in view["candidates"]
+            ]
+            for view in private_views
+        ]
+        assert not any(candidate.get("person_name") for candidate in refreshed["candidates"])
