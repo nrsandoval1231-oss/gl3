@@ -41,7 +41,7 @@ Optional public-page automation now requires exact-host dated terms permission i
 
 ## Current acceptance state
 
-Implementation is in progress. Independent review found material A recovery and C contact-attribution/cache defects; the [current checkpoint](../../.agent/CURRENT_STATE.md) records them and the required repair/review sequence. The [validation record](../validation/autonomous-commercial-research-20261108/README.md) distinguishes source-specific matched metrics and scoped checks from final integrated acceptance. Failed fixture attempts are preserved as failures. Final native-source preservation, the fresh viewport journey, latest-source matched metrics, independent head review, broad gates and exact-head CI remain required before the draft PR handoff.
+Production and the metrics harness are frozen after the A recovery/grouped-worker repairs and the cohesive C private-evidence/public-publication repair at `ffc3c890`. Independent scoped reviews closed those concrete findings; the [current checkpoint](../../.agent/CURRENT_STATE.md) records the repair sequence and remaining checks. The [validation record](../validation/autonomous-commercial-research-20261108/README.md) includes an accepted same-fixture pair on those source hashes and distinguishes it from final integrated acceptance. Failed fixture attempts remain failures. Final fixture verification, the fresh viewport journey, independent exact-head review, broad gates and exact-head CI remain required before the draft PR handoff.
 
 ## Optional provider capability boundary
 

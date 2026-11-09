@@ -4,13 +4,13 @@ This record separates implemented source, deterministic fixtures, independent re
 
 ## Same-fixture reference
 
-[Sanitized comparison](matched-fixture-summary-e5983baa.json) records an independently executed pair at baseline `bc433650ce4706dddfb5b30d78a502e3b528f54e` and candidate `e5983baa22e2a8841fafd6173b8c613288770ae2`. It is a reference for that source revision, not acceptance of subsequent preservation repairs. Raw captures/logs remain ignored under `.artifacts/phase2/`.
+[Current sanitized comparison](matched-fixture-summary-ffc3c890.json) records an independently executed pair at baseline `bc433650ce4706dddfb5b30d78a502e3b528f54e` and candidate `43398c5fcdd36b53c5ec44c14c4ae345200e967b`, containing the independently reviewed `ffc3c890` production repair. The [earlier e598 comparison](matched-fixture-summary-e5983baa.json) remains a historical source-specific reference. Raw captures/logs remain ignored under `.artifacts/phase2/`.
 
 - Fixture SHA256: `15e29ff076b6f1c02a3cd11ac18c76a86e716f34d3daa660b23ae93da3531111`.
 - Evaluator SHA256: `fde98d53cde8a7b16d24e4518c9f7e11ca35664576bcda025e503651a8abdcd2`.
-- Before/after aggregate of 416 production/harness files: `c240b8ba4b51060011eef062fc989cdd0c0516f27d129c45da4ef28d1478d956`, unchanged during the 47.91-second quiet window. Both capture tests passed; comparison exited zero.
+- Before/after aggregate of 416 production/harness files: `f86b9015c3d27f6a4d40757f68303a5732e3734898e06a1aafb96668f854b378`, unchanged during the 29.77-second quiet window. Both capture tests passed; comparison exited zero. Later documentation/test-only commits do not change these measured source hashes.
 
-| Synthetic fixture metric | Baseline | Candidate e598 |
+| Synthetic fixture metric | Baseline | Candidate ffc3 |
 |---|---:|---:|
 | Canonical accounts / physical projects / needs | 2 / 4 / 5 | 2 / 4 / 5 |
 | Common source-backed Why now + justified action | 4 / 5 | 4 / 5 |
@@ -21,14 +21,14 @@ This record separates implemented source, deterministic fixtures, independent re
 | Paid-provider logical requests | 0 | 0 |
 | Synthetic mocked provider dollars | $0 | $0 |
 | Actual provider cost | Unknown/unverified | Unknown/unverified |
-| In-process account-project read p50 / p95, milliseconds | 7.35 / 18.04 | 21.53 / 39.08 |
-| Fixture workflow elapsed, milliseconds | 8,980.97 | 17,383.24 |
+| In-process account-project read p50 / p95, milliseconds | 4.46 / 12.19 | 16.01 / 24.77 |
+| Fixture workflow elapsed, milliseconds | 5,741.98 | 11,576.75 |
 
 The candidate removed an unverified `acme.test` method while retaining the RRC method; this is a quality filter, not increased contact coverage. Structured-field presence is separate from the unchanged common usefulness measure. All four power amounts remain unknown: candidate scopes are two construction-temporary, one commissioning and one campus-capacity. No campus, IT or nameplate MW is added to rental demand. Zero fixture conflicts does not establish conflict-free production data.
 
 Ten initial jobs were scheduled; the later bounded retry makes eleven recorded outcomes (three successful jobs and eight failed/blocked research outcomes). Those eight are not accepted findings or completed commercial research. The fixture checks replay/entity/spend deduplication and outage recovery; the candidate reaches retained/native route checks and reports disabled discovery honestly.
 
-There was one matched capture per source. Read latency uses five repeated **direct in-process `account_projects` database reads**, not HTTP. Cold-cache state was not controlled. Candidate reads and workflow were slower. Pytest wall times were 15.94 and 22.13 seconds. Hardware: Intel Core Ultra 5 225F, 10 cores, 31.5 GiB RAM, local Windows; Python 3.11.16, PostgreSQL 18.6, uv 0.13.4. This small synthetic fixture is not production coverage, production lead quality, a billing receipt or a scale benchmark. Final browser HTTP measurements are separate and pending.
+There was one matched capture per source. Read latency uses five repeated **direct in-process `account_projects` database reads**, not HTTP. Cold-cache state was not controlled. Candidate reads and workflow were slower. Pytest wall times were 8.61 and 14.42 seconds. Hardware: Intel Core Ultra 5 225F, 10 cores, 31.5 GiB RAM, local Windows; Python 3.11.16, PostgreSQL 18.6, uv 0.13.4. This small synthetic fixture is not production coverage, production lead quality, a billing receipt or a scale benchmark. Final browser HTTP measurements are separate and pending.
 
 ## Reproduction boundary
 
@@ -64,4 +64,6 @@ The public native directory path is fixture-tested. Existing producers do not su
 
 Firecrawl metadata-only search has deterministic contract/recovery tests; remote HTML extraction remains capability-blocked where preventive target redirect/private-network control is unverified. Apollo is an always-blocked no-network interface, not an operational licensed connector. No live/paid smoke was run; actual access, credits, prices and rights remain unverified. See [contact evidence and official documentation](contacts.md).
 
-Final full backend/frontend/dependency/migration/brand checks, real browser receipts, latest-source matched comparison, final integrated Astra head attestation, draft PR and exact-head CI are still required. No schema migration has been added; migration/drift verification and rollback notes must be recorded at final handoff.
+The `ffc3c890` private-evidence/public-publication separation passed independent scoped review: 20 repository tests and five targeted diagnostic probes, including old/target company and person suppression, native alignment, bounded overflow refusal, cached privacy, and public history/omit-ID modes. Private proof and carry-forward readers preserve raw current evidence; public modes always apply current attribution and suppression. This is scoped source acceptance, not final whole-candidate approval.
+
+Final full backend/frontend/dependency/migration/brand checks, real browser receipts, final integrated Astra head attestation, draft PR and exact-head CI are still required. The latest-source matched pair is accepted for the recorded production/harness hashes. No schema migration has been added; migration/drift verification and rollback notes must be recorded at final handoff.
