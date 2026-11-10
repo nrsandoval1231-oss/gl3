@@ -163,6 +163,27 @@ def test_search_missing_configuration_is_visible_without_request():
 
 
 @pytest.mark.parametrize(
+    ("status", "failure_code"), [(401, "access_restricted"), (429, "rate_limited")]
+)
+def test_search_http_restriction_and_rate_limit_are_stable(status, failure_code):
+    from gridlens.ingestion.adapters.pursuit_acquisition import retrieval_failure
+
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(status))) as client:
+        with pytest.raises(httpx.HTTPStatusError) as error:
+            discover_urls(
+                "project",
+                api_key="test",
+                deadline=time.monotonic() + 5,
+                before_request=lambda _: None,
+                client=client,
+            )
+    receipt = retrieval_failure(error.value)
+    assert receipt["http_status"] == status
+    assert receipt["failure_code"] == failure_code
+    assert receipt["retryable"] is (status == 429)
+
+
+@pytest.mark.parametrize(
     "payload",
     [
         {"success": False},

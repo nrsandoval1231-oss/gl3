@@ -287,6 +287,10 @@ def extract_public_document(
         PublicDocument,
     )
 
+    if not _firecrawl_target_redirect_safety_verified():
+        raise ExtractionUnavailable(
+            "Firecrawl target redirect safety is not established for provider-side navigation"
+        )
     url = validate_public_url(url)
     if not api_key:
         raise ExtractionUnavailable("Firecrawl extraction is not configured")
@@ -392,6 +396,11 @@ def extract_public_document(
         published_at=published_at,
         extraction_location="Firecrawl public HTML markdown; complete bounded text",
     )
+
+
+def _firecrawl_target_redirect_safety_verified() -> bool:
+    """Current v2 docs expose no enforceable target redirect/private-host control."""
+    return False
 
 
 def _extract_direct(url: str, *, api_key: str, deadline: float, max_bytes: int):

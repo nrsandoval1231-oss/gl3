@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 
 from gridlens.intelligence.buying_chain import buying_chain_views
 from gridlens.intelligence.identity_reconciliation import current_claim_identity_links
+from gridlens.intelligence.saved_history_privacy import (
+    _redact_all_contact_tokens,
+    project_saved_history_privacy,
+)
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
     BrowseRow,
@@ -92,8 +96,15 @@ def account_queue(
         .all()
     )
     items = []
+    source_by_need = _current_brief_sources(
+        session, [str(row["compact"].get("id")) for row in rows]
+    )
     for row in rows:
         compact = row["compact"]
+        need_summary = _account_need(
+            json.dumps(compact, default=str),
+            evidence=source_by_need.get(str(compact.get("id")), []),
+        )
         items.append(
             {
                 "company_identity_id": row["company_identity_id"],
@@ -104,9 +115,13 @@ def account_queue(
                 "supporting_evidence_count": row["evidence_count"],
                 "last_evidence_update": row["last_evidence_update"],
                 "qualification_tiers": sorted(row["tiers"] or []),
-                "highest_priority_need": _account_need(json.dumps(compact, default=str)),
+                "highest_priority_need": need_summary,
             }
         )
+    _sanitize_account_briefs(
+        session,
+        [item["highest_priority_need"] for item in items if item.get("highest_priority_need")],
+    )
     return {
         "items": items,
         "total": total,
@@ -234,6 +249,12 @@ def account_browse_page(
         count_params,
     ).scalar_one()
     output = []
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+
+    source_by_need = _current_brief_sources(
+        session, [str(row["compact"].get("id")) for row in rows]
+    )
+
     for row in rows:
         compact = dict(row["compact"])
         preview = compact.pop("commercial_preview", {})
@@ -249,6 +270,18 @@ def account_browse_page(
         compact["evidence_count"] = compact.get("evidence_count") or len(
             compact.get("evidence", [])
         )
+        # Account need summaries intentionally carry no revalidated contact
+        # routes. Build the brief before evidence is trimmed, then keep its
+        # source citations and suppress any unverified contact selection.
+        brief = build_optional_commercial_brief(
+            {
+                **compact,
+                "commercial_preview": preview,
+                "contact_actions": [],
+                "evidence": source_by_need.get(str(compact.get("id")), []),
+            }
+        )
+        brief["best_contact"] = None
         compact["evidence"] = []
         output.append(
             {
@@ -258,6 +291,7 @@ def account_browse_page(
                 "commercial_next_question": preview["next_question"],
                 "commercial_next_action": preview["next_action"],
                 "commercial_organization": preview.get("organization"),
+                "commercial_brief": brief,
                 "company_identity_id": row["company_identity_id"],
                 "account_name": row["account_name"],
                 "account_aliases": row["aliases"],
@@ -270,6 +304,7 @@ def account_browse_page(
             }
         )
     next_offset = offset + len(output) if offset + len(output) < total else None
+    _sanitize_account_briefs(session, output)
     return {
         "items": output,
         "total": total,
@@ -588,8 +623,14 @@ def account_projects(
             .where(ranked.c.need_rank > need_offset, ranked.c.need_rank <= need_offset + need_limit)
             .order_by(ranked.c.project_id, ranked.c.need_rank)
         ).all()
+        source_by_need = _current_brief_sources(
+            session, [str(compact.get("id")) for _project_id, compact in rows]
+        )
         for project_id, compact in rows:
-            need = _account_need(json.dumps(compact, default=str))
+            need = _account_need(
+                json.dumps(compact, default=str),
+                evidence=source_by_need.get(str(compact.get("id")), []),
+            )
             if need is not None:
                 needs_by_project[project_id].append(need)
     items = []
@@ -609,6 +650,10 @@ def account_projects(
                 ),
             }
         )
+    _sanitize_account_briefs(
+        session,
+        [need for item in items for need in item["needs"]],
+    )
     return {
         "items": items,
         "total": total,
@@ -624,7 +669,7 @@ def account_projects(
             "supporting_evidence_count": account_row["evidence_count"] or 0,
             "last_evidence_update": account_row["last_evidence_update"],
             "qualification_tiers": sorted(account_row["tiers"] or []),
-            "highest_priority_need": _account_need(account_row["best_compact"]),
+            "highest_priority_need": _safe_need_summary(session, account_row["best_compact"]),
         },
     }
 
@@ -1068,11 +1113,28 @@ def _need_summary(pair: Any) -> dict[str, Any]:
     }
 
 
-def _account_need(compact_text: str | None) -> dict[str, Any] | None:
+def _account_need(
+    compact_text: str | None,
+    *,
+    session=None,
+    evidence: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
     if compact_text is None:
         return None
     compact = json.loads(compact_text)
     preview = compact.get("commercial_preview") or {}
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+
+    brief = build_optional_commercial_brief(
+        {
+            **compact,
+            "commercial_preview": preview,
+            # A summary account row does not recheck current contact suppression.
+            "contact_actions": [],
+            "evidence": evidence if evidence is not None else [],
+        }
+    )
+    brief["best_contact"] = None
     return {
         "id": compact["id"],
         "project_id": compact["project_id"],
@@ -1089,4 +1151,141 @@ def _account_need(compact_text: str | None) -> dict[str, Any] | None:
         "industry": compact.get("asset_type") or compact.get("industry"),
         "location": compact.get("location"),
         "rank_score": compact.get("rank_score"),
+        "commercial_brief": brief,
     }
+
+
+def _current_brief_sources(session, need_ids: list[str | None]) -> dict[str, list[dict[str, Any]]]:
+    ids = [value for value in need_ids if value]
+    output: dict[str, list[dict[str, Any]]] = {str(value): [] for value in ids}
+    if session is None or not ids:
+        return output
+    rows = (
+        session.execute(
+            text(
+                """WITH accepted AS (
+               SELECT DISTINCT ON (no.need_id,e.id)
+                      no.need_id,e.id,e.title,e.url,left(e.abstract, 8192) AS abstract,
+                      e.event_date,e.event_date_label,
+                      e.published_at,e.observed_at,e.content_hash,e.extraction_location,
+                      o.content_hash AS semantic_hash,i.evaluator_version,
+                      jsonb_build_object(
+                          'semantic_hash', i.assessment->'semantic_hash',
+                          'evidence_hash', i.assessment->'evidence_hash',
+                          'project_identity_key', i.assessment->'project_identity_key',
+                          'acquisition_capture_version',
+                          i.assessment->'acquisition_capture_version',
+                          'admission_status', i.assessment->'admission_status',
+                          'target_need_id', i.assessment->'target_need_id',
+                          'project_id', i.assessment->'project_id',
+                          'research_claims', jsonb_path_query_array(
+                              i.assessment->'research_claims',
+                              '$[*] ? (@.field == "activity_load_mw")'
+                          )
+                      ) AS assessment,
+                      s.id AS source_id,
+                      s.family AS source_family,s.retrieval_method,
+                      p.identity_key AS project_identity_key
+               FROM need_observations no
+               JOIN observations o ON o.id=no.observation_id
+               JOIN evidence e ON e.observation_id=o.id
+               JOIN interpretations i ON i.observation_id=o.id
+               JOIN sources s ON s.id=o.source_id
+               JOIN power_needs pn ON pn.id=no.need_id
+               JOIN projects p ON p.id=pn.project_id
+               WHERE no.need_id=ANY(CAST(:need_ids AS uuid[]))
+                 AND i.content_hash=o.content_hash
+                 AND i.assessment->>'semantic_hash'=o.content_hash
+                 AND i.assessment->>'evidence_hash'=e.content_hash
+                 AND i.status='accepted'
+                 AND coalesce(i.assessment->>'decision','accepted')='accepted'
+               ORDER BY no.need_id,e.id,i.id DESC
+               ), ranked AS (
+               SELECT accepted.*,
+                      count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                      row_number() OVER (
+                          PARTITION BY accepted.need_id ORDER BY accepted.id
+                      ) AS source_rank
+               FROM accepted
+               )
+               SELECT * FROM ranked WHERE source_rank <= 41"""
+            ),
+            {"need_ids": ids},
+        )
+        .mappings()
+        .all()
+    )
+    overflow_needs: set[str] = set()
+    for row in rows:
+        if row["source_count"] > 40:
+            need_key = str(row["need_id"])
+            if need_key not in overflow_needs:
+                output[need_key].append({"overflow": True})
+                overflow_needs.add(need_key)
+            continue
+        output[str(row["need_id"])].append(
+            {
+                "id": str(row["id"]),
+                "title": row["title"],
+                "url": row["url"],
+                "abstract": row["abstract"],
+                "event_date": row["event_date"],
+                "event_date_label": row["event_date_label"],
+                "published_at": row["published_at"],
+                "observed_at": row["observed_at"],
+                "content_hash": row["content_hash"],
+                "semantic_hash": row["semantic_hash"],
+                "assessment": row["assessment"],
+                "evaluator_version": row["evaluator_version"],
+                "source": {
+                    "id": row["source_id"],
+                    "family": row["source_family"],
+                    "retrieval_method": row["retrieval_method"],
+                },
+                "project_identity_key": row["project_identity_key"],
+                "extraction_location": row["extraction_location"],
+                "current": True,
+            }
+        )
+    return output
+
+
+def _safe_need_summary(session, compact_text: str | None):
+    compact = json.loads(compact_text) if compact_text else {}
+    sources = _current_brief_sources(session, [str(compact.get("id"))]).get(
+        str(compact.get("id")), []
+    )
+    need = _account_need(compact_text, evidence=sources)
+    if need:
+        _sanitize_account_briefs(session, [need])
+    return need
+
+
+def _sanitize_account_briefs(session, needs: list[dict[str, Any]]) -> None:
+    """Apply saved-history name/method suppression to one bounded response page."""
+    selected = [
+        need
+        for need in needs
+        if isinstance(need, dict)
+        and isinstance(need.get("commercial_brief"), dict)
+        and need.get("project_id")
+    ]
+    if not selected:
+        return
+    versions = [
+        {
+            "saved_card": {
+                "project_id": need["project_id"],
+                "commercial_brief": need["commercial_brief"],
+            }
+        }
+        for need in selected
+    ]
+    projected = project_saved_history_privacy(session, {"versions": versions}).get("versions", [])
+    for need, version in zip(selected, projected, strict=False):
+        card = version.get("saved_card") if isinstance(version, dict) else None
+        safe = card.get("commercial_brief") if isinstance(card, dict) else None
+        if isinstance(safe, dict):
+            safe = _redact_all_contact_tokens(safe)
+            safe["best_contact"] = None
+            need["commercial_brief"] = safe

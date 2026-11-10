@@ -11,13 +11,12 @@ from sqlalchemy import select, text
 from gridlens.intelligence.saved_browse import current_generation, rebuild
 from gridlens.persistence.models import (
     BrowseRow,
-    BuyingChainClaim,
-    BuyingChainEvidence,
-    BuyingChainIdentityLink,
-    BuyingChainRun,
-    CompanyIdentity,
+    Evidence,
+    Interpretation,
+    Observation,
     PowerNeed,
     Project,
+    Source,
 )
 from gridlens.security import token_for
 from gridlens.settings import settings
@@ -248,10 +247,9 @@ def test_customer_group_open_uses_one_generation_across_all_serializers(saved_db
 def test_customer_group_open_rechecks_current_contact_suppressions(saved_db, monkeypatch):
     from test_saved_browse import seed
 
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+
     ids = seed(saved_db, count=1, histories=1)
-    assert rebuild(saved_db)["status"] == "published"
-    monkeypatch.setattr(settings, "saved_browse_enabled", True)
-    api = import_module("gridlens.api.app")
     from gridlens.intelligence.contact_suppressions import (
         global_method_suppression_key,
         record_contact_suppression,
@@ -260,90 +258,108 @@ def test_customer_group_open_rechecks_current_contact_suppressions(saved_db, mon
     with saved_db.begin() as session:
         project_id = session.scalar(select(PowerNeed.project_id).where(PowerNeed.id == ids[0]))
         project = session.get(Project, project_id)
-        company = CompanyIdentity()
-        session.add(company)
+        assert project is not None
+        source_id = "texas-tdlr-tabs-data-centers"
+        tabs = "TABS2026026955"
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Texas Department of Licensing and Regulation",
+                endpoint="https://www.tdlr.texas.gov/TABS/Search/SearchProjects",
+                family="construction-permits",
+                geography="Texas",
+                industries=["data center"],
+                retrieval_method="tdlr-tabs",
+                health={},
+            )
+        )
         session.flush()
-        source_url = "https://example.test/public-contact"
-        quote = "Synthetic company contact private@example.test"
-        source = BuyingChainEvidence(
-            project_id=project.id,
+        project.source_id = "texas-tdlr-tabs-data-centers"
+        project.external_id = f"TABS-{tabs}"
+        project.name = "Synthetic 0"
+        project.location = "Dallas, TX"
+        project.identity_key = "site-0"
+        excerpt = f"""Project: {project.name}
+Location: {project.location}
+Registered: 2026-08-04
+Developer-reported start: 2026-08-01; completion: 2026-12-01
+Estimated cost: $300,000,000
+Type of work: New Construction
+Scope: New data center building
+Owner: Synthetic Customer
+Owner contact: Jordan Smith
+Owner phone: not stated
+Owner contact phone: not stated
+Owner email: not stated
+Owner contact email: private@example.test
+Design firm: Synthetic Design LLC
+TABS status: Project Registered"""
+        semantic_hash = sha256(excerpt.encode()).hexdigest()
+        source_url = f"https://www.tdlr.texas.gov/TABS/Search/Project/{tabs}"
+        title = f"{project.name} — TDLR TABS {tabs}"
+        observation = Observation(
+            source_id=source_id,
+            external_id=project.external_id,
+            title=title,
             url=source_url,
-            title="Synthetic contact source",
-            excerpt=quote,
-            content_hash=sha256(quote.encode()).hexdigest(),
-            extraction_location="Synthetic test fixture",
-            observed_at=datetime.now(UTC),
-            last_seen_at=datetime.now(UTC),
-            project_match_reason="Isolated synthetic test evidence.",
+            abstract=excerpt,
+            content_hash=semantic_hash,
         )
-        session.add(source)
+        session.add(observation)
         session.flush()
-        claim = BuyingChainClaim(
-            project_id=project.id,
-            entity_key="customer-open-suppression-test",
-            fingerprint=sha256(b"customer-open-suppression-test").hexdigest(),
-            policy_version="test-v1",
-            organization="Synthetic Customer",
-            person_name=None,
-            title=None,
-            category="owner_developer",
-            organization_relationship="DIRECT",
-            person_organization_relationship="UNKNOWN",
-            person_project_relationship="DIRECT",
-            evidence_strength="High",
-            reason="Synthetic owner and contact statement.",
-            citations=[
-                {
-                    "evidence_id": str(source.id),
-                    "url": source_url,
-                    "quote": quote,
-                    "supports": "project_organization",
-                },
-                {
-                    "evidence_id": str(source.id),
-                    "url": source_url,
-                    "quote": quote,
-                    "supports": "public_contact",
-                },
-            ],
-            public_contacts=[
-                {
-                    "kind": "email",
-                    "value": "private@example.test",
-                    "source_url": source_url,
-                    "quote": quote,
-                }
-            ],
+        retained = Evidence(
+            observation_id=observation.id,
+            title=title,
+            abstract=excerpt,
+            url=source_url,
+            content_hash=semantic_hash,
             observed_at=datetime.now(UTC),
+            event_date=datetime(2026, 8, 4).date(),
+            event_date_label="Registered with TDLR (Architectural Barriers)",
+            extraction_location="TDLR TABS project details page",
         )
-        session.add(claim)
+        session.add_all(
+            [
+                retained,
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=semantic_hash,
+                    evaluator_version="tdlr-tabs-data-center-v1",
+                    status="accepted",
+                    assessment={
+                        "semantic_hash": semantic_hash,
+                        "evidence_hash": semantic_hash,
+                        "decision": "accepted",
+                        "project_identity_key": project.identity_key,
+                        "subject": project.name,
+                        "location": project.location,
+                        "power_activity": "construction",
+                        "admission_status": "admitted",
+                    },
+                ),
+            ]
+        )
         session.flush()
-        session.add(
-            BuyingChainRun(
-                project_id=project.id,
-                input_hash=sha256(b"customer-open-suppression-run").hexdigest(),
-                evidence_ids=[str(source.id)],
-                claim_ids=[str(claim.id)],
-                policy_version="test-v1",
-                status="complete",
-                documents_checked=1,
-                candidates_added=1,
-                unresolved=[],
-            )
+        native = enrich_buying_chain(session, project.id, retained_only=True)
+        native_contact = next(
+            candidate
+            for candidate in native["candidates"]
+            if candidate["person_name"] == "Jordan Smith"
         )
-        session.add(
-            BuyingChainIdentityLink(
-                claim_id=claim.id,
-                entity_type="company",
-                company_identity_id=company.id,
-                reason="Explicit synthetic test identity link.",
-                basis="attributed_review",
-                reviewed_by="test",
-                source_evidence_id=source.id,
-                source_version_hash=source.content_hash,
-                state="current",
-            )
-        )
+        assert native_contact["public_contacts"] == [
+            {
+                "kind": "email",
+                "value": "private@example.test",
+                "source_url": source_url,
+                "quote": "Owner contact email: private@example.test",
+                "observed_at": retained.observed_at.isoformat(),
+            }
+        ]
+        assert native_contact["company_identity_id"]
+        claim_id = native_contact["id"]
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    api = import_module("gridlens.api.app")
     from gridlens.intelligence.saved_browse import rebuild as rebuild_again
 
     assert rebuild_again(saved_db)["status"] == "published"
@@ -375,7 +391,7 @@ def test_customer_group_open_rechecks_current_contact_suppressions(saved_db, mon
     )
     assert opened.status_code == 200, opened.text
     assert "private@example.test" not in opened.text
-    assert str(claim.id) not in opened.text
+    assert str(claim_id) not in opened.text
 
 
 def test_customer_group_open_succeeds_if_generation_publishes_after_parent_read(

@@ -44,6 +44,16 @@ function fixtureProject(id: string, needId: string, name: string) {
     contact_people: [],
     power_summary: 'Source-reported facility demand of 840 MW',
     power_summary_kind: 'facility_demand',
+    commercial_brief: {
+      version: 'synthetic-v1',
+      why_now: { text: null, source_date: null, scope: null, sources: [] },
+      power_need: { amount_class: 'unknown', scope: 'Temporary rental requirement', value: null, unit: null, status: 'Not established', limitations: ['Facility demand is not a rental requirement.'] },
+      best_contact: { contact: id.endsWith('one') ? 'Jordan Fixture' : 'Riley Fixture', href: id.endsWith('one') ? 'tel:+15555550111' : 'tel:+15555550222', kind: 'call', route_kind: 'person_method', authority: 'Requires confirmation for this project', deliverability: 'Not established', sources: [{ title: 'Synthetic construction notice', url: sources[0].url, evidence_id: 'fixture-e-current', date: '2026-10-18' }] },
+      next_action: { text: `Confirm ${name} scope from sources.`, kind: 'review', source: null },
+      freshness: { as_of: '2026-10-21T00:00:00Z', status: 'current_source', source_date: null },
+      limitations: ['No current source citation is available for a why-now statement.', 'Synthetic fixture only.'],
+      sources: [{ title: 'Synthetic construction notice', url: sources[0].url, evidence_id: 'fixture-e-current', date: '2026-10-18' }],
+    },
     next_action: 'Confirm the equipment package and timing from current sources.',
     shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: 'Synthetic construction is planned at this site.', next_step: 'Confirm the temporary power scope.' },
     updated_at: null,
@@ -121,7 +131,7 @@ const group = {
 }
 const projectPage = { items: [firstProject, secondProject], total: 2, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-child-cohort', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' }
 
-async function install(page: Page, options: { delaySecondNeed?: () => Promise<void>; delayNeedRead?: (needId: string, count: number) => Promise<void>; projectValidUntil?: string[]; onProjectRead?: () => void; onNeedRead?: (needId: string, count: number) => void; suppressContacts?: () => boolean } = {}) {
+async function install(page: Page, options: { delaySecondNeed?: () => Promise<void>; delayNeedRead?: (needId: string, count: number) => Promise<void>; projectValidUntil?: string[]; onProjectRead?: () => void; onNeedRead?: (needId: string, count: number) => void; suppressContacts?: () => boolean; needCommercialBrief?: boolean } = {}) {
   let mutations = 0
   let projectReadCount = 0
   const needReadCounts: Record<string, number> = {}
@@ -140,6 +150,11 @@ async function install(page: Page, options: { delaySecondNeed?: () => Promise<vo
       await options.delayNeedRead?.('need-synthetic-one', count)
       const value = structuredClone(needs['need-synthetic-one'])
       if (options.suppressContacts?.()) value.intelligence_card.contacts = []
+      if (options.needCommercialBrief) Object.assign(value, { commercial_brief: {
+        ...firstProject.commercial_brief,
+        why_now: { ...firstProject.commercial_brief.why_now, text: 'This selected need has its own source-bound commissioning milestone.' },
+        best_contact: { ...firstProject.commercial_brief.best_contact, contact: 'Need-Specific Jordan', href: 'tel:+15555550113' },
+      } })
       return route.fulfill({ json: value })
     }
     if (url.pathname === '/api/opportunities/needs/need-synthetic-two') {
@@ -155,7 +170,7 @@ async function install(page: Page, options: { delaySecondNeed?: () => Promise<vo
       const validUntil = options.projectValidUntil?.[Math.min(projectReadCount, (options.projectValidUntil?.length ?? 1) - 1)] ?? projectPage.valid_until
       projectReadCount += 1
       const items = options.suppressContacts?.() && projectReadCount > 1
-        ? [firstProject, secondProject].map(project => ({ ...project, contact: [], contact_people: [] }))
+        ? [firstProject, secondProject].map(project => ({ ...project, contact: [], contact_people: [], commercial_brief: project.commercial_brief ? { ...project.commercial_brief, best_contact: null } : null }))
         : [firstProject, secondProject]
       return route.fulfill({ json: { ...projectPage, valid_until: validUntil, items } })
     }
@@ -174,6 +189,10 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await page.goto('/?view=workspace&groupBrowse=1')
   await page.getByRole('button', { name: /Synthetic Grid Operator/ }).click()
   const account = page.getByRole('region', { name: `Company ${company}` })
+  const overview = account.getByRole('region', { name: 'Account overview' })
+  await expect(overview.getByText('Confirm Synthetic Compressor Station scope from sources.')).toBeVisible()
+  await expect(overview.getByText('Synthetic construction is planned at this site.')).toHaveCount(0)
+  await expect(overview.getByText('Confirm the temporary power scope.')).toHaveCount(0)
   const row = account.locator(`[data-project-id="${firstProject.project_id}"]`)
   await row.getByRole('button', { name: /Open project detail/ }).click()
 
@@ -181,10 +200,20 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   await expect(detail.getByRole('heading', { name: 'Synthetic Compressor Station', exact: true })).toBeVisible()
   await expect(detail.getByRole('button', { name: '← Back to account' })).toBeVisible()
   await expect(detail.getByText(/Current evidence is conflicting/)).toBeVisible()
-  await expect(detail.getByText('Facility demand · source reported')).toBeVisible()
-  await expect(detail.getByText('840 MW · Source-reported')).toBeVisible()
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveAttribute('href', 'tel:+15555550111')
-  await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveAttribute('href', 'mailto:jordan@synthetic.example.test')
+  await expect(detail.locator('.cod-account-power')).toContainText('Temporary rental requirement')
+  await expect(detail.getByText(/Amount unknown|unknown is not zero/)).toHaveCount(0)
+  await expect(detail.getByText(/Facility demand is not a rental requirement/)).toBeVisible()
+  await expect(detail.getByText('Why now is not established from current evidence.')).toBeVisible()
+  await expect(detail.getByText(/Synthetic construction is planned at this site/)).toHaveCount(0)
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveAttribute('href', 'tel:+15555550111')
+  await expect(detail).not.toContainText('Current Source')
+  await expect(detail).not.toContainText('current_source')
+  const contactConfidence = detail.locator('details.cod-contact-confidence')
+  await expect(contactConfidence).not.toHaveAttribute('open', '')
+  await expect(contactConfidence.getByText('Authority: Requires confirmation for this project. Deliverability: Not established.')).toBeHidden()
+  await contactConfidence.locator('summary').click()
+  await expect(contactConfidence.getByText('Authority: Requires confirmation for this project. Deliverability: Not established.')).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: /bad%0d%0a|Injected contact|Unsafe contact page/ })).toHaveCount(0)
   await expect(detail.getByRole('button', { name: /Lead|Signal/ })).toHaveCount(0)
   await expect(detail.locator('.cod-tier, .cod-metrics, .cod-evidence')).toHaveCount(0)
@@ -193,7 +222,9 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   const sourcesDisclosure = detail.locator('details.cod-account-sources')
   await expect(sourcesDisclosure).toBeVisible()
   await expect(sourcesDisclosure).not.toHaveAttribute('open', '')
-  await expect(sourcesDisclosure.getByText('Synthetic construction notice')).not.toBeVisible()
+  await expect(sourcesDisclosure.locator('summary')).toHaveText('Sources')
+  await expect(sourcesDisclosure.getByText('Synthetic construction notice').first()).not.toBeVisible()
+  await expect(detail.getByText(/Confirm Synthetic Compressor Station scope from sources/)).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
   expect(mutations()).toBe(0)
 
@@ -209,6 +240,18 @@ test('account-first project detail is compact, source-on-demand, scoped and retu
   expect(mutations()).toBe(0)
 })
 
+test('selected need brief takes precedence over its project summary in account detail', async ({ page }) => {
+  await install(page, { needCommercialBrief: true })
+  await page.goto('/?view=workspace&groupBrowse=1')
+  await page.getByRole('button', { name: /Synthetic Grid Operator/ }).click()
+  const account = page.getByRole('region', { name: `Company ${company}` })
+  await account.getByRole('button', { name: /Open project detail/ }).first().click()
+  const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
+  await expect(detail).toContainText('This selected need has its own source-bound commissioning milestone.')
+  await expect(detail.getByRole('link', { name: 'Call Need-Specific Jordan' })).toHaveAttribute('href', 'tel:+15555550113')
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
+})
+
 test('switching a delayed project never leaves the previous project contact visible', async ({ page }) => {
   let releaseSecondNeed!: () => void
   const secondNeedWait = new Promise<void>(resolve => { releaseSecondNeed = resolve })
@@ -217,16 +260,20 @@ test('switching a delayed project never leaves the previous project contact visi
   const account = page.getByRole('region', { name: `Company ${company}` })
   await account.locator(`[data-project-id="${firstProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   await detail.getByRole('button', { name: '← Back to account' }).click()
   await account.locator(`[data-project-id="${secondProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const loadingDetail = page.getByRole('complementary', { name: 'Opportunity detail' })
   await expect(loadingDetail).toContainText('Loading verified opportunity detail')
+  await expect(loadingDetail.getByText(/Synthetic Compressor Station construction activity is planned/)).toHaveCount(0)
   await expect(loadingDetail.getByText('Jordan Fixture')).toHaveCount(0)
-  await expect(loadingDetail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
+  await expect(loadingDetail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
+  await expect(loadingDetail.getByText(/Confirm Synthetic Compressor Station scope from sources/)).toHaveCount(0)
   releaseSecondNeed()
   await expect(loadingDetail.getByRole('heading', { name: 'Synthetic Processing Site', exact: true })).toBeVisible()
-  await expect(loadingDetail.getByRole('link', { name: 'Call +15555550222' })).toBeVisible()
+  await expect(loadingDetail.getByText('Why now is not established from current evidence.')).toBeVisible()
+  await expect(loadingDetail.getByText(/Confirm Synthetic Processing Site scope from sources/)).toBeVisible()
+  await expect(loadingDetail.getByRole('link', { name: 'Call Riley Fixture' })).toBeVisible()
   await expect(loadingDetail.getByText('Jordan Fixture')).toHaveCount(0)
 })
 
@@ -243,13 +290,13 @@ test('expired project detail hides contacts and actions, then offers a bounded r
   const account = page.getByRole('region', { name: `Company ${company}` })
   await account.locator(`[data-project-id="${firstProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
 
   await page.clock.fastForward(61_000)
   await expect(detail.getByRole('alert')).toContainText('expired before it could be displayed')
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: /Synthetic Grid Operator/ })).toHaveCount(0)
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
   await expect(detail.getByRole('region', { name: 'Recommended next action' })).toHaveCount(0)
@@ -257,7 +304,7 @@ test('expired project detail hides contacts and actions, then offers a bounded r
   await expect(detail.locator('details.cod-account-sources')).toBeVisible()
 
   await detail.getByRole('button', { name: 'Retry' }).click()
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
 })
 
@@ -282,21 +329,21 @@ test('expiry requires a fresh exact need and project projection before contacts 
   const account = page.getByRole('region', { name: `Company ${company}` })
   await account.locator(`[data-project-id="${firstProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   const initialNeedReads = needReads
   suppressContacts = true
   holdNeedRefresh = true
 
   await page.clock.fastForward(61_000)
   await expect.poll(() => needReads).toBeGreaterThan(initialNeedReads)
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
   releaseNeedRefresh()
-  await expect(detail.getByText('No appropriate business phone or email is available in retained contact evidence.')).toBeVisible()
+  await expect(detail.locator('[aria-label="Best contact"]')).toHaveCount(0)
   expect(needReads).toBeGreaterThan(initialNeedReads)
-  expect(projectReads).toBeGreaterThanOrEqual(2)
+  await expect.poll(() => projectReads).toBeGreaterThanOrEqual(2)
   await expect(detail.getByText('Jordan Fixture')).toHaveCount(0)
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toHaveCount(0)
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: 'Email jordan@synthetic.example.test' })).toHaveCount(0)
   await expect(detail.getByRole('link', { name: /Synthetic Grid Operator/ })).toHaveCount(0)
 })
@@ -310,9 +357,9 @@ test('far-future project validity does not trigger an early expiry refresh', asy
   const account = page.getByRole('region', { name: `Company ${company}` })
   await account.locator(`[data-project-id="${firstProject.project_id}"]`).getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   expect(projectReads).toBe(1)
   await page.clock.fastForward(10_000)
-  await expect(detail.getByRole('link', { name: 'Call +15555550111' })).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Call Jordan Fixture' })).toBeVisible()
   expect(projectReads).toBe(1)
 })

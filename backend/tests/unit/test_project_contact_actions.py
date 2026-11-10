@@ -9,6 +9,7 @@ from gridlens.intelligence.contact_suppressions import (
     person_suppression_key,
 )
 from gridlens.intelligence.project_contact_actions import (
+    _record_key,
     filter_project_contact_records,
     project_contact_actions,
     project_contact_people,
@@ -111,6 +112,34 @@ def test_stale_source_claim_cannot_create_action():
     assert project_contact_actions({"contacts": [row]}) == []
 
 
+def test_cached_action_identity_includes_current_role_and_authority_semantics():
+    base = {
+        "kind": "call",
+        "href": "tel:+17135550100",
+        "company_identity_id": "company-1",
+        "person_identity_id": "person-1",
+        "company": "Acme LLC",
+        "name": "Jane Doe",
+        "title": "Procurement Director",
+        "role": "procurement",
+        "responsibility": "Verified organizational responsibility",
+        "purchasing_authority": "No buyer authority established",
+        "source_url": "https://native.example/record/1",
+    }
+    key = _record_key(base)
+    for field, changed in (
+        ("name", "Jane Smith"),
+        ("title", "Former Procurement Director"),
+        ("role", "unknown"),
+        ("responsibility", "General company contact path"),
+        ("purchasing_authority", "Confirmed buyer"),
+        ("authority_status", "Confirmed"),
+        ("deliverability", "Verified"),
+        ("company", "Acme Holdings"),
+    ):
+        assert _record_key({**base, field: changed}) != key
+
+
 def test_eg_ai_rice_owner_phone_stays_generic_and_luis_gets_no_direct_action():
     # Shape from the fetched TDLR TABS2027002808 owner section: the phone is
     # stated under EG AI CORP; LUIS DIAZ is a separate owner contact label.
@@ -171,6 +200,13 @@ def test_cached_page_actions_and_people_are_filtered_by_new_suppressions(monkeyp
     records = actions + people
 
     def suppress_only(monkeypatch, keys):
+        monkeypatch.setattr(
+            contact_actions_module,
+            "_current_contact_record_keys",
+            lambda _session, requested: {
+                contact_actions_module._record_key(record) for record in requested
+            },
+        )
         monkeypatch.setattr(
             contact_actions_module,
             "_ledger_states",

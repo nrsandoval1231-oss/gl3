@@ -1,0 +1,164 @@
+{
+  "baseline": {
+    "amount_class_scope_counts": {
+      "unknown|unknown/unclassified": 4
+    },
+    "canonical_accounts": 2,
+    "conflict_count": 0,
+    "contact_methods": {
+      "generic_methods": 2,
+      "method_source_hosts": {
+        "acme.test": 1,
+        "www.rrc.texas.gov": 1
+      },
+      "named_contacts": 0,
+      "named_methods": 0
+    },
+    "elapsed_ms": 5695.35,
+    "failed_jobs": 8,
+    "freshness_states": {
+      "unknown/unclassified": 4
+    },
+    "mock_robots_requests": 0,
+    "mock_target_requests": 6,
+    "needs": 5,
+    "physical_projects": 4,
+    "provider_cache_reuses": 0,
+    "provider_logical_requests": 0,
+    "read_latency_ms": {
+      "p50": 4.77,
+      "p95": 12.21
+    },
+    "real_provider_cost": "UNKNOWN / unverified",
+    "recovery_completed": true,
+    "scheduled_jobs": 10,
+    "source_module_sha256": {
+      "gridlens.api.app": "a9a71ebdcd94e5fba29f858bf2261bb459d50952aa369223c527e71c3acc41e5",
+      "gridlens.domain.pursuit_research": "93c4fb213228bb2d3944309379b6b0393bff26ca9bc532d103a1b861883dc0d9",
+      "gridlens.ingestion.adapters.buying_chain_public": "496905e34e5162529b2493e57314b2d1c3f1410ae6ffb2dc043cdbf561a3ac2a",
+      "gridlens.ingestion.adapters.rrc_operator_directory": "d3c29526f1b53c63079749e9debe2cc1c07024bfcbfe75fd5114f6e75d3043c1",
+      "gridlens.intelligence.autonomous_research": "1e9d6999334f5dd55f2728a98c89c85ec27de94ccc4e880e0a7004224fed3c52",
+      "gridlens.intelligence.buying_chain": "73f1b914ca6e9d52707a0c010e6e4f6b5f7f83a4b07b5d4eb5ba0cd0d204a2a0",
+      "gridlens.intelligence.commercial_evaluation": "e59cd62f884e208ffb502122047b2ae36d8976518ccadd816b9a5bf0345d56df",
+      "gridlens.intelligence.company_contact_discovery": "c6d03f6596d628a5fc96d8d7f729958ea28fcae80ef39389ecd8b60c5ee3e216",
+      "gridlens.intelligence.customer_accounts": "56b6dfc388bc6e13c59a2d7ade833f6d07364ed6e1f37fd910088f52fcb08dbd",
+      "gridlens.intelligence.customer_results": "4997405056aa6e1db4199ca9a6918d8f704405a8b03b429b987ce8fe714b2788",
+      "gridlens.intelligence.project_results": "337109b50e00a6947299aa3e14b3c9a97392838f97987e381872607c5ed7a32f",
+      "gridlens.intelligence.pursuit_questions": "efa1321c8a39f4b9218ee18681c34e58aa6d120461a10cbd27364505a6d3ed5e",
+      "gridlens.intelligence.research_routing": "3fcc1852aded13ac602bdd64c3c93c4164c805e4c471a32da178347ef83a0fc0",
+      "gridlens.intelligence.saved_browse": "d8fc20c239904900fc4dfa1d803eada874ee7f29351967c4fbf9d236c8c3cb1c",
+      "gridlens.jobs.worker": "a743e4052a5ce1920683072d1d2490a681c7c2eb733ab3cb9dafe9bdbaa14fce"
+    },
+    "structured_brief_need_count": 0,
+    "successful_jobs": 3,
+    "synthetic_mock_cost_usd": "0.000000",
+    "useful_coverage": "80.0%",
+    "useful_why_now_and_next_action": 4
+  },
+  "baseline_source_commit": "bc433650ce4706dddfb5b30d78a502e3b528f54e",
+  "candidate": {
+    "amount_class_scope_counts": {
+      "unknown|campus-capacity": 1,
+      "unknown|commissioning": 1,
+      "unknown|construction-temporary": 2
+    },
+    "canonical_accounts": 2,
+    "conflict_count": 0,
+    "contact_methods": {
+      "generic_methods": 1,
+      "method_source_hosts": {
+        "www.rrc.texas.gov": 1
+      },
+      "named_contacts": 0,
+      "named_methods": 0
+    },
+    "elapsed_ms": 11711.77,
+    "failed_jobs": 8,
+    "freshness_states": {
+      "current_source": 4
+    },
+    "mock_robots_requests": 4,
+    "mock_target_requests": 4,
+    "needs": 5,
+    "physical_projects": 4,
+    "provider_cache_reuses": 0,
+    "provider_logical_requests": 0,
+    "read_latency_ms": {
+      "p50": 16.17,
+      "p95": 25.75
+    },
+    "real_provider_cost": "UNKNOWN / unverified",
+    "recovery_completed": true,
+    "scheduled_jobs": 10,
+    "source_module_sha256": {
+      "gridlens.api.app": "d71c86c11e95d6d62106f1a7e6ad080501184dae98c1b562c3069309ca7b3e71",
+      "gridlens.domain.commercial_brief": "79f43b280ecf588704cc500eb71d05ab21e3d782c6d9be02022c063e682ff555",
+      "gridlens.domain.pursuit_research": "93c4fb213228bb2d3944309379b6b0393bff26ca9bc532d103a1b861883dc0d9",
+      "gridlens.ingestion.adapters.buying_chain_public": "e68a8d536d5260272c299915d9e16d2f737b7a8fa7cd3d7c7bcdbc2d008107ae",
+      "gridlens.ingestion.adapters.public_site_policy": "b998d4fb40e88fdea3c8728f1d316e797eba9357af860c8bb03e5c7f6fd30d51",
+      "gridlens.ingestion.adapters.rrc_operator_directory": "d3c29526f1b53c63079749e9debe2cc1c07024bfcbfe75fd5114f6e75d3043c1",
+      "gridlens.intelligence.autonomous_research": "1a8d68e04b1480894315365b263a408b3824e397db48ed5fb90cafdced49812a",
+      "gridlens.intelligence.buying_chain": "3286d6a190cd58e19534267341470c9bf17d443d41bdf942a3214b42b9102ed3",
+      "gridlens.intelligence.commercial_evaluation": "b9f5b72173a4e848cbe489d85d7bd77ee3908d59874afb344c33aae39e2f7487",
+      "gridlens.intelligence.company_contact_attribution": "03dc8bac6fb5ae381ed476a8ea376d759ea88e710812132d57c2a7ae80670449",
+      "gridlens.intelligence.company_contact_discovery": "27d23d79b4aaf951b12417092abace2a0e11d5cfb2edcbee7fe12daa9b5f28d3",
+      "gridlens.intelligence.customer_accounts": "45397f2454c2b9e452db548f5ff0d3770cd5c8fcb31e9f55859537ec79e1d6ba",
+      "gridlens.intelligence.customer_results": "4997405056aa6e1db4199ca9a6918d8f704405a8b03b429b987ce8fe714b2788",
+      "gridlens.intelligence.project_results": "815ada9a4e12974bfd2438b6cf560268c8f3b62d7a7ac9a5854e1651274d8bf0",
+      "gridlens.intelligence.pursuit_questions": "e2fa91e1b347111d4c1331927a48e2da87157c8095d94804f769239d48f3e948",
+      "gridlens.intelligence.research_routing": "3fcc1852aded13ac602bdd64c3c93c4164c805e4c471a32da178347ef83a0fc0",
+      "gridlens.intelligence.saved_browse": "d8fc20c239904900fc4dfa1d803eada874ee7f29351967c4fbf9d236c8c3cb1c",
+      "gridlens.jobs.worker": "a743e4052a5ce1920683072d1d2490a681c7c2eb733ab3cb9dafe9bdbaa14fce"
+    },
+    "structured_brief_need_count": 4,
+    "successful_jobs": 3,
+    "synthetic_mock_cost_usd": "0.000000",
+    "useful_coverage": "80.0%",
+    "useful_why_now_and_next_action": 4
+  },
+  "candidate_source_commit": "a4e326d87650218b2c978e139c1ccb442952c015",
+  "capture_imported_module_sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+  "capture_imported_module_sha256_field": "raw capture imported_module_sha256; distinct from commercial.evaluator_sha256",
+  "data_kind": "SYNTHETIC fixture only; not production coverage or lead metrics",
+  "evaluator_sha256": "fde98d53cde8a7b16d24e4518c9f7e11ca35664576bcda025e503651a8abdcd2",
+  "fixture_id": "phase2-cross-lane-v3-15e29ff076b6f1c02a3cd11ac18c76a86e716f34d3daa660b23ae93da3531111",
+  "fixture_input_sha256": "15e29ff076b6f1c02a3cd11ac18c76a86e716f34d3daa660b23ae93da3531111",
+  "interpretation": [
+    "Amount coverage is counted by explicit class and scope; unsupported MW values are never summed.",
+    "Provider cost values describe deterministic mocked transports only; actual provider cost is unknown.",
+    "Useful coverage uses supported source-grounded WhyNow and justified NextAction for the same need."
+  ],
+  "measurement_protocol": {
+    "cache_context": "Repeated reads after fixture work; cold-cache state was not controlled.",
+    "hardware": "Intel Core Ultra 5 225F; 10 cores; 31.5 GiB RAM; local Windows",
+    "limits": "Synthetic small fixture; not production coverage, production cost, HTTP latency, or a scale benchmark. Candidate reads and workflow were slower.",
+    "matched_capture_repetitions_per_source": 1,
+    "pytest_wall_seconds": {
+      "baseline": 10.1,
+      "candidate": 14.48
+    },
+    "read_latency_samples_per_source": 5,
+    "read_latency_surface": "direct in-process customer_accounts.account_projects database projection; not HTTP",
+    "runtime": "PostgreSQL 18.6 on task-owned loopback cluster; Python 3.11.16; uv 0.13.4"
+  },
+  "schema_version": "phase2-sanitized-comparison-v2",
+  "source_freeze": {
+    "after_manifest": "pair_v5_source_after_a4e326d8_20261109T025102157Z.json",
+    "aggregate_algorithm": "SHA-256 of UTF-8 compact JSON for sorted relative-path/byte-SHA256 entries",
+    "aggregate_sha256": "c03a7f2c57169adeaecfad7453f92cf7b20db685749dbe816ca92330d2144835",
+    "algorithm_note": "New v5 explicit tracked manifest; 346 files. Not comparable to earlier 416-file scope.",
+    "before_manifest": "pair_v5_source_before_a4e326d8_20261109T025102157Z.json",
+    "comparison_exit": 0,
+    "file_count": 346,
+    "source_head": "a4e326d87650218b2c978e139c1ccb442952c015",
+    "tracked_scope": [
+      "backend/src",
+      "web/src",
+      "scripts/phase2_metrics.py"
+    ],
+    "tracked_scope_clean": true,
+    "unchanged": true,
+    "untracked_python_source_count": 0
+  },
+  "title": "Synthetic Phase 2 same-fixture baseline/candidate comparison"
+}

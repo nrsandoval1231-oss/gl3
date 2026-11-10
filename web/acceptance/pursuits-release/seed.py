@@ -31,16 +31,39 @@ def checked_database_url(value: str) -> str:
     # precedence over URL authority fields when SQLAlchemy opens the connection.
     # Keep this seed pinned to the explicitly authorized local socket target.
     routing_overrides = {
-        "host", "hostaddr", "port", "dbname", "database", "user", "username",
-        "password", "service", "servicefile", "options", "target_session_attrs",
+        "host",
+        "hostaddr",
+        "port",
+        "dbname",
+        "database",
+        "user",
+        "username",
+        "password",
+        "service",
+        "servicefile",
+        "options",
+        "target_session_attrs",
     }
     if routing_overrides.intersection(parsed.query):
-        raise SystemExit("Refusing database URL with connection-routing query overrides.")
-    if any(os.environ.get(key) for key in (
-        "PGHOST", "PGHOSTADDR", "PGPORT", "PGDATABASE", "PGUSER", "PGOPTIONS",
-        "PGSERVICE", "PGSERVICEFILE",
-    )):
-        raise SystemExit("Refusing inherited libpq connection-routing environment overrides.")
+        raise SystemExit(
+            "Refusing database URL with connection-routing query overrides."
+        )
+    if any(
+        os.environ.get(key)
+        for key in (
+            "PGHOST",
+            "PGHOSTADDR",
+            "PGPORT",
+            "PGDATABASE",
+            "PGUSER",
+            "PGOPTIONS",
+            "PGSERVICE",
+            "PGSERVICEFILE",
+        )
+    ):
+        raise SystemExit(
+            "Refusing inherited libpq connection-routing environment overrides."
+        )
     if urlsplit(value).fragment:
         raise SystemExit("Refusing database URL fragments.")
     if (parsed.host or "").lower() not in {"127.0.0.1", "localhost", "::1"}:
@@ -51,16 +74,27 @@ def checked_database_url(value: str) -> str:
         "ui_pursuits_real_test",
         "ui_pursuits_real_slice1o_test",
     }:
-        raise SystemExit("Refusing unexpected database; expected an explicitly named disposable pursuits test database.")
+        raise SystemExit(
+            "Refusing unexpected database; expected an explicitly named disposable pursuits test database."
+        )
     if parsed.drivername not in {"postgres", "postgresql", "postgresql+psycopg"}:
         raise SystemExit("Refusing non-PostgreSQL browser database.")
     from sqlalchemy.dialects.postgresql.psycopg import dialect
 
     args, effective = dialect().create_connect_args(parsed)
-    if args or (effective.get("host") or "").lower() not in {"127.0.0.1", "localhost", "::1"}:
+    if args or (effective.get("host") or "").lower() not in {
+        "127.0.0.1",
+        "localhost",
+        "::1",
+    }:
         raise SystemExit("Refusing effective connection parameters outside loopback.")
-    if effective.get("port") != parsed.port or effective.get("dbname") != parsed.database:
-        raise SystemExit("Refusing effective connection parameters that differ from the pinned URL.")
+    if (
+        effective.get("port") != parsed.port
+        or effective.get("dbname") != parsed.database
+    ):
+        raise SystemExit(
+            "Refusing effective connection parameters that differ from the pinned URL."
+        )
     return value
 
 
@@ -148,7 +182,7 @@ def main() -> None:
                     ),
                 },
             )
-        seed_resolved_operator_accounts(engine, manifest)
+        contact_fixture = seed_resolved_operator_accounts(engine, manifest)
     finally:
         engine.dispose()
 
@@ -163,6 +197,8 @@ def main() -> None:
         "second_page_need_id": target["need_ids"][25],
         "second_page_project_id": target["project_ids"][25],
         "contact_project_id": target["project_ids"][0],
+        "contact_company": contact_fixture["company"],
+        "contact_phone_href": contact_fixture["phone_href"],
         "account_name": target["name"],
         "target_group_id": target["id"],
         "target_group_name": target["name"],

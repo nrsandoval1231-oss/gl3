@@ -188,6 +188,21 @@ def test_buying_chain_worker_does_not_hold_project_lock_during_acquisition(
     factory, source, _job_id = research_db
     monkeypatch.setattr(buying_chain, "SessionLocal", factory)
     monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
+    monkeypatch.setattr(
+        settings,
+        "public_research_site_permissions",
+        json.dumps(
+            [
+                {
+                    "hostname": "example.com",
+                    "terms_review_ref": "synthetic-lock-test-review",
+                    "reviewed_at": datetime.now(UTC).isoformat(),
+                    "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+                    "modes": ["direct"],
+                }
+            ]
+        ),
+    )
     entered, release = Event(), Event()
     with factory.begin() as session:
         project = Project(
@@ -209,7 +224,11 @@ def test_buying_chain_worker_does_not_hold_project_lock_during_acquisition(
         assert leased.id == job_id
         lease_expiry = leased.lease_until
 
-    def blocked_retrieval(url, *, deadline=None):
+    def blocked_retrieval(url, *, deadline=None, approval=None, before_request=None):
+        assert approval is not None and approval.hostname == "example.com"
+        assert before_request is not None
+        before_request("https://example.com/robots.txt")
+        before_request(url)
         entered.set()
         assert release.wait(timeout=10)
         return PublicDocument(url, "Synthetic project team", "No supported relationship.")
@@ -1145,6 +1164,7 @@ def test_early_utility_phrase_cannot_hide_late_cancellation_from_normal_admissio
 def test_existing_url_correction_is_not_skipped_when_another_url_has_same_content(research_db):
     from dataclasses import replace
 
+    from gridlens.intelligence import buying_chain
     from gridlens.intelligence.buying_chain import enrich_buying_chain
     from gridlens.persistence.models import Interpretation
 
@@ -1188,9 +1208,11 @@ def test_existing_url_correction_is_not_skipped_when_another_url_has_same_conten
         assert interpretation.assessment["evidence_hash"] == corrected.content_hash
         assert "Bob Jones" in session.get(Observation, original_observation_id).abstract
         current = enrich_buying_chain(session, project.id, retained_only=True)
-        people = [item for item in current["candidates"] if item.get("person_name")]
+        private_current = buying_chain._buying_chain_current_view(session, project.id)
+        people = [item for item in private_current["candidates"] if item.get("person_name")]
         assert people
         assert all(item["person_name"] == "Bob Jones" for item in people)
+        assert not any(item.get("person_name") for item in current["candidates"])
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
         assert need.tier == "Signal"
 

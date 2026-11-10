@@ -86,6 +86,34 @@ test('synthetic flat results render company/project rows, honest KPIs, filters, 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
 })
 
+test('optional brief honors abstention, formats scoped power and contacts safely, and preserves legacy fallback', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/commercial-pursuits**', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
+  await mockDemandSummary(page)
+  const brief = {
+    version: 'synthetic-v1',
+    why_now: { text: null, source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'documented', scope: 'Temporary compressor package', value: '500', unit: 'kW', status: 'supported', limitations: [] },
+    best_contact: { contact: 'Jordan Fixture', href: 'tel:+15555550333', kind: 'call', route_kind: 'person_method', authority: 'Not established', deliverability: 'Unknown', sources: [] },
+    next_action: { text: 'Confirm the temporary power scope for this project.', kind: 'confirm_scope', source: null },
+    freshness: { as_of: '2026-10-30T00:00:00Z', status: 'current_source', source_date: null },
+    limitations: ['No current source citation is available for a why-now statement.', 'Synthetic browser fixture.'],
+    sources: [],
+  }
+  const briefProject = { ...pageFixture.items[0], commercial_brief: brief }
+  await page.route('**/api/opportunities/projects?*', route => route.fulfill({ json: { ...pageFixture, items: [briefProject, pageFixture.items[1]] } }))
+  await page.goto('/?view=workspace&projectBrowse=1&shortlist=0')
+  const rows = page.locator('.cfr-table tbody tr')
+  await expect(rows.first().locator('[data-label="Why now"]')).toContainText('Why now is not established from current evidence.')
+  await expect(rows.first().locator('[data-label="Why now"]')).not.toContainText('Permit issued for Mesa Compressor')
+  await expect(rows.first().locator('[data-label="Power need"]')).toContainText('500 kW')
+  await expect(rows.first().locator('[data-label="Power need"]')).not.toContainText('500 kW kW')
+  await expect(rows.first().locator('[data-label="Next step"]')).toContainText(brief.next_action.text)
+  await expect(rows.first().getByRole('link', { name: /Best contact Jordan Fixture/ })).toHaveAttribute('href', 'tel:+15555550333')
+  await expect(rows.first().getByText(/Authority: Not established · Deliverability: Unknown/)).toBeVisible()
+  await expect(rows.nth(1).locator('[data-label="Next step"]')).toContainText('Review the project filing')
+})
+
 test('single-result header and pagination use singular project wording', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)

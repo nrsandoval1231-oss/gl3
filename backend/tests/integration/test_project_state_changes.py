@@ -10,7 +10,11 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
-from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.buying_chain import (
+    _buying_chain_current_view,
+    buying_chain_view,
+    enrich_buying_chain,
+)
 from gridlens.intelligence.change_detection import (
     material_state,
     record_material_diff,
@@ -126,6 +130,7 @@ def add_source_backed_owner_contact(session, project, evidence):
         "Acme Development is the owner and developer of Orion Data Center in Austin, TX. "
         "Public contact: owner@acme.example."
     )
+
     source = BuyingChainEvidence(
         project_id=project.id,
         retained_evidence_id=evidence.id,
@@ -186,6 +191,13 @@ def add_source_backed_owner_contact(session, project, evidence):
         item.get("organization") == "Acme Development"
         for item in buying_chain_view(session, project.id)["candidates"]
     )
+
+
+def assert_unverified_role_not_public(value):
+    """Public surfaces must not expose this generic-source actor or title."""
+    serialized = repr(value)
+    assert "Alice Smith" not in serialized
+    assert "Project Director" not in serialized
 
 
 def linked_official_need_evidence(
@@ -1713,7 +1725,34 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
         }
         assert all(status == "SUPPORTED" for status in statuses.values()), statuses
         assert state["state"]["power_need"]["value"][0][nested_field]["status"] == "UNKNOWN"
-        assert recommend_from_context(judgment, state) is True
+        # Recommendation routing is tested with company/buyer access held
+        # constant so this case isolates the nested need fact. This explicit
+        # decision fixture is not returned by project_state and is not proof
+        # that the synthetic contact is publicly attributable.
+        decision_only_party = {
+            "organization": "Acme Development",
+            "category": "owner_developer",
+            "public_contacts": [{"kind": "email", "value": "fixture-only@example.invalid"}],
+            "citations": [
+                {
+                    "id": str(owner_evidence.id),
+                    "url": owner_evidence.url,
+                    "quote": "Synthetic decision fixture for company and buyer access.",
+                }
+            ],
+        }
+        assert not any(
+            "owner@acme.example" in str(party) for party in state["organizations_and_roles"]
+        )
+        assert all(
+            party.get("person") is None and party.get("title") is None
+            for party in state["organizations_and_roles"]
+        )
+        decision_state = {
+            **state,
+            "organizations_and_roles": [decision_only_party],
+        }
+        assert recommend_from_context(judgment, decision_state) is True
 
         interpretation.assessment = complete_assessment
         complete = project_state(session, project.id)
@@ -1721,7 +1760,11 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
             item["status"] == "SUPPORTED"
             for item in complete["state"]["power_need"]["value"][0].values()
         )
-        assert recommend_from_context(judgment, complete) is False
+        complete_decision_state = {
+            **complete,
+            "organizations_and_roles": [decision_only_party],
+        }
+        assert recommend_from_context(judgment, complete_decision_state) is False
 
 
 def test_research_recommendation_sees_nested_current_need_conflict(db):
@@ -2001,17 +2044,65 @@ def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeyp
     with db.begin() as session:
         legacy = session.get(ChangeEvent, additions[0].id)
         assert legacy is not None
+        legacy_value_before = deepcopy(legacy.new_state["value"])
+        legacy_singular_source_id = legacy.buying_chain_evidence_id
+        legacy_source = session.get(BuyingChainEvidence, legacy_singular_source_id)
+        assert legacy_source is not None
+        assert legacy_singular_source_id in {source.id for source in added_sources}
+        assert {item["organization"] for item in legacy_value_before} == {"Acme", "BuildCo"}
+        original_causal_ids = set(legacy.new_state["buying_chain_evidence_ids"])
+        assert original_causal_ids == {str(source.id) for source in added_sources}
+        assert str(legacy_singular_source_id) in original_causal_ids
+        source_rows_before = session.scalars(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.id.in_([source.id for source in added_sources])
+            )
+        ).all()
+        source_columns = tuple(column.key for column in BuyingChainEvidence.__table__.columns)
+        legacy_source_snapshot = {
+            str(source.id): tuple(getattr(source, key) for key in source_columns)
+            for source in source_rows_before
+        }
         legacy.new_state = {"value": legacy.new_state["value"]}
     legacy_history = client.get(f"/api/projects/{project.id}/changes")
     assert legacy_history.status_code == 200
+    with db.begin() as session:
+        stored_legacy = session.get(ChangeEvent, additions[0].id)
+        public_view = buying_chain_view(session, project.id)
+        assert stored_legacy is not None
+        assert stored_legacy.new_state == {"value": legacy_value_before}
+        assert stored_legacy.buying_chain_evidence_id == legacy_singular_source_id
+        stored_sources = session.scalars(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.id.in_([source.id for source in added_sources])
+            )
+        ).all()
+        assert {
+            str(source.id): tuple(getattr(source, key) for key in source_columns)
+            for source in stored_sources
+        } == legacy_source_snapshot
+        singular_org = next(
+            candidate
+            for candidate in public_view["candidates"]
+            if any(
+                str(citation.get("id")) == str(legacy_singular_source_id)
+                and citation.get("url") == legacy_source.url
+                and citation.get("content_hash") == legacy_source.content_hash
+                and citation.get("current_support") is True
+                for citation in candidate.get("evidence", [])
+            )
+        )
     legacy_row = next(
         row
         for row in legacy_history.json()
         if row["field"] == "contractor"
         and row["buying_chain_evidence_id"] == str(additions[0].buying_chain_evidence_id)
         and "buying_chain_evidence_ids" not in row["new"]
-        and row["new"]["value"] == additions[0].new_state["value"]
     )
+    public_orgs = {item["organization"] for item in legacy_row["new"]["value"]}
+    assert public_orgs == {singular_org["organization"]}
+    assert public_orgs < {item["organization"] for item in legacy_value_before}
+    assert {row["id"] for row in legacy_row["sources"]} == {str(legacy_singular_source_id)}
     assert [row["id"] for row in legacy_row["sources"]] == [
         str(additions[0].buying_chain_evidence_id)
     ]
@@ -2051,13 +2142,15 @@ def test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration(db):
             select(BuyingChainEvidence).where(BuyingChainEvidence.url == old_role_url)
         )
         assert old_role is not None
-        current = enrich_buying_chain(
+        public_current = enrich_buying_chain(
             session,
             project.id,
             source_urls=[fresh_role_url],
             fetcher=fetch,
             now=later,
         )
+        public_project_state = project_state(session, project.id)["organizations_and_roles"]
+        current = _buying_chain_current_view(session, project.id, now=later)
         person = next(row for row in current["candidates"] if row["person_name"])
         assert person["stale"] is False
         assert old_role.id in {citation["id"] for citation in person["evidence"]}
@@ -2074,6 +2167,8 @@ def test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration(db):
         ]
         assert len(new_buyer_events) == 1
         assert new_buyer_events[0].new_state["buying_chain_evidence_ids"] == [str(fresh_role.id)]
+        assert_unverified_role_not_public(public_current)
+        assert_unverified_role_not_public(public_project_state)
 
 
 def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
@@ -2157,7 +2252,10 @@ def test_buying_chain_role_expiry_updates_state_without_unrelated_event(db, monk
             date(2025, 10, 2),
             NOW,
         )
-        enrich_buying_chain(session, project.id, fetcher=lambda _: role_document, now=NOW)
+        public_initial = enrich_buying_chain(
+            session, project.id, fetcher=lambda _: role_document, now=NOW
+        )
+        public_initial_state = project_state(session, project.id)["organizations_and_roles"]
         persisted = session.get(ProjectMaterialState, project.id)
         assert persisted is not None
         assert any(row.get("person_name") == "Alice Smith" for row in persisted.state["buyer"])
@@ -2195,8 +2293,10 @@ def test_buying_chain_role_expiry_updates_state_without_unrelated_event(db, monk
         result = enrich_buying_chain(
             session, project.id, fetcher=lambda _: unchanged_source, now=later
         )
+        public_expired_state = project_state(session, project.id)["organizations_and_roles"]
+        expired_view = _buying_chain_current_view(session, project.id, now=later)
         expired_person = next(
-            row for row in result["candidates"] if row.get("person_name") == "Alice Smith"
+            row for row in expired_view["candidates"] if row.get("person_name") == "Alice Smith"
         )
         assert expired_person["stale"] is True
         assert expired_person["person_project_relationship"] == "UNKNOWN"
@@ -2214,14 +2314,28 @@ def test_buying_chain_role_expiry_updates_state_without_unrelated_event(db, monk
             fetcher=lambda _: unchanged_source,
             now=later + timedelta(minutes=1),
         )
+        public_replay_state = project_state(session, project.id)["organizations_and_roles"]
+        replay_view = _buying_chain_current_view(
+            session, project.id, now=later + timedelta(minutes=1)
+        )
         assert any(
-            row.get("person_name") == "Alice Smith" and row["stale"] for row in replay["candidates"]
+            row.get("person_name") == "Alice Smith" and row["stale"]
+            for row in replay_view["candidates"]
         )
         assert len(
             session.scalars(
                 select(ChangeEvent).where(ChangeEvent.field_name.in_(("contractor", "buyer")))
             ).all()
         ) == len(events_before)
+        for public_snapshot in (
+            public_initial,
+            public_initial_state,
+            result,
+            public_expired_state,
+            replay,
+            public_replay_state,
+        ):
+            assert_unverified_role_not_public(public_snapshot)
 
 
 def test_accepted_retained_source_withdrawal_keeps_evidence_backed_chain_events(db):

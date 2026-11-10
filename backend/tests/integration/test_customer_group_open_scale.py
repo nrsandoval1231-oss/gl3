@@ -80,7 +80,9 @@ def test_scale_corpus_search_open_and_child_pages_keep_complete_operator_group(
         statement for statement in read_statements if "need_alias_assertions" in statement.lower()
     ]
     core_reads = [statement for statement in read_statements if statement not in alias_input_reads]
-    assert len(core_reads) <= 4
+    assert len(core_reads) <= 4, "\n".join(
+        f"{index}: {statement[:240]}" for index, statement in enumerate(core_reads)
+    )
     assert len(alias_input_reads) <= 1
     opened = response.json()
     assert opened["generation"] == manifest["generation_id"]

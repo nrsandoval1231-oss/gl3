@@ -15,6 +15,7 @@ import json
 import re
 import socket
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from io import BytesIO
@@ -28,6 +29,14 @@ from gridlens.ingestion.adapters.bounded_http import (
     read_bounded_response,
     remaining_seconds,
     run_isolated,
+)
+from gridlens.ingestion.adapters.public_site_policy import (
+    HostApproval,
+    PolicyDecision,
+    PolicyMode,
+    evaluate_host_approval,
+    load_host_approval,
+    resolve_site_policy,
 )
 
 MAX_BYTES = 750_000
@@ -412,24 +421,147 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
 
 
 def retrieve(
-    url: str, *, deadline: float | None = None, max_bytes: int = MAX_BYTES
+    url: str,
+    *,
+    deadline: float | None = None,
+    max_bytes: int = MAX_BYTES,
+    approval: HostApproval | None = None,
+    mode: PolicyMode = "direct",
+    before_request: Callable[[str], None] | None = None,
 ) -> PublicDocument:
+    shared_deadline = deadline if deadline is not None else time.monotonic() + 30
+    decision = check_public_site_access(
+        url,
+        approval=approval,
+        mode=mode,
+        deadline=shared_deadline,
+        before_request=before_request,
+    )
+    if not decision.allowed:
+        raise PublicAccessRestricted(decision.reason)
+    if before_request is None:
+        raise PublicAccessRestricted("request_budget_callback_required")
+    before_request(validate_public_url(url))
     return run_isolated(
         "gridlens.ingestion.adapters.buying_chain_public:_retrieve_direct",
         (url,),
-        {"deadline": deadline, "max_bytes": max_bytes},
-        deadline=deadline if deadline is not None else time.monotonic() + 30,
+        {
+            "deadline": shared_deadline,
+            "max_bytes": max_bytes,
+            "pinned_ip": decision.resolved_ip,
+        },
+        deadline=shared_deadline,
     )
 
 
+ROBOTS_MAX_BYTES = 65_536
+
+
+def check_public_site_access(
+    url: str,
+    *,
+    approval: HostApproval | None = None,
+    mode: PolicyMode = "direct",
+    deadline: float | None = None,
+    before_request: Callable[[str], None] | None = None,
+) -> PolicyDecision:
+    """Check exact-host approval and robots before target or provider acquisition."""
+    normalized_url = validate_public_url(url)
+    approval = approval or load_host_approval(normalized_url, mode=mode)
+    allowed = evaluate_host_approval(normalized_url, approval, mode=mode)
+    if not allowed.allowed:
+        return allowed
+    if before_request is None:
+        return PolicyDecision(False, "request_budget_callback_required", allowed.hostname)
+    robots_url = f"https://{allowed.hostname}/robots.txt"
+    before_request(robots_url)
+    fetch_deadline = deadline if deadline is not None else time.monotonic() + 30
+    status, body, pinned_ip = run_isolated(
+        "gridlens.ingestion.adapters.buying_chain_public:_fetch_robots_direct",
+        (robots_url,),
+        {"deadline": fetch_deadline},
+        deadline=fetch_deadline,
+    )
+    try:
+        robots_text = body.decode("utf-8", errors="strict") if status == 200 else None
+    except UnicodeError:
+        return PolicyDecision(False, "robots_invalid_encoding", allowed.hostname)
+    decision = resolve_site_policy(
+        normalized_url,
+        approval=approval,
+        mode=mode,
+        robots_txt=robots_text,
+        robots_status=status,
+    )
+    return PolicyDecision(
+        decision.allowed,
+        decision.reason,
+        decision.hostname,
+        pinned_ip if decision.allowed else None,
+    )
+
+
+def _fetch_robots_direct(
+    robots_url: str, *, deadline: float | None = None
+) -> tuple[int, bytes, str]:
+    """Fetch a tiny exact-host robots file without redirects or environment proxies."""
+    remaining_seconds(deadline)
+    robots_url = validate_public_url(robots_url)
+    host = urlsplit(robots_url).hostname
+    assert host is not None
+    ip = _public_ip(host)
+    remaining = remaining_seconds(deadline)
+    pinned = httpx.URL(robots_url).copy_with(host=ip)
+    with httpx.Client(
+        timeout=httpx.Timeout(min(7.0, remaining) if remaining is not None else 7.0),
+        follow_redirects=False,
+        trust_env=False,
+        headers={"Host": host, "User-Agent": "GridLens"},
+    ) as client:
+        with client.stream(
+            "GET",
+            str(pinned),
+            extensions={"sni_hostname": host},
+        ) as response:
+            status = response.status_code
+            if status in {404, 410}:
+                return status, b"", ip
+            if status != 200:
+                return status, b"", ip
+            declared = response.headers.get("content-length")
+            if declared:
+                try:
+                    if int(declared) > ROBOTS_MAX_BYTES:
+                        raise ResponseTooLarge("Robots file exceeds 65536 bytes")
+                except ValueError as exc:
+                    raise ResponseTooLarge("Robots content length is invalid") from exc
+            body = bytearray()
+            for chunk in response.iter_bytes():
+                remaining_seconds(deadline)
+                body.extend(chunk)
+                if len(body) > ROBOTS_MAX_BYTES:
+                    raise ResponseTooLarge("Robots file exceeds 65536 bytes")
+            return status, bytes(body), ip
+
+
 def _retrieve_direct(
-    url: str, *, deadline: float | None = None, max_bytes: int = MAX_BYTES
+    url: str,
+    *,
+    deadline: float | None = None,
+    max_bytes: int = MAX_BYTES,
+    pinned_ip: str | None = None,
 ) -> PublicDocument:
     remaining_seconds(deadline)
     url = validate_public_url(url)
     host = urlsplit(url).hostname
     assert host is not None
-    ip = _public_ip(host)
+    try:
+        ip = pinned_ip or _public_ip(host)
+        address = ipaddress.ip_address(ip)
+    except ValueError as exc:
+        raise ValueError("Destination does not resolve exclusively to public addresses") from exc
+    if not address.is_global:
+        raise ValueError("Private destinations are not allowed")
     remaining = remaining_seconds(deadline)
     pinned = httpx.URL(url).copy_with(host=ip)
     # SNI keeps certificate validation against the original host, not the IP.

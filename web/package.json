@@ -11,6 +11,7 @@
     "test:ci": "playwright test --project=regression",
     "test:live": "playwright test --project=live-acceptance",
     "test:commercial-real": "playwright test --project=commercial-real",
+    "test:phase2-real": "playwright test -c playwright.phase2.config.ts",
     "test:login": "playwright test -c playwright.login.config.ts",
     "generate:api": "openapi-typescript src/api/openapi.json -o src/api/generated.ts"
   },

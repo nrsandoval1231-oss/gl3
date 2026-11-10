@@ -10,6 +10,8 @@ type Manifest = {
   second_page_need_id: string
   second_page_project_id: string
   contact_project_id: string
+  contact_company: string
+  contact_phone_href: string
   account_name: string
 }
 type ApiResponse = { path: string; method: string; status: number }
@@ -149,13 +151,12 @@ test('real account-first pursuit journey persists through navigation, reload, an
   await expect(page).toHaveURL(/account=cg_/)
   await expect(page.getByRole('heading', { name: manifest.account_name, exact: true })).toBeVisible()
   const account = page.getByRole('region', { name: new RegExp(`(?:Company|Group) ${manifest.account_name}`) })
-  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('Synthetic')
+  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText(/synthetic/i)
   await expect(account.getByRole('region', { name: 'Account projects' })).toBeVisible()
   interactionTimes.accountOpenReadyMs = Date.now() - accountStarted
   recordInteraction('accountOpenReadyMs', interactionTimes.accountOpenReadyMs)
   const accountOverview = account.getByRole('region', { name: 'Account overview' })
-  await expect(accountOverview.getByRole('link', { name: 'Email Synthetic Buyer' })).toHaveAttribute('href', 'mailto:buyer@example.invalid')
-  await expect(accountOverview.getByRole('link', { name: 'Call Synthetic Buyer' })).toHaveAttribute('href', 'tel:+15555550101')
+  await expect(accountOverview.getByRole('link', { name: 'Call company' })).toHaveAttribute('href', manifest.contact_phone_href)
   expect(writes).toEqual([]) // Inspecting contact routes must not log outreach or mutate a pursuit.
   await capture(page, testInfo, 'account-detail')
 
@@ -205,14 +206,13 @@ test('real account-first pursuit journey persists through navigation, reload, an
   expect(companyGroup, 'Companies search must return the synthetic account').toBeTruthy()
   const companyContactProject = companyGroup?.account_contact_project
   expect(companyContactProject, 'Companies account contact selection must be available from the real API').toMatchObject({ project_id: manifest.contact_project_id })
-  expect(companyContactProject?.contact.map(contact => contact.href)).toEqual(expect.arrayContaining(['mailto:buyer@example.invalid', 'tel:+15555550101']))
+  expect(companyContactProject?.contact.map(contact => contact.href)).toEqual(expect.arrayContaining([manifest.contact_phone_href]))
   await page.getByRole('button', { name: new RegExp(`Open ${manifest.account_name}`) }).click()
   const companyDetail = page.getByRole('region', { name: new RegExp(`(?:Company|Group) ${manifest.account_name}`) })
   await expect(companyDetail.getByRole('heading', { name: 'Projects' })).toBeVisible()
   const companyOverview = companyDetail.getByRole('region', { name: 'Account overview' })
   await expect(companyOverview.getByText(`Contact associated with ${companyContactProject!.name}`, { exact: true })).toBeVisible()
-  await expect(companyOverview.getByRole('link', { name: 'Email Synthetic Buyer' })).toHaveAttribute('href', 'mailto:buyer@example.invalid')
-  await expect(companyOverview.getByRole('link', { name: 'Call Synthetic Buyer' })).toHaveAttribute('href', 'tel:+15555550101')
+  await expect(companyOverview.getByRole('link', { name: 'Call company' })).toHaveAttribute('href', manifest.contact_phone_href)
   expect(writes).toEqual([]) // Viewing an account contact must not create activity or send outreach.
   const chosenProject = companyDetail.locator(`[data-project-id="${manifest.second_page_project_id}"]`)
   if (await chosenProject.count() === 0) await companyDetail.getByRole('button', { name: 'Load more projects' }).click()

@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.contact_suppressions import (
@@ -219,12 +220,84 @@ def project_contact_people(compact: dict) -> list[dict]:
     return people
 
 
+def _record_key(record: dict) -> tuple:
+    if record.get("record_type") == "contact_person":
+        return (
+            "person",
+            str(record.get("claim_id") or ""),
+            str(record.get("company_identity_id") or ""),
+            str(record.get("person_identity_id") or ""),
+            str(record.get("company") or ""),
+            str(record.get("name") or ""),
+            str(record.get("title") or ""),
+            str(record.get("role") or ""),
+            str(record.get("responsibility") or ""),
+            str(record.get("purchasing_authority") or ""),
+            str(record.get("authority_status") or ""),
+            str(record.get("deliverability") or ""),
+            str(record.get("source_url") or ""),
+        )
+    return (
+        "action",
+        str(record.get("claim_id") or ""),
+        str(record.get("company_identity_id") or ""),
+        str(record.get("person_identity_id") or ""),
+        str(record.get("company") or ""),
+        str(record.get("kind") or ""),
+        str(record.get("href") or ""),
+        str(record.get("source_url") or ""),
+        str(record.get("name") or ""),
+        str(record.get("title") or ""),
+        str(record.get("role") or ""),
+        str(record.get("responsibility") or ""),
+        str(record.get("purchasing_authority") or ""),
+        str(record.get("authority_status") or ""),
+        str(record.get("deliverability") or ""),
+    )
+
+
+def _current_contact_record_keys(session: Session, records: list[dict]) -> set[tuple]:
+    from gridlens.intelligence.buying_chain import buying_chain_views
+    from gridlens.intelligence.company_contacts import project_contacts
+    from gridlens.persistence.models import BuyingChainClaim
+
+    claim_ids: set[UUID] = set()
+    for record in records:
+        try:
+            claim_ids.add(UUID(str(record.get("claim_id"))))
+        except (ValueError, TypeError, AttributeError):
+            continue
+    if not claim_ids:
+        return set()
+    claims = session.scalars(
+        select(BuyingChainClaim).where(BuyingChainClaim.id.in_(claim_ids))
+    ).all()
+    project_ids = {claim.project_id for claim in claims}
+    views = buying_chain_views(session, project_ids) if project_ids else {}
+    authorized: set[tuple] = set()
+    for project_id, view in views.items():
+        company_ids = {
+            UUID(str(candidate["company_identity_id"]))
+            for candidate in view.get("candidates", [])
+            if candidate.get("company_identity_id")
+        }
+        for company_id in company_ids:
+            contacts = project_contacts(company_id, {project_id: view}).contacts
+            payload = [contact.model_dump(mode="json") for contact in contacts]
+            for record in project_contact_actions({"contacts": payload}):
+                authorized.add(_record_key(record))
+            for record in project_contact_people({"contacts": payload}):
+                authorized.add(_record_key(record))
+    return authorized
+
+
 def filter_project_contact_records(session: Session, records: list[dict]) -> list[dict]:
     """Recheck cached action/person records against current privacy suppressions.
 
-    One batched ledger lookup covers all records in a page, including actions
-    nested under needs. Caller must flatten those records before invoking.
+    One batched canonical projection and ledger lookup covers all records in a
+    page, including actions nested under needs. Caller flattens those records.
     """
+    authorized = _current_contact_record_keys(session, records)
     keys: set[tuple[str, str]] = set()
     parsed: list[tuple[dict, UUID, UUID | None]] = []
     for record in records:
@@ -259,6 +332,8 @@ def filter_project_contact_records(session: Session, records: list[dict]) -> lis
     states = _ledger_states(session, keys)
     kept = []
     for record, company_id, person_id in parsed:
+        if _record_key(record) not in authorized:
+            continue
         if states.get(("company", company_suppression_key(company_id))) == "suppress":
             continue
         name = str(record.get("name") or "").strip()

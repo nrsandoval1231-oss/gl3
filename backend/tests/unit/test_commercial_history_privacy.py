@@ -1,6 +1,6 @@
 from copy import deepcopy
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import gridlens.intelligence.saved_history_privacy as privacy
 from gridlens.intelligence.contact_suppressions import (
@@ -574,3 +574,55 @@ def test_internal_whole_person_fallback_scrubs_email_but_preserves_evidence_url(
     assert evidence_url in result["reason"]
     assert result["tier"] == card["tier"]
     assert result["disposition"] == card["disposition"]
+
+
+def test_contact_token_redaction_preserves_only_valid_uuid_evidence_refs():
+    evidence_id = "abcdef12-3456-4789-abcd-000000000000"
+    email = "private@example.test"
+    phone = "512-555-0199"
+    invalid_ref = "abcdef12-3456-4789-abcd-00000000000"
+
+    result = privacy._redact_all_contact_tokens(
+        {
+            "evidence_refs": [evidence_id, email, phone, invalid_ref],
+            "notes": [email, phone, evidence_id],
+        }
+    )
+
+    assert result["evidence_refs"][0] == evidence_id
+    assert UUID(result["evidence_refs"][0])
+    assert result["evidence_refs"][1:3] == ["[redacted]", "[redacted]"]
+    assert result["evidence_refs"][3] != invalid_ref
+    assert result["notes"][:2] == ["[redacted]", "[redacted]"]
+    assert result["notes"][2] != evidence_id
+
+
+def test_saved_history_suppression_preserves_uuid_evidence_refs_in_full_projection(monkeypatch):
+    project, person_id = uuid4(), uuid4()
+    evidence_id = "abcdef12-3456-4789-abcd-000000000000"
+    email = "private@example.test"
+    phone = "512-555-0199"
+    invalid_ref = "abcdef12-3456-4789-abcd-00000000000"
+    assert privacy._methods({"evidence_refs": [evidence_id]}) == set()
+    assert {kind for kind, _value in privacy._methods({"evidence_refs": [email, phone]})} == {
+        "email",
+        "phone",
+    }
+    claim = _claim(project, name="Jane Doe", methods=[])
+    person_key = ("person", global_person_suppression_key(person_id))
+    requested = _ledger(monkeypatch, [person_key])
+    card = _card(project, claim, nested=False)
+    card["evidence_refs"] = [evidence_id, email, phone, invalid_ref]
+    card["contacts"] = []
+
+    result = privacy.project_saved_history_privacy(
+        _Session([claim], [_link(claim, person=person_id)]),
+        _history(project, card),
+        _claim_ids={claim.id},
+        _contact_tokens_only=True,
+    )["saved_card"]
+
+    assert person_key in requested[0]
+    assert result["evidence_refs"][0] == evidence_id
+    assert result["evidence_refs"][1:3] == ["[redacted]", "[redacted]"]
+    assert result["evidence_refs"][3] != invalid_ref

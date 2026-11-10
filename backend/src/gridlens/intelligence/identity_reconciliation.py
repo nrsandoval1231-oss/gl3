@@ -11,11 +11,20 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from gridlens.intelligence.buying_chain import buying_chain_view, buying_chain_views
+from gridlens.intelligence.buying_chain import (
+    _buying_chain_current_view,
+    _buying_chain_current_views,
+)
 from gridlens.intelligence.buying_chain_extraction import organization_key
+from gridlens.intelligence.contact_suppressions import (
+    _ledger_states,
+    company_suppression_key,
+    global_person_suppression_key,
+    person_suppression_key,
+)
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
@@ -31,6 +40,9 @@ from gridlens.persistence.suppression_models import ContactSuppression
 EntityType = Literal["company", "person"]
 COMPANY_IDENTIFIERS = {"lei", "ein"}
 PERSON_IDENTIFIERS: set[str] = set()
+_MAX_AUTOMATIC_IDENTITY_LINEAGE_CLAIMS = 128
+_MAX_AUTOMATIC_IDENTITY_LINEAGE_LINKS = 512
+_MAX_AUTOMATIC_IDENTITY_LEDGER_KEYS = 512
 
 
 def _normalized(value: str) -> str:
@@ -50,6 +62,72 @@ def _valid_lei(value: str) -> bool:
 
 def _valid_ein(value: str) -> bool:
     return bool(re.fullmatch(r"(?:\d{2}-?\d{7})", value.strip()))
+
+
+def _automatic_identity_mutation_allowed(
+    session: Session,
+    claims: list[BuyingChainClaim],
+    *,
+    proposed_company_ids: set[UUID] | None = None,
+) -> bool:
+    """Fail closed when suppression applies to an identity alias being changed."""
+    if not claims:
+        return False
+    lineage_keys = {(claim.project_id, claim.entity_key) for claim in claims}
+    lineage_filter = or_(
+        *(
+            and_(
+                BuyingChainClaim.project_id == project_id,
+                BuyingChainClaim.entity_key == entity_key,
+            )
+            for project_id, entity_key in lineage_keys
+        )
+    )
+    lineage_claims = session.scalars(
+        select(BuyingChainClaim)
+        .where(lineage_filter)
+        .order_by(BuyingChainClaim.id)
+        .limit(_MAX_AUTOMATIC_IDENTITY_LINEAGE_CLAIMS + 1)
+    ).all()
+    if len(lineage_claims) > _MAX_AUTOMATIC_IDENTITY_LINEAGE_CLAIMS:
+        return False
+    lineage_claim_ids = {claim.id for claim in lineage_claims}
+    if not lineage_claim_ids:
+        return False
+    links = session.scalars(
+        select(BuyingChainIdentityLink)
+        .where(BuyingChainIdentityLink.claim_id.in_(lineage_claim_ids))
+        .order_by(BuyingChainIdentityLink.id)
+        .limit(_MAX_AUTOMATIC_IDENTITY_LINEAGE_LINKS + 1)
+    ).all()
+    if len(links) > _MAX_AUTOMATIC_IDENTITY_LINEAGE_LINKS:
+        return False
+
+    company_ids = set(proposed_company_ids or ())
+    person_ids: set[UUID] = set()
+    for link in links:
+        if link.entity_type == "company" and link.company_identity_id is not None:
+            company_ids.add(link.company_identity_id)
+        elif link.entity_type == "person" and link.person_identity_id is not None:
+            person_ids.add(link.person_identity_id)
+    person_names = {
+        claim.person_name.strip()
+        for claim in lineage_claims
+        if claim.person_name and claim.person_name.strip()
+    }
+    ledger_keys = {("company", company_suppression_key(company_id)) for company_id in company_ids}
+    ledger_keys.update(
+        ("person", person_suppression_key(company_id, name))
+        for company_id in company_ids
+        for name in person_names
+    )
+    ledger_keys.update(
+        ("person", global_person_suppression_key(person_id)) for person_id in person_ids
+    )
+    if len(ledger_keys) > _MAX_AUTOMATIC_IDENTITY_LEDGER_KEYS:
+        return False
+    states = _ledger_states(session, ledger_keys)
+    return not any(state == "suppress" for state in states.values())
 
 
 def _normalized_identifier(identifier_type: str, value: str) -> str:
@@ -113,7 +191,7 @@ def _validate_claim_evidence(
         current = next(
             (
                 item
-                for item in buying_chain_view(session, claim.project_id)["candidates"]
+                for item in _buying_chain_current_view(session, claim.project_id)["candidates"]
                 if item["id"] == claim.id
             ),
             None,
@@ -237,11 +315,14 @@ def link_claim_to_identity(
     reviewed_by: str | None = None,
     _strong_identifier: bool = False,
     _project_scoped: bool = False,
+    current_candidate: dict[str, Any] | None = None,
 ) -> BuyingChainIdentityLink:
     """Set or correct a claim link; prior link remains as superseded history."""
     if not _strong_identifier and not _project_scoped and not (reviewed_by and reviewed_by.strip()):
         raise ValueError("attributed review is required to set an identity link directly")
-    _validate_claim_evidence(session, claim, entity_type, source.id)
+    _validate_claim_evidence(
+        session, claim, entity_type, source.id, current_candidate=current_candidate
+    )
     identity_model = CompanyIdentity if entity_type == "company" else PersonIdentity
     if session.get(identity_model, identity_id) is None:
         raise ValueError("identity does not exist")
@@ -298,12 +379,23 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             )
         ).all()
     }
-    views = buying_chain_views(session, {claim.project_id for claim in claims.values()})
+    views = _buying_chain_current_views(session, {claim.project_id for claim in claims.values()})
     current_by_claim = {
         item["id"]: item
         for view in views.values()
         for item in view["candidates"]
         if not item["stale"]
+    }
+    project_by_current_claim = {
+        item["id"]: UUID(str(view["project_id"]))
+        for view in views.values()
+        for item in view["candidates"]
+    }
+    current_claim_models = {
+        claim.id: claim
+        for claim in session.scalars(
+            select(BuyingChainClaim).where(BuyingChainClaim.id.in_(current_by_claim))
+        )
     }
     # Membership identity wins before local fallback allocation so a source-bound
     # account never leaves an orphan project-scoped company identity behind.
@@ -311,6 +403,27 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
     for claim_id, claim in claims.items():
         candidate = current_by_claim.get(claim_id)
         if candidate is None:
+            continue
+        organization_key_for_claim = organization_key(str(candidate.get("organization") or ""))
+        proposed_company_ids = {
+            UUID(str(peer.get("company_identity_id")))
+            for peer in current_by_claim.values()
+            if peer.get("company_identity_id")
+            and project_by_current_claim.get(peer["id"]) == claim.project_id
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
+        }
+        lineage_context = [
+            current_claim_models[peer_id]
+            for peer_id, peer in current_by_claim.items()
+            if peer_id in current_claim_models
+            and project_by_current_claim.get(peer_id) == claim.project_id
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
+        ]
+        if claim not in lineage_context:
+            lineage_context.append(claim)
+        if not _automatic_identity_mutation_allowed(
+            session, lineage_context, proposed_company_ids=proposed_company_ids
+        ):
             continue
         entity_specs: list[tuple[EntityType, str, type[CompanyIdentity] | type[PersonIdentity]]] = [
             ("company", "project_organization", CompanyIdentity)
@@ -475,6 +588,7 @@ def _reuse_exact_project_company_for_named_people(
     superseded identity history intact.
     """
     project_by_claim = {claim.id: claim.project_id for claim in claims}
+    claims_by_id = {claim.id: claim for claim in claims}
     # Method suppression keys are one-way hashes. Once a company link changes,
     # we cannot tell whether a method control belongs to the old or new company
     # without recovering hidden method values. Fail closed while any method
@@ -557,6 +671,16 @@ def _reuse_exact_project_company_for_named_people(
                 continue
             if person_link.basis != "project_scoped":
                 continue
+        company_claim = claims_by_id.get(company_claim_id)
+        proposed_company_ids = {company_identity_id}
+        if person_link is not None and person_link.company_identity_id is not None:
+            proposed_company_ids.add(person_link.company_identity_id)
+        if company_claim is None or not _automatic_identity_mutation_allowed(
+            session,
+            [person_claim, company_claim],
+            proposed_company_ids=proposed_company_ids,
+        ):
+            continue
         link_claim_to_identity(
             session,
             person_claim,
@@ -568,6 +692,7 @@ def _reuse_exact_project_company_for_named_people(
                 "same current organization source on the same project."
             ),
             _project_scoped=True,
+            current_candidate=person_candidate,
         )
 
 
@@ -630,6 +755,16 @@ def _ensure_current_membership_links(
     The membership Evidence and BuyingChainEvidence live in different hash
     domains. Verify both, then the claim's own organization and typed role.
     """
+    current_claim_models = {
+        current_claim.id: current_claim
+        for current_claim in session.scalars(
+            select(BuyingChainClaim).where(BuyingChainClaim.id.in_(current_by_claim))
+        )
+    }
+    current_project_by_claim = {
+        candidate_id: current_claim.project_id
+        for candidate_id, current_claim in current_claim_models.items()
+    }
     for claim in claims:
         candidate = current_by_claim.get(claim.id)
         if candidate is None or candidate.get("stale"):
@@ -672,6 +807,20 @@ def _ensure_current_membership_links(
         if len(identity_ids) != 1:
             continue
         membership, source = matches[0]
+        organization_key_for_claim = organization_key(str(candidate.get("organization") or ""))
+        lineage_context = [
+            current_claim_models[peer_id]
+            for peer_id, peer in current_by_claim.items()
+            if peer_id in current_claim_models
+            and current_project_by_claim.get(peer_id) == claim.project_id
+            and organization_key(str(peer.get("organization") or "")) == organization_key_for_claim
+        ]
+        if claim not in lineage_context:
+            lineage_context.append(claim)
+        if not _automatic_identity_mutation_allowed(
+            session, lineage_context, proposed_company_ids=identity_ids
+        ):
+            continue
         existing = session.scalar(
             select(BuyingChainIdentityLink).where(
                 BuyingChainIdentityLink.claim_id == claim.id,
@@ -743,7 +892,7 @@ def current_claim_identity_links(
         ).all()
     }
     current_candidates: dict[UUID, dict[str, Any]] = {}
-    views = buying_chain_views(session, {claim.project_id for claim in claims.values()})
+    views = _buying_chain_current_views(session, {claim.project_id for claim in claims.values()})
     for view in views.values():
         for candidate in view["candidates"]:
             current_candidates[candidate["id"]] = candidate

@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gridlens.intelligence.buying_chain import buying_chain_views
+from gridlens.intelligence.buying_chain import _buying_chain_current_views
 from gridlens.intelligence.identity_reconciliation import (
     _validate_claim_evidence,
     link_claim_to_identity,
@@ -103,7 +103,7 @@ def _manifest_shape(manifest: dict[str, Any]) -> tuple[str, dict[str, Any], list
 def _candidate_index(
     session: Session, claims: list[BuyingChainClaim]
 ) -> dict[UUID, dict[str, Any]]:
-    views = buying_chain_views(session, {claim.project_id for claim in claims})
+    views = _buying_chain_current_views(session, {claim.project_id for claim in claims})
     return {item["id"]: item for view in views.values() for item in view["candidates"]}
 
 

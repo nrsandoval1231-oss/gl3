@@ -82,6 +82,8 @@ def test_workspace_filters_counts_paginates_and_binds_token(saved_db, monkeypatc
             item["required_mw"] is None and item["supply"] == "Unknown" for item in first["items"]
         )
         assert first["items"][0]["commercial_reason"]
+        assert first["items"][0]["commercial_brief"]["power_need"]["value"] is None
+        assert first["items"][0]["commercial_brief"]["best_contact"] is None
         assert statements and all("generation_id" in statement for statement in statements)
         selected = page(
             session,

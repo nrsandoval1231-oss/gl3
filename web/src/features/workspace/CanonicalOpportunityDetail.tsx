@@ -186,8 +186,16 @@ export function CanonicalOpportunityDetail(props: Props) {
   const title = company && fullTitle.startsWith(`${company} · `) ? fullTitle.slice(company.length + 3) : fullTitle
   const location = project?.location || item.location || field('location')?.value || null
   const accountSummarySource = item.commercial_reason || item.assessment_reason
+  const commercialBrief = item.commercial_brief ?? (project?.representative_need_id === item.id ? project?.commercial_brief : null) ?? null
+  const briefBestContactHref = commercialBrief?.best_contact?.href
+    ? briefContactHref(commercialBrief.best_contact.kind, commercialBrief.best_contact.href)
+    : null
+  const briefPowerLimitations = commercialBrief ? meaningfulBriefPowerLimitations(commercialBrief.power_need.limitations) : []
+  const briefPowerHasAmount = Boolean(commercialBrief && commercialBrief.power_need.amount_class !== 'unknown' && commercialBrief.power_need.value)
+  const briefPowerHasUsefulScope = Boolean(commercialBrief && !briefPowerHasAmount && commercialBrief.power_need.scope?.trim() && briefPowerLimitations.length)
+  const showBriefPower = briefPowerHasAmount || briefPowerHasUsefulScope
   const summary = accountFirst
-    ? project && accountSummarySource ? firstSentence(accountSummarySource) : null
+    ? commercialBrief ? commercialBrief.why_now.text || 'Why now is not established from current evidence.' : project && accountSummarySource ? firstSentence(accountSummarySource) : null
     : firstSentence(item.commercial_reason || item.assessment_reason || item.rationale)
   const facilityDemand = field('facility_demand')
   const rawDemand = item.required_mw || facilityDemand?.value
@@ -278,15 +286,20 @@ export function CanonicalOpportunityDetail(props: Props) {
       {associationNotice && <p className="cod-status" role="status">{associationNotice}</p>}
       {projectQualification && <p className="cod-status" role="status">{projectQualification}</p>}
       {summary && <section className="cod-why" aria-label="Why this project matters"><p>{summary}</p></section>}
-      {project && (item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{item.commercial_next_action || item.next_action}</p></div></section> : null}
-      {project && (supportedPower || facilityDemandValue || timing) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
+      {project && (commercialBrief ? commercialBrief.next_action.text : item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{commercialBrief ? commercialBrief.next_action.text : item.commercial_next_action || item.next_action}</p></div></section> : null}
+      {project && commercialBrief?.best_contact && briefBestContactHref && <section className="cod-contacts" aria-label="Best contact">
+        <h3><UserRound size={14} aria-hidden="true"/>Best contact</h3>
+        <p><a href={briefBestContactHref} target={commercialBrief.best_contact.kind === 'contact' ? '_blank' : undefined} rel={commercialBrief.best_contact.kind === 'contact' ? 'noreferrer' : undefined}>{commercialBrief.best_contact.kind === 'call' ? 'Call' : commercialBrief.best_contact.kind === 'email' ? 'Email' : 'Contact'} {commercialBrief.best_contact.contact}</a></p>
+        <details className="cod-contact-confidence"><summary>Contact confidence</summary><p>Authority: {commercialBrief.best_contact.authority}. Deliverability: {commercialBrief.best_contact.deliverability}.</p></details>
+      </section>}
+      {project && ((commercialBrief && showBriefPower) || (!commercialBrief && (supportedPower || facilityDemandValue || timing))) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
         <h3>Project scope</h3>
-        <dl>{supportedPower && <div><dt>Activity-specific power need</dt><dd>{supportedPower}</dd></div>}
-          {!supportedPower && facilityDemandValue && <div><dt>Facility demand · source reported</dt><dd>{facilityDemandValue}{facilityDemand?.status ? ` · ${facilityDemand.status}` : ''}</dd></div>}
+        <dl>{commercialBrief ? showBriefPower && <div><dt>Power need</dt><dd>{briefPowerHasAmount ? `${briefPowerAmount(commercialBrief.power_need.value!, commercialBrief.power_need.unit)}${commercialBrief.power_need.scope ? ` · ${commercialBrief.power_need.scope}` : ''}` : commercialBrief.power_need.scope}{briefPowerHasAmount && <small>{humanizeBriefStatus(commercialBrief.power_need.amount_class)}</small>}{briefPowerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</dd></div> : supportedPower && <div><dt>Activity-specific power need</dt><dd>{supportedPower}</dd></div>}
+          {!commercialBrief && !supportedPower && facilityDemandValue && <div><dt>Facility demand · source reported</dt><dd>{facilityDemandValue}{facilityDemand?.status ? ` · ${facilityDemand.status}` : ''}</dd></div>}
           {timing && <div><dt>Power timing</dt><dd>{timing}</dd></div>}
         </dl>
       </section>}
-      {project && <section className="cod-contacts" aria-label="Project contact">
+      {project && !commercialBrief && <section className="cod-contacts" aria-label="Project contact">
         <h3><UserRound size={14} aria-hidden="true"/>Contact</h3>
         {selectedContact ? <article>
           <div className="cod-contact-row"><div className="cod-contact-id">
@@ -301,7 +314,7 @@ export function CanonicalOpportunityDetail(props: Props) {
         </article> : companyRoutes.length ? <article>{companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>)}</article> : <p className="cod-contact-missing">No appropriate business phone or email is available in retained contact evidence.</p>}
       </section>}
       <details className="cod-more-details cod-account-sources" open={explicitSources}>
-        <summary>Sources ({accountSources.length})</summary>
+        <summary>Sources</summary>
         {accountSources.length ? accountSources.map(source => <article className="cod-related-source" key={source.key}>
           {source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}
           <span>{source.date ? displayDate(source.date) : 'Date unavailable'} · {source.status}</span>
@@ -453,6 +466,28 @@ function safeSourceUrl(value: string | null | undefined): string | null {
   } catch { return null }
 }
 
+/** Only render contact routes that match their declared channel. */
+function briefContactHref(kind: string, value: string): string | null {
+  const contact = value.trim()
+  if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(contact)) return contact
+  if (kind === 'email' && contact.toLowerCase().startsWith('mailto:') && STRICT_EMAIL.test(contact.slice(7))) return `mailto:${contact.slice(7)}`
+  if (kind === 'contact') return safeSourceUrl(contact)
+  return null
+}
+
+function briefPowerAmount(value: string, unit: string | null): string {
+  const amount = value.trim()
+  return unit && !new RegExp(`\\b${unit}\\s*$`, 'i').test(amount) ? `${amount} ${unit}` : amount
+}
+
+function meaningfulBriefPowerLimitations(values: string[]): string[] {
+  return values.flatMap(value => value.split(/;\s*/).map(part => part.trim()).filter(part => part && !/^(?:(?:activity-specific )?(?:power )?(?:need|amount)(?: for [^.]*)? is unknown\.?|unknown is not zero\.?|unknown does not mean zero\.?)$/i.test(part)))
+}
+
+function humanizeBriefStatus(value: string): string {
+  return value.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
+}
+
 /** Plain address only: no `%`, `?`, `&`, `=`, separators, whitespace, quotes or angle brackets, so a mailto: href cannot carry headers or encoded line breaks. */
 const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
 
@@ -531,6 +566,7 @@ function accountDetailSources(
     title?: string | null
     url?: string | null
     source_date?: string | null
+    date?: string | null
     published_at?: string | null
     event_date?: string | null
     assessment_current?: boolean | null
@@ -542,7 +578,7 @@ function accountDetailSources(
     const title = source.title?.trim()
     if (!title) return
     const url = safeSourceUrl(source.url)
-    const date = source.event_date || source.source_date || source.published_at || null
+    const date = source.event_date || source.source_date || source.date || source.published_at || null
     const status = source.assessment_current === true
       ? 'Current support'
       : source.assessment_current === false
@@ -569,6 +605,14 @@ function accountDetailSources(
   for (const contact of item.intelligence_card?.contacts ?? []) {
     for (const source of contact.sources ?? []) add(source)
   }
+  const brief = item.commercial_brief ?? (project?.representative_need_id === item.id ? project?.commercial_brief : null)
+  const addBriefSource = (source: NonNullable<typeof brief>['sources'][number]) => {
+    const url = safeSourceUrl(source.url)
+    if (!url || ![...sources.values()].some(existing => existing.url === url)) add(source)
+  }
+  for (const source of brief?.sources ?? []) addBriefSource(source)
+  for (const source of brief?.why_now.sources ?? []) addBriefSource(source)
+  for (const source of brief?.best_contact?.sources ?? []) addBriefSource(source)
   if (project?.event?.source) {
     add({
       reference: `project-event:${project.event.kind}:${project.event.date ?? ''}`,

@@ -39,6 +39,10 @@ from gridlens.intelligence.buying_chain_extraction import (
     extract_company_contacts,
     extract_people,
 )
+from gridlens.intelligence.company_contact_attribution import (
+    document_claims_operator_identity,
+    document_matches_company_identity,
+)
 from gridlens.intelligence.company_contacts import company_contacts, relevant_named_contact
 from gridlens.intelligence.enrichment_planner import (
     DEEP_RESEARCH_PROFILE,
@@ -76,6 +80,7 @@ MAX_CANDIDATE_URLS = 4
 MAX_ADAPTIVE_FETCHES = 6
 MAX_ANCHOR_PROJECTS = 16
 MAX_SECONDS = 35
+MAX_CONTACT_HTTP_REQUESTS = 2 * MAX_ADAPTIVE_FETCHES + 2
 CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
 POLICY_VERSION = "company-contact-discovery-v13-adaptive"
@@ -1365,6 +1370,23 @@ def process_company_contact_discovery(
     if research_profile not in {STANDARD_RESEARCH_PROFILE, DEEP_RESEARCH_PROFILE}:
         raise ValueError("Unsupported company contact research profile")
     fetch_limit = _adaptive_fetch_limit(research_profile)
+
+    def reserve_public_request(request_url: str) -> None:
+        """Persist the contact job's bounded robots/target HTTP request budget."""
+        from gridlens.ingestion.adapters.buying_chain_public import PublicAccessRestricted
+
+        with SessionLocal.begin() as budget_session:
+            active_job = assert_fence(budget_session, job_id, worker_id, fence)
+            reserved_checkpoint = _load_checkpoint(active_job)
+            count = reserved_checkpoint.get("public_http_request_count", 0)
+            if type(count) is not int or count < 0 or count >= MAX_CONTACT_HTTP_REQUESTS:
+                raise PublicAccessRestricted("request_budget_exhausted")
+            reserved_checkpoint["public_http_request_count"] = count + 1
+            # Retain only the host for bounded internal audit; do not copy query paths.
+            host = urlsplit(request_url).hostname or "unknown"
+            reserved_checkpoint["last_public_request_host"] = host[:253]
+            active_job.checkpoint = json.dumps(reserved_checkpoint, separators=(",", ":"))
+
     checked: set[str] = set()
     consecutive_low_yield = 0
     seen_yield_keys = _current_contact_yield_keys(current.contacts)
@@ -1379,12 +1401,25 @@ def process_company_contact_discovery(
             failures.append({"url": url, "reason": "DeadlineExceeded"})
             break
         try:
-            document = retrieve(url, deadline=deadline)
+            document = retrieve(
+                url,
+                deadline=deadline,
+                before_request=reserve_public_request,
+            )
             fetched[url] = document
             if organization and _self_identified_company_site(document, organization):
                 path = urlsplit(document.url).path.casefold()
                 if re.search(r"(?:contact|team|leadership|management|about)", path):
-                    page_yield = _contact_yield_keys(document, organization, anchor, now)
+                    page_yield = (
+                        _contact_yield_keys(document, organization, anchor, now)
+                        if operator_number
+                        and document_claims_operator_identity(
+                            document,
+                            organization=organization,
+                            operator_number=operator_number,
+                        )
+                        else set()
+                    )
                     new_yield = page_yield - seen_yield_keys
                     seen_yield_keys.update(page_yield)
                     if new_yield:
@@ -1444,6 +1479,12 @@ def process_company_contact_discovery(
         organization
         and any(
             _self_identified_company_site(doc, organization)
+            and operator_number
+            and document_claims_operator_identity(
+                doc,
+                organization=organization,
+                operator_number=operator_number,
+            )
             and re.search(
                 r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}|"
                 r"^(?:Phone|Telephone|Tel|Toll Free)\s*:\s*[+()0-9 .-]{10,24}$",
@@ -1478,7 +1519,11 @@ def process_company_contact_discovery(
     ):
         checked.add(registry_url)
         try:
-            registry_doc = retrieve(registry_url, deadline=deadline)
+            registry_doc = retrieve(
+                registry_url,
+                deadline=deadline,
+                before_request=reserve_public_request,
+            )
             fetched[registry_url] = registry_doc
         except Exception as exc:
             failure = {"url": registry_url, "reason": type(exc).__name__}
@@ -1954,7 +1999,9 @@ def _discover_anchor(
     org = old.organization
     documents = []
     for doc in fetched.values():
-        if not _self_identified_company_site(doc, org):
+        if not _self_identified_company_site(doc, org) or not document_matches_company_identity(
+            session, doc, company_id=company_id, organization=org
+        ):
             continue
         documents.append(doc)
     identity = session.get(CompanyIdentity, company_id)

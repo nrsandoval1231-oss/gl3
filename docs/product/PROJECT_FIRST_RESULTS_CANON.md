@@ -1,6 +1,10 @@
 # Account-First Results Canon
 
-## Current owner amendment — account-first Slice 1, November 7, 2026
+## Current execution scope — Phase 2, November 8, 2026
+
+The owner authorizes scheduled autonomous commercial research on the existing account-first foundation, through one tested, independently reviewed draft PR. Cards show source-backed Why now, useful scoped Power need, permitted Best contact and one justified Next action; evidence stays on demand. Shared canonical-company research must preserve distinct projects and needs. Existing owner-managed need-scoped Commercial Pursuits is the only manual execution workspace; research never creates its stages, tasks or activity. Existing Jev authority is unchanged. No merge, deployment, production writes, credential changes, paid-provider calls or source activation is authorized. [Current contracts and acceptance](../engineering/autonomous-commercial-research-20261108.md) distinguish disabled/mock validation from live operation; older release permissions below are historical.
+
+## Account-first foundation — accepted Slice 1, November 7, 2026
 
 One canonical customer/operator account. Distinct physical projects and power needs underneath. Curated commercial relevance upfront. Contacts and a justified action within easy reach. Evidence on demand; research/process machinery behind the scenes. This owner decision supersedes flat-project defaults, mandatory KPI tiles and historical evidence-heavy layouts. Preserve the existing logo, navy header, palette, typography and exact primary navigation: Opportunities | Companies | Pursuits | Reports. Keep All | Oil & Gas | Data Centers with their actual sector semantics.
 
@@ -8,7 +12,7 @@ Opportunities presents compact source-backed account cards. Companies uses the s
 
 Need-scoped Pursuits retain IDs, stages, tasks and confirmed activity, presented under canonical accounts. Multiple eligible opportunities require a compact explicit picker. Call/Email opens only a permitted contact route and records no activity. Owner-approved manual Pursuits actions are a scoped exception to older read-only prescriptions. Unknown MW is neither zero nor an automatic exclusion; facility scale is not rental demand. Preserve privacy, suppression, provenance and contradictions in projections and explicitly scoped safe exports. No scores, repeated unavailable fields, permit dumps or processing diagnostics in ordinary account cards.
 
-[Slice 1 implementation and exact acceptance](../engineering/account-first-slice-20261107.md) records current repository status. Historical presentation instructions below apply only where compatible with this amendment. Dated deployment receipts do not establish current runtime state.
+[Slice 1 implementation and exact acceptance](../engineering/account-first-slice-20261107.md) records the accepted repository baseline. The current Phase 2 scope is above. Historical presentation instructions below apply only where compatible with this foundation and Phase 2. Dated deployment receipts do not establish current runtime state.
 
 
 **Status:** Active target presentation semantics · 2026-10-30

@@ -27,10 +27,21 @@ export type GlobalSearchResult = {
   contacts: { company_identity_id: string | null; project_id: string; need_id?: string | null; name: string | null; title: string | null; organization: string; methods: { kind: string; value: string }[]; sources: Record<string, unknown>[]; verification_status: string }[]
   opportunities: Record<string, unknown>[]
 }
-export type Opportunity = components['schemas']['OpportunityOut']
-export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
+export type CommercialBriefSource = { title: string | null; url: string | null; evidence_id: string | null; date: string | null }
+export type CommercialBrief = {
+  version: string
+  why_now: { text: string | null; source_date: string | null; scope: string | null; sources: CommercialBriefSource[] }
+  power_need: { amount_class: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; scope: string | null; value: string | null; unit: string | null; status: string; limitations: string[] }
+  best_contact: { contact: string; href?: string | null; kind: 'call' | 'email' | 'contact'; route_kind: 'person_method' | 'company_route'; authority: string; deliverability: string; sources: CommercialBriefSource[] } | null
+  next_action: { text: string; kind: string; source: CommercialBriefSource | null }
+  freshness: { as_of: string | null; status: string; source_date: string | null }
+  limitations: string[]
+  sources: CommercialBriefSource[]
+}
+export type Opportunity = components['schemas']['OpportunityOut'] & { commercial_brief?: CommercialBrief | null }
+export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut'] & { commercial_brief?: CommercialBrief | null }
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
-export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
+export type ProjectResultNeed = { id: string; project_id?: string; name?: string | null; browse_title?: string | null; location?: string | null; activity?: string | null; tier?: 'Signal' | 'Prospect' | 'Lead' | null; commercial_brief?: CommercialBrief | null; commercial_preview?: { disposition?: string | null; reason?: string | null; next_question?: string | null; next_action?: string | null; organization?: string | null } }
 export type PursuitStage = 'New' | 'Contacted' | 'Engaged' | 'Proposal' | 'Won' | 'Lost'
 export const PURSUIT_STAGES: PursuitStage[] = ['New', 'Contacted', 'Engaged', 'Proposal', 'Won', 'Lost']
 export type PursuitTask = { id: string; description: string; due_date: string | null; completed_at: string | null }
@@ -46,7 +57,7 @@ export type CommercialPursuitList = { items: CommercialPursuit[]; counts: { tota
 export type ProjectResultContactPerson = { record_type?: 'contact_person'; company_identity_id?: string | null; person_identity_id?: string | null; company?: string | null; name?: string | null; title?: string | null; role?: string | null; responsibility?: string | null; purchasing_authority?: string | null; source_url?: string | null }
 export type ShortlistAssessment = { eligible: boolean; reasons: string[]; evidence_refs: string[]; why_now: string | null; next_step: string | null; source_subject?: string | null; scope?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
-export type ProjectResult = { eligible_need_ids?: string[]; id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_amount_class?: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
+export type ProjectResult = { eligible_need_ids?: string[]; id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; commercial_brief?: CommercialBrief | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_amount_class?: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
 export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
 /** Reject browse metadata that has expired before the client can display it. */
 function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {

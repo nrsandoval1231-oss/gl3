@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 from gridlens.domain.buying_chain import ROLE_MAX_AGE_DAYS
 from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.intelligence.buying_chain import (
+    _buying_chain_current_view,
     _retained_evidence_current_for_project,
-    buying_chain_view,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_state import _accepted_need_evidence
@@ -82,7 +82,7 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
             )
         ):
             accepted_events.append(event)
-    chain = buying_chain_view(session, project_id, now=now or datetime.now(UTC))
+    chain = _buying_chain_current_view(session, project_id, now=now or datetime.now(UTC))
     people = [
         {
             key: item.get(key)
@@ -210,7 +210,7 @@ def _freshness_expired_rows(
         reverse=True,
     ):
         newest_by_url.setdefault(source.url, source)
-    candidates = buying_chain_view(session, project_id, now=now)["candidates"]
+    candidates = _buying_chain_current_view(session, project_id, now=now)["candidates"]
     expired: Counter[tuple] = Counter()
     role_supports = {"organization_person_role", "person_project_assignment"}
     for candidate in candidates:

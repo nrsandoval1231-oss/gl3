@@ -28,6 +28,27 @@ from gridlens.persistence.models import (
 from gridlens.settings import settings
 
 
+def approve_test_host(monkeypatch, hostname):
+    import json
+
+    now = datetime.now(UTC)
+    monkeypatch.setattr(
+        settings,
+        "public_research_site_permissions",
+        json.dumps(
+            [
+                {
+                    "hostname": hostname,
+                    "terms_review_ref": "synthetic-transition-test",
+                    "reviewed_at": (now - timedelta(days=1)).isoformat(),
+                    "expires_at": (now + timedelta(days=1)).isoformat(),
+                    "modes": ["direct"],
+                }
+            ]
+        ),
+    )
+
+
 @pytest.fixture
 def canonical_runtime(monkeypatch):
     target = make_url(settings.test_database_url)
@@ -579,13 +600,18 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
         assert leased
         job, fence = leased
         job_id = job.id
+        parent.budget = {**parent.budget, "documents": 8}
 
     def acquire(_source_id, _external_id, *, before_request, **_kwargs):
         before_request("https://abc.austintexas.gov/permit/123")
         return source, record(source, initial_description)
 
-    def retrieve(requested_url, **_kwargs):
+    approve_test_host(monkeypatch, "www.datacenterdynamics.com")
+
+    def retrieve(requested_url, **kwargs):
         assert requested_url == url
+        kwargs["before_request"]("https://www.datacenterdynamics.com/robots.txt")
+        kwargs["before_request"](requested_url)
         return PublicDocument(
             url,
             project_name + " project update",
@@ -717,19 +743,23 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
         assert leased
         job, fence = leased
         job_id = job.id
+        question.budget = {**question.budget, "documents": 8}
 
     def acquire(_source_id, _external_id, *, before_request, **_kwargs):
         before_request("https://abc.austintexas.gov/permit/123")
         return source, record(source, description)
 
-    monkeypatch.setattr(worker, "acquire_registered_record", acquire)
-    monkeypatch.setattr(
-        worker,
-        "retrieve",
-        lambda *_a, **_kw: PublicDocument(
+    approve_test_host(monkeypatch, "www.datacenterdynamics.com")
+
+    def retrieve(_requested_url, **kwargs):
+        kwargs["before_request"]("https://www.datacenterdynamics.com/robots.txt")
+        kwargs["before_request"](url)
+        return PublicDocument(
             url, project_name + " update", identity + finding, today, datetime.now(UTC)
-        ),
-    )
+        )
+
+    monkeypatch.setattr(worker, "acquire_registered_record", acquire)
+    monkeypatch.setattr(worker, "retrieve", retrieve)
     worker.process_question_job(job_id, "veto-test", fence)
     with factory() as session:
         need = session.get(PowerNeed, need_id)

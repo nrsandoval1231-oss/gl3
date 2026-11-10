@@ -32,6 +32,7 @@ from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 from gridlens.ingestion.adapters.bounded_http import run_isolated
 from gridlens.ingestion.adapters.buying_chain_public import (
     CAPTURE_VERSION,
+    PublicAccessRestricted,
     PublicDocument,
     retrieve,
     validate_public_url,
@@ -41,6 +42,7 @@ from gridlens.ingestion.adapters.houston_permit_details import (
     response_type_code,
     retrieve_detail,
 )
+from gridlens.ingestion.adapters.public_site_policy import load_host_approval
 from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
 from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
 from gridlens.intelligence.buying_chain_extraction import (
@@ -555,6 +557,21 @@ def buying_chain_job_status(session: Session, project_id: UUID) -> dict | None:
     }
 
 
+def _reserve_buying_chain_public_request(
+    job_id: UUID, worker_id: str, fence: int, request_url: str
+) -> None:
+    """Persist one bounded robots/target request reservation under the job fence."""
+    normalized = validate_public_url(request_url)
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        requests = checkpoint.setdefault("public_http_requests", [])
+        if not isinstance(requests, list) or len(requests) >= 2 * MAX_DOCUMENTS:
+            raise PublicAccessRestricted("request_budget_exhausted")
+        requests.append({"url": normalized, "reserved_at": datetime.now(UTC).isoformat()})
+        job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+
+
 def run_buying_chain_research(
     job_id: UUID,
     worker_id: str,
@@ -702,7 +719,17 @@ def run_buying_chain_research(
                 continue
             checked.add(url)
             try:
-                doc = retrieve(url, deadline=deadline)
+                approval = load_host_approval(url, mode="direct")
+                if approval is None:
+                    raise PublicAccessRestricted("host_not_approved")
+                doc = retrieve(
+                    url,
+                    deadline=deadline,
+                    approval=approval,
+                    before_request=lambda request_url: _reserve_buying_chain_public_request(
+                        job_id, worker_id, fence, request_url
+                    ),
+                )
                 validate_public_url(doc.url)
                 matched, _reason = project_document_match(project_snapshot, doc)
                 prefetched_documents[url] = doc
@@ -1161,7 +1188,7 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
 
 def _retain_unchecked_contacts(session, project_id, candidates, saved, retrieved_urls, now):
     """A bounded or failed refresh is not evidence that an existing method vanished."""
-    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
+    prior_view = _buying_chain_current_view(session, project_id, now=now)
     for previous in prior_view["candidates"]:
         if previous.get("stale") or previous.get("retracted"):
             continue
@@ -1224,7 +1251,7 @@ def _retain_unchecked_assignments(
     assignment that the normal view still validates for freshness and conflicts.
     Different titles, UNKNOWN roles and successfully retracted sources never qualify.
     """
-    prior_view = buying_chain_view(session, project_id, now=now, _apply_privacy=False)
+    prior_view = _buying_chain_current_view(session, project_id, now=now)
     prior_candidates = {str(item["id"]): item for item in prior_view["candidates"]}
     for prior_id, previous in prior_candidates.items():
         if previous["person_project_relationship"] != "DIRECT":
@@ -1300,6 +1327,7 @@ def enrich_buying_chain(
     *,
     source_urls: list[str] | None = None,
     fetcher: Callable[[str], PublicDocument] = retrieve,
+    public_request_reserver: Callable[[str], None] | None = None,
     prefetched_documents: dict[str, PublicDocument] | None = None,
     retrieval_failures: dict[str, str] | None = None,
     prefetched_houston_detail: PublicDocument | None = None,
@@ -1322,7 +1350,7 @@ def enrich_buying_chain(
     # Refresh comparisons must use the actual persisted claim state.  A public
     # privacy projection redacts that state and can otherwise make unchanged
     # claims look newly absent (or changed) on every refresh.
-    buying_chain_baseline = buying_chain_view(session, project.id, now=now, _apply_privacy=False)
+    buying_chain_baseline = _buying_chain_current_view(session, project.id, now=now)
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -1409,7 +1437,20 @@ def enrich_buying_chain(
                     )
                     continue
             else:
-                doc = retrieve(url, deadline=deadline) if fetcher is retrieve else fetcher(url)
+                if fetcher is retrieve:
+                    approval = load_host_approval(url, mode="direct")
+                    if approval is None:
+                        raise PublicAccessRestricted("host_not_approved")
+                    if public_request_reserver is None:
+                        raise PublicAccessRestricted("request_budget_callback_required")
+                    doc = retrieve(
+                        url,
+                        deadline=deadline,
+                        approval=approval,
+                        before_request=public_request_reserver,
+                    )
+                else:
+                    doc = fetcher(url)
             validate_public_url(doc.url)
             matched, reason = project_document_match(project, doc)
             documents.append((doc, matched, reason, None))
@@ -1893,10 +1934,7 @@ def enrich_buying_chain(
                 ]
 
             after_rows = [
-                row
-                for row in field_rows(
-                    buying_chain_view(session, project.id, now=now, _apply_privacy=False)
-                )
+                row for row in field_rows(_buying_chain_current_view(session, project.id, now=now))
             ]
             before_rows = [row for row in field_rows(buying_chain_baseline)]
             removed = Counter(map(semantic_key, before_rows)) - Counter(
@@ -2257,14 +2295,14 @@ def _apply_contact_privacy(session: Session, candidates: list[dict]) -> None:
             item.update(scrub(item))
 
 
-def buying_chain_views(
+def _buying_chain_current_views(
     session: Session,
     project_ids: set[UUID],
     *,
     now: datetime | None = None,
     history: bool = False,
 ) -> dict[str, dict]:
-    """Bulk-load the canonical selected-project buying-chain projections."""
+    """Build private current-evidence projections for internal proof algorithms."""
     if not project_ids:
         return {}
     projects = {
@@ -2417,37 +2455,48 @@ def buying_chain_views(
             )
 
     views = {
-        str(project_id): buying_chain_view(
+        str(project_id): _build_buying_chain_view(
             session,
             project_id,
             now=now,
             history=history,
             preload=preload,
-            include_identity_ids=False,
-            _apply_privacy=False,
         )
         for project_id in project_ids
         if project_id in projects
     }
+    _attach_identity_ids(session, list(views.values()))
+    return views
+
+
+def buying_chain_views(
+    session: Session,
+    project_ids: set[UUID],
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+) -> dict[str, dict]:
+    """Bulk-load public project projections with suppression and attribution guards."""
+    views = _buying_chain_current_views(session, project_ids, now=now, history=history)
     _apply_contact_privacy(
         session,
         [candidate for view in views.values() for candidate in view.get("candidates", [])],
     )
-    _attach_identity_ids(session, list(views.values()))
+    from gridlens.intelligence.company_contact_attribution import filter_unbound_company_contacts
+
+    filter_unbound_company_contacts(session, views.values())
     for view in views.values():
         _apply_permit_summary_privacy(session, view)
     return views
 
 
-def buying_chain_view(
+def _build_buying_chain_view(
     session: Session,
     project_id: UUID,
     *,
     now: datetime | None = None,
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
-    include_identity_ids: bool = True,
-    _apply_privacy: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -2746,8 +2795,6 @@ def buying_chain_view(
         history,
         decisions=preload.corrections.get(project_id, []) if preload else None,
     )
-    if _apply_privacy:
-        _apply_contact_privacy(session, candidates)
     candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
@@ -2776,10 +2823,41 @@ def buying_chain_view(
         "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
-    if not history and include_identity_ids:
-        _attach_identity_ids(session, [result])
-    if _apply_privacy:
-        _apply_permit_summary_privacy(session, result)
+    return result
+
+
+def _buying_chain_current_view(
+    session: Session,
+    project_id: UUID,
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+) -> dict:
+    """Private current-evidence view for internal proof and carry algorithms."""
+    result = _build_buying_chain_view(session, project_id, now=now, history=history)
+    _attach_identity_ids(session, [result])
+    return result
+
+
+def buying_chain_view(
+    session: Session,
+    project_id: UUID,
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+    include_identity_ids: bool = True,
+) -> dict:
+    """Return a public project view with suppression and attribution guards."""
+    result = _buying_chain_current_view(session, project_id, now=now, history=history)
+    _apply_contact_privacy(session, result.get("candidates", []))
+    from gridlens.intelligence.company_contact_attribution import filter_unbound_company_contacts
+
+    filter_unbound_company_contacts(session, [result])
+    _apply_permit_summary_privacy(session, result)
+    if not include_identity_ids:
+        for candidate in result.get("candidates", []):
+            candidate.pop("company_identity_id", None)
+            candidate.pop("person_identity_id", None)
     return result
 
 

@@ -21,6 +21,29 @@ from gridlens.intelligence.signal_adjudication import POLICY_VERSION as SIGNAL_P
 from gridlens.settings import settings
 
 
+def _contains_identity_pointer(value: Any) -> bool:
+    if isinstance(value, dict):
+        if any(key in value for key in ("claim_id", "company_identity_id", "person_identity_id")):
+            return True
+        return any(_contains_identity_pointer(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_contains_identity_pointer(child) for child in value)
+    return False
+
+
+def _representative_need(item: dict[str, Any]) -> dict[str, Any]:
+    """Return the uniquely identified representative need, never a sibling fallback."""
+    representative_id = item.get("representative_need_id")
+    if representative_id is None:
+        return {}
+    matches = [
+        need
+        for need in item.get("needs", [])
+        if isinstance(need, dict) and str(need.get("id")) == str(representative_id)
+    ]
+    return matches[0] if len(matches) == 1 else {}
+
+
 def _current_jev_decisions(session, evidence_ids: list[str]) -> dict[str, str]:
     """Return only pinned Jev decisions for each exact current demand evidence version."""
     if not evidence_ids:
@@ -273,7 +296,8 @@ def page(
         "nullif(b.compact #>> '{project_metadata,owner}', ''))"
     )
     project_name = (
-        "coalesce(nullif(b.compact #>> '{project_metadata,title}', ''), "
+        "coalesce(nullif(canonical_project.name, ''), "
+        "nullif(b.compact #>> '{project_metadata,title}', ''), "
         "nullif(b.compact #>> '{project_metadata,name}', ''), "
         "nullif(b.compact->>'browse_title', ''), nullif(b.compact->>'name', ''))"
     )
@@ -307,30 +331,133 @@ def page(
             ), ranked_assets AS (
               SELECT {asset_key_b} AS asset_key,
                      array_agg(DISTINCT b.project_id ORDER BY b.project_id) AS project_ids,
+                     (array_agg(canonical_project.name ORDER BY {representative_order}))[1]
+                         AS representative_project_name,
                      {priority_projection},
                      max(b.updated_at) AS updated_at,
                      {company_sort} AS company_sort,
                      {project_sort} AS project_sort
               FROM browse_rows b JOIN candidate_assets c ON c.asset_key = {asset_key_b}
+              LEFT JOIN projects canonical_project ON canonical_project.id = b.project_id
               WHERE b.generation_id = :generation
               GROUP BY 1
             ), page_assets AS (
               SELECT * FROM ranked_assets
               ORDER BY {order} LIMIT :limit OFFSET :offset
+            ), page_privacy_state AS (
+              SELECT p.asset_key,
+                     EXISTS (
+                         SELECT 1 FROM buying_chain_claims claim
+                         WHERE claim.project_id = ANY(p.project_ids)
+                     ) AS has_history_claims
+              FROM page_assets p
+            ), page_need_ids AS (
+              SELECT DISTINCT b.need_id
+              FROM page_assets p
+              CROSS JOIN LATERAL unnest(p.project_ids) AS selected(project_id)
+              JOIN browse_rows b ON b.generation_id = :generation
+                AND b.project_id = selected.project_id
+            ), accepted_current_sources AS (
+              SELECT DISTINCT ON (no.need_id, e.id)
+                     no.need_id, e.id, e.title, e.url, e.event_date,
+                     left(e.abstract, 8192) AS abstract, e.published_at,
+                     e.observed_at, e.content_hash,
+                     e.extraction_location, e.event_date_label,
+                     o.content_hash AS semantic_hash,
+                     i.evaluator_version,
+                     jsonb_build_object(
+                         'semantic_hash', i.assessment->'semantic_hash',
+                         'evidence_hash', i.assessment->'evidence_hash',
+                         'project_identity_key', i.assessment->'project_identity_key',
+                         'acquisition_capture_version',
+                             i.assessment->'acquisition_capture_version',
+                         'admission_status', i.assessment->'admission_status',
+                         'target_need_id', i.assessment->'target_need_id',
+                         'project_id', i.assessment->'project_id',
+                         'research_claims', jsonb_path_query_array(
+                             i.assessment->'research_claims',
+                             '$[*] ? (@.field == "activity_load_mw")'
+                         )
+                     ) AS assessment,
+                     s.id AS source_id, s.family AS source_family,
+                     s.retrieval_method, project.identity_key AS project_identity_key
+              FROM need_observations no
+              JOIN observations o ON o.id=no.observation_id
+              JOIN evidence e ON e.observation_id=o.id
+              JOIN interpretations i ON i.observation_id=o.id
+              JOIN sources s ON s.id=o.source_id
+              JOIN power_needs pn ON pn.id=no.need_id
+              JOIN projects project ON project.id=pn.project_id
+              WHERE no.need_id IN (SELECT need_id FROM page_need_ids)
+                AND i.content_hash=o.content_hash
+                AND i.assessment->>'semantic_hash'=o.content_hash
+                AND i.assessment->>'evidence_hash'=e.content_hash
+                AND i.status='accepted'
+                AND coalesce(i.assessment->>'decision','accepted')='accepted'
+              ORDER BY no.need_id, e.id, i.id DESC
+            ), ranked_current_sources AS (
+              SELECT accepted.*,
+                     count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                     row_number() OVER (
+                         PARTITION BY accepted.need_id ORDER BY accepted.id
+                     ) AS source_rank
+              FROM accepted_current_sources accepted
+            ), current_sources_by_need AS (
+              SELECT need_id,
+                     jsonb_agg(
+                         CASE WHEN source_count > 40 THEN jsonb_build_object('overflow', true)
+                         ELSE jsonb_build_object(
+                             'id', id,
+                             'title', title,
+                             'url', url,
+                             'event_date', event_date,
+                             'event_date_label', event_date_label,
+                             'abstract', abstract,
+                             'published_at', published_at,
+                             'observed_at', observed_at,
+                             'content_hash', content_hash,
+                             'semantic_hash', semantic_hash,
+                             'assessment', assessment,
+                             'evaluator_version', evaluator_version,
+                             'source', jsonb_build_object(
+                                 'id', source_id,
+                                 'family', source_family,
+                                 'retrieval_method', retrieval_method
+                             ),
+                             'project_identity_key', project_identity_key,
+                             'extraction_location', extraction_location,
+                             'current', true
+                         ) END ORDER BY id
+                     ) FILTER (
+                         WHERE source_rank <= 40 OR (source_rank = 41 AND source_count > 40)
+                     ) AS evidence
+              FROM ranked_current_sources
+              WHERE source_rank <= 41
+              GROUP BY need_id
             )
-            SELECT p.asset_key, p.project_ids,
-              (array_agg(b.compact ORDER BY {representative_order}))[1]
+            SELECT p.asset_key, p.project_ids, p.representative_project_name,
+                   privacy.has_history_claims,
+              (array_agg(
+                  b.compact || jsonb_build_object(
+                      '_commercial_brief_evidence', coalesce(s.evidence, '[]'::jsonb)
+                  ) ORDER BY {representative_order}
+              ))[1]
                   AS representative,
               (array_agg(b.summary ORDER BY {representative_order}))[1]
                   AS representative_summary,
               jsonb_agg(
-                b.compact ORDER BY b.rank_score DESC, b.updated_at DESC, b.need_id
+                b.compact || jsonb_build_object(
+                    '_commercial_brief_evidence', coalesce(s.evidence, '[]'::jsonb)
+                ) ORDER BY b.rank_score DESC, b.updated_at DESC, b.need_id
               ) AS needs,
               count(*)::integer AS need_count, p.priority_score, p.updated_at,
               (SELECT count(*)::bigint FROM ranked_assets) AS total
             FROM page_assets p JOIN browse_rows b
               ON b.generation_id = :generation AND {asset_key_b} = p.asset_key
-            GROUP BY p.asset_key, p.project_ids, p.priority_score, p.updated_at,
+            JOIN page_privacy_state privacy ON privacy.asset_key = p.asset_key
+            LEFT JOIN current_sources_by_need s ON s.need_id = b.need_id
+            GROUP BY p.asset_key, p.project_ids, p.representative_project_name,
+                     privacy.has_history_claims, p.priority_score, p.updated_at,
                      p.company_sort, p.project_sort
             ORDER BY {order}
             """
@@ -359,7 +486,8 @@ def page(
         compact = row["representative"] or {}
         meta = compact.get("project_metadata") or {}
         name = (
-            meta.get("title")
+            row["representative_project_name"]
+            or meta.get("title")
             or meta.get("name")
             or compact.get("browse_title")
             or compact.get("name")
@@ -418,6 +546,7 @@ def page(
                         "project_metadata",
                         "contact_actions",
                         "contact_people",
+                        "_commercial_brief_evidence",
                     )
                     if need.get(key) is not None
                 }
@@ -554,8 +683,10 @@ def page(
                 "asset_type": compact.get("asset_type"),
                 "priority_score": row["priority_score"],
                 "needs": needs,
+                "_has_history_claims": row["has_history_claims"],
                 "need_count": row["need_count"],
                 "event": meta.get("event"),
+                "_representative_metadata": meta,
                 "contact": contact,
                 "contact_people": project_contact_people,
                 "power_summary": meta.get("power_summary") or compact.get("power_summary"),
@@ -601,7 +732,15 @@ def page(
     from gridlens.intelligence.project_contact_actions import filter_project_contact_records
 
     records = []
+    brief_cards = []
     for item in items:
+        item["_has_contact_records"] = bool(
+            item["contact"]
+            or item["contact_people"]
+            or any(
+                need.get("contact_actions") or need.get("contact_people") for need in item["needs"]
+            )
+        )
         records.extend(item["contact"])
         records.extend(item["contact_people"])
         for need in item["needs"]:
@@ -633,6 +772,132 @@ def page(
                 record.pop("person_identity_id", None)
                 record.pop("record_type", None)
                 record.pop("claim_id", None)
+
+    # Current, version-matched citations were resolved in the bounded page
+    # query and attached only to this page's exact need rows.
+    evidence_by_need: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        for need in item["needs"]:
+            attached = need.pop("_commercial_brief_evidence", [])
+            if isinstance(attached, list):
+                for source in attached:
+                    if isinstance(source, dict) and isinstance(source.get("published_at"), str):
+                        try:
+                            source["published_at"] = date.fromisoformat(source["published_at"][:10])
+                        except ValueError:
+                            pass
+            evidence_by_need[str(need.get("id"))] = attached if isinstance(attached, list) else []
+
+    # Briefs are derived after suppression and primary-account filtering so a
+    # stale or cross-account contact route cannot be promoted into a summary.
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+
+    for item in items:
+        representative = _representative_need(item)
+        assessment = shortlist_by_need.get(str(representative.get("id")), {}) if shortlist else {}
+        representative_evidence = evidence_by_need.get(str(representative.get("id")), [])
+        brief_input = {
+            **representative,
+            "id": representative.get("id"),
+            "name": item.get("name"),
+            "event": item.get("event"),
+            "project_metadata": item.get("_representative_metadata"),
+            "power_summary": item.get("power_summary"),
+            "power_amount_class": item.get("power_amount_class"),
+            "contact_actions": representative.get("contact_actions") or [],
+            "shortlist_assessment": assessment,
+            "evidence": representative_evidence,
+        }
+        if not representative_evidence:
+            # Activity is a stored scope label, but without a current source it
+            # is not part of this evidence-backed summary.
+            for activity_field in ("power_scope", "power_activity", "activity", "activity_key"):
+                brief_input.pop(activity_field, None)
+        item["commercial_brief"] = build_optional_commercial_brief(brief_input)
+        item["commercial_brief"]["best_contact"] = None
+        brief_cards.append((item, [(item["commercial_brief"], None)]))
+        need_brief_inputs = []
+        for need in item["needs"]:
+            need_evidence = evidence_by_need.get(str(need.get("id")), [])
+            need_input = {
+                **need,
+                "shortlist_assessment": (
+                    shortlist_by_need.get(str(need.get("id")), {}) if shortlist else {}
+                ),
+                "evidence": need_evidence,
+                "contact_actions": need.get("contact_actions") or [],
+            }
+            if not need_evidence:
+                for activity_field in ("power_scope", "power_activity", "activity", "activity_key"):
+                    need_input.pop(activity_field, None)
+            need_brief_inputs.append((need, need_input))
+        for need, need_input in need_brief_inputs:
+            need["commercial_brief"] = build_optional_commercial_brief(need_input)
+        brief_cards[-1][1].extend(
+            (need["commercial_brief"], need) for need, _need_input in need_brief_inputs
+        )
+        item.pop("_representative_metadata", None)
+
+    privacy_targets: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]] = []
+    for item, briefs in brief_cards:
+        lineage_is_bounded = len(item["project_ids"]) == 1
+        has_contact_data = item["_has_contact_records"]
+        has_identity_pointer = any(_contains_identity_pointer(brief) for brief, _need in briefs)
+        if (
+            item["_has_history_claims"]
+            or not lineage_is_bounded
+            or has_contact_data
+            or has_identity_pointer
+        ):
+            privacy_targets.extend((item, brief, need) for brief, need in briefs)
+        else:
+            # No retained identity claims exist for this exact bounded project
+            # lineage. Contact routes were already live-filtered above, and
+            # token redaction below remains unconditional.
+            for brief, need in briefs:
+                safe = _redact_all_contact_tokens(brief)
+                if need is None:
+                    item["commercial_brief"] = safe
+                else:
+                    need["commercial_brief"] = safe
+    privacy_versions: list[dict[str, Any]] = []
+    for item, brief, _need in privacy_targets:
+        privacy_versions.append(
+            {
+                "saved_card": {
+                    "project_id": item["project_id"],
+                    "related_project_ids": item["project_ids"],
+                    "commercial_brief": brief,
+                }
+            }
+        )
+    if privacy_versions:
+        privacy_projected = project_saved_history_privacy(session, {"versions": privacy_versions})[
+            "versions"
+        ]
+        for (item, _brief, need), version in zip(privacy_targets, privacy_projected, strict=True):
+            safe = _redact_all_contact_tokens(version["saved_card"]["commercial_brief"])
+            if need is None:
+                item["commercial_brief"] = safe
+            else:
+                need["commercial_brief"] = safe
+    # The contact action has already passed primary-account and live
+    # suppression filtering. Reattach that one permitted route after the
+    # history sanitizer, which intentionally redacts all method tokens.
+    # (Need-specific briefs likewise use their own filtered action list.)
+    for item in items:
+        representative = _representative_need(item)
+        route_actions = representative.get("contact_actions") or []
+        action_brief = build_optional_commercial_brief({"contact_actions": route_actions}).get(
+            "best_contact"
+        )
+        item["commercial_brief"]["best_contact"] = action_brief
+        for need in item["needs"]:
+            need["commercial_brief"]["best_contact"] = build_optional_commercial_brief(
+                {"contact_actions": need.get("contact_actions") or []}
+            ).get("best_contact")
+        item.pop("_has_history_claims", None)
+        item.pop("_has_contact_records", None)
 
     return {
         "items": items,

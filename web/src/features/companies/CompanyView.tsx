@@ -345,8 +345,9 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
   const pursuitByProject = (project: ProjectResult) => linked.filter(item => item.project_id === project.project_id || project.project_ids?.includes(item.project_id) || project.needs.some(need => need.id === item.need_id))
   const featured = group?.featured_project ?? projects[0] ?? null
   const accountContactProject = group ? selectAccountContactProject(group, featured) : featured
-  const whyNow = featured?.shortlist_assessment?.why_now
-  const nextStep = featured?.shortlist_assessment?.next_step ?? featured?.next_action
+  const brief = featured?.commercial_brief
+  const whyNow = brief ? brief.why_now.text : featured?.shortlist_assessment?.why_now
+  const nextStep = brief ? brief.next_action.text : featured?.shortlist_assessment?.next_step ?? featured?.next_action
   const isGroup = group ? group.group_kind === 'same_name_unconfirmed' || group.group_kind === 'unresolved' : false
   const description = group ? groupDescription(group) : null
   const name = group?.name ?? 'Account'

@@ -5397,6 +5397,360 @@
         ],
         "title": "CommercialAssessmentSupportOut"
       },
+      "CommercialBriefActionOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefSourceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "kind",
+          "source"
+        ],
+        "title": "CommercialBriefActionOut"
+      },
+      "CommercialBriefContactOut": {
+        "properties": {
+          "contact": {
+            "type": "string",
+            "title": "Contact"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "call",
+              "email",
+              "contact"
+            ],
+            "title": "Kind"
+          },
+          "route_kind": {
+            "type": "string",
+            "enum": [
+              "person_method",
+              "company_route"
+            ],
+            "title": "Route Kind"
+          },
+          "authority": {
+            "type": "string",
+            "title": "Authority"
+          },
+          "deliverability": {
+            "type": "string",
+            "title": "Deliverability"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialBriefSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact",
+          "href",
+          "kind",
+          "route_kind",
+          "authority",
+          "deliverability",
+          "sources"
+        ],
+        "title": "CommercialBriefContactOut"
+      },
+      "CommercialBriefFreshnessOut": {
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "status",
+          "source_date"
+        ],
+        "title": "CommercialBriefFreshnessOut"
+      },
+      "CommercialBriefOut": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "why_now": {
+            "$ref": "#/components/schemas/CommercialBriefWhyOut"
+          },
+          "power_need": {
+            "$ref": "#/components/schemas/CommercialBriefPowerOut"
+          },
+          "best_contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefContactOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/CommercialBriefActionOut"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/CommercialBriefFreshnessOut"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialBriefSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "why_now",
+          "power_need",
+          "best_contact",
+          "next_action",
+          "freshness",
+          "limitations",
+          "sources"
+        ],
+        "title": "CommercialBriefOut"
+      },
+      "CommercialBriefPowerOut": {
+        "properties": {
+          "amount_class": {
+            "type": "string",
+            "enum": [
+              "documented",
+              "calculated",
+              "estimated",
+              "inferred",
+              "unknown"
+            ],
+            "title": "Amount Class"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount_class",
+          "scope",
+          "value",
+          "unit",
+          "status",
+          "limitations"
+        ],
+        "title": "CommercialBriefPowerOut"
+      },
+      "CommercialBriefSourceOut": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "url",
+          "evidence_id",
+          "date"
+        ],
+        "title": "CommercialBriefSourceOut"
+      },
+      "CommercialBriefWhyOut": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialBriefSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source_date",
+          "scope",
+          "sources"
+        ],
+        "title": "CommercialBriefWhyOut"
+      },
       "CommercialTriageCard": {
         "properties": {
           "owner_organizations": {
@@ -6882,6 +7236,16 @@
       },
       "CustomerAccountNeedOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7129,6 +7493,16 @@
       },
       "CustomerProjectOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -9957,6 +10331,16 @@
       },
       "OpportunityOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "intelligence_card": {
             "anyOf": [
               {
@@ -11962,6 +12346,16 @@
       },
       "PursuitWorkspaceItemOut": {
         "properties": {
+          "commercial_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialBriefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "intelligence_card": {
             "anyOf": [
               {

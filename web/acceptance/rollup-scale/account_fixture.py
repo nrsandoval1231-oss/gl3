@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from uuid import uuid4
+from datetime import UTC, datetime
 from hashlib import sha256
+from uuid import UUID, uuid4
 import json
 
 from sqlalchemy import text
+from sqlalchemy.orm import sessionmaker
 
 
-def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
+def seed_resolved_operator_accounts(engine, manifest: dict) -> dict[str, str | bool]:
     """Qualify the 48-project synthetic operator cohort for account journeys.
 
     The fixture uses a fabricated but stable account identity and project-scoped
@@ -20,14 +21,19 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
     target = manifest["groups"]["de_central"]
     identity_id = uuid4()
     synthetic_contact_project = target["project_ids"][0]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
+    contact_evidence_id = None
+    contact_project_id = None
     with engine.begin() as connection:
         connection.execute(
-            text("INSERT INTO company_identities (id, rrc_operator_number) VALUES (:id, :operator_number)"),
+            text(
+                "INSERT INTO company_identities (id, rrc_operator_number) VALUES (:id, :operator_number)"
+            ),
             {"id": identity_id, "operator_number": target["operator_number"]},
         )
-        projects = connection.execute(
-            text("""
+        projects = (
+            connection.execute(
+                text("""
                 SELECT br.need_id, br.project_id, br.compact, br.summary,
                        e.id AS evidence_id, e.observation_id, o.source_id
                 FROM browse_rows br
@@ -38,8 +44,14 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
                   AND br.project_id=ANY(CAST(:project_ids AS uuid[]))
                 ORDER BY br.project_id, e.id
             """),
-            {"generation": manifest["generation_id"], "project_ids": target["project_ids"]},
-        ).mappings().all()
+                {
+                    "generation": manifest["generation_id"],
+                    "project_ids": target["project_ids"],
+                },
+            )
+            .mappings()
+            .all()
+        )
         seen_projects: set[str] = set()
         for row in projects:
             project_id = str(row["project_id"])
@@ -50,6 +62,13 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
                 f"Synthetic integration-test source. Project: {row['compact']['browse_title']}. "
                 "Scope: new construction of compressor station and electrical service."
             )
+            if project_id == str(synthetic_contact_project):
+                excerpt += (
+                    f" Synthetic fixture owner/operator: {target['name']}; "
+                    f"RRC operator number {target['operator_number']}."
+                )
+                contact_evidence_id = row["evidence_id"]
+                contact_project_id = row["project_id"]
             connection.execute(
                 text("UPDATE evidence SET abstract=:abstract WHERE id=:id"),
                 {"abstract": excerpt, "id": row["evidence_id"]},
@@ -64,121 +83,13 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
                         'assessment_current', true)))
                     WHERE generation_id=CAST(:generation AS uuid) AND need_id=:need_id
                 """),
-                {"evidence_id": str(row["evidence_id"]), "source_id": row["source_id"],
-                 "generation": manifest["generation_id"], "need_id": row["need_id"]},
+                {
+                    "evidence_id": str(row["evidence_id"]),
+                    "source_id": row["source_id"],
+                    "generation": manifest["generation_id"],
+                    "need_id": row["need_id"],
+                },
             )
-            if project_id == synthetic_contact_project:
-                # Explicitly synthetic, source-backed contact methods exercise
-                # the normal privacy-filtered contact path without contacting
-                # a real person or domain. The reserved .invalid address and
-                # 555 number are safe to inspect in the browser only.
-                source_url = "https://example.invalid/synthetic-contact"
-                quote = (
-                    "Synthetic integration-test source: DE CENTRAL Synthetic Operator "
-                    "project contact is buyer@example.invalid or +15555550101."
-                )
-                evidence_key = sha256(quote.encode()).hexdigest()
-                buying_evidence_id = uuid4()
-                claim_id = uuid4()
-                run_id = uuid4()
-                contact_actions = [
-                    {
-                        "kind": kind,
-                        "href": href,
-                        "company": "DE CENTRAL Synthetic Operator",
-                        "name": "Synthetic Buyer",
-                        "title": "Project Contact",
-                        "responsibility": "Verified project responsibility",
-                        "purchasing_authority": "Synthetic test contact; authority requires confirmation",
-                        "source_url": source_url,
-                        "company_identity_id": str(identity_id),
-                        "claim_id": str(claim_id),
-                        "synthetic_fixture": True,
-                    }
-                    for kind, href in (
-                        ("email", "mailto:buyer@example.invalid"),
-                        ("call", "tel:+15555550101"),
-                    )
-                ]
-                connection.execute(
-                    text("""
-                        INSERT INTO buying_chain_evidence
-                          (id, project_id, retained_evidence_id, url, title, excerpt,
-                           content_hash, extraction_location, observed_at, last_seen_at,
-                           project_match_reason)
-                        VALUES (:id, CAST(:project AS uuid), :retained, :url, :title,
-                                :excerpt, :hash, 'synthetic-fixture', :now, :now,
-                                'Explicit synthetic acceptance fixture for account contact.')
-                    """),
-                    {"id": buying_evidence_id, "project": project_id,
-                     "retained": row["evidence_id"], "url": source_url,
-                     "title": "Synthetic project contact fixture", "excerpt": quote,
-                     "hash": evidence_key, "now": now},
-                )
-                connection.execute(
-                    text("""
-                        INSERT INTO buying_chain_claims
-                          (id, project_id, entity_key, fingerprint, policy_version,
-                           organization, person_name, title, category,
-                           organization_relationship, person_organization_relationship,
-                           person_project_relationship, evidence_strength, reason,
-                           citations, public_contacts, observed_at)
-                        VALUES (:id, CAST(:project AS uuid), :entity, :fingerprint,
-                                'synthetic-acceptance-v1', 'DE CENTRAL Synthetic Operator',
-                                'Synthetic Buyer', 'Project Contact', 'owner_operator',
-                                'DIRECT', 'DIRECT', 'DIRECT', 'High',
-                                'Synthetic source supports this project-scoped test contact.',
-                                CAST(:citations AS jsonb), CAST(:methods AS jsonb), :now)
-                    """),
-                    {"id": claim_id, "project": project_id,
-                     "entity": f"synthetic-contact:{project_id}",
-                     "fingerprint": sha256(f"synthetic-contact:{project_id}".encode()).hexdigest(),
-                     "citations": json.dumps([{
-                         "evidence_id": str(buying_evidence_id), "url": source_url,
-                         "quote": quote, "supports": "public_contact",
-                     }]),
-                     "methods": json.dumps([
-                         {"kind": "email", "value": "buyer@example.invalid", "source_url": source_url, "quote": quote},
-                         {"kind": "phone", "value": "+15555550101", "source_url": source_url, "quote": quote},
-                     ]), "now": now},
-                )
-                connection.execute(
-                    text("""
-                        INSERT INTO buying_chain_runs
-                          (id, project_id, input_hash, evidence_ids, claim_ids,
-                           policy_version, status, documents_checked, candidates_added,
-                           unresolved)
-                        VALUES (:id, CAST(:project AS uuid), :hash,
-                                CAST(:evidence AS jsonb), CAST(:claims AS jsonb),
-                                'synthetic-acceptance-v1', 'complete', 1, 1, '[]'::jsonb)
-                    """),
-                    {"id": run_id, "project": project_id,
-                     "hash": sha256(f"synthetic-run:{project_id}".encode()).hexdigest(),
-                     "evidence": json.dumps([str(buying_evidence_id)]),
-                     "claims": json.dumps([str(claim_id)])},
-                )
-                connection.execute(
-                    text("""
-                        INSERT INTO buying_chain_identity_links
-                          (id, claim_id, entity_type, company_identity_id, reason, basis,
-                           reviewed_by, source_evidence_id, source_version_hash, state)
-                        VALUES (:id, :claim, 'company', :company,
-                                'Explicit synthetic acceptance identity link.',
-                                'attributed_review', 'test-fixture', :evidence, :hash, 'current')
-                    """),
-                    {"id": uuid4(), "claim": claim_id, "company": identity_id,
-                     "evidence": buying_evidence_id, "hash": evidence_key},
-                )
-                connection.execute(
-                    text("""
-                        UPDATE browse_rows SET compact = compact || jsonb_build_object(
-                          'contact_actions', CAST(:contact AS jsonb))
-                        WHERE generation_id=CAST(:generation AS uuid)
-                          AND project_id=CAST(:project AS uuid)
-                    """),
-                    {"contact": json.dumps(contact_actions),
-                     "generation": manifest["generation_id"], "project": project_id},
-                )
             connection.execute(
                 text("""
                     INSERT INTO browse_customer_memberships
@@ -187,11 +98,17 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
                     VALUES (CAST(:generation AS uuid), :identity, :project,
                             'DE CENTRAL Synthetic Operator', 'asset_operator', 1, :updated)
                 """),
-                {"generation": manifest["generation_id"], "identity": identity_id,
-                 "project": row["project_id"], "updated": now},
+                {
+                    "generation": manifest["generation_id"],
+                    "identity": identity_id,
+                    "project": row["project_id"],
+                    "updated": now,
+                },
             )
         if len(seen_projects) != len(target["project_ids"]):
-            raise RuntimeError("Synthetic account fixture could not resolve every target project source.")
+            raise RuntimeError(
+                "Synthetic account fixture could not resolve every target project source."
+            )
         malformed_contact_rows = connection.execute(
             text("""
                 SELECT count(*)
@@ -238,3 +155,180 @@ def seed_resolved_operator_accounts(engine, manifest: dict) -> None:
             """),
             {"generation": manifest["generation_id"]},
         )
+    if contact_evidence_id is None or contact_project_id is None:
+        raise RuntimeError("Synthetic contact project has no retained source evidence.")
+    return _seed_native_contact_route(
+        engine,
+        manifest,
+        identity_id=identity_id,
+        project_id=contact_project_id,
+        evidence_id=contact_evidence_id,
+    )
+
+
+def _seed_native_contact_route(
+    engine, manifest, *, identity_id, project_id, evidence_id
+):
+    """Produce one synthetic phone route through the current native RRC pipeline."""
+    from datetime import timedelta
+
+    import gridlens.ingestion.adapters.pursuit_acquisition as acquisition
+    import gridlens.intelligence.company_contact_discovery as discovery
+    from gridlens.intelligence.company_contacts import company_contacts
+    from gridlens.intelligence.project_contact_actions import project_contact_actions
+    from gridlens.persistence.models import (
+        CompanyProjectMembership,
+        Evidence,
+        Job,
+        LogicalCall,
+        LogicalCallBudget,
+        Project,
+    )
+    from gridlens.settings import settings
+
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    now = datetime.now(UTC)
+    target = manifest["groups"]["de_central"]
+    operator_number = target["operator_number"]
+    organization = target["name"]
+    with factory.begin() as session:
+        project = session.get(Project, project_id)
+        evidence = session.get(Evidence, evidence_id)
+        if project is None or evidence is None:
+            raise RuntimeError(
+                "Synthetic contact project/evidence disappeared before native discovery."
+            )
+        evidence.abstract = (
+            "Synthetic integration-test source. "
+            f"{organization} is the synthetic owner/operator; "
+            f"RRC operator number {operator_number}. "
+            "No actual facility or contact is represented."
+        )
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=identity_id,
+                project_id=project.id,
+                role="asset_operator",
+                organization_name=organization,
+                source_id=project.source_id,
+                source_evidence_id=evidence.id,
+                source_version_hash=evidence.content_hash,
+                decision_basis="synthetic_acceptance_fixture_current_source",
+                operator_number=operator_number,
+                state="current",
+            )
+        )
+        queued = discovery.discover_company_contacts(session, identity_id, now=now)
+        if queued.get("status") != "queued" or not queued.get("job_id"):
+            raise RuntimeError(
+                "Synthetic native contact producer did not enqueue its durable job."
+            )
+        job = session.get(Job, UUID(queued["job_id"]))
+        if job is None:
+            raise RuntimeError("Synthetic native contact job was not persisted.")
+        job.status = "running"
+        job.lease_owner = "synthetic-browser-fixture"
+        job.fence = 1
+        job.lease_until = now + timedelta(minutes=5)
+        job_id = job.id
+
+    snapshot = {
+        "index_url": "https://www.rrc.texas.gov/oil-and-gas/research-and-statistics/operator-information/oil-gas-directory-operator-contact/",
+        "source_url": "https://www.rrc.texas.gov/media/synthetic/oil-and-gas-directory-11-08-26.xlsx",
+        "filename_date": now.date().isoformat(),
+        "workbook_header_timestamp": now.strftime("%m/%d/%Y 12:00:00 PM"),
+        "workbook_header_date": now.date().isoformat(),
+        "landing_freshness_statement": "Synthetic fixture; no external workbook was retrieved.",
+        "observed_at": now.isoformat(),
+        "raw_sha256": sha256(
+            b"synthetic RRC P5 browser fixture; no external retrieval"
+        ).hexdigest(),
+        "synthetic_fixture": True,
+        "operators": {
+            operator_number: [
+                {
+                    "operator_number": operator_number,
+                    "organization": organization,
+                    "country": "USA",
+                    "normal_phone": "7135550101",
+                    "status": "Active",
+                    "row_number": 1857,
+                }
+            ]
+        },
+    }
+    original_session_local = discovery.SessionLocal
+    original_loader = discovery.load_current_directory
+    original_search = acquisition.discover_urls
+    original_enabled = settings.intelligence_enabled
+    try:
+        discovery.SessionLocal = factory
+        discovery.load_current_directory = lambda **_kwargs: snapshot
+        acquisition.discover_urls = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("Paid search must remain disabled in this synthetic seed.")
+        )
+        settings.intelligence_enabled = False
+        outcome = discovery.process_company_contact_discovery(
+            job_id, "synthetic-browser-fixture", 1, now=now
+        )
+    finally:
+        discovery.SessionLocal = original_session_local
+        discovery.load_current_directory = original_loader
+        acquisition.discover_urls = original_search
+        settings.intelligence_enabled = original_enabled
+
+    with factory.begin() as session:
+        if (
+            session.query(LogicalCall).count()
+            or session.query(LogicalCallBudget).count()
+        ):
+            raise RuntimeError(
+                "Synthetic fixture unexpectedly created paid-call ledger rows."
+            )
+        projection = company_contacts(session, identity_id)
+        actions = project_contact_actions(
+            {
+                "contacts": [
+                    contact.model_dump(mode="json") for contact in projection.contacts
+                ]
+            }
+        )
+        if (
+            outcome.get("results", [{}])[0].get("reason")
+            != "generic_public_methods_persisted"
+        ):
+            raise RuntimeError(
+                "Native fixture did not persist the exact P5 company phone method."
+            )
+        if len(actions) != 1 or actions[0].get("kind") != "call":
+            raise RuntimeError(
+                "Native fixture did not produce exactly one source-backed phone route."
+            )
+        actions[0]["synthetic_fixture"] = True
+        session.execute(
+            text("""
+                UPDATE browse_rows SET compact = compact || jsonb_build_object(
+                  'contact_actions', CAST(:contact AS jsonb))
+                WHERE generation_id=CAST(:generation AS uuid)
+                  AND project_id=CAST(:project AS uuid)
+            """),
+            {
+                "contact": json.dumps(actions),
+                "generation": manifest["generation_id"],
+                "project": project_id,
+            },
+        )
+    with engine.begin() as connection:
+        connection.execute(
+            text("""
+                UPDATE browse_generations
+                SET input_revision=(SELECT input_revision FROM browse_state WHERE id=1)
+                WHERE id=CAST(:generation AS uuid)
+            """),
+            {"generation": manifest["generation_id"]},
+        )
+    return {
+        "company": organization,
+        "phone_href": actions[0]["href"],
+        "synthetic_fixture": True,
+    }

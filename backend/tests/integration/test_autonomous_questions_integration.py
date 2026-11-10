@@ -14,9 +14,17 @@ from gridlens.intelligence.pursuit_questions import schedule_questions
 from gridlens.jobs.queue import lease_one
 from gridlens.jobs.retry import jittered_delay_seconds
 from gridlens.persistence.models import (
+    BuyingChainClaim,
+    BuyingChainEvidence,
+    BuyingChainIdentityLink,
+    BuyingChainRun,
+    CompanyIdentity,
+    CompanyProjectMembership,
     Evidence,
     Interpretation,
     Job,
+    LogicalCall,
+    LogicalCallBudget,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -28,6 +36,27 @@ from gridlens.persistence.models import (
 )
 from gridlens.security import token_for
 from gridlens.settings import settings
+
+
+def approve_test_host(monkeypatch, hostname, *, modes=("direct",)):
+    import json
+
+    instant = datetime.now(UTC)
+    monkeypatch.setattr(
+        settings,
+        "public_research_site_permissions",
+        json.dumps(
+            [
+                {
+                    "hostname": hostname,
+                    "terms_review_ref": "synthetic-test-approval",
+                    "reviewed_at": (instant - timedelta(days=1)).isoformat(),
+                    "expires_at": (instant + timedelta(days=1)).isoformat(),
+                    "modes": list(modes),
+                }
+            ]
+        ),
+    )
 
 
 @pytest.fixture
@@ -318,14 +347,11 @@ def test_legacy_external_negative_check_still_honors_freshness(runtime):
     assert schedule_legacy_two_category_plan(factory, card) == []
 
 
-def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, monkeypatch):
+def test_direct_get_failure_never_falls_back_to_unverified_provider_scrape(runtime, monkeypatch):
     import time
     from decimal import Decimal
 
-    from gridlens.ingestion.adapters.buying_chain_public import (
-        PublicDocument,
-        PublicExtractionUnavailable,
-    )
+    from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable
 
     factory, worker, _, card = runtime
     question_id = schedule_legacy_two_category_plan(factory, card)[0]
@@ -333,11 +359,14 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
     with factory() as session:
         budget = session.get(PursuitResearchQuestion, question_id).budget
 
+    approve_test_host(monkeypatch, "public.example")
     monkeypatch.setattr(settings, "firecrawl_api_key", None)
     monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", None)
     run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
 
-    def free_get_fails(*_args, **_kwargs):
+    def free_get_fails(url, **kwargs):
+        kwargs["before_request"]("https://public.example/robots.txt")
+        kwargs["before_request"](url)
         raise PublicExtractionUnavailable("JavaScript shell")
 
     monkeypatch.setattr(worker, "retrieve", free_get_fails)
@@ -379,29 +408,53 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         recovery_budget,
     )
 
-    def successful_mocked_extraction(_url, **kwargs):
-        kwargs["before_request"]("https://api.firecrawl.dev/v2/scrape")
-        return PublicDocument(url, "Project update", "Bounded public project content")
-
     monkeypatch.setattr(worker, "retrieve", free_get_fails)
-    monkeypatch.setattr(acquisition, "extract_public_document", successful_mocked_extraction)
     monkeypatch.setattr(
-        worker,
-        "retain_research_document",
-        lambda *_args, **_kwargs: {"disposition": "ACCEPTED", "evidence_id": str(uuid4())},
+        acquisition,
+        "extract_public_document",
+        lambda *_args, **_kwargs: pytest.fail("Unverified provider scrape must not be invoked"),
     )
-    monkeypatch.setattr(worker, "enrich_buying_chain", lambda *_args, **_kwargs: None)
     worker._research_public_url(recovery_run, url)
     worker._finish(
         recovery_job, "question-test", recovery_fence, recovery_id, "UNRESOLVED", time.monotonic()
     )
     with factory() as session:
         recovered = session.get(PursuitResearchQuestion, recovery_id)
-        assert recovered.receipt["retry_class"] == "FRESH_CHECK"
-        assert recovered.receipt["source_checks"][-1]["disposition"] == "ACCEPTED"
+        assert recovered.receipt["retry_class"] == "BOUNDED_TRANSIENT"
+        assert recovered.receipt["source_checks"][-1]["disposition"] == "FAILED"
+        assert recovered.receipt["source_checks"][-1]["effect_status"] == "NOT_SENT"
         assert not recovered.receipt.get("inflight_url")
         assert recovered.receipt.get("inflight_acquisition_url") is None
-    assert schedule_legacy_two_category_plan(factory, card) == []
+        assert (
+            session.scalar(
+                select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SCRAPE_V2")
+            )
+            is None
+        )
+
+
+def test_unapproved_public_host_is_denied_before_direct_transport(runtime, monkeypatch):
+    import time
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    job_id, fence = lease_question(factory, question_id)
+    with factory() as session:
+        budget = session.get(PursuitResearchQuestion, question_id).budget
+    run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Unapproved host must not reach direct transport"),
+    )
+
+    worker._research_public_url(run, "https://unreviewed.example/page")
+    with factory() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        check = row.receipt["source_checks"][-1]
+        assert check["effect_status"] == "NOT_SENT"
+        assert check["failure_code"] == "access_restricted"
+        assert row.receipt.get("retrieval_attempts", 0) == 0
 
 
 def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
@@ -908,7 +961,7 @@ def test_search_timeout_keeps_unknown_effect_across_force(runtime, monkeypatch):
     assert schedule(factory, card, force=True) == []
 
 
-def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
+def test_unverified_extraction_mode_blocks_before_paid_dispatch(runtime, monkeypatch):
     import time
 
     from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable
@@ -919,26 +972,34 @@ def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
     with factory() as session:
         budget = {**session.get(PursuitResearchQuestion, question_id).budget, "max_cost_usd": "1"}
     enable_fake_firecrawl(monkeypatch, factory, question_id)
+    approve_test_host(monkeypatch, "publisher.example")
     run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
 
-    def direct_fails(*_args, **_kwargs):
+    def direct_fails(url, **kwargs):
+        kwargs["before_request"]("https://publisher.example/robots.txt")
+        kwargs["before_request"](url)
         raise PublicExtractionUnavailable("direct page needs extraction")
 
-    def extract_times_out(url, **kwargs):
-        kwargs["before_request"](url)
-        raise TimeoutError("simulated extraction timeout after dispatch")
+    def forbidden_extraction(*_args, **_kwargs):
+        pytest.fail("Unverified Firecrawl scrape must be blocked before dispatch")
 
     monkeypatch.setattr(worker, "retrieve", direct_fails)
     acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
-    monkeypatch.setattr(acquisition, "extract_public_document", extract_times_out)
+    monkeypatch.setattr(acquisition, "extract_public_document", forbidden_extraction)
     worker._research_public_url(run, "https://publisher.example/document")
     with factory() as session:
         row = session.get(PursuitResearchQuestion, question_id)
-        assert row.receipt["inflight_url"] == "https://api.firecrawl.dev/v2/scrape"
-        assert row.receipt["ambiguous_effects"][-1]["status"] == "UNKNOWN"
-        assert row.receipt["firecrawl_extractions"] == 1
-    card["input_hash"] = "new-evidence-after-ambiguous-extraction"
-    assert schedule(factory, card, force=True) == []
+        assert row.receipt.get("inflight_url") is None
+        assert row.receipt["source_checks"][-1]["effect_status"] == "NOT_SENT"
+        assert row.receipt["source_checks"][-1]["failure_code"] == "extraction_not_configured"
+        assert not row.receipt.get("ambiguous_effects")
+        assert row.receipt.get("firecrawl_extractions", 0) == 0
+        assert (
+            session.scalar(
+                select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SCRAPE_V2")
+            )
+            is None
+        )
 
 
 def test_ambiguous_effect_blocks_new_question_category(runtime):
@@ -1041,6 +1102,11 @@ def test_worker_changed_input_fails_before_acquisition_and_preserves_original_co
     factory, worker, _, card = runtime
     question_id = schedule(factory, card)[0]
     original_hash = card["input_hash"]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        legacy_context = dict(question.context)
+        legacy_context.pop("grouped_planner", None)
+        question.context = legacy_context
     card["input_hash"] = "new-evidence-arrived-after-queue"
     job_id, fence = lease_question(factory, question_id)
 
@@ -1082,6 +1148,814 @@ def test_retrieval_reservation_survives_worker_restart_and_enforces_document_bud
     # A process interruption during a free GET is idempotent and must not be
     # promoted to an ambiguous paid effect. Its reservation still survives and
     # enforces the persisted document budget after a worker restart.
+
+
+def test_identical_paid_search_is_reused_across_question_jobs(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    with factory.begin() as session:
+        first_need = session.get(PowerNeed, card["id"])
+        first_project = session.get(Project, first_need.project_id)
+        other_project = Project(
+            source_id=first_project.source_id,
+            external_id="2026-100002 EP",
+            name=first_project.name,
+            location=first_project.location,
+            identity_facts={"site": "200 ORION LN, Austin, TX"},
+            identity_key="orion-second-project",
+        )
+        session.add(other_project)
+        session.flush()
+        other_need = PowerNeed(
+            project_id=other_project.id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic second-project test need",
+            supply="Unknown",
+        )
+        session.add(other_need)
+        session.flush()
+        other_card = {
+            **card,
+            "id": str(other_need.id),
+            "project_id": str(other_project.id),
+            "related_project_ids": [str(other_project.id)],
+            "evidence": [],
+            "input_hash": "second-project-synthetic-input",
+        }
+        monkeypatch.setattr(
+            worker,
+            "evaluate_target",
+            lambda _session, need_id: (other_card if str(need_id) == str(other_need.id) else card),
+        )
+        scheduled = schedule_questions(session, [card, other_card])
+        question_by_project = {}
+        for row in scheduled:
+            question_by_project.setdefault(str(row.project_id), row.id)
+        assert str(other_project.id) in question_by_project, [
+            (str(row.project_id), str(row.need_id), row.category) for row in scheduled
+        ]
+        question_ids = [
+            question_by_project[str(first_project.id)],
+            question_by_project[str(other_project.id)],
+        ]
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+
+    def search(query, **_kwargs):
+        calls.append(query)
+        return ["https://example.com/shared-project"]
+
+    monkeypatch.setattr(acquisition, "discover_urls", search)
+    results = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            row = session.get(PursuitResearchQuestion, question_id)
+            budget = row.budget
+        run = worker.QuestionRun(
+            job_id, "question-test", fence, question_id, time.monotonic(), budget
+        )
+        results.append(run.search('"Synthetic Orion" project contact'))
+
+    assert calls == ['"Synthetic Orion" project contact']
+    assert results == [["https://example.com/shared-project"]] * 2
+    with factory() as session:
+        calls_in_ledger = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        assert len(calls_in_ledger) == 1
+        assert second.receipt["shared_provider_reuses"][0]["logical_call_id"] == str(
+            calls_in_ledger[0].id
+        )
+
+
+def test_cached_search_cannot_bypass_disabled_provider_policy(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    assert len(question_ids) == 2
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/disabled-cache"],
+    )
+    query = '"Synthetic Orion" project contact'
+    first_job, first_fence = lease_question(factory, question_ids[0])
+    with factory() as session:
+        first_budget = session.get(PursuitResearchQuestion, question_ids[0]).budget
+    first_run = worker.QuestionRun(
+        first_job, "question-test", first_fence, question_ids[0], time.monotonic(), first_budget
+    )
+    assert first_run.search(query) == ["https://example.com/disabled-cache"]
+
+    monkeypatch.setattr(settings, "intelligence_enabled", False)
+    second_job, second_fence = lease_question(factory, question_ids[1])
+    with factory() as session:
+        second_budget = session.get(PursuitResearchQuestion, question_ids[1]).budget
+    second_run = worker.QuestionRun(
+        second_job, "question-test", second_fence, question_ids[1], time.monotonic(), second_budget
+    )
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    with pytest.raises(legacy_calls.LegacyCallBlocked):
+        second_run.search(query)
+    assert calls == [query]
+
+
+@pytest.mark.parametrize("company_planner_first", [False, True])
+def test_buyer_question_defers_to_current_canonical_company_contact_job(
+    runtime, monkeypatch, company_planner_first
+):
+    from gridlens.domain.pursuit_research import targeted_queries, targeted_query_plan
+    from gridlens.intelligence.research_routing import routing_context, selected_sources
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        need = session.get(PowerNeed, question.need_id)
+        project = session.get(Project, question.project_id)
+        source_id = project.source_id
+        project.region_status = "ELIGIBLE"
+        observation = Observation(
+            source_id=source_id,
+            external_id="buyer-company-membership",
+            title="Synthetic company project",
+            abstract="Synthetic source backed project membership",
+            url="https://example.invalid/company-project",
+            content_hash="b" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+        )
+        company = CompanyIdentity(rrc_operator_number="123456")
+        session.add_all([evidence, company])
+        session.flush()
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                evaluator_version="buyer-company-fixture-v1",
+                assessment={
+                    "decision": "accepted",
+                    "project_identity_key": project.identity_key,
+                    "evidence_hash": observation.content_hash,
+                    "admission_status": "supplemental",
+                },
+                status="accepted",
+            )
+        )
+        session.add(
+            CompanyProjectMembership(
+                company_identity_id=company.id,
+                project_id=project.id,
+                role="owner_developer",
+                organization_name=project.name,
+                source_id=source_id,
+                source_evidence_id=evidence.id,
+                source_version_hash=observation.content_hash,
+                decision_basis="typed_source_v1",
+                operator_number="123456",
+                state="current",
+            )
+        )
+        now = datetime.now(UTC)
+        claim_evidence = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://example.invalid/company-claim",
+            title="Synthetic company claim",
+            excerpt="Synthetic current company relationship.",
+            content_hash="c" * 64,
+            extraction_location="Test fixture",
+            observed_at=now,
+            last_seen_at=now,
+            project_match_reason="Synthetic current source-backed relationship.",
+        )
+        session.add(claim_evidence)
+        session.flush()
+        claim = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="buyer-company-claim",
+            fingerprint="d" * 64,
+            policy_version="buyer-company-fixture-v1",
+            organization=project.name,
+            person_name=None,
+            title="Owner",
+            category="owner_developer",
+            organization_relationship="DIRECT",
+            person_organization_relationship="UNKNOWN",
+            person_project_relationship="DIRECT",
+            evidence_strength="high",
+            reason="Synthetic exact current canonical-company claim.",
+            citations=[
+                {
+                    "evidence_id": str(claim_evidence.id),
+                    "url": claim_evidence.url,
+                    "quote": claim_evidence.excerpt,
+                    "supports": "project_organization",
+                }
+            ],
+            public_contacts=[],
+            observed_at=now,
+        )
+        session.add(claim)
+        session.flush()
+        session.add(
+            BuyingChainIdentityLink(
+                claim_id=claim.id,
+                entity_type="company",
+                company_identity_id=company.id,
+                reason="Synthetic explicit canonical identity binding.",
+                basis="attributed_review",
+                reviewed_by="synthetic-test-reviewer",
+                source_evidence_id=claim_evidence.id,
+                source_version_hash=claim_evidence.content_hash,
+                state="current",
+            )
+        )
+        session.add(
+            BuyingChainRun(
+                project_id=project.id,
+                input_hash="e" * 64,
+                evidence_ids=[str(claim_evidence.id)],
+                claim_ids=[str(claim.id)],
+                policy_version="buyer-company-fixture-v1",
+                status="complete",
+                documents_checked=1,
+                candidates_added=1,
+                unresolved=[],
+            )
+        )
+        planner = import_module("gridlens.intelligence.pursuit_questions")
+        question.category = "buyer"
+        sources = selected_sources(session, need.id)
+        routing = routing_context("buyer", sources)
+        context = {
+            **question.context,
+            **routing,
+            "category": "buyer",
+            "queries": targeted_queries(question.context, "buyer"),
+            "query_routes": targeted_query_plan(question.context, "buyer"),
+            "freshness_hours": 168,
+        }
+        question.context = context
+        if company_planner_first:
+            contact_planner = import_module("gridlens.intelligence.company_contact_discovery")
+            contact_planner.plan_company_contact_jobs(session, limit=10)
+        coverage = planner.buyer_contact_company_coverage(session, project.id)
+        assert coverage is not None
+        company_jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id == company.id,
+            )
+        ).all()
+        assert len(company_jobs) == 1
+        assert company_jobs[0].status == "queued"
+        assert planner.buyer_contact_company_coverage(session, project.id) == coverage
+        assert (
+            len(
+                session.scalars(
+                    select(Job).where(
+                        Job.kind == "company_contact_discovery",
+                        Job.target_id == company.id,
+                    )
+                ).all()
+            )
+            == 1
+        )
+
+    job_id, fence = lease_question(factory, question_id)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Covered buyer research must not fetch project pages"
+        ),
+    )
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda *_args, **_kwargs: pytest.fail("Company pass owns the shared buyer lookup"),
+    )
+    worker.process_question_job(job_id, "question-test", fence)
+
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        calls = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        assert question.status == "UNRESOLVED"
+        assert (
+            question.receipt["company_contact_research"]["company_identity_ids"]
+            == coverage["company_identity_ids"]
+        )
+        recorded_coverage = question.receipt["company_contact_research"]
+        assert datetime.fromisoformat(question.receipt["retry_after"]) == datetime.fromisoformat(
+            recorded_coverage["retry_after"]
+        )
+        retry_at = datetime.fromisoformat(recorded_coverage["retry_after"])
+        assert datetime.now(UTC) < retry_at <= datetime.now(UTC) + timedelta(hours=1, minutes=2)
+        assert any(
+            route["kind"] == "company_contact" and route["status"] == "DEFERRED"
+            for route in question.receipt["route_results"]
+        )
+        assert calls == []
+
+
+@pytest.mark.parametrize("company_planner_first", [False, True])
+def test_buyer_company_handoff_uses_current_claim_link_without_membership(
+    runtime, company_planner_first
+):
+    """Current source-backed TDLR company claims share the canonical contact job."""
+    tdlr = import_module("test_buying_chain")
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.intelligence.company_contact_discovery import plan_company_contact_jobs
+    from gridlens.intelligence.pursuit_questions import buyer_contact_company_coverage
+
+    factory, _, _, _ = runtime
+    number, name, location, owner, excerpt = tdlr.TDLR_CASES[1]
+    with factory.begin() as session:
+        project, _evidence, _owner = tdlr._seed_tdlr_retained_project(
+            session, (number, name, location, owner, excerpt)
+        )
+        project.region_status = "ELIGIBLE"
+        result = enrich_buying_chain(session, project.id, retained_only=True, now=tdlr.NOW)
+        company = next(
+            item
+            for item in result["candidates"]
+            if item["organization"] == owner and not item["person_name"]
+        )
+        company_id = UUID(str(company["company_identity_id"]))
+        assert (
+            session.scalar(
+                select(CompanyProjectMembership.id).where(
+                    CompanyProjectMembership.project_id == project.id,
+                    CompanyProjectMembership.company_identity_id == company_id,
+                    CompanyProjectMembership.state == "current",
+                )
+            )
+            is None
+        )
+
+        # Remove only the normal retained-projection job to exercise handoff
+        # scheduling from both possible planner orders.
+        existing = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id == company_id,
+            )
+        ).all()
+        for job in existing:
+            session.delete(job)
+        session.flush()
+
+        if company_planner_first:
+            plan_company_contact_jobs(session, limit=10, now=tdlr.NOW)
+        coverage = buyer_contact_company_coverage(session, project.id, now=tdlr.NOW)
+        assert coverage is not None
+        assert coverage["company_identity_ids"] == [str(company_id)]
+        jobs = session.scalars(
+            select(Job).where(
+                Job.kind == "company_contact_discovery",
+                Job.target_id == company_id,
+            )
+        ).all()
+        assert len(jobs) == 1
+        assert jobs[0].status == "queued"
+        assert buyer_contact_company_coverage(session, project.id, now=tdlr.NOW) == coverage
+        assert (
+            len(
+                session.scalars(
+                    select(Job).where(
+                        Job.kind == "company_contact_discovery",
+                        Job.target_id == company_id,
+                    )
+                ).all()
+            )
+            == 1
+        )
+
+
+def test_concurrent_identical_search_defers_second_job_then_reuses_one_call(runtime, monkeypatch):
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    assert len(question_ids) == 2
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    entered = threading.Event()
+    release = threading.Event()
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+
+    def search(query, **_kwargs):
+        calls.append(query)
+        entered.set()
+        assert release.wait(timeout=5)
+        return ["https://example.com/concurrent-project"]
+
+    monkeypatch.setattr(acquisition, "discover_urls", search)
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(runs[0].search, '"Synthetic Orion" project contact')
+        assert entered.wait(timeout=5)
+        second = pool.submit(runs[1].search, '"Synthetic Orion" project contact')
+        with pytest.raises(worker.AcquisitionBusy):
+            second.result(timeout=5)
+        release.set()
+        assert first.result(timeout=5) == ["https://example.com/concurrent-project"]
+
+    assert runs[1].search('"Synthetic Orion" project contact') == [
+        "https://example.com/concurrent-project"
+    ]
+    assert calls == ['"Synthetic Orion" project contact']
+    with factory() as session:
+        ledger = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        second_question = session.get(PursuitResearchQuestion, question_ids[1])
+        assert len(ledger) == 1
+        assert second_question.receipt["shared_provider_reuses"][0]["logical_call_id"] == str(
+            ledger[0].id
+        )
+
+
+def test_same_job_restart_recovers_one_unstarted_shared_reservation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    calls = []
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/restart-project"],
+    )
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    real_reserve = legacy_calls.reserve_call
+    interrupt = True
+
+    def reserve_then_exit(*args, **kwargs):
+        nonlocal interrupt
+        reservation = real_reserve(*args, **kwargs)
+        if interrupt:
+            interrupt = False
+            raise SimulatedProcessExit()
+        return reservation
+
+    monkeypatch.setattr(legacy_calls, "reserve_call", reserve_then_exit)
+    query = '"Synthetic Orion" project contact'
+    job_id, fence = lease_question(factory, question_id)
+    with factory() as session:
+        budget = session.get(PursuitResearchQuestion, question_id).budget
+    first_run = worker.QuestionRun(
+        job_id, "question-test", fence, question_id, time.monotonic(), budget
+    )
+    with pytest.raises(SimulatedProcessExit):
+        first_run.search(query)
+
+    with factory() as session:
+        call_before = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        assert call_before is not None and call_before.status == "NOT_SENT"
+        call_id = call_before.id
+        budget_before = session.scalars(select(LogicalCallBudget)).all()
+        assert len(budget_before) == 12
+        before_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in budget_before
+        ]
+
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+    new_job_id, new_fence = lease_question(factory, question_id)
+    assert new_job_id == job_id and new_fence > fence
+    resumed = worker.QuestionRun(
+        new_job_id, "question-test", new_fence, question_id, time.monotonic(), budget
+    )
+    assert resumed.search(query) == ["https://example.com/restart-project"]
+    assert calls == [query]
+    with factory() as session:
+        calls_after = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        budget_after = session.scalars(select(LogicalCallBudget)).all()
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert len(calls_after) == 1
+        assert calls_after[0].id == call_id and calls_after[0].status == "COMPLETED"
+        assert len(budget_after) == len(before_counts)
+        after_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in budget_after
+        ]
+        assert sorted(after_counts) == sorted(
+            (scope, count, cost, 0) for scope, count, cost, _ in before_counts
+        )
+        assert question.receipt["searches"] == 1
+
+
+def test_process_restart_after_question_reservation_before_dispatch_is_idempotent(
+    runtime, monkeypatch
+):
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    calls = []
+    query = '"Synthetic Orion" project contact'
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.context = {
+            **question.context,
+            "queries": [query],
+            "query_routes": [{"query": query, "family": "public-web"}],
+        }
+    monkeypatch.setattr(
+        acquisition, "discover_urls", lambda searched, **_kwargs: calls.append(searched) or []
+    )
+    monkeypatch.setattr(worker, "acquire_registered_record", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Empty deterministic search must not retrieve"),
+    )
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
+    real_mark_dispatched = legacy_calls.mark_dispatched
+
+    class SimulatedProcessExit(BaseException):
+        pass
+
+    def exit_after_question_reservation(*_args, **_kwargs):
+        raise SimulatedProcessExit()
+
+    monkeypatch.setattr(legacy_calls, "mark_dispatched", exit_after_question_reservation)
+    job_id, fence = lease_question(factory, question_id)
+    with pytest.raises(SimulatedProcessExit):
+        worker.process_question_job(job_id, "question-test", fence)
+
+    with factory() as session:
+        call_before = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert call_before is not None and call_before.status == "NOT_SENT"
+        call_id = call_before.id
+        assert question.receipt["searches"] == 1
+        assert question.receipt["queries_attempted"] == [query]
+        assert question.receipt["inflight_logical_call_id"] == str(call_id)
+        assert question.receipt["inflight_query"] == query
+        reserved_cost = question.receipt["reserved_cost_usd"]
+        before_budgets = session.scalars(select(LogicalCallBudget)).all()
+        before_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in before_budgets
+        ]
+        assert before_budgets
+
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+    new_job_id, new_fence = lease_question(factory, question_id)
+    assert new_job_id == job_id and new_fence > fence
+    monkeypatch.setattr(legacy_calls, "mark_dispatched", real_mark_dispatched)
+    worker.process_question_job(new_job_id, "question-test", new_fence)
+
+    assert calls == [query]
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        calls_after = session.scalars(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        ).all()
+        after_budgets = session.scalars(select(LogicalCallBudget)).all()
+        assert len(calls_after) == 1
+        call_after = calls_after[0]
+        assert call_after.id == call_id and call_after.status == "COMPLETED"
+        assert len(after_budgets) == len(before_counts)
+        after_counts = [
+            (row.scope, row.call_count, row.cost_usd, row.active_count) for row in after_budgets
+        ]
+        assert sorted(after_counts) == sorted(
+            (scope, count, cost, 0) for scope, count, cost, _ in before_counts
+        )
+        assert question.receipt["searches"] == 1
+        assert question.receipt["reserved_cost_usd"] == reserved_cost
+        assert question.receipt["queries_attempted"] == [query]
+        assert question.receipt["inflight_logical_call_id"] is None
+        assert question.receipt["inflight_query"] is None
+
+
+def test_shared_search_cache_expiry_uses_a_new_durable_generation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        original = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        original_id = original.id
+        original.finished_at = datetime.now(UTC) - timedelta(days=2)
+
+    assert runs[1].search(query) == ["https://example.com/shared-project"]
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    assert calls == [query, query]
+    with factory() as session:
+        generations = session.scalars(
+            select(LogicalCall)
+            .where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+            .order_by(LogicalCall.created_at, LogicalCall.id)
+        ).all()
+        assert len(generations) == 2
+        assert generations[0].id == original_id
+        assert generations[1].task_key.startswith("ps1:")
+        assert generations[1].task_key != generations[0].task_key
+        assert len(generations[1].task_key) <= 200
+
+
+def test_shared_unknown_search_blocks_new_payload_generation(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        prior = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        prior.status = "SENT_OUTCOME_UNKNOWN"
+        prior.finished_at = datetime.now(UTC) - timedelta(days=3)
+
+    with pytest.raises(LegacyCallBlocked, match="OUTCOME_UNKNOWN"):
+        runs[1]._shared_firecrawl_call(
+            task_type="FIRECRAWL_SEARCH_V2",
+            operation="search",
+            semantic_input=query,
+            payload={"query": query, "limit": 5, "sources": ["web"]},
+            project_id=uuid4(),
+            query=query,
+            invoke=lambda: (calls.append(query) or {"urls": []}, None, None),
+        )
+    assert calls == [query]
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_ids[1])
+        assert question.receipt["inflight_logical_call_id"] == str(prior.id)
+        assert question.receipt["shared_effect_fingerprint"]
+
+
+def test_malformed_completed_shared_result_fails_closed_without_new_search(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+    from gridlens.integrations.legacy_calls import _digest
+
+    factory, worker, _, card = runtime
+    question_ids = schedule(factory, card)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    enable_fake_firecrawl(monkeypatch, factory, question_ids[0])
+    with factory.begin() as session:
+        second = session.get(PursuitResearchQuestion, question_ids[1])
+        second.budget = {**second.budget, "max_cost_usd": "1", "searches": 2}
+
+    calls = []
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda query, **_kwargs: calls.append(query) or ["https://example.com/shared-project"],
+    )
+    runs = []
+    for question_id in question_ids:
+        job_id, fence = lease_question(factory, question_id)
+        with factory() as session:
+            budget = session.get(PursuitResearchQuestion, question_id).budget
+        runs.append(
+            worker.QuestionRun(
+                job_id, "question-test", fence, question_id, time.monotonic(), budget
+            )
+        )
+    query = '"Synthetic Orion" project contact'
+    assert runs[0].search(query) == ["https://example.com/shared-project"]
+    with factory.begin() as session:
+        prior = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "FIRECRAWL_SEARCH_V2")
+        )
+        prior.result_payload = {"urls": ["https://127.0.0.1/private"]}
+        prior.result_digest = _digest(prior.result_payload)
+
+    with pytest.raises(SourceParseError, match="Cached Firecrawl result failed validation"):
+        runs[1].search(query)
+    assert calls == [query]
 
 
 @pytest.mark.parametrize("invalidation", ["changed_content", "rejected", "force"])
@@ -1199,10 +2073,16 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             fetcher=lambda _url: document,
             now=now,
         )
-        person = next(c for c in before["candidates"] if c["person_name"])
+        assert not any(c["person_name"] for c in before["candidates"])
+        person = next(
+            c
+            for c in chain._buying_chain_current_view(session, project.id, now=now)["candidates"]
+            if c["person_name"]
+        )
         assert person["person_project_relationship"] == "DIRECT"
-        # Existing supported contact state may have been admitted by a different
-        # exact-source parser; the generic role parser intentionally avoids emails.
+        # This fixture exercises private carry-forward of an older synthetic method
+        # citation. Its generic publisher is deliberately not a public company
+        # authority, so the public projection must continue to redact the method.
         stored = session.get(BuyingChainClaim, person["id"])
         citation = stored.citations[0]
         stored.citations = [
@@ -1224,12 +2104,18 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             }
         ]
         session.flush()
-        person = next(
+        citations_before = [dict(citation) for citation in stored.citations]
+        private_before = next(
             c
-            for c in chain.buying_chain_view(session, project.id, now=now)["candidates"]
+            for c in chain._buying_chain_current_view(session, project.id, now=now)["candidates"]
             if c["person_name"]
         )
-        assert person["public_contacts"]
+        evidence_before = [dict(item) for item in private_before["evidence"]]
+        assert private_before["public_contacts"] == stored.public_contacts
+        assert not any(
+            c["person_name"]
+            for c in chain.buying_chain_view(session, project.id, now=now)["candidates"]
+        )
 
         def forbidden(*_a, **_kw):
             pytest.fail("Retained-only pass must not refetch prior external contact source")
@@ -1241,10 +2127,19 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
             fetcher=forbidden,
             now=now + timedelta(minutes=1),
         )
-        preserved = next(c for c in after["candidates"] if c["person_name"])
+        preserved = next(
+            c
+            for c in chain._buying_chain_current_view(
+                session, project.id, now=now + timedelta(minutes=1)
+            )["candidates"]
+            if c["person_name"]
+        )
         assert preserved["person_project_relationship"] == "DIRECT"
-        assert preserved["public_contacts"] == person["public_contacts"]
-        assert preserved["organization_relationship"] == person["organization_relationship"]
+        assert preserved["public_contacts"] == private_before["public_contacts"]
+        assert preserved["organization_relationship"] == private_before["organization_relationship"]
+        assert stored.citations == citations_before
+        assert preserved["evidence"] == evidence_before
+        assert not any(c["person_name"] for c in after["candidates"])
         assert not preserved.get("purchasing_authority")
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
 
@@ -1362,9 +2257,13 @@ def test_retained_public_urls_precede_discovery_without_recasting_official_sourc
     question_id = schedule(factory, card)[0]
     job_id, fence = lease_question(factory, question_id)
     events = []
+    if public_expected:
+        approve_test_host(monkeypatch, "publisher.example")
 
-    def retrieve_public(candidate, **_kwargs):
+    def retrieve_public(candidate, **kwargs):
         assert candidate == url
+        kwargs["before_request"]("https://publisher.example/robots.txt")
+        kwargs["before_request"](candidate)
         events.append("public")
         return PublicDocument(candidate, "Project", "Bounded retained page")
 
@@ -1374,6 +2273,10 @@ def test_retained_public_urls_precede_discovery_without_recasting_official_sourc
         return []
 
     enable_fake_firecrawl(monkeypatch, factory, question_id)
+    if public_expected:
+        with factory.begin() as session:
+            question = session.get(PursuitResearchQuestion, question_id)
+            question.budget = {**question.budget, "documents": 4}
     monkeypatch.setattr(worker, "retrieve", retrieve_public)
     acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
     monkeypatch.setattr(acquisition, "discover_urls", search)
@@ -1395,7 +2298,7 @@ def test_retained_public_urls_precede_discovery_without_recasting_official_sourc
     assert events.count("public") == int(public_expected)
     with factory() as session:
         receipt = session.get(PursuitResearchQuestion, question_id).receipt
-        assert receipt.get("retrieval_attempts", 0) == int(public_expected)
+        assert receipt.get("retrieval_attempts", 0) == 2 * int(public_expected)
         if public_expected:
             assert receipt["source_checks"][0]["url"] == url
         else:
@@ -1520,7 +2423,10 @@ def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_gr
         assert len(list(session.scalars(select(PursuitResearchQuestion)))) == 1
 
 
-def test_real_projection_groups_outside_shortlist_before_research_planning(runtime, monkeypatch):
+@pytest.mark.parametrize("change_group_after_schedule", [False, True])
+def test_real_projection_groups_outside_shortlist_before_research_planning(
+    runtime, monkeypatch, change_group_after_schedule
+):
     import hashlib
 
     factory, worker, api, _ = runtime
@@ -1725,6 +2631,7 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
         )
         assert len(pair_questions) == 1
         assert pair_questions[0].need_id == UUID(pair_card["id"])
+        question_id = pair_questions[0].id
         assert set(pair_questions[0].context["before"]["related_need_ids"]) == pair_ids
         pair_states = pair_questions[0].context["before"]["related_need_states"]
         assert {state["held"] for state in pair_states} == {False, True}
@@ -1733,6 +2640,65 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
             schedule_questions(session, [pair_card, nearby_cards[0]], grouped=True, now=first_day)
             == []
         )
+
+    if change_group_after_schedule:
+        with factory.begin() as session:
+            sibling_need_id = next(
+                UUID(need_id) for need_id in pair_ids if need_id != pair_card["id"]
+            )
+            session.get(PowerNeed, sibling_need_id).active = False
+    monkeypatch.setattr(worker, "acquire_registered_record", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Grouped fingerprint checks must precede retrieval"),
+    )
+    grouped_job_id, grouped_fence = lease_question(factory, question_id)
+    worker.process_question_job(grouped_job_id, "question-test", grouped_fence)
+    with factory() as session:
+        grouped_question = session.get(PursuitResearchQuestion, question_id)
+        if change_group_after_schedule:
+            assert grouped_question.status == "FAILED"
+            assert grouped_question.receipt["error"] == "input_changed_before_research"
+            assert all(
+                route["status"] == "NOT_REACHED"
+                for route in grouped_question.receipt["route_results"]
+            )
+        else:
+            assert grouped_question.receipt.get("error") != "input_changed_before_research"
+            assert (
+                grouped_question.receipt["after_input_hash"]
+                == grouped_question.context["before"]["input_hash"]
+            )
+            import time
+
+            with factory.begin() as session:
+                job = session.scalar(select(Job).where(Job.target_id == question_id))
+                job.status = "queued"
+                job.lease_owner = None
+                job.lease_until = None
+                job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+                session.get(PursuitResearchQuestion, question_id).status = "SEARCHING"
+            followup_job_id, followup_fence = lease_question(factory, question_id)
+            worker._finish(
+                followup_job_id,
+                "question-test",
+                followup_fence,
+                question_id,
+                "RESOLVED",
+                time.monotonic(),
+            )
+            with factory() as session:
+                followups = list(
+                    session.scalars(
+                        select(PursuitResearchQuestion).where(
+                            PursuitResearchQuestion.parent_id == question_id
+                        )
+                    )
+                )
+                assert len(followups) == 1
+                assert followups[0].context["grouped_planner"] is True
+                assert set(followups[0].context["before"]["related_need_ids"]) == pair_ids
 
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     second_day = first_day + timedelta(days=1)

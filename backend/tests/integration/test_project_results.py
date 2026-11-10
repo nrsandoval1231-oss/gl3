@@ -143,6 +143,13 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         assert selected["event"] == lower_need["project_metadata"]["event"]
         assert selected["power_summary"] == lower_need["project_metadata"]["power_summary"]
         assert selected["next_action"] == lower_need["commercial_preview"]["next_action"]
+        assert grouped["commercial_brief"]["version"]
+        assert grouped["needs"][0]["commercial_brief"]["power_need"]["value"] is None
+        # This fixture has fabricated claim IDs, so neither the legacy cache
+        # nor the new brief may turn its copied email into an authorized route.
+        # The native positive-to-suppressed path is tested separately in
+        # test_phase2_native_contact_privacy.py.
+        assert grouped["commercial_brief"]["best_contact"] is None
         assert "contacts" not in grouped["needs"][0]
         assert "suppressed@example.invalid" not in repr(full["items"])
         second = page(
@@ -164,12 +171,12 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
             page(session, sector="oil_gas", offset=1, token=first["cohort_token"])
         assert getattr(stale.value, "status_code", None) in {409, 422}
         before_suppression = page(session, sector="oil_gas")
-        assert before_suppression["items"][0]["contact"]
-        assert before_suppression["items"][0]["contact_people"]
-        action = before_suppression["items"][0]["contact"][0]
-        assert "company_identity_id" not in action and "claim_id" not in action
-    # Method suppression added after snapshot creation removes call/email routes
-    # while preserving a separately supported named person without a method.
+        # Saved actions with synthetic/nonexistent claim IDs cannot outlive the
+        # current canonical buying-chain projection after a restart or refresh.
+        assert before_suppression["items"][0]["contact"] == []
+        assert before_suppression["items"][0]["contact_people"] == []
+    # Later suppressions must not resurrect these unresolvable cached records.
+    # This exercises refusal stability; it is not a positive suppression proof.
     with saved_db.begin() as writer:
         writer.add(
             ContactSuppression(
@@ -188,11 +195,13 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
     with saved_db() as session:
         method_suppressed = page(session, sector="oil_gas")
         assert method_suppressed["items"][0]["contact"] == []
-        assert method_suppressed["items"][0]["contact_people"]
+        assert method_suppressed["items"][0]["contact_people"] == []
         assert all(
             not need.get("contact_actions") for need in method_suppressed["items"][0]["needs"]
         )
-        assert all(need.get("contact_people") for need in method_suppressed["items"][0]["needs"])
+        assert all(
+            not need.get("contact_people") for need in method_suppressed["items"][0]["needs"]
+        )
     # Person suppression removes the role record as well; company suppression
     # then covers every company-level route regardless of person or method.
     with saved_db.begin() as writer:
@@ -228,6 +237,7 @@ def test_project_groups_needs_filters_sector_and_fences_pagination(saved_db):
         company_suppressed = page(session, sector="oil_gas")
         assert company_suppressed["items"][0]["contact"] == []
         assert company_suppressed["items"][0]["contact_people"] == []
+        assert company_suppressed["items"][0]["commercial_brief"]["best_contact"] is None
 
 
 def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unchanged(saved_db):
@@ -399,6 +409,10 @@ def test_source_bound_shortlist_filters_before_counts_and_keeps_all_projects_unc
         assert "Jane Doe" not in repr(assessment)
         assert "+44 20 7946 0958" not in repr(assessment)
         assert "+49 30 901820" not in repr(assessment)
+        brief_text = repr(shortlist["items"][0]["commercial_brief"])
+        assert "Jane Doe" not in brief_text
+        assert "+44 20 7946 0958" not in brief_text
+        assert "+49 30 901820" not in brief_text
         detail = page(session, shortlist=True, need_id=need_ids[0])
         assert detail["total"] == 1
         assert (
@@ -675,6 +689,12 @@ def test_project_sort_uses_visible_name_without_exact_company_prefix(
     from test_saved_browse import seed
 
     seed(saved_db, count=2, histories=1)
+    from gridlens.persistence.models import PowerNeed, Project
+
+    with saved_db.begin() as session:
+        needs = session.scalars(select(PowerNeed).order_by(PowerNeed.id)).all()
+        for need, title in zip(needs, (first_title, "Alpha · Beta Asset"), strict=True):
+            session.get(Project, need.project_id).name = title
     rebuild(saved_db)
     with saved_db.begin() as session:
         generation = current_generation(session)

@@ -216,22 +216,46 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     {visiblePage && <div className="cfr-table-wrap"><table className="cfr-table" role="table"><thead className="cfr-thead"><tr role="row"><th>What</th><th>Why now</th><th>Power need</th><th>Next step</th><th>Actions</th></tr></thead><tbody>{visible.map(item => {
       const primaryNeedId = item.representative_need_id ?? item.needs[0]?.id
       const selected = selectedNeedId && item.needs.some(need => need.id === selectedNeedId)
+      const brief = item.commercial_brief ?? item.needs.find(need => need.id === primaryNeedId)?.commercial_brief ?? null
       const powerKind = item.power_summary_kind ?? 'unknown'
       const powerText = item.power_summary?.trim()
-      const powerLabel = powerText && (powerKind === 'facility_demand' || powerKind === 'activity_requirement')
-        ? `${powerKind === 'facility_demand' ? 'Facility demand' : 'Power need'} · ${powerText}`
-        : 'Power need unknown'
+      const briefPower = brief?.power_need
+      const powerLabel = brief
+        ? briefPower?.amount_class !== 'unknown' && briefPower?.value?.trim()
+          ? `${powerNeedAmount(briefPower.value, briefPower.unit)}${briefPower.scope ? ` · ${briefPower.scope}` : ''}`
+          : 'Power need unknown'
+        : powerText && (powerKind === 'facility_demand' || powerKind === 'activity_requirement')
+          ? `${powerKind === 'facility_demand' ? 'Facility demand' : 'Power need'} · ${powerText}`
+          : 'Power need unknown'
       const assessment = item.shortlist_assessment
       return <tr role="row" key={item.id} aria-selected={selected ? true : undefined} className={selected ? 'cfr-selected' : undefined}>
         <td role="cell" data-label="What" className="cfr-c-project"><span className="cfr-company-project">{item.company && <strong>{item.company}</strong>}<button type="button" data-need-row={primaryNeedId} onClick={() => primaryNeedId && onNeed({ id: primaryNeedId })} disabled={!canInteract || !primaryNeedId}>{cardProjectName(item)}</button>{item.location && <small>{item.location}</small>}</span></td>
-        <td role="cell" data-label="Why now" className="cfr-card-why">{assessment?.why_now ?? (item.event?.date && item.event.label ? `${item.event.label} · ${item.event.date}` : 'No dated development established.')}</td>
-        <td role="cell" data-label="Power need" className="cfr-power">{powerLabel}</td>
-        <td role="cell" data-label="Next step" className="cfr-card-next">{assessment?.next_step ?? (!shortlist ? item.next_action : null) ?? 'Confirm project scope and timing from sources.'}</td>
-        <td role="cell" className="cfr-card-action">{primaryNeedId && <AddToPursuit key={primaryNeedId} needId={primaryNeedId} disabled={!canInteract} deferLookup/>}</td>
+        <td role="cell" data-label="Why now" className="cfr-card-why">{brief ? brief.why_now.text ?? 'Why now is not established from current evidence.' : assessment?.why_now ?? (item.event?.date && item.event.label ? `${item.event.label} · ${item.event.date}` : 'No dated development established.')}{brief?.why_now.scope && <small>Scope: {brief.why_now.scope}</small>}{brief?.why_now.source_date && <small>Source date: {brief.why_now.source_date}</small>}{brief && !brief.why_now.text && brief.limitations.filter(limitation => /why.now|source citation|source.backed event/i.test(limitation)).map(limitation => <small key={limitation}>{limitation}</small>)}</td>
+        <td role="cell" data-label="Power need" className="cfr-power">{powerLabel}{briefPower && <small>{briefPower.amount_class === 'unknown' ? 'Amount unknown' : `${briefPower.amount_class} · ${briefPower.status}`}{briefPower.limitations.length > 0 && ` · ${briefPower.limitations.join('; ')}`}</small>}</td>
+        <td role="cell" data-label="Next step" className="cfr-card-next">{brief?.next_action.text ?? assessment?.next_step ?? (!shortlist ? item.next_action : null) ?? 'Confirm project scope and timing from sources.'}{brief?.freshness.status && <small>{humanizeStatus(brief.freshness.status)}{brief.freshness.source_date ? ` · source date ${brief.freshness.source_date}` : ''}</small>}</td>
+        <td role="cell" className="cfr-card-action">{brief?.best_contact?.href && safeBriefContactHref(brief.best_contact.kind, brief.best_contact.href) && <a className="cfr-contact-route" aria-label={`Best contact ${brief.best_contact.contact}. Authority: ${brief.best_contact.authority}. Deliverability: ${brief.best_contact.deliverability}.`} href={safeBriefContactHref(brief.best_contact.kind, brief.best_contact.href)!}>{brief.best_contact.kind === 'call' ? 'Call' : brief.best_contact.kind === 'email' ? 'Email' : 'Contact'} · {brief.best_contact.contact}<small>Authority: {brief.best_contact.authority} · Deliverability: {brief.best_contact.deliverability}</small></a>}{primaryNeedId && <AddToPursuit key={primaryNeedId} needId={primaryNeedId} disabled={!canInteract} deferLookup/>}</td>
       </tr>
     })}</tbody></table></div>}
     {visiblePage && <footer className="cfr-paging"><span>{visiblePage.items.length ? `${visiblePage.offset + 1}–${visiblePage.offset + visiblePage.items.length} of ${projectCount(visiblePage.total)}` : visiblePage.total ? `0 projects on this page · ${projectCount(visiblePage.total)} total` : '0 projects'}{(region || stage || priority) && ` · ${visible.length} of ${visiblePage.items.length} projects on this page match filters`}</span><button type="button" disabled={!canInteract || offset === 0} onClick={() => { const next = Math.max(0, offset - visiblePage.limit); onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, shortlist, visiblePage.cohort_token, false, { region, stage, priority }) }}>Previous</button><button type="button" disabled={!canInteract || offset + visiblePage.items.length >= visiblePage.total} onClick={() => { const next = offset + visiblePage.limit; onBrowseChangeRef.current?.(); setOffset(next); updateUrl(search, sector, next, sort, shortlist, visiblePage.cohort_token, false, { region, stage, priority }) }}>Next</button></footer>}
   </section>
+}
+
+const STRICT_EMAIL = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}$/
+function safeBriefContactHref(kind: string, value: string): string | null {
+  const contact = value.trim()
+  if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(contact)) return contact
+  if (kind === 'email' && contact.toLowerCase().startsWith('mailto:') && STRICT_EMAIL.test(contact.slice(7))) return `mailto:${contact.slice(7)}`
+  if (kind === 'contact') {
+    try { const url = new URL(contact); return ['https:', 'http:'].includes(url.protocol) ? url.href : null } catch { return null }
+  }
+  return null
+}
+function powerNeedAmount(value: string, unit: string | null): string {
+  const amount = value.trim()
+  return unit && !new RegExp(`\\b${unit}\\s*$`, 'i').test(amount) ? `${amount} ${unit}` : amount
+}
+function humanizeStatus(value: string): string {
+  return value.replaceAll('_', ' ').replace(/\b[a-z]/g, character => character.toUpperCase())
 }
 
 /** Show the sector demand summary while preserving unknown and unavailable states. */

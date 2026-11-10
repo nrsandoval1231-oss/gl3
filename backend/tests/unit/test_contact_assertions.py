@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 import gridlens.intelligence.contact_assertions as contact_assertions
 from gridlens.domain.opportunity_intelligence import contact_projection
-from gridlens.intelligence.buying_chain import buying_chain_view
+from gridlens.intelligence import company_contact_attribution
+from gridlens.intelligence.buying_chain import _buying_chain_current_view, buying_chain_view
 from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
     SuppressionConflict,
@@ -212,6 +213,21 @@ def _seed_published_contact(session):
     )
     session.flush()
     return company, project, claim, linked_source
+
+
+def _assume_synthetic_attribution_for_ledger_projection(monkeypatch):
+    """Opt one named ledger test out of the separate native-attribution gate."""
+
+    def fixture_attribution_test_double(_session, _views):
+        # Callers use labeled example.test fixtures to isolate suppression and
+        # correction behavior; these fixtures do not prove public-site authority.
+        return None
+
+    monkeypatch.setattr(
+        company_contact_attribution,
+        "filter_unbound_company_contacts",
+        fixture_attribution_test_double,
+    )
 
 
 @pytest.fixture
@@ -509,9 +525,18 @@ def test_correction_writer_rejects_forged_role_and_wrong_project_replay(contact_
             )
 
 
-def test_method_suppression_redacts_current_and_history_buying_chain_reads(contact_db):
+def test_method_suppression_ledger_projection_redacts_current_and_history_reads(
+    contact_db, monkeypatch
+):
+    """Exercise ledger redaction with an explicit attribution test double.
+
+    The fixture's example.test source is synthetic and does not establish public
+    company authority. This unit isolates independent suppression-ledger behavior;
+    native evidence authorization is covered by separate integration tests.
+    """
     with contact_db() as session:
         company, project, claim, _source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         refreshed_claim = BuyingChainClaim(
             project_id=claim.project_id,
             entity_key=claim.entity_key,
@@ -547,6 +572,12 @@ def test_method_suppression_redacts_current_and_history_buying_chain_reads(conta
         )
         run = session.query(BuyingChainRun).filter_by(project_id=project.id).one()
         run.claim_ids = [str(claim.id), str(refreshed_claim.id)]
+        before = _buying_chain_current_view(session, project.id)
+        before_claim = next(row for row in before["candidates"] if row["id"] == refreshed_claim.id)
+        assert any(
+            method.get("value") == "avery@example.test"
+            for method in before_claim["public_contacts"]
+        )
         key = method_suppression_key(
             company.id, claim.person_name, "email", "mailto:avery@example.test"
         )
@@ -561,6 +592,7 @@ def test_method_suppression_redacts_current_and_history_buying_chain_reads(conta
             idempotency_key="method-hide-current-history",
         )
         session.flush()
+
         current = buying_chain_view(session, project.id)
         historical = buying_chain_view(session, project.id, history=True)
         assert any(row["id"] == refreshed_claim.id for row in current["candidates"])
@@ -895,6 +927,7 @@ def test_global_person_suppression_survives_new_claim_and_source_version(contact
 
     with contact_db() as session:
         company, project, old_claim, old_source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         project.region_status = "ELIGIBLE"
         project.region_state = "TX"
         person = PersonIdentity()
@@ -1156,11 +1189,12 @@ def test_global_search_does_not_return_suppressed_contact_method(contact_db, mon
     assert project_id not in {item["project_id"] for item in payload["projects"]}
 
 
-def test_contact_kind_reuses_exact_method_and_null_clears(contact_db):
+def test_contact_kind_reuses_exact_method_and_null_clears(contact_db, monkeypatch):
     from gridlens.intelligence.internal_corrections import correct_buying_chain_claim
 
     with contact_db() as session:
         _company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         asserted = correct_buying_chain_claim(
             session,
             project_id=project.id,
@@ -1195,11 +1229,12 @@ def test_contact_kind_reuses_exact_method_and_null_clears(contact_db):
         assert cleared.expected_version == str(asserted.id)
 
 
-def test_suppression_redacts_methods_removed_before_suppression(contact_db):
+def test_suppression_redacts_methods_removed_before_suppression(contact_db, monkeypatch):
     from gridlens.intelligence.internal_corrections import correct_buying_chain_claim
 
     with contact_db() as session:
         company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         cleared = correct_buying_chain_claim(
             session,
             project_id=project.id,
@@ -1250,6 +1285,7 @@ def test_phone_suppression_does_not_join_neighboring_evidence_quotes(contact_db,
 
     with contact_db() as session:
         _company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         project.region_status = "ELIGIBLE"
         project.region_state = "TX"
         first_quote = "Call Avery at 512-555-0100 for project operations."
@@ -1328,6 +1364,7 @@ def test_suppressed_email_is_redacted_from_surviving_phone_quote(contact_db, mon
 
     with contact_db() as session:
         _company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         project.region_status = "ELIGIBLE"
         project.region_state = "TX"
         shared_quote = (
@@ -1408,6 +1445,7 @@ def test_extracted_title_email_is_redacted_across_candidate_display_fields(conta
 
     with contact_db() as session:
         _company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         project.region_status = "ELIGIBLE"
         project.region_state = "TX"
         html = (
@@ -1639,9 +1677,10 @@ def test_imported_contacts_remain_separate_and_unverified(contact_db):
         assert view["imported_unverified"][0]["mailbox_verified"] is False
 
 
-def test_contact_assertion_projection_preserves_historical_corrections(contact_db):
+def test_contact_assertion_projection_preserves_historical_corrections(contact_db, monkeypatch):
     with contact_db() as session:
         company, project, claim, source = _seed_published_contact(session)
+        _assume_synthetic_attribution_for_ledger_projection(monkeypatch)
         before = company_contacts(session, company.id)
         assert any(
             method["value"] == "avery@example.test"

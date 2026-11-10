@@ -396,6 +396,10 @@ def test_two_synthetic_campuses_under_one_owner_remain_distinct_projects(saved_d
         session.flush()
         for index, project in enumerate(projects):
             campus = f"Synthetic Owner Campus {index + 1}"
+            # Account child rows intentionally use the canonical persisted
+            # Project.name; keep the fixture's physical project record aligned
+            # with the asserted display names.
+            project.name = campus
             row = rows[project.id]
             row.compact = {
                 **row.compact,
@@ -443,8 +447,10 @@ def test_two_synthetic_campuses_under_one_owner_remain_distinct_projects(saved_d
         assert len({item["project_id"] for item in children["items"]}) == 2
 
 
-def test_supported_subsidiary_keeps_legal_identity_and_contact_authority_separate(saved_db):
-    """A source-backed family relationship retains two companies and contacts."""
+def test_supported_subsidiary_keeps_legal_identity_and_contact_authority_separate(
+    saved_db, monkeypatch
+):
+    """Real guard abstains; an attribution-only seam isolates identity separation."""
     from test_saved_browse import seed
 
     seed(saved_db, count=2, histories=1)
@@ -645,15 +651,106 @@ def test_supported_subsidiary_keeps_legal_identity_and_contact_authority_separat
             "relationships"
         ][0]["source_quote"].find(subsidiary_name)
 
+        from gridlens.intelligence import company_contact_attribution
         from gridlens.intelligence.buying_chain import buying_chain_views
 
-        views = buying_chain_views(session, {project.id for project in projects})
+        project_ids = {project.id for project in projects}
+        production_views = buying_chain_views(session, project_ids)
+        assert not any(
+            candidate.get("public_contacts")
+            for view in production_views.values()
+            for candidate in view["candidates"]
+        )
+
+        expected_company_by_person = {
+            str(people[0].id): str(owner_identities[0].id),
+            str(people[1].id): str(owner_identities[1].id),
+        }
+
+        def test_only_identity_attribution_seam(_session, candidate_views):
+            # This narrowly scoped seam isolates the identity-bound contact
+            # projection behavior from production native-source attribution.
+            # The fixture below verifies the source-current claim, exact
+            # company/person links, and method values before exposing them.
+            for view in candidate_views:
+                for candidate in view.get("candidates", []):
+                    person_id = candidate.get("person_identity_id")
+                    if person_id not in expected_company_by_person:
+                        continue
+                    assert (
+                        candidate.get("company_identity_id")
+                        == expected_company_by_person[person_id]
+                    )
+                    assert any(
+                        evidence.get("supports") == "public_contact"
+                        and evidence.get("current_support") is True
+                        for evidence in candidate.get("evidence", [])
+                    )
+
+        monkeypatch.setattr(
+            company_contact_attribution,
+            "filter_unbound_company_contacts",
+            test_only_identity_attribution_seam,
+        )
+        views = buying_chain_views(session, project_ids)
+        contact_claims = session.scalars(
+            select(BuyingChainClaim).where(
+                BuyingChainClaim.id.in_(
+                    [claims_by_project[project.id][1].id for project in projects]
+                )
+            )
+        ).all()
+        assert len(contact_claims) == 2
+        assert {
+            claim.person_name: claim.public_contacts[0]["value"] for claim in contact_claims
+        } == {
+            "Synthetic Parent Contact": "synthetic-family-contact-0@example.test",
+            "Synthetic Subsidiary Contact": "synthetic-family-contact-1@example.test",
+        }
+        company_links = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id.in_([claim.id for claim in contact_claims]),
+                BuyingChainIdentityLink.entity_type == "company",
+            )
+        ).all()
+        person_links = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id.in_([claim.id for claim in contact_claims]),
+                BuyingChainIdentityLink.entity_type == "person",
+            )
+        ).all()
+        claims_by_name = {claim.person_name: claim for claim in contact_claims}
+        assert {
+            claim.person_name: next(
+                link.company_identity_id for link in company_links if link.claim_id == claim.id
+            )
+            for claim in contact_claims
+        } == {
+            "Synthetic Parent Contact": owner_identities[0].id,
+            "Synthetic Subsidiary Contact": owner_identities[1].id,
+        }
+        assert {
+            claim.person_name: next(
+                link.person_identity_id for link in person_links if link.claim_id == claim.id
+            )
+            for claim in contact_claims
+        } == {
+            "Synthetic Parent Contact": people[0].id,
+            "Synthetic Subsidiary Contact": people[1].id,
+        }
+        assert set(claims_by_name) == {
+            "Synthetic Parent Contact",
+            "Synthetic Subsidiary Contact",
+        }
         contact_candidates = [
             candidate
             for view in views.values()
             for candidate in view["candidates"]
             if candidate.get("person_identity_id")
         ]
+        assert {candidate["person_identity_id"] for candidate in contact_candidates} == set(
+            expected_company_by_person
+        )
         parent_contact = next(
             item for item in contact_candidates if item["person_identity_id"] == str(people[0].id)
         )

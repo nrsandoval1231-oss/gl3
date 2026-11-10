@@ -126,6 +126,103 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         .all()
     )
     items = []
+    from gridlens.domain.commercial_brief import build_optional_commercial_brief
+    from gridlens.intelligence.saved_history_privacy import (
+        _redact_all_contact_tokens,
+        project_saved_history_privacy,
+    )
+
+    need_ids = [compact.get("id") for compact in rows if compact.get("id")]
+    evidence_by_need: dict[str, list[dict[str, Any]]] = {str(identity): [] for identity in need_ids}
+    if need_ids:
+        source_rows = (
+            session.execute(
+                text(
+                    """WITH accepted AS (
+                       SELECT DISTINCT ON (no.need_id, e.id)
+                          no.need_id, e.id, e.title, e.url, left(e.abstract, 8192) AS abstract,
+                          e.event_date,
+                          e.event_date_label, e.published_at, e.observed_at, e.content_hash,
+                          e.extraction_location, o.content_hash AS semantic_hash,
+                          i.evaluator_version,
+                          jsonb_build_object(
+                              'semantic_hash', i.assessment->'semantic_hash',
+                              'evidence_hash', i.assessment->'evidence_hash',
+                              'project_identity_key', i.assessment->'project_identity_key',
+                                  'acquisition_capture_version',
+                                  i.assessment->'acquisition_capture_version',
+                              'admission_status', i.assessment->'admission_status',
+                              'target_need_id', i.assessment->'target_need_id',
+                              'project_id', i.assessment->'project_id',
+                              'research_claims', jsonb_path_query_array(
+                                  i.assessment->'research_claims',
+                                  '$[*] ? (@.field == "activity_load_mw")'
+                              )
+                          ) AS assessment,
+                          s.id AS source_id, s.family AS source_family,
+                          s.retrieval_method, p.identity_key AS project_identity_key
+                   FROM need_observations no
+                   JOIN observations o ON o.id=no.observation_id
+                   JOIN evidence e ON e.observation_id=o.id
+                   JOIN interpretations i ON i.observation_id=o.id
+                   JOIN sources s ON s.id=o.source_id
+                   JOIN power_needs pn ON pn.id=no.need_id
+                   JOIN projects p ON p.id=pn.project_id
+                   WHERE no.need_id=ANY(CAST(:need_ids AS uuid[]))
+                     AND i.content_hash=o.content_hash
+                     AND i.assessment->>'semantic_hash'=o.content_hash
+                     AND i.assessment->>'evidence_hash'=e.content_hash
+                     AND i.status='accepted'
+                     AND coalesce(i.assessment->>'decision','accepted')='accepted'
+                   ORDER BY no.need_id,e.id,i.id DESC
+                   ), ranked AS (
+                   SELECT accepted.*,
+                          count(*) OVER (PARTITION BY accepted.need_id) AS source_count,
+                          row_number() OVER (
+                              PARTITION BY accepted.need_id ORDER BY accepted.id
+                          ) AS source_rank
+                   FROM accepted
+                   )
+                   SELECT * FROM ranked WHERE source_rank <= 41"""
+                ),
+                {"need_ids": need_ids},
+            )
+            .mappings()
+            .all()
+        )
+        overflow_needs: set[str] = set()
+        for source in source_rows:
+            if source["source_count"] > 40:
+                need_key = str(source["need_id"])
+                if need_key not in overflow_needs:
+                    evidence_by_need[need_key].append({"overflow": True})
+                    overflow_needs.add(need_key)
+                continue
+            evidence_by_need[str(source["need_id"])].append(
+                {
+                    "id": str(source["id"]),
+                    "title": source["title"],
+                    "url": source["url"],
+                    "abstract": source["abstract"],
+                    "event_date": source["event_date"],
+                    "event_date_label": source["event_date_label"],
+                    "published_at": source["published_at"],
+                    "observed_at": source["observed_at"],
+                    "content_hash": source["content_hash"],
+                    "semantic_hash": source["semantic_hash"],
+                    "assessment": source["assessment"],
+                    "evaluator_version": source["evaluator_version"],
+                    "source": {
+                        "id": source["source_id"],
+                        "family": source["source_family"],
+                        "retrieval_method": source["retrieval_method"],
+                    },
+                    "project_identity_key": source["project_identity_key"],
+                    "extraction_location": source["extraction_location"],
+                    "current": True,
+                }
+            )
+
     for compact in rows:
         preview = compact.pop("commercial_preview", {})
         if (
@@ -143,16 +240,45 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
                 "Commercial workspace preview unavailable; saved browse generation needs rebuild",
                 headers={"Retry-After": "5", "X-Qualification-State": "pending"},
             )
-        items.append(
+        item = {
+            **compact,
+            "commercial_disposition": preview["disposition"],
+            "commercial_reason": preview["reason"],
+            "commercial_next_question": preview["next_question"],
+            "commercial_next_action": preview["next_action"],
+            "commercial_organization": preview.get("organization"),
+        }
+        item["commercial_brief"] = build_optional_commercial_brief(
             {
-                **compact,
-                "commercial_disposition": preview["disposition"],
-                "commercial_reason": preview["reason"],
-                "commercial_next_question": preview["next_question"],
-                "commercial_next_action": preview["next_action"],
-                "commercial_organization": preview.get("organization"),
+                **item,
+                "commercial_preview": preview,
+                # Workspace contact actions are generation-bound. They are
+                # privacy-filtered again by project result routes only, so do
+                # not elevate a cached route into this compact need brief.
+                "contact_actions": [],
+                "evidence": evidence_by_need.get(str(item.get("id")), []),
             }
         )
+        items.append(item)
+    if items:
+        projected = project_saved_history_privacy(
+            session,
+            {
+                "versions": [
+                    {
+                        "saved_card": {
+                            "project_id": item.get("project_id"),
+                            "commercial_brief": item["commercial_brief"],
+                        }
+                    }
+                    for item in items
+                ]
+            },
+        )["versions"]
+        for item, version in zip(items, projected, strict=True):
+            item["commercial_brief"] = _redact_all_contact_tokens(
+                version["saved_card"]["commercial_brief"]
+            )
     next_offset = offset + len(items) if offset + len(items) < total else None
     return {
         "items": items,
