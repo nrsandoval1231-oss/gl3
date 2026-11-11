@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -4020,6 +4021,190 @@ def _store_publisher_rss_checkpoint(
     )
 
 
+class _IngestionBatch:
+    """Durability policy for ``process_records``: one real COMMIT per batch of records.
+
+    ``process_records`` has several durable boundaries per record (observation and evidence
+    first, then the pending interpretation, then the finished record). Historically each was a
+    COMMIT. With ``commit=True`` and a batch size above one, each boundary becomes a SAVEPOINT
+    boundary instead (flush, RELEASE, new SAVEPOINT), so what a failing record leaves behind is
+    exactly what the per-boundary commits left behind, and only the real COMMIT moves to the end
+    of the batch. A batch ends after ``size`` records, after ``max_seconds`` of wall time (this
+    bounds how long row locks are held and how long the lease goes unrefreshed) or at the end of
+    the input. ``job.checkpoint`` names the last fully processed record and is written, together
+    with a lease extension and a fence check, once per batch.
+
+    Failure semantics (see ``abort``): an ordinary exception rolls back only the open savepoint
+    segment and commits the released work if the lease is still held; lease loss rolls back the
+    whole uncommitted batch; a crash loses only the uncommitted batch, which replays
+    idempotently. ``commit=False`` (caller owns the transaction) and a batch size of one keep the
+    original behaviour byte for byte.
+    """
+
+    def __init__(
+        self,
+        session: Session,
+        job_id: Any,
+        worker_id: str,
+        fence: int,
+        *,
+        commit: bool,
+        deadline: float | None,
+        lease_expiry: datetime | None,
+        size: int,
+        max_seconds: float,
+    ) -> None:
+        self.session = session
+        self.job_id, self.worker_id, self.fence = job_id, worker_id, fence
+        self.commit = commit
+        self.deadline = deadline
+        self.lease_expiry = lease_expiry
+        self.size = size
+        self.max_seconds = max_seconds
+        self.batched = bool(commit and size > 1)
+        self._savepoint: Any = None
+        self._direct = False  # the rest of this record commits for real (network ahead)
+        self._active = False
+        self._in_commit = False
+        self._pending = 0
+        self._last_done: str | None = None
+        self._began: float | None = None  # monotonic start of the open batch
+
+    def start_record(self) -> None:
+        if not self.batched:
+            return
+        if self._savepoint is None and not self._direct:
+            self._savepoint = self.session.begin_nested()
+            self._active = True
+        if self._began is None:
+            self._began = time.monotonic()
+        # A commit used to expire every loaded object; keep reading current rows per record.
+        self.session.expire_all()
+
+    def boundary(self) -> None:
+        """A durable boundary inside a record (was ``commit if commit else flush``)."""
+        if not self.batched:
+            self.session.commit() if self.commit else self.session.flush()
+        elif self._direct:
+            self.session.commit()
+        else:
+            self._release_and_reopen()
+
+    def _release_and_reopen(self) -> None:
+        self._release()
+        self._savepoint = self.session.begin_nested()
+
+    def record_done(self, external_id: str) -> None:
+        """The record finished: checkpoint it and take its final durable boundary."""
+        if not self.batched:
+            job = assert_fence(self.session, self.job_id, self.worker_id, self.fence)
+            if self.commit:
+                job.checkpoint = external_id
+                _advance_job_lease(job, self.lease_expiry)
+            remaining_seconds(self.deadline)
+            self.session.commit() if self.commit else self.session.flush()
+            return
+        if self._direct:
+            job = assert_fence(self.session, self.job_id, self.worker_id, self.fence)
+            job.checkpoint = external_id
+            _advance_job_lease(job, self.lease_expiry)
+            remaining_seconds(self.deadline)
+            self._in_commit = True
+            self.session.commit()
+            self._in_commit = False
+            self._direct = False
+            self._pending, self._last_done, self._began = 0, None, None
+            return
+        remaining_seconds(self.deadline)
+        self._release()
+        self._last_done = external_id
+        self._end_record()
+
+    def record_failed(self) -> None:
+        """A record ended in a durable per-record failure (retryable pending row): no checkpoint."""
+        if not self.batched:
+            self.session.commit() if self.commit else self.session.flush()
+            return
+        if self._direct:
+            self.session.commit()
+            self._direct = False
+            return
+        self._release()
+        self._end_record()
+
+    def _release(self) -> None:
+        # If the flush or RELEASE fails, ``_savepoint`` stays set so ``abort`` can see it.
+        self.session.flush()
+        self._savepoint.commit()
+        self._savepoint = None
+
+    def _end_record(self) -> None:
+        self._pending += 1
+        if self._savepoint is not None:
+            self._release()
+        if (
+            self._pending >= self.size
+            or time.monotonic() - (self._began or time.monotonic()) >= self.max_seconds
+        ):
+            self._commit_batch()
+
+    def _commit_batch(self) -> None:
+        job = assert_fence(self.session, self.job_id, self.worker_id, self.fence)
+        if self._last_done is not None:
+            job.checkpoint = self._last_done
+            _advance_job_lease(job, self.lease_expiry)
+        self._in_commit = True
+        self.session.commit()
+        self._in_commit = False
+        self._pending, self._last_done, self._began = 0, None, None
+
+    def before_network(self) -> None:
+        """Network retrieval needs a clean session: end the batch and commit the rest for real."""
+        if not self.batched or self._direct:
+            return
+        if self._savepoint is not None:
+            self._release()
+        self._commit_batch()
+        self._direct = True
+
+    def finish(self) -> None:
+        if not self.batched or not self._active:
+            return
+        if self._savepoint is not None:
+            self._release()
+        if self.session.in_transaction():
+            self._commit_batch()
+
+    def abort(self) -> None:
+        """Called with an exception in flight (which the caller re-raises)."""
+        if not self.batched or not self._active:
+            return
+        session = self.session
+        try:
+            if self._in_commit:
+                raise RuntimeError("batch commit failed; nothing was published")
+            savepoint, self._savepoint = self._savepoint, None
+            if self._direct:
+                session.rollback()
+                return
+            # An already-failed flush has rolled the savepoint back by itself.
+            if savepoint is not None and savepoint.is_active:
+                savepoint.rollback()
+            # Lease loss raises here and falls through to a whole-batch rollback.
+            job = assert_fence(session, self.job_id, self.worker_id, self.fence)
+            if self._last_done is not None:
+                job.checkpoint = self._last_done
+                _advance_job_lease(job, self.lease_expiry)
+            self._in_commit = True
+            session.commit()
+            self._in_commit = False
+        except Exception:
+            try:
+                session.rollback()
+            except Exception:
+                logging.getLogger(__name__).exception("ingestion batch rollback failed")
+
+
 def process_records(
     session: Session,
     job_id: Any,
@@ -4036,6 +4221,56 @@ def process_records(
     historical_snapshot: bool = False,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
+    batch = _IngestionBatch(
+        session,
+        job_id,
+        worker_id,
+        fence,
+        commit=commit,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
+        size=settings.ingestion_batch_size,
+        max_seconds=settings.ingestion_batch_max_seconds,
+    )
+    try:
+        counts = _process_records_loop(
+            session,
+            job_id,
+            worker_id,
+            fence,
+            source_definition,
+            records,
+            client,
+            batch,
+            commit=commit,
+            allow_model=allow_model,
+            deadline=deadline,
+            lease_expiry=lease_expiry,
+            historical_snapshot=historical_snapshot,
+        )
+        batch.finish()
+    except Exception:
+        batch.abort()
+        raise
+    return counts
+
+
+def _process_records_loop(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+    client: httpx.Client | None,
+    batch: _IngestionBatch,
+    *,
+    commit: bool = True,
+    allow_model: bool = True,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
+    historical_snapshot: bool = False,
+) -> dict[str, Any]:
     if commit and (
         session.new or session.dirty or session.deleted or session.in_nested_transaction()
     ):
@@ -4083,6 +4318,7 @@ def process_records(
         )
     pdf_documents = 0
     for record in records:
+        batch.start_record()
         remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         source = session.get(Source, source_definition["id"])
@@ -4171,12 +4407,7 @@ def process_records(
                     )
                 counts["older_amendments_retained"] = counts.get("older_amendments_retained", 0) + 1
                 counts["unchanged"] += 1
-                job = assert_fence(session, job_id, worker_id, fence)
-                if commit:
-                    job.checkpoint = external_id
-                    _advance_job_lease(job, lease_expiry)
-                remaining_seconds(deadline)
-                session.commit() if commit else session.flush()
+                batch.record_done(external_id)
                 continue
         is_new = observation is None
         same_material_fields = bool(
@@ -4252,7 +4483,7 @@ def process_records(
             )
         # Ordinary ingestion keeps evidence durable across enrichment failure.
         remaining_seconds(deadline)
-        session.commit() if commit else session.flush()
+        batch.boundary()
         companions = record.get("companions", [])
         if not isinstance(companions, list):
             raise ValueError("Source companions must be a list")
@@ -4286,7 +4517,7 @@ def process_records(
                 )
         if companions:
             remaining_seconds(deadline)
-        session.commit() if commit else session.flush()
+        batch.boundary()
         # The PDF is an alternate representation of the FR record. Attach its
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
@@ -4311,6 +4542,7 @@ def process_records(
                     pdf_citations = []
                 else:
                     pdf_documents += 1
+                    batch.before_network()
                     pdf_citations = _retrieve_companion_outside_transaction(
                         session,
                         job_id,
@@ -4354,7 +4586,7 @@ def process_records(
                         )
                     )
                     remaining_seconds(deadline)
-                    session.commit() if commit else session.flush()
+                    batch.boundary()
                 if native_ferc_candidate:
                     native_pdf_evidence = session.scalar(
                         select(Evidence).where(
@@ -4518,12 +4750,7 @@ def process_records(
                 counts[
                     "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
                 ] += 1
-            job = assert_fence(session, job_id, worker_id, fence)
-            if commit:
-                job.checkpoint = external_id
-                _advance_job_lease(job, lease_expiry)
-            remaining_seconds(deadline)
-            session.commit() if commit else session.flush()
+            batch.record_done(external_id)
             continue
         if interpretation is None:
             interpretation = Interpretation(
@@ -4537,7 +4764,7 @@ def process_records(
         session.flush()
         # Research admission instead owns the enclosing savepoint.
         remaining_seconds(deadline)
-        session.commit() if commit else session.flush()
+        batch.boundary()
 
         try:
             permit_assessment = assess_permit(record) if is_permit_source else None
@@ -4577,7 +4804,7 @@ def process_records(
             assert_fence(session, job_id, worker_id, fence)
             interpretation.status, interpretation.error = "failed", type(exc).__name__
             remaining_seconds(deadline)
-            session.commit() if commit else session.flush()
+            batch.record_failed()
             continue
         assert_fence(session, job_id, worker_id, fence)
 
@@ -4659,12 +4886,7 @@ def process_records(
                 }
                 if prior_assessment and isinstance(prior_assessment.get("native_equipment"), dict):
                     _withdraw_prior_native_support(session, observation, prior_assessment, digest)
-                job = assert_fence(session, job_id, worker_id, fence)
-                if commit:
-                    job.checkpoint = external_id
-                    _advance_job_lease(job, lease_expiry)
-                remaining_seconds(deadline)
-                session.commit() if commit else session.flush()
+                batch.record_done(external_id)
                 counts["context_only"] = counts.get("context_only", 0) + 1
                 continue
             if not admission.admitted:
@@ -5471,12 +5693,7 @@ def process_records(
                         session.add(
                             NeedObservation(need_id=retained_need.id, observation_id=observation.id)
                         )
-                job = assert_fence(session, job_id, worker_id, fence)
-                if commit:
-                    job.checkpoint = external_id
-                    _advance_job_lease(job, lease_expiry)
-                remaining_seconds(deadline)
-                session.commit() if commit else session.flush()
+                batch.record_done(external_id)
                 continue
             if permit_assessment:
                 counts["permit_accepted"] += 1
@@ -5773,12 +5990,7 @@ def process_records(
         if source.id == "texas-tdlr-tabs-data-centers" and project is not None:
             refresh_project_asset_type(session, project)
 
-        job = assert_fence(session, job_id, worker_id, fence)
-        if commit:
-            job.checkpoint = external_id
-            _advance_job_lease(job, lease_expiry)
-        remaining_seconds(deadline)
-        session.commit() if commit else session.flush()
+        batch.record_done(external_id)
     return counts
 
 

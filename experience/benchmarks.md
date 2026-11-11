@@ -132,3 +132,66 @@ Reading: 300 new records give 300 signals and 300 accepted permits in phase a, 3
 The legacy path really does commit 2 to 3 times per record (commit events counted client side; an empty COMMIT still
 counts). At 50k, all-new wall time is dominated by browse-invalidation triggers (79% inclusive), not by commits.
 Single run per size, no variance; the machine is shared with other builders, so wall times carry noise.
+
+## Legacy path after batch commits (Step 3), 2026-11-11
+
+Same harness, corpus, machine and R = 300 as the baseline above, run on the Step 3 candidate with the defaults
+(`INGESTION_BATCH_SIZE=200`, `INGESTION_BATCH_MAX_SECONDS=2.0`; in these runs the 2 s time bound, not the size, ends
+almost every batch). JSON: `experience/benchmarks/ingestion-writes-legacy-after-{5k,50k}.json`.
+
+5,000 seeded projects:
+
+| phase | wall s (base to after) | rec/s (base to after) | commits/rec | stmts/rec | lock stmts/rec | trigger ms | project scans |
+|---|---|---|---|---|---|---|---|
+| a all new | 25.8 to 24.9 | 11.62 to 12.03 | 3.00 to 0.05 | 76.0 to 81.1 | 13.01 to 12.06 | 5502 to 6433 | 1500 to 1500 |
+| b all unchanged | 4.3 to 2.4 | 70.24 to 126.24 | 2.00 to 0.01 | 14.0 to 17.0 | 5.01 to 4.02 | 0 to 0 | 300 to 300 |
+| c 5% changed | 4.4 to 4.1 | 67.84 to 73.60 | 2.05 to 0.01 | 17.0 to 20.1 | 5.46 to 4.47 | 264 to 431 | 345 to 345 |
+
+50,000 seeded projects:
+
+| phase | wall s (base to after) | rec/s (base to after) | commits/rec | stmts/rec | lock stmts/rec | trigger ms | project scans |
+|---|---|---|---|---|---|---|---|
+| a all new | 137.9 to 142.3 | 2.18 to 2.11 | 3.00 to 0.21 | 76.0 to 81.4 | 13.01 to 12.22 | 109308 to 114165 | 1500 to 1500 |
+| b all unchanged | 4.8 to 3.3 | 62.40 to 90.06 | 2.00 to 0.01 | 14.0 to 17.0 | 5.01 to 4.02 | 0 to 0 | 300 to 300 |
+| c 5% changed | 12.4 to 10.1 | 24.15 to 29.65 | 2.05 to 0.02 | 17.0 to 20.2 | 5.46 to 4.48 | 6494 to 6492 | 345 to 345 |
+
+Reading, plainly:
+- Commits per record fall from 2 to 3 to 0.01 to 0.2, but statements per record rise by 3 to 4 (a RELEASE and a SAVEPOINT
+  at every former commit point, which is cheaper than a COMMIT only where COMMIT is expensive). On this machine a COMMIT is
+  cheap (local Postgres, no network), so the gain is small.
+- All-new ingestion, the expensive case, is unchanged within noise (24.9 s vs 25.8 s at 5k, 142 s vs 138 s at 50k): it is
+  dominated by browse-invalidation triggers (80% of wall at 50k, 109 s to 114 s), not by commits. Batching does not touch
+  that cost; Step 2 does.
+- Unchanged replays, which only pay commits, fixed fence checks and cheap reads, are 1.4x to 1.8x faster (5k: 70 to 126 rec/s;
+  50k: 62 to 90 rec/s). Amendments gain 8% to 22%. Single run per size on a shared machine, so treat every wall time as
+  +/- 10%.
+- A network round trip per commit (managed Postgres, a separate host) and a slower fsync would raise the gain; neither is
+  measured here.
+- Recommendation: keep the step only as the measurable win for the unchanged/amended replays that dominate steady state, and
+  only together with the lock narrowing below; if the narrowing is not accepted, the 2 s lock window it introduces is a cost
+  with a gain that is only visible on replays, and dropping the step is defensible.
+
+### Lock scope of a batch (Step 3)
+
+Row locks taken per record (`lock_project`, `SELECT ... FOR UPDATE` on observations, interpretations, needs, project
+material state and the job row, membership advisory locks) are held until the batch commit instead of the record commit, so
+the window grows from one record to at most `INGESTION_BATCH_MAX_SECONDS` plus the record in flight. Measured by
+`test_open_ingestion_batch_does_not_block_api_style_writes` (an open batch on committed rows, other connections writing under
+`lock_timeout = 400ms`):
+
+| API-style write | result |
+|---|---|
+| contact suppression insert | completes |
+| saved-view style write (workspace change acknowledgment) | completes |
+| commercial pursuit insert (FK to need and project) | BLOCKED until the batch ends |
+| owner fact insert (`call_fact_versions`, FK to need and project) | BLOCKED until the batch ends |
+| need workflow status insert (FK to need and project) | BLOCKED until the batch ends |
+
+Cause: a foreign key INSERT takes FOR KEY SHARE on the referenced row, which conflicts only with FOR UPDATE. Ingestion
+uses FOR UPDATE on projects (`lock_project`, `seed_material_state`, `enqueue_retained_buying_chain_research`) and needs.
+Switching those to FOR NO KEY UPDATE is equivalent for mutual exclusion between ingestion workers (and any other FOR
+UPDATE or NO KEY UPDATE locker) and removes the wait: with the change applied locally, all five probes complete. It needs
+edits outside the Step 3 file ownership (`change_detection.lock_project`, `buying_chain.enqueue_retained_buying_chain_research`)
+and changes the SQL text matched by the existing test `test_linked_negative_correction_locks_project_before_need` (it greps
+for `for update`), so it was NOT applied. The proposed patch is `experience/benchmarks/step3-lock-narrowing.patch` (service.py, the two files and the test string; the test hunk is illustrative, not line-exact)
+Until then the wait is bounded by the time bound (2 s default).
