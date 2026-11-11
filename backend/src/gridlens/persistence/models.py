@@ -380,7 +380,10 @@ def _persist_project_match_keys_on_insert(_mapper, _connection, project: Project
 def _persist_project_match_keys_on_update(_mapper, connection, project: Project) -> None:
     from gridlens.intelligence.project_identity import project_match_keys
 
-    committed = sa_inspect(project).committed_state
+    state = sa_inspect(project)
+    changed = {
+        column for column in _MATCH_KEY_SOURCE_COLUMNS if state.attrs[column].history.has_changes()
+    }
     values = {column: getattr(project, column) for column in _MATCH_KEY_SOURCE_COLUMNS}
     if connection.dialect.name == "postgresql":
         # Lock the row and take unmodified key inputs from the database, not this session's
@@ -393,14 +396,12 @@ def _persist_project_match_keys_on_update(_mapper, connection, project: Project)
         ).first()
         if stored is not None:
             for column in _MATCH_KEY_SOURCE_COLUMNS:
-                if column not in committed:
+                if column not in changed:
                     values[column] = stored._mapping[column]
     project.match_keys = project_match_keys(
         values["name"], values["location"], values["identity_facts"]
     )
-    if connection.dialect.name == "postgresql" and any(
-        column in committed for column in _MATCH_KEY_SOURCE_COLUMNS
-    ):
+    if connection.dialect.name == "postgresql" and changed:
         # Tell the guard trigger these keys were computed from the new values. Scoped to
         # this flush by ``after_update`` so later raw UPDATEs in the same transaction are
         # still guarded.
@@ -410,7 +411,8 @@ def _persist_project_match_keys_on_update(_mapper, connection, project: Project)
 @event.listens_for(Project, "after_update")
 def _release_project_match_keys_guard(_mapper, connection, project: Project) -> None:
     if connection.dialect.name == "postgresql" and any(
-        column in sa_inspect(project).committed_state for column in _MATCH_KEY_SOURCE_COLUMNS
+        sa_inspect(project).attrs[column].history.has_changes()
+        for column in _MATCH_KEY_SOURCE_COLUMNS
     ):
         connection.exec_driver_sql(f"SELECT set_config('{_MATCH_KEYS_GUC}', 'off', true)")
 

@@ -1,5 +1,6 @@
 """Hardening of the indexed project matcher: stale-key guard, bounded keys, lock race, migration."""
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -151,6 +152,50 @@ def test_orm_update_uses_stored_values_for_unmodified_key_inputs(engine, session
         ).one()
     assert (name, location) == ("Gamma Pad", "200 Oak Road, Houston, TX")
     assert _keys(engine, "p1") == project_match_keys(name, location, facts)
+
+
+def test_equal_assignment_uses_concurrent_identity_facts_for_match_keys(engine, session):
+    """Equal stale assignment is not emitted by UPDATE and must not mask DB values."""
+    original_facts = {"project_aliases": ["Alpha"], "site": "Austin, TX"}
+    session.add(_project("p1", "Alpha Data Center", "Austin, TX", original_facts))
+    session.commit()
+
+    # Load a stale identity_facts value into another session before a concurrent writer
+    # adds the stable asset identity.
+    with sessionmaker(engine, expire_on_commit=False)() as stale_session:
+        stale = stale_session.execute(
+            select(Project).where(Project.identity_key == "p1")
+        ).scalar_one()
+        concurrent_facts = {
+            **original_facts,
+            "asset_identity": ["plant-42", "owner-7"],
+        }
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE projects SET identity_facts = CAST(:facts AS jsonb) "
+                    "WHERE identity_key = 'p1'"
+                ),
+                {"facts": json.dumps(concurrent_facts)},
+            )
+
+        stale.identity_facts = dict(original_facts)  # equal to the stale value, net unchanged
+        stale.name = "Gamma Data Center"
+        stale_session.commit()
+
+    with engine.connect() as connection:
+        name, location, facts = connection.execute(
+            text("SELECT name, location, identity_facts FROM projects WHERE identity_key='p1'")
+        ).one()
+    assert (name, facts) == ("Gamma Data Center", concurrent_facts)
+    keys = _keys(engine, "p1")
+    assert keys == project_match_keys(name, location, concurrent_facts)
+    asset_key = service.incoming_match_keys(asset_identity=["plant-42", "owner-7"])[0]
+    assert asset_key in keys
+    assert (
+        session.scalar(select(Project.identity_key).where(Project.match_keys.contains([asset_key])))
+        == "p1"
+    )
 
 
 def test_stale_raw_updated_project_still_matches_via_null_fallback(engine, session):

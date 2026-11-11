@@ -22,7 +22,7 @@ type Manifest = {
     power_value: string | null
     power_unit: string | null
     power_scope: string | null
-    power_limitations?: string[]
+    power_limitations: string[]
     best_contact_label: string
     best_contact_href: string
     best_contact_kind: string
@@ -49,6 +49,7 @@ function loadManifest(): Manifest {
   expect(manifest.brief.why_now_text).toBeTruthy()
   expect(manifest.brief.best_contact_href).toBeTruthy()
   expect(manifest.brief.next_action).toBeTruthy()
+  expect(Array.isArray(manifest.brief.power_limitations)).toBe(true)
   if (manifest.contact_source_need_id != null) {
     expect(manifest.contact_source_need_id).toBe(manifest.featured.need_id)
     expect(manifest.account.need_ids).toContain(manifest.contact_source_need_id)
@@ -107,7 +108,9 @@ test('source-backed disposable account brief survives responsive navigation and 
   await sourceDisclosure.locator('summary').click()
   await expect(sourceDisclosure).not.toHaveAttribute('open', '')
   const powerClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
-  const informativePowerLimitations = (manifest.brief.power_limitations ?? []).filter(value => !/unknown is not zero|unknown does not mean zero|power need is unknown|power amount is unknown/i.test(value))
+  const informativePowerLimitations = manifest.brief.power_limitations
+    .flatMap(value => value.split(/;\s*/).map(part => part.trim()).filter(Boolean))
+    .filter(value => !/^(?:(?:activity-specific )?(?:power )?(?:need|amount)(?: for [^.]*)? is unknown\.?|unknown is not zero\.?|unknown does not mean zero\.?)$/i.test(value))
   if (manifest.brief.power_amount_class === 'unknown' || !manifest.brief.power_value) {
     if (manifest.brief.power_scope && informativePowerLimitations.length) {
       await expect(powerClaim).toContainText(manifest.brief.power_scope)
