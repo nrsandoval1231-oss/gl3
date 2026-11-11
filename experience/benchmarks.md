@@ -60,3 +60,34 @@ Limitations (nothing below is invented; these are what the numbers do not show):
 - Function stats are read after a 2 s wait and `pg_stat_clear_snapshot()`; very late flushes could be missed.
 - Single run per size, no repetition or variance; the container was shared with no other deliberate load.
 - Seeded rows bypass the ORM region classifier (server defaults HOLD), so seeded projects are not region-classified.
+
+### After Step 2a (index-driven, statement-level `dirty_browse_project`, schema 0056)
+
+Same harness, environment and commands as the baseline above (single run per size, no variance measured; the
+50k corpus took 17 m 31 s end to end). Baseline numbers are in parentheses.
+
+5,000 seeded projects:
+
+| phase | wall s | rec/s | trigger calls/rec | trigger ms | trigger % wall |
+|---|---|---|---|---|---|
+| a all new | 115.8 (124.1) | 2.59 (2.42) | 69.1 (69.1) | 3626 (7964) | 3.1% (6.4%) |
+| b all unchanged | 1.4 (1.5) | 209.82 (196.84) | 0.0 | 0 | 0.0% |
+| c 5% changed | 2.2 (2.8) | 133.80 (108.43) | 1.9 (1.9) | 53 (209) | 2.4% (7.5%) |
+
+50,000 seeded projects:
+
+| phase | wall s | rec/s | trigger calls/rec | trigger ms | trigger % wall |
+|---|---|---|---|---|---|
+| a all new | 935.9 (1044.0) | 0.32 (0.29) | 69.1 (69.1) | 6014 (112999) | 0.6% (10.8%) |
+| b all unchanged | 1.5 (1.7) | 197.09 (174.92) | 0.0 | 0 | 0.0% |
+| c 5% changed | 2.1 (7.4) | 144.16 (40.50) | 1.9 (1.9) | 49 (4993) | 2.4% (67.4%) |
+
+Findings:
+- Trigger time no longer grows with the corpus: the dirty-project functions cost about 0.3 ms per call at 5k and
+  50k (baseline 1 ms rising to 17 ms), so trigger time at 50k fell from 113 s to 6 s. Every
+  `browse_observation_projects` branch is an index scan at 50k (`EXPLAIN ANALYZE`, 0.3 ms); no new index was needed.
+- Call counts are unchanged (about 21 dirty-project calls per new record) because the ORM writes one row per
+  statement; statement-level triggers therefore do not reduce the lock count for this workload, only multi-row
+  statements. Wall time at 50k fell only 10% (1,044 s to 936 s): the remaining roughly 900 s is client-side
+  work that scales with corpus size and is not attributed here (cursor time in `FROM projects` statements is
+  only 29.5 s; unindexed project matching and ORM hydration are the suspected remainder, targeted by Step 1).

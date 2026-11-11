@@ -118,8 +118,8 @@ def main() -> None:
             revision = connection.execute(
                 text("SELECT version_num FROM public.alembic_version")
             ).scalar_one_or_none()
-            if revision != "0055_project_match_keys":
-                raise SystemExit("Refusing to seed unless schema 0055 is installed.")
+            if revision != "0056_statement_dirty_projects":
+                raise SystemExit("Refusing to seed unless schema 0056 is installed.")
             for table in metadata.sorted_tables:
                 if table.name == "alembic_version":
                     continue
@@ -189,7 +189,7 @@ def main() -> None:
     target = manifest["groups"]["de_central"]
     output = {
         "synthetic_fixture": True,
-        "migration_revision": "0055_project_match_keys",
+        "migration_revision": "0056_statement_dirty_projects",
         "total_rows": manifest["total_rows"],
         "target_need_id": target["need_ids"][2],
         "target_project_id": target["project_ids"][2],
