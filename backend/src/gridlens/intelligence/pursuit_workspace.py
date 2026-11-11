@@ -13,9 +13,11 @@ from gridlens.domain.lifecycle import INDUSTRIAL_ASSET_VALUES
 from gridlens.intelligence.saved_browse import canonical_json, current_generation
 
 
-def query_plan(session, filters: dict[str, Any], *, alias: str = ""):
+def query_plan(
+    session, filters: dict[str, Any], *, alias: str = "", route: str | None = "pursuit_workspace"
+):
     """Return the canonical SQL eligibility predicates shared by need/account pages."""
-    generation = current_generation(session, route="pursuit_workspace")
+    generation = current_generation(session, route=route)
     identity = hashlib.sha256(
         canonical_json([str(generation.id), generation.digest, filters]).encode()
     ).hexdigest()

@@ -145,8 +145,9 @@ def account_browse_page(
         session, filters, alias="r"
     )
     cohort = f"ca1_{cohort}"
+    # The second plan re-reads the same generation for the same request: count it once.
     sql_generation, _sql_cohort, base, filtered_without_search, base_params = query_plan(
-        session, {**filters, "search": None}, alias="r"
+        session, {**filters, "search": None}, alias="r", route=None
     )
     if sql_generation.id != generation.id:
         raise HTTPException(409, "Customer account cohort changed; restart pagination")

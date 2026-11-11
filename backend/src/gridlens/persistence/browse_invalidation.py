@@ -760,23 +760,23 @@ def install_structural_fence_triggers(connection):
 STALE_SINCE_SQL = """
     CREATE OR REPLACE FUNCTION track_browse_stale_since() RETURNS trigger
     LANGUAGE plpgsql AS $$
-    DECLARE published_revision bigint;
+    DECLARE published_revision bigint; previous_revision bigint;
     BEGIN
         SELECT input_revision INTO published_revision
             FROM browse_generations WHERE id = NEW.generation_id;
-        -- A different published generation starts a new staleness window.
-        IF NEW.generation_id IS DISTINCT FROM OLD.generation_id THEN
-            NEW.stale_since := NULL;
-        END IF;
         IF published_revision IS NOT NULL AND published_revision = NEW.input_revision THEN
             NEW.stale_since := NULL;  -- the published generation is current
         ELSIF published_revision IS NOT NULL AND published_revision < NEW.input_revision
-            AND NEW.stale_since IS NULL
-            AND (NEW.generation_id IS DISTINCT FROM OLD.generation_id
-                 OR published_revision = OLD.input_revision) THEN
-            -- It fell behind just now: this write, or a publication that landed behind.
-            -- Later writes keep the original value; an unknown start stays NULL.
-            NEW.stale_since := clock_timestamp();
+            AND NEW.stale_since IS NULL THEN
+            -- Behind with no recorded start. Record one only when it fell behind in this very
+            -- write (the previously published generation was current); a state that was
+            -- already behind keeps an unknown start (NULL = pending), and a started window is
+            -- never reset, so a rebase that moves the pointer and restores it cannot extend it.
+            SELECT input_revision INTO previous_revision
+                FROM browse_generations WHERE id = OLD.generation_id;
+            IF previous_revision IS NOT NULL AND previous_revision = OLD.input_revision THEN
+                NEW.stale_since := clock_timestamp();
+            END IF;
         END IF;
         RETURN NEW;
     END $$

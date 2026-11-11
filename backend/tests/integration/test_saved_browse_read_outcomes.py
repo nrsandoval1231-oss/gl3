@@ -239,3 +239,67 @@ def test_log_lines_carry_only_route_outcome_reason_and_generation(saved_db, monk
         assert "PRIVATE" not in line and "Synthetic" not in line
     assert "outcome=updating reason=-" in capture.lines[0]
     assert "outcome=pending reason=full_scope" in capture.lines[1]
+
+
+def test_pending_path_costs_one_extra_read_with_the_flag_on(saved_db, monkeypatch):
+    _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    with saved_db.begin() as session:  # a fence that stays closed with the flag on
+        session.add(
+            Source(
+                id="synthetic-full-scope-cost",
+                publisher="Synthetic",
+                endpoint="https://example.test/cost",
+                family="construction-permits",
+                geography="Test",
+                industries=["construction"],
+                retrieval_method="socrata-permits",
+                health={},
+            )
+        )
+
+    def pending(route):
+        def action():
+            with saved_db() as session, pytest.raises(HTTPException):
+                current_generation(session, allow_stale=True, route=route)
+
+        return action
+
+    with_reason = _statements(saved_db, pending("groups"))
+    without = _statements(saved_db, pending(None))
+    assert len(with_reason) == len(without) + 1
+    assert "browse_state" in with_reason[-1]
+
+
+def test_each_stale_capable_route_is_counted_once_per_request(saved_db, monkeypatch):
+    ids = _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", saved_db)
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    _scoped_write(saved_db, ids[0])
+    saved_browse.reset_read_counts()
+    parent = client.get("/api/opportunities/groups", params={"limit": 1})
+    assert parent.status_code == 200
+    group_id = parent.json()["items"][0]["id"]
+    token = parent.json()["cohort_token"]
+    assert (
+        client.get(
+            f"/api/opportunities/groups/{group_id}/projects",
+            params={"parent_cohort_token": token},
+        ).status_code
+        == 200
+    )
+    assert client.get(f"/api/opportunities/groups/{group_id}/open").status_code == 200
+    assert (
+        client.get("/api/opportunities/projects", params={"include_signals": "true"}).status_code
+        == 200
+    )
+    assert saved_browse.read_counts() == {
+        "groups|updating|-": 1,
+        "group_projects|updating|-": 1,
+        "group_open|updating|-": 1,
+        "projects|updating|-": 1,
+    }
