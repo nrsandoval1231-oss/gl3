@@ -1,7 +1,7 @@
 """Owner-approved serving of the last complete generation during scoped ingestion."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -238,6 +238,39 @@ def test_the_age_bound_closes_on_the_real_clock(saved_db, monkeypatch):
         assert refresh_state(current_generation(session, allow_stale=True)) == "updating"
     time.sleep(1.5)  # no hand-set timestamps: the window simply runs out
     _pending(saved_db, allow_stale=True)
+
+
+def test_recovery_stage_publication_clears_stale_since(saved_db):
+    from gridlens.intelligence.saved_browse import publish_recovery_stage, stage_recovery
+
+    ids = _published(saved_db)
+    _scoped_write(saved_db, ids[0])
+    assert _stale_since(saved_db) is not None
+    staged = stage_recovery(saved_db)  # built at the current revision, invisible until published
+    assert staged["status"] == "staged"
+    assert _stale_since(saved_db) is not None
+    assert publish_recovery_stage(saved_db, UUID(staged["generation_id"]))["status"] == "published"
+    assert _stale_since(saved_db) is None
+    with saved_db() as session:
+        assert refresh_state(current_generation(session)) == "current"
+
+
+def test_restore_generation_clears_stale_since_when_it_covers_the_revision(saved_db):
+    from gridlens.intelligence.saved_browse import restore_generation
+
+    ids = _published(saved_db)
+    with saved_db() as session:
+        first = session.scalar(text("SELECT generation_id FROM browse_state"))
+    _scoped_write(saved_db, ids[0])
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        second = session.scalar(text("SELECT generation_id FROM browse_state"))
+    assert second != first and _stale_since(saved_db) is None
+    with saved_db.begin() as session:  # the pointer is moved back to the older generation
+        session.execute(text("UPDATE browse_state SET generation_id = :g"), {"g": first})
+    assert _stale_since(saved_db) is not None  # it is behind the current revision
+    assert restore_generation(saved_db, second) is True  # the one that covers the revision
+    assert _stale_since(saved_db) is None
 
 
 def _arm_boundary(factory):
