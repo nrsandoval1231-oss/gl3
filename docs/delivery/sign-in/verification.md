@@ -45,3 +45,7 @@ Browser-rendered final 1280px initial sign-in check: logo and background decoded
 ## Mobile desktop-style refinement
 
 Owner-requested follow-up: architectural hero and desktop branding retained on phones. Login suite: **14 passed**, 17.5 seconds. The keyboard test now verifies visible imagery/footer, exactly one optimized mobile image request, and a submit button within the 390×844 viewport. Prior no-image mobile evidence is superseded. Desktop 1280/1440 and tablet 768 captures are pixel-identical to the prior committed screenshots. Current PR CI remains the final-head gate.
+
+## Full mobile background verification
+
+CSS-only follow-up: **14 login checks passed (12.5 seconds)**, including initial submit visibility, image selection, keyboard and error behavior. Typecheck and production build passed. Desktop 1280/1440 and tablet 768 pixel comparisons are unchanged. Current-head CI is tracked in PR194.

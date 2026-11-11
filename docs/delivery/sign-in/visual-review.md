@@ -19,3 +19,7 @@ Residual: exact source-photo match and metallic rendering are not claimed. The s
 ## Mobile refinement
 
 At the owner’s request, the phone view now carries the desktop architectural scene, two-line headline, diagonal overlays and icon footer above the white form. Reviewed fresh 390×844 and 320×568 captures. The 390px submit remains above the fold; 320px scrolls vertically. This supersedes the original compact image-free phone treatment.
+
+## Full mobile background follow-up
+
+The owner requested the cool background. The same optimized architectural image now spans the entire phone page, with a translucent white sign-in card, diagonal overlays and a dark stage strip that preserves icon/text contrast. Reviewed fresh 390/320 captures; desktop/tablet screenshots remain pixel-identical. No authentication changes.

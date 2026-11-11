@@ -47,3 +47,7 @@ Astra inspected the final 390/320 and 1280 captures and the scoped diff: **PASS,
 Independent command: `GRIDLENS_LOGIN_WEB_PORT=5188 npm run test:login -- --output=/tmp/gl3-astra-mobile-desktop --reporter=list` — **14 passed, 13.3 seconds**. Astra confirmed the initial-viewport assertion runs before Tab focus can scroll the page. Mobile asset 480×600 / 31,662 bytes verified. `git diff --check` passed.
 
 Final mobile-refinement CSS SHA-256: `8396854f819ab20d70bfbeaba92717fb433aba379e3ae122176f320d037058f3`.
+
+## Full mobile background review
+
+Astra: **PASS**, fresh 390/320 captures reviewed; readable text, clear controls, no clipping, normal narrow-screen scrolling. Translucent card separates form and image; desktop unchanged. CSS-only; authentication unaffected. Whitespace check passed. Reviewed CSS SHA-256: `97d5f7c3335250181e2a7e2d1d652873b6189115b486062e9efd0bf02b9d253c`.

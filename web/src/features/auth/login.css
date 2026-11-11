@@ -38,18 +38,19 @@
 .login-page button:focus-visible,.login-page input:focus-visible{outline:3px solid var(--gl-focus);outline-offset:3px}
 @media(min-width:641px) and (max-width:1000px){.login-page{grid-template-columns:minmax(0,48fr) minmax(0,52fr)}.login-story-content{padding:48px 28px}.login-tagline{font-size:9px;letter-spacing:.13em}.login-story h2{font-size:48px}.login-stages{gap:14px;flex-direction:column}.login-stages li+li{padding-left:0;border:0}.login-panel{padding:44px 28px}}
 @media(max-width:640px){
-  .login-page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
+  .login-page{position:relative;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;padding-bottom:16px}
+  .login-story{position:static;overflow:visible}
   .login-story-content{min-height:340px;padding:24px 24px 22px}
   .login-story-logo{max-width:260px}
   .login-tagline{margin-left:70px;margin-top:-17px;font-size:9px;letter-spacing:.15em}
   .login-accent{margin:18px 0 22px;width:44px;height:3px}
   .login-story h2{font-size:40px;letter-spacing:-.05em;line-height:1.05}
-  .login-architecture img{object-position:center 65%}
-  .login-stages{padding:44px 0 0;gap:10px}
+  .login-architecture img{object-position:right 65%}
+  .login-stages{margin-top:auto;padding:10px 9px;gap:10px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:rgba(6,22,33,.8)}
   .login-stages li{gap:7px;font-size:9px;letter-spacing:.12em}
   .login-stages li+li{padding-left:12px}
   .login-stages svg{width:22px;height:22px}
-  .login-panel{align-items:flex-start;padding:28px 24px 36px}
+  .login-panel{z-index:2;align-items:flex-start;margin:0 12px;padding:28px 20px 30px;border:1px solid rgba(255,255,255,.75);border-radius:18px;background:rgba(255,255,255,.95);box-shadow:0 12px 32px rgba(6,22,33,.18)}
   .login-panel-inner{gap:12px}
   .login-panel h1{font-size:28px}
   .login-form{margin-top:8px}
@@ -62,11 +63,11 @@
   .login-story-logo{max-width:240px}
   .login-tagline{margin-left:65px;font-size:8px}
   .login-story h2{font-size:36px}
-  .login-stages{gap:6px;padding-top:34px}
+  .login-stages{gap:6px;padding:10px 7px}
   .login-stages li{font-size:8px;gap:5px}
   .login-stages li+li{padding-left:8px}
   .login-stages svg{width:20px;height:20px}
-  .login-panel{padding-left:20px;padding-right:20px}
+  .login-panel{padding-left:16px;padding-right:16px}
 }
 
 .login-input-wrap:focus-within{outline:3px solid var(--gl-focus);outline-offset:3px}
