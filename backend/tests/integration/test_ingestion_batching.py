@@ -17,7 +17,7 @@ import pytest
 from db_reset import reset_test_database
 from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import sessionmaker
 
 import gridlens.ingestion.service as service
@@ -474,6 +474,50 @@ def test_retained_evidence_survives_a_later_enrichment_failure(db, monkeypatch):
     # Records before it are complete; the checkpoint names the last finished one.
     assert state["checkpoint"] == rows[1]["document_number"]
     assert len(state["observations"]) == 3
+
+
+def test_a_failed_flush_mid_record_loses_only_its_open_segment(db, monkeypatch):
+    """A real IntegrityError deactivates the savepoint; only the open segment may be lost."""
+    engine, factory, definition, job_id, seed = db
+    import gridlens.intelligence.equipment_intelligence as equipment
+    from gridlens.persistence.models import Source
+
+    rows = [permit(i) for i in range(5)]
+    original = equipment.materialize_equipment_investigation
+    states = {}
+    for size in (1, 200):
+        job_id = seed()
+        monkeypatch.setattr(settings, "ingestion_batch_size", size)
+        seen = []
+
+        def duplicate_source(session, *args, _seen=seen, **kwargs):
+            _seen.append(1)
+            if len(_seen) == 3:
+                session.add(
+                    Source(
+                        id=definition["id"],
+                        publisher="duplicate",
+                        endpoint="https://example.test/dup",
+                        family="structured-government",
+                        geography="TX",
+                        industries=["oil-gas"],
+                        retrieval_method="rrc-drilling-permits",
+                        health={},
+                    )
+                )
+                session.flush()  # primary-key violation: the flush fails mid-record
+            return original(session, *args, **kwargs)
+
+        monkeypatch.setattr(equipment, "materialize_equipment_investigation", duplicate_source)
+        with pytest.raises(IntegrityError):
+            ingest(factory, job_id, definition, rows)
+        monkeypatch.setattr(equipment, "materialize_equipment_investigation", original)
+        states[size] = snapshot(factory)
+    assert states[1] == states[200]
+    state = states[200]
+    # Records before the failing one are complete and durable; the checkpoint names the last.
+    assert state["checkpoint"] == rows[1]["document_number"]
+    assert len(state["observations"]) >= 2
 
 
 def test_a_durable_per_record_failure_is_published_with_its_batch(db, monkeypatch):

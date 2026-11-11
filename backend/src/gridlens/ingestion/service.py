@@ -4074,12 +4074,16 @@ class _IngestionBatch:
         if not self.batched:
             return
         if self._savepoint is None and not self._direct:
+            if self._began is None and self.session.in_transaction():
+                # The caller's acquisition transaction still holds its SET LOCAL timeouts and
+                # the Source row lock; the old per-record commit released them at the first
+                # boundary, so release them before the first batch instead of carrying them
+                # through the whole batch.
+                self.session.commit()
             self._savepoint = self.session.begin_nested()
             self._active = True
         if self._began is None:
             self._began = time.monotonic()
-        # A commit used to expire every loaded object; keep reading current rows per record.
-        self.session.expire_all()
 
     def boundary(self) -> None:
         """A durable boundary inside a record (was ``commit if commit else flush``)."""
@@ -4187,8 +4191,11 @@ class _IngestionBatch:
             if self._direct:
                 session.rollback()
                 return
-            # An already-failed flush has rolled the savepoint back by itself.
-            if savepoint is not None and savepoint.is_active:
+            # A flush that failed inside the savepoint leaves it deactivated but still the
+            # current nested transaction (`is_active` is False): it must still be rolled
+            # back, or the fence check below raises PendingRollbackError and the whole
+            # batch is discarded instead of only this record's open segment.
+            if savepoint is not None:
                 savepoint.rollback()
             # Lease loss raises here and falls through to a whole-batch rollback.
             job = assert_fence(session, self.job_id, self.worker_id, self.fence)
