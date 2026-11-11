@@ -380,10 +380,13 @@ def refresh_state(generation: BrowseGeneration) -> str:
 def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None:
     """Select the published generation that only project-scoped writes have passed.
 
-    Policy, clock and full-scope fences stay closed: identity, membership,
-    editorial, source-policy and unknown writes advance ``full_revision`` and
-    keep readers pending. The build-age bound stops serving when republication
-    has stalled. Contact suppressions are applied at read time, not from here.
+    Policy and clock fences stay closed, as do writes that advance
+    ``full_revision`` (source policy, editorial and unscoped writes). Identity,
+    membership, identity-link and pursuit writes are project-scoped in
+    ``browse_invalidation`` and therefore do NOT close the fence: a stale page can
+    briefly show a retracted membership or pre-merge account name. The build-age
+    bound (``built_at``) only stops serving after a generation is old, not after it
+    has been stale for long. Contact suppressions are applied at read time.
     """
     generation = session.scalar(
         select(BrowseGeneration)

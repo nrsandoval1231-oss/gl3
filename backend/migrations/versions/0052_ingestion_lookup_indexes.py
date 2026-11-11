@@ -21,6 +21,21 @@ def upgrade() -> None:
     # Built concurrently so retained ingestion writes are not blocked during deployment.
     with op.get_context().autocommit_block():
         for name, table, columns in INDEXES:
+            # A failed CONCURRENTLY build leaves an INVALID index that IF NOT EXISTS
+            # would silently keep; drop only invalid leftovers so a retry rebuilds it.
+            op.execute(
+                f"""
+                DO $$
+                BEGIN
+                  IF EXISTS (
+                    SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+                    WHERE c.relname = '{name}' AND NOT i.indisvalid
+                  ) THEN
+                    EXECUTE 'DROP INDEX {name}';
+                  END IF;
+                END $$
+                """
+            )
             op.execute(f"CREATE INDEX CONCURRENTLY IF NOT EXISTS {name} ON {table} ({columns})")
 
 
