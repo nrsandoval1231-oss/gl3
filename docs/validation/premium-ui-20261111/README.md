@@ -48,3 +48,18 @@ Independent Astra reviewed `9544d4762a1b3906d5360978d449bd8147b9d4c6` and withhe
 The isolated real-backend rollup lane subsequently passed all three viewport journeys (1440, 768 and 390 pixels) against 2,098 synthetic persisted rows, with providers disabled. This demonstrates actual API/account/pagination behavior using fixtures; it does not prove production freshness or research coverage.
 
 Astra's second pass also identified a fallback-only scope risk: legacy source-context prose could appear under Power need, and an absent kind could produce both Unknown and the prose. The final renderer admits only explicit activity-requirement or facility-demand summaries and labels the latter Facility demand. Five browser cases preserve both positive classes and reject source-context, missing-kind and supported-gap prose as unsupported requirement claims.
+
+## Frozen source verification receipts
+
+UI source is frozen at `689b1366cb531c6003a3771c7f38b926a5e27b43`. The [hash receipt](receipts.json) enumerates the measured UI files and all six regenerated screenshot hashes. Subsequent presentation-test and receipt changes do not change those UI bytes.
+
+- `npm run typecheck --prefix web`: passed.
+- `npm run build --prefix web`: passed; existing bundle-size advisory remains.
+- `npm run test:ci --prefix web -- --workers=4 --output=<separate full output>`: 333 passed, two obsolete presentation expectations failed. Their modules were updated to assert Profile/Settings/Research keyboard order and one honest Unknown power field, preserving contact suppression and no invented MW.
+- `npm run test:ci --prefix web -- --workers=4 tests/approved_workspace.spec.ts tests/customer-accounts.spec.ts --output=<separate repair output>`: 17 passed, zero failed. This is a scoped repair pass, not a claim that the preceding full command passed.
+- Opt-in `playwright.rollup-real.config.ts`: three passed against real local API/database fixtures.
+- `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run mypy src`: passed (578 formatted files, 266 typed source files).
+- `uv run alembic upgrade head` and `uv run alembic check`: schema 0051 and no new upgrade operations; no migration introduced.
+- Brand validator: 216 assets/eight semantic AA pairs passed; maintained docs: 111 documents/539 local targets/18 anchors passed.
+
+The local full-backend run remains pending with one visible failure. The independent critic accepted the frozen UI source with no remaining material source findings and explicitly withheld overall acceptance until final gates and this failure are resolved. Required exact-head PR CI supplies a fresh complete run; do not read the scoped module result as a full-suite pass.

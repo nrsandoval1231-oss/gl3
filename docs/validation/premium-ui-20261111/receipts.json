@@ -1,0 +1,40 @@
+{
+  "source_commit": "689b1366cb531c6003a3771c7f38b926a5e27b43",
+  "source_files_sha256": {
+    "web/src/components/CanonicalHeader.tsx": "136def6695adf73ddbd00ad3bbce1ef80ba1cbb1b92d50baf389d98f474b66cc",
+    "web/src/components/WorkspaceAccount.tsx": "2a7dda6ebe0632d7629bfdfbf44fb89306f9b9ae67e305959e1c4b5ec99dc689",
+    "web/src/components/canonical-header.css": "2d1393843584e41b89953722ecc55663988b0ec83935005ce711bb77b496c1f4",
+    "web/src/components/workspace-account.css": "340ec4bd208bceece65b0b897a6dbdb8ca0f620c22c13018a0f0be313411e406",
+    "web/src/features/workspace/GlobalSearch.tsx": "a6181234f8df82c881fe4e4f2412cf4e2839d4fb30ca90efba1024cd073af91e",
+    "web/src/features/workspace/ProjectResults.tsx": "d765f21938a74d48ed87ea7fd3079efb53ea7ea433e36c0b3c252aeeadbe420a",
+    "web/src/features/workspace/Workspace.tsx": "6e6b5ac2bebc8402e25979a9f222bb25a826e950281ba33ebbb8aff82bdb10eb",
+    "web/src/features/workspace/premium-opportunities.css": "2cbb1cd96ee88dfc04c01a3a78aa936905cdbda69424d65c031ca7d55558b54e",
+    "web/vite.config.ts": "efe23983b0279eb4ad57167da0c179b1afa2c554045fed152359db767ed9ac90"
+  },
+  "screenshots_sha256": {
+    "desktop-1280x800.png": "12d45e9aad7e400fef15c371a6afd03b35c838fcd1c8a3c4294ee77deb4f48d1",
+    "desktop-1440x900.png": "09570fe6a8be21c953b60d7d1764c4d58f9ad6197194de7493d529ac3888ab42",
+    "desktop-1648x928.png": "a705b715e5d83d4b436daf427780ec6722b5d5e4444dae3a654b16653f0a9846",
+    "desktop-768x1024.png": "8fb68cafcdfb4652bcc16ad6e48ee6ae978849639eafef4978510713ce4df989",
+    "mobile-390x844.png": "ec3d0cb9455e195af7ecd1fdeb8749462d61cc5626126b24388496a6282a8a8e",
+    "mobile-full.png": "35157754400edbc12d8ab2c2e17e82f6184d3ae175b0ac8873bde99e961aa817"
+  },
+  "synthetic_fixture": true,
+  "production_deployed": false,
+  "local_browser": {
+    "full_run": {
+      "passed": 333,
+      "failed": 2,
+      "reason": "Two obsolete presentation expectations, repaired without source changes"
+    },
+    "repaired_modules": {
+      "passed": 17,
+      "failed": 0
+    },
+    "real_backend_rollup": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "full_backend": "Pending; one failure visible; no full pass claimed"
+}
