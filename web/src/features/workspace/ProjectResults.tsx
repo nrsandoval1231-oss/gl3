@@ -128,7 +128,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
           if (cohortChanged) { setExpanded({}); setChildren({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
           if (parentReloadNotice.current) {
             parentReloadNotice.current = false
-            setNotice('Results changed. Reloaded from the first page.')
+            setNotice(['Results changed. Reloaded from the first page.', browseUpdatingNotice(value)].filter(Boolean).join(' '))
           } else setNotice(browseUpdatingNotice(value))
           return
         } catch (e) {

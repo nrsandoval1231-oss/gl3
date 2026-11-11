@@ -34,7 +34,7 @@ def drop_browse_triggers(engine: Engine) -> None:
             """
             SELECT tgname, tgrelid::regclass::text
             FROM pg_trigger
-            WHERE tgname ~ '^(invalidate_browse|dirty_browse)'
+            WHERE tgname ~ '^(invalidate_browse|dirty_browse|zz_browse_)'
             """
         ).all()
         for name, table in rows:

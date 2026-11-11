@@ -5,6 +5,7 @@ from hashlib import sha256
 from importlib import import_module
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 from test_saved_browse import seed
@@ -247,6 +248,36 @@ def test_need_deleted_after_the_snapshot_closes_the_stale_fence(saved_db, client
     rebuilt = _endpoints(client_for)
     assert all(r.status_code == 200 for r in rebuilt.values())
     assert removed_id not in rebuilt["project_page"].text
+
+
+def test_need_deactivated_after_the_snapshot_closes_the_stale_fence(
+    saved_db, client_for, monkeypatch
+):
+    ids = seed(saved_db, count=2, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    with saved_db.begin() as session:  # ingestion retracts support by clearing `active`
+        need = session.get(PowerNeed, ids[0])
+        need.rationale = "still active"
+    assert client_for.get("/api/opportunities/groups").json()["refresh_state"] == "updating"
+    with saved_db.begin() as session:
+        session.get(PowerNeed, ids[0]).active = False
+    _pending(client_for, "/api/opportunities/groups")
+    _pending(client_for, "/api/opportunities/projects")
+    assert rebuild(saved_db)["status"] == "published"
+    assert client_for.get("/api/opportunities/groups").json()["refresh_state"] == "current"
+
+
+def test_unlabelled_reads_stay_strict_while_stale(saved_db, monkeypatch):
+    ids = seed(saved_db, count=1, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    _scoped_write(saved_db, ids[0])
+    from gridlens.intelligence.demand_summary import summarize
+
+    with saved_db() as session, pytest.raises(HTTPException) as raised:
+        summarize(session)
+    assert raised.value.status_code == 503
 
 
 def test_identity_and_membership_writes_close_the_stale_fence(saved_db, client_for, monkeypatch):

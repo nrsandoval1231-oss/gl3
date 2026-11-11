@@ -2337,7 +2337,7 @@ def customer_group_open(
     with SessionLocal() as session:
         _begin_consistent_read(session)
         session.execute(text("SET TRANSACTION READ ONLY"))
-        generation = current_generation(session)
+        generation = current_generation(session, allow_stale=True)
         payload = group_open(
             session,
             group_id,

@@ -703,10 +703,10 @@ FACT_DECISION_INSERT_SQL = """
 # triggers sort after the invalidation triggers (trigger name order), so input_revision is
 # already incremented and this write's revision is recorded exactly.
 STRUCTURAL_FENCE_TABLES = (
-    "company_identities",
-    "identity_identifiers",
-    "company_project_memberships",
-    "buying_chain_identity_links",
+    ("company_identities", "UPDATE OR DELETE OR TRUNCATE"),  # a bare new identity changes nothing
+    ("identity_identifiers", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
+    ("company_project_memberships", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
+    ("buying_chain_identity_links", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
 )
 STRUCTURAL_DELETE_TABLES = ("power_needs", "projects")
 STRUCTURAL_FENCE_SQL = """
@@ -719,10 +719,35 @@ STRUCTURAL_FENCE_SQL = """
 """
 
 
+# Ingestion retracts a need by clearing power_needs.active, not by deleting it.
+STRUCTURAL_DEACTIVATION_SQL = """
+    CREATE OR REPLACE FUNCTION mark_browse_structural_deactivation() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM old_rows o JOIN new_rows n ON n.id = o.id
+            WHERE o.active IS TRUE AND n.active IS NOT TRUE
+        ) THEN
+            UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
+        END IF;
+        RETURN NULL;
+    END $$
+"""
+
+
 def install_structural_fence_triggers(connection):
     connection.exec_driver_sql(STRUCTURAL_FENCE_SQL)
+    connection.exec_driver_sql(STRUCTURAL_DEACTIVATION_SQL)
+    connection.exec_driver_sql(
+        "DROP TRIGGER IF EXISTS zz_browse_structural_deactivation ON power_needs"
+    )
+    connection.exec_driver_sql("""
+        CREATE TRIGGER zz_browse_structural_deactivation AFTER UPDATE ON power_needs
+        REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows
+        FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_deactivation()
+    """)
     for table, operations in (
-        *((t, "INSERT OR UPDATE OR DELETE OR TRUNCATE") for t in STRUCTURAL_FENCE_TABLES),
+        *STRUCTURAL_FENCE_TABLES,
         *((t, "DELETE OR TRUNCATE") for t in STRUCTURAL_DELETE_TABLES),
     ):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS zz_browse_structural_fence ON {table}")

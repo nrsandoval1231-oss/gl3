@@ -58,7 +58,7 @@ def main():
     while True:
         try:
             with SessionLocal() as session:
-                generation = current_generation(session, strict=True)
+                generation = current_generation(session)
                 result = {
                     "status": "current",
                     "generation_id": str(generation.id),

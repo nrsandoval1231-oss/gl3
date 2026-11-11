@@ -37,7 +37,7 @@ def _cohort(
     selected_generation=None,
     shortlist=False,
 ):
-    generation = selected_generation or current_generation(session)
+    generation = selected_generation or current_generation(session, allow_stale=True)
     term = (search or "").strip().casefold()
     from gridlens.domain.opportunity_shortlist import POLICY_VERSION
     from gridlens.intelligence.account_shortlist import assess_generation

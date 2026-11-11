@@ -409,8 +409,14 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
 
 
 def current_generation(
-    session, *, now: datetime | None = None, strict: bool = False
+    session, *, now: datetime | None = None, allow_stale: bool = False
 ) -> BrowseGeneration:
+    """Return the current generation; only routes that label ``refresh_state`` opt in.
+
+    ``allow_stale`` lets BROWSE_SERVE_STALE substitute the last complete generation.
+    Every other caller (builders, maintenance, explicit instants, and reads that cannot
+    tell the user the data is a snapshot) stays strict.
+    """
     requested_now = now
     # A writer may publish between our clock sample and the SELECT snapshot.
     # Retry once with the actual clock, preserving explicit evaluation instants
@@ -442,8 +448,8 @@ def current_generation(
         )
         if generation is not None:
             return generation
-    # Explicit evaluation instants, builders and maintenance always stay strict.
-    if requested_now is None and not strict and settings.browse_serve_stale:
+    # Explicit evaluation instants and callers that do not opt in always stay strict.
+    if requested_now is None and allow_stale and settings.browse_serve_stale:
         generation = _last_complete_generation(session, datetime.now(UTC))
         if generation is not None:
             return generation
@@ -868,7 +874,7 @@ def prepare_next(factory, *, lead_seconds=PREPARE_LEAD_SECONDS, before_publish=N
     """Prepare exactly the next canonical clock interval, never expose it early."""
     try:
         with factory() as session:
-            generation = current_generation(session, strict=True)
+            generation = current_generation(session)
             state = session.get(BrowseState, 1)
             candidate = (
                 session.get(BrowseGeneration, state.prepared_generation_id)
@@ -897,7 +903,7 @@ def maintain_once(factory) -> dict:
         state = session.scalar(select(BrowseState).where(BrowseState.id == 1).with_for_update())
         if state is not None and state.prepared_generation_id is not None:
             try:
-                selected = current_generation(session, strict=True)
+                selected = current_generation(session)
             except HTTPException:
                 selected = None
             if selected is not None and selected.id == state.prepared_generation_id:
