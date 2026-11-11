@@ -120,7 +120,9 @@ test('source-backed disposable account brief survives responsive navigation and 
         expect(visiblePowerText).toMatch(/(?:not|does not|doesn't).{0,40}rental load/i)
       }
     } else {
-      await expect(powerClaim).toHaveCount(0)
+      await expect(powerClaim).toHaveCount(1)
+      await expect(powerClaim).toContainText('Unknown')
+      await expect(powerClaim).not.toContainText('MW')
     }
   } else {
     expect(manifest.brief.power_scope, 'quantified power retains a scoped basis').toBeTruthy()

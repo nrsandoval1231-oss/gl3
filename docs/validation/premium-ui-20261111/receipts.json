@@ -56,6 +56,18 @@
       "failed": 0,
       "duration": "4.6 minutes",
       "ui_source_unchanged": true
+    },
+    "real_backend_pursuits": {
+      "passed": 1,
+      "failed": 0,
+      "duration": "1.5 minutes",
+      "warm_iterations": 10,
+      "synthetic_rows": 2098
+    },
+    "real_backend_phase2": {
+      "passed": 1,
+      "failed": 0,
+      "seconds": 17.4
     }
   },
   "full_backend": {
@@ -85,5 +97,27 @@
     "deploy/Dockerfile.web": "58ee47f71f1150e72c6bd641b8539f59cf86cd61e22fd9af372be9e4ae7bfcd5",
     "deploy/digitalocean/compose.prod.yaml": "f8233991e32376821793dec8947f17fc4e207d77e94c558b4bffadaae7f3c766",
     "deploy/validate-web-build.sh": "98b089a6f68f9073db247ce0dd814a416eccf5aa2d65382b8325ef3b3e42c6bd"
+  },
+  "supporting_backend_ci": {
+    "head": "8fbf50b36644d20425718098067e7da0a6ecbda2",
+    "run": 42969345785,
+    "passed": 5210,
+    "skipped": 1,
+    "failed": 0,
+    "seconds": 571.11,
+    "not_final_head_ci": true
+  },
+  "production_artifact_identity": {
+    "head": "8fbf50b36644d20425718098067e7da0a6ecbda2",
+    "environment": "production",
+    "package_version": "0.1.0",
+    "verified_in_compiled_artifact": true,
+    "deployed": false
+  },
+  "docker_image_build": {
+    "status": "unverified",
+    "stage": "unchanged npm ci",
+    "diagnostic": "SELF_SIGNED_CERT_IN_CHAIN in managed proxy environment",
+    "no_tls_verification_bypass": true
   }
 }

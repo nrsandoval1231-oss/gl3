@@ -1,3 +1,4 @@
+import { openProjectFilters } from '../../tests/ui-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 
@@ -122,7 +123,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
   })
 
   const start = await signIn(page)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0)
   await expect(page.locator('.project-results-count')).toContainText(/\d+ accounts?/)
@@ -131,6 +132,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
   await capture(page, testInfo, 'default-shortlist')
 
   const searchStarted = Date.now()
+  await openProjectFilters(page)
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   const matchingGroups = page.waitForResponse(async response => {
     const url = new URL(response.url())
@@ -287,9 +289,10 @@ test('real account-first pursuit journey persists through navigation, reload, an
   // Ten read-only warm iterations provide per-interaction samples on the
   // persisted 2,098-row corpus. These do not create further pursuits/tasks.
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   const accountNamePattern = new RegExp(manifest.account_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   for (let iteration = 0; iteration < 10; iteration++) {
+    await openProjectFilters(page)
     const listSearch = page.getByRole('textbox', { name: 'Search accounts and projects' })
     const resultStarted = Date.now()
     const resultWait = page.waitForResponse(async response => {
@@ -332,7 +335,8 @@ test('real account-first pursuit journey persists through navigation, reload, an
     await warmDetail.getByRole('button', { name: /Back to account/ }).click()
     await expect(warmAccount.getByRole('heading', { name: 'Projects' })).toBeVisible()
     await warmAccount.getByRole('button', { name: 'Back to accounts' }).click()
-    await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
+    await openProjectFilters(page)
     await listSearch.fill('')
     await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0)
   }
