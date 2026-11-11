@@ -199,6 +199,8 @@ class _Capture(logging.Handler):
 def test_log_lines_carry_only_route_outcome_reason_and_generation(saved_db, monkeypatch):
     ids = _published(saved_db)
     capture = _Capture()
+    # Other tests run alembic in this process; its fileConfig disables existing loggers.
+    monkeypatch.setattr(saved_browse.read_log, "disabled", False)
     saved_browse.read_log.addHandler(capture)
     try:
         monkeypatch.setattr(settings, "browse_serve_stale", False)
