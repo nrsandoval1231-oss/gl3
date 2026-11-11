@@ -56,7 +56,7 @@ async function signIn(page: Page) {
   if (!password) throw new Error('Set GRIDLENS_TEST_PASSWORD or provide ../.artifacts/local-auth.txt for the isolated browser API')
   await page.goto('/?view=workspace&projectBrowse=1')
   await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
 }
 

@@ -22,10 +22,10 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     })
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(path)
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sign in to GridLens' })).toBeVisible()
     await expect(page.getByRole('img', { name: 'GridLens' })).toBeVisible()
     await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 
     if (label === 'workspace') await page.screenshot({ path: testInfo.outputPath('login-1440x900.png') })
@@ -47,7 +47,7 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     expect(await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].some((key) => `${key}:${localStorage.getItem(key) ?? sessionStorage.getItem(key)}`.includes('synthetic-password')))).toBe(false)
 
     await password.press('Enter')
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Sign in to GridLens' })).toHaveCount(0)
     expect(loginCount).toBe(2)
   })
 
@@ -77,7 +77,7 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     await page.emulateMedia({ reducedMotion: 'reduce' })
     expect(await page.locator('.login-submit').evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s')
     releaseLogin()
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Sign in to GridLens' })).toHaveCount(0)
     expect(loginCount).toBe(1)
   })
 
@@ -85,7 +85,7 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     await mockApi(page, (route) => route.fulfill({ status: 429, json: { detail: 'sensitive provider response' } }))
     await page.goto(path)
     await page.getByLabel('Password', { exact: true }).fill('synthetic-password')
-    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('alert')).toHaveText('Too many sign-in attempts. Wait a moment, then try again.')
   })
 
@@ -93,7 +93,48 @@ for (const [label, path] of [['workspace', '/?tier=Signals'], ['environment', '/
     await mockApi(page, (route) => route.abort('failed'))
     await page.goto(path)
     await page.getByLabel('Password', { exact: true }).fill('synthetic-password')
-    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('alert')).toHaveText('GridLens could not be reached. Check your connection and try again.')
   })
 }
+
+for (const [width, height] of [[1280, 853], [1440, 900], [768, 1024], [390, 844], [320, 568]]) {
+  test(`approved sign-in composition at ${width}x${height}`, async ({ page }, testInfo) => {
+    await mockApi(page, (route) => route.fulfill({ status: 401, json: { detail: 'Invalid credentials' } }))
+    await page.setViewportSize({ width, height })
+    await page.goto('/?tier=Signals')
+    await expect(page.getByRole('heading', { name: 'Sign in to GridLens' })).toBeVisible()
+    await expect(page.getByText('Real projects. Real power.')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: /email/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Google|Microsoft|Sign up/ })).toHaveCount(0)
+    await expect(page.getByText('Contact your workspace administrator')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const password = page.getByLabel('Password', { exact: true })
+    await password.fill('synthetic-password')
+    await page.getByRole('button', { name: 'Show password' }).click()
+    await expect(password).toHaveAttribute('type', 'text')
+    await page.getByRole('button', { name: 'Hide password' }).click()
+    await expect(password).toHaveAttribute('type', 'password')
+    await password.fill('')
+    await page.evaluate(async () => { await document.fonts.ready; (document.activeElement as HTMLElement)?.blur() })
+    await page.screenshot({ path: testInfo.outputPath(`sign-in-${width}x${height}.png`), fullPage: true })
+  })
+}
+
+test('sign-in keyboard order and mobile imagery stay focused on access', async ({ page }) => {
+  const imageRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('/ui/sign-in/')) imageRequests.push(request.url()) })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockApi(page, route => route.fulfill({ status: 401, json: { detail: 'Invalid credentials' } }))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Sign in to GridLens' })).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Show password' })).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'text')
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeFocused()
+  expect(imageRequests).toEqual([])
+})
