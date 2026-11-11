@@ -18,7 +18,7 @@ def account_identity_for_projects(session, project_ids: set[UUID]) -> dict[UUID,
     from gridlens.intelligence.customer_results import _group_id
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="account_identity")
     ctes, params = _assignment_context(session, generation)
     rows = session.execute(
         text(
@@ -55,7 +55,7 @@ def account_for_company(session, company_id: UUID) -> dict[str, str] | None:
     company = session.get(CompanyIdentity, company_id)
     if company is None:
         return None
-    generation = current_generation(session)
+    generation = current_generation(session, route="account_identity")
     ctes, params = _assignment_context(session, generation)
     rows = (
         session.execute(
@@ -109,7 +109,7 @@ def account_for_project(session, project_id: UUID) -> dict[str, str] | None:
     from gridlens.intelligence.customer_results import _group_id
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="account_identity")
     ctes, params = _assignment_context(session, generation)
     rows = (
         session.execute(

@@ -54,9 +54,7 @@ def upgrade() -> None:
         "external_import_events",
         ["batch_id", sa.text("(details ->> 'parser_revision')")],
         unique=True,
-        postgresql_where=sa.text(
-            "action = 'metadata_reparsed'"
-        ),
+        postgresql_where=sa.text("action = 'metadata_reparsed'"),
     )
     op.create_index(
         "uq_external_import_event_batch_metadata_fingerprint",
@@ -69,10 +67,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     count = op.get_bind().scalar(
-        sa.text(
-            "SELECT count(*) FROM external_import_events "
-            "WHERE action = 'metadata_reparsed'"
-        )
+        sa.text("SELECT count(*) FROM external_import_events WHERE action = 'metadata_reparsed'")
     )
     if count:
         raise RuntimeError(
@@ -85,17 +80,13 @@ def downgrade() -> None:
     op.drop_index(
         "uq_external_import_event_batch_metadata_revision", table_name="external_import_events"
     )
-    op.drop_index(
-        "uq_external_import_event_batch_lifecycle", table_name="external_import_events"
-    )
+    op.drop_index("uq_external_import_event_batch_lifecycle", table_name="external_import_events")
     op.create_unique_constraint(
         "uq_external_import_event_batch_action",
         "external_import_events",
         ["batch_id", "action"],
     )
-    op.drop_constraint(
-        "ck_external_import_event_action", "external_import_events", type_="check"
-    )
+    op.drop_constraint("ck_external_import_event_action", "external_import_events", type_="check")
     op.create_check_constraint(
         "ck_external_import_event_action",
         "external_import_events",

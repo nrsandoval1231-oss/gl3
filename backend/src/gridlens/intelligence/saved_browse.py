@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import threading
 from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
@@ -59,6 +61,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     Project,
 )
+from gridlens.settings import settings
 
 
 def _policy_fingerprint() -> str:
@@ -371,7 +374,139 @@ def clock_deadline(session, now: datetime) -> datetime:
     return min(boundaries)
 
 
-def current_generation(session, *, now: datetime | None = None) -> BrowseGeneration:
+def refresh_state(generation: BrowseGeneration) -> str:
+    """Report whether a served generation trails project-scoped canonical writes."""
+    return "updating" if getattr(generation, "serving_stale", False) else "current"
+
+
+def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None:
+    """Select the published generation that only project-scoped writes have passed.
+
+    Policy, clock and full-scope fences stay closed: identity, membership, editorial,
+    source-policy and unknown writes advance ``full_revision`` or ``structural_revision``
+    and keep readers pending. The snapshot is served only while it has been stale for at
+    most ``browse_stale_max_seconds``, measured from ``browse_state.stale_since`` (the first
+    write after the last publication); an unknown start is pending. Contact suppressions
+    are applied at read time, not from here.
+    """
+    generation = session.scalar(
+        select(BrowseGeneration)
+        .join(BrowseState, BrowseState.generation_id == BrowseGeneration.id)
+        .where(
+            BrowseState.id == 1,
+            BrowseState.input_revision > BrowseGeneration.input_revision,
+            BrowseState.full_revision <= BrowseGeneration.input_revision,
+            BrowseState.structural_revision <= BrowseGeneration.input_revision,
+            BrowseGeneration.policy_version == POLICY_VERSION,
+            BrowseGeneration.valid_from <= now,
+            BrowseGeneration.valid_until > now,
+            # Time spent stale, from the first write after the last publication. An unknown
+            # start (NULL) is never servable.
+            BrowseState.stale_since.is_not(None),
+            BrowseState.stale_since >= now - timedelta(seconds=settings.browse_stale_max_seconds),
+        )
+        .limit(1)
+    )
+    if generation is not None:
+        # Transient, per-instance marker; never persisted.
+        generation.serving_stale = True  # type: ignore[attr-defined]
+    return generation
+
+
+READ_REASONS = (
+    "policy",
+    "clock",
+    "full_scope",
+    "stale_age",
+    "no_generation",
+    "flag_off",
+    "strict_reader",
+)
+# Dedicated logger with its own handler: the API process configures no root logging, and
+# INFO lines would otherwise be dropped. Outcome, reason, route and generation id only.
+read_log = logging.getLogger(__name__ + ".reads")
+read_log.setLevel(logging.INFO)
+if not read_log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    read_log.addHandler(_handler)
+    read_log.propagate = False
+_read_counts: Counter[tuple[str, str, str]] = Counter()
+_read_counts_lock = threading.Lock()
+
+
+def read_counts() -> dict[str, int]:
+    """Tally of this process's reads as ``route|outcome|reason`` -> count."""
+    with _read_counts_lock:
+        return {"|".join(key): count for key, count in _read_counts.items()}
+
+
+def reset_read_counts() -> None:
+    with _read_counts_lock:
+        _read_counts.clear()
+
+
+def _record_read(route: str, outcome: str, reason: str | None, generation_id) -> None:
+    with _read_counts_lock:
+        _read_counts[(route, outcome, reason or "-")] += 1
+    if settings.browse_serve_stale:  # the log is the owner's view of the flag's effect
+        read_log.info(
+            "browse_read route=%s outcome=%s reason=%s generation=%s",
+            route,
+            outcome,
+            reason or "-",
+            generation_id or "-",
+        )
+
+
+def _pending_reason(session, now: datetime, allow_stale: bool) -> tuple[str, object]:
+    """Why a read found nothing servable: one cheap read of browse_state, pending path only."""
+    row = session.execute(
+        select(
+            BrowseState.generation_id,
+            BrowseState.input_revision,
+            BrowseState.full_revision,
+            BrowseState.structural_revision,
+            BrowseState.stale_since,
+            BrowseGeneration.input_revision.label("published_revision"),
+            BrowseGeneration.policy_version,
+            BrowseGeneration.valid_from,
+            BrowseGeneration.valid_until,
+        )
+        .select_from(BrowseState)
+        .outerjoin(BrowseGeneration, BrowseGeneration.id == BrowseState.generation_id)
+        .where(BrowseState.id == 1)
+    ).first()
+    if row is None or row.generation_id is None or row.published_revision is None:
+        return "no_generation", None
+    if row.policy_version != POLICY_VERSION:
+        return "policy", row.generation_id
+    if not row.valid_from <= now < row.valid_until:
+        return "clock", row.generation_id
+    if row.input_revision == row.published_revision:
+        # A publication landed between the read and this diagnosis.
+        return "no_generation", row.generation_id
+    if max(row.full_revision, row.structural_revision) > row.published_revision:
+        return "full_scope", row.generation_id
+    window = timedelta(seconds=settings.browse_stale_max_seconds)
+    if row.stale_since is None or row.stale_since < now - window:
+        return "stale_age", row.generation_id
+    if not allow_stale:
+        return "strict_reader", row.generation_id
+    if not settings.browse_serve_stale:
+        return "flag_off", row.generation_id
+    return "no_generation", row.generation_id
+
+
+def current_generation(
+    session, *, now: datetime | None = None, allow_stale: bool = False, route: str | None = None
+) -> BrowseGeneration:
+    """Return the current generation; only routes that label ``refresh_state`` opt in.
+
+    ``allow_stale`` lets BROWSE_SERVE_STALE substitute the last complete generation.
+    Every other caller (builders, maintenance, explicit instants, and reads that cannot
+    tell the user the data is a snapshot) stays strict.
+    """
     requested_now = now
     # A writer may publish between our clock sample and the SELECT snapshot.
     # Retry once with the actual clock, preserving explicit evaluation instants
@@ -402,7 +537,21 @@ def current_generation(session, *, now: datetime | None = None) -> BrowseGenerat
             .limit(1)
         )
         if generation is not None:
+            if route is not None:
+                _record_read(route, "current", None, generation.id)
             return generation
+    # Explicit evaluation instants and callers that do not opt in always stay strict.
+    if requested_now is None and allow_stale and settings.browse_serve_stale:
+        generation = _last_complete_generation(session, datetime.now(UTC))
+        if generation is not None:
+            if route is not None:
+                _record_read(route, "updating", None, generation.id)
+            return generation
+    if route is not None:
+        reason, published = _pending_reason(
+            session, datetime.now(UTC), allow_stale and requested_now is None
+        )
+        _record_read(route, "pending", reason, published)
     raise HTTPException(
         503,
         "Qualification pending: saved browse summaries need a retained-data rebuild",
@@ -1413,7 +1562,7 @@ def page(
             "built_at": generation.built_at.isoformat(),
             "as_of": generation.built_at.isoformat(),
             "valid_until": generation.valid_until.isoformat(),
-            "refresh_state": "current",
+            "refresh_state": refresh_state(generation),
         }
     sql, params = _filtered_cte(filters)
     params.update(generation=generation.id, limit=limit, offset=offset)
@@ -1488,7 +1637,7 @@ def page(
         "built_at": generation.built_at.isoformat(),
         "as_of": generation.built_at.isoformat(),
         "valid_until": generation.valid_until.isoformat(),
-        "refresh_state": "current",
+        "refresh_state": refresh_state(generation),
     }
 
 

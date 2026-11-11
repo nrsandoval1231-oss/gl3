@@ -308,6 +308,7 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             "invalidate_browse_identity_link_update",
             "invalidate_browse_identity_link_delete",
             "invalidate_browse_identity_link_truncate",
+            "zz_browse_structural_fence",
         }
         for table in ("company_identities", "identity_identifiers"):
             scoped_triggers = session.scalars(
@@ -324,6 +325,7 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
                 "invalidate_browse_identity_entity_update",
                 "invalidate_browse_identity_entity_delete",
                 "invalidate_browse_identity_entity_truncate",
+                "zz_browse_structural_fence",
             }
         # Exercise every table without creating/deleting canonical evidence.
         revision = session.scalar(select(BrowseState.input_revision))
@@ -347,7 +349,32 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             "invalidate_browse_company_membership_update",
             "invalidate_browse_company_membership_delete",
             "invalidate_browse_company_membership_truncate",
+            "zz_browse_structural_fence",
         }
+        # The serve-stale fence also watches need/project deletion and need deactivation.
+        for table, expected in (
+            ("projects", "zz_browse_structural_fence"),
+            ("power_needs", "zz_browse_structural_fence"),
+            ("power_needs", "zz_browse_structural_deactivation"),
+        ):
+            names = session.scalars(
+                text("""
+                SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+                JOIN pg_namespace n ON n.oid=c.relnamespace
+                WHERE n.nspname=current_schema() AND c.relname=:table AND NOT t.tgisinternal
+                """),
+                {"table": table},
+            ).all()
+            assert expected in names
+        # Staleness bookkeeping lives on browse_state itself (schema 0054).
+        state_triggers = session.scalars(
+            text("""
+            SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname=current_schema() AND c.relname='browse_state' AND NOT t.tgisinternal
+            """)
+        ).all()
+        assert set(state_triggers) == {"zz_browse_stale_since"}
         session.rollback()
 
 

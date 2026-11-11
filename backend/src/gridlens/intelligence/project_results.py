@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from gridlens.domain.opportunity_shortlist import POLICY_VERSION
 from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_browse import refresh_state as _refresh_state
 from gridlens.intelligence.saved_history_privacy import (
     _redact_all_contact_tokens,
     project_saved_history_privacy,
@@ -104,7 +105,9 @@ def page(
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
     if sort not in {"priority", "priority_asc", "company", "project", "updated"}:
         raise HTTPException(422, "Unsupported project sort")
-    generation = selected_generation or current_generation(session)
+    generation = selected_generation or current_generation(
+        session, allow_stale=True, route="projects"
+    )
     term = (search or "").strip().casefold()
     source_rows: list[Any] = []
     shortlist_data = None
@@ -912,5 +915,5 @@ def page(
         "as_of": generation.built_at.isoformat(),
         "valid_until": generation.valid_until.isoformat(),
         "qualification_state": "current",
-        "refresh_state": "current",
+        "refresh_state": _refresh_state(generation),
     }

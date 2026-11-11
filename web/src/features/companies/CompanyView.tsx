@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupOpen, type ProjectResult } from '../../api/client'
+import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupOpen, type ProjectResult } from '../../api/client'
 import { usePursuitStore } from '../../state/pursuitStore'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from '../workspace/opportunityExport'
@@ -41,6 +41,8 @@ type DetailState = {
   error: string
   more: 'idle' | 'loading' | 'error'
   notice: string
+  /** "Showing results as of …" while the server serves its last complete snapshot. */
+  snapshot?: string
 }
 
 type AccountProjectPageIntent = { groupId: string; filterKey: string; loadedCount: number; total: number; cohort: string }
@@ -304,7 +306,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
         status: 'error', error: Number.isFinite(expiry) ? 'Account project results expired before they could be displayed.' : 'Account project results have no valid expiry. Retry to load a current account snapshot.', more: 'idle', notice: '',
       }
     }
-    return { groupId: id, group: value.group, projects: value.projects.items, total: value.projects.total, cohort: value.projects.cohort_token, parent: value.parent_cohort_token, validUntil, status: 'ready', error: '', more: 'idle', notice: '' }
+    return { groupId: id, group: value.group, projects: value.projects.items, total: value.projects.total, cohort: value.projects.cohort_token, parent: value.parent_cohort_token, validUntil, status: 'ready', error: '', more: 'idle', notice: '', snapshot: browseUpdatingNotice(value.projects) }
   }
 
   const current = detail?.groupId === groupId && (detail.status === 'error' || !detail.validUntil || Date.now() < Date.parse(detail.validUntil)) ? detail : null
@@ -435,6 +437,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
       </section>
       <section aria-label="Account projects" className="cmp-block">
         <h3>Projects</h3>
+        {current.snapshot && <p className="cmp-note" role="status">{current.snapshot}</p>}
         {current.notice && <p className="cmp-note" role="status">{current.notice}</p>}
         {projects.length > 0 && <button type="button" onClick={() => downloadProjectPage(projects, group?.name, `Loaded projects (${projects.length} of ${current.total})`)}>Export loaded projects</button>}
         <ul className="cmp-projects">{projects.map(project => {

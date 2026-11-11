@@ -697,6 +697,102 @@ FACT_DECISION_INSERT_SQL = """
 """
 
 
+# Serve-stale fence: identity, membership and identity-link writes are project-scoped for
+# rebuilds, and need/project deletions only dirty their own project, but a stale page would
+# keep a retracted membership, pre-merge account name or deleted need. These statement
+# triggers sort after the invalidation triggers (trigger name order), so input_revision is
+# already incremented and this write's revision is recorded exactly.
+STRUCTURAL_FENCE_TABLES = (
+    ("company_identities", "UPDATE OR DELETE OR TRUNCATE"),  # a bare new identity changes nothing
+    ("identity_identifiers", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
+    ("company_project_memberships", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
+    ("buying_chain_identity_links", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
+)
+STRUCTURAL_DELETE_TABLES = ("power_needs", "projects")
+STRUCTURAL_FENCE_SQL = """
+    CREATE OR REPLACE FUNCTION mark_browse_structural_fence() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
+        RETURN NULL;
+    END $$
+"""
+
+
+# Ingestion retracts a need by clearing power_needs.active, not by deleting it.
+STRUCTURAL_DEACTIVATION_SQL = """
+    CREATE OR REPLACE FUNCTION mark_browse_structural_deactivation() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM old_rows o JOIN new_rows n ON n.id = o.id
+            WHERE o.active IS TRUE AND n.active IS NOT TRUE
+        ) THEN
+            UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
+        END IF;
+        RETURN NULL;
+    END $$
+"""
+
+
+def install_structural_fence_triggers(connection):
+    connection.exec_driver_sql(STRUCTURAL_FENCE_SQL)
+    connection.exec_driver_sql(STRUCTURAL_DEACTIVATION_SQL)
+    connection.exec_driver_sql(
+        "DROP TRIGGER IF EXISTS zz_browse_structural_deactivation ON power_needs"
+    )
+    connection.exec_driver_sql("""
+        CREATE TRIGGER zz_browse_structural_deactivation AFTER UPDATE ON power_needs
+        REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows
+        FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_deactivation()
+    """)
+    for table, operations in (
+        *STRUCTURAL_FENCE_TABLES,
+        *((t, "DELETE OR TRUNCATE") for t in STRUCTURAL_DELETE_TABLES),
+    ):
+        connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS zz_browse_structural_fence ON {table}")
+        connection.exec_driver_sql(f"""
+            CREATE TRIGGER zz_browse_structural_fence AFTER {operations} ON {table}
+            FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_fence()
+        """)
+
+
+STALE_SINCE_SQL = """
+    CREATE OR REPLACE FUNCTION track_browse_stale_since() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    DECLARE published_revision bigint; previous_revision bigint;
+    BEGIN
+        SELECT input_revision INTO published_revision
+            FROM browse_generations WHERE id = NEW.generation_id;
+        IF published_revision IS NOT NULL AND published_revision = NEW.input_revision THEN
+            NEW.stale_since := NULL;  -- the published generation is current
+        ELSIF published_revision IS NOT NULL AND published_revision < NEW.input_revision
+            AND NEW.stale_since IS NULL THEN
+            -- Behind with no recorded start. Record one only when it fell behind in this very
+            -- write (the previously published generation was current); a state that was
+            -- already behind keeps an unknown start (NULL = pending), and a started window is
+            -- never reset, so a rebase that moves the pointer and restores it cannot extend it.
+            SELECT input_revision INTO previous_revision
+                FROM browse_generations WHERE id = OLD.generation_id;
+            IF previous_revision IS NOT NULL AND previous_revision = OLD.input_revision THEN
+                NEW.stale_since := clock_timestamp();
+            END IF;
+        END IF;
+        RETURN NEW;
+    END $$
+"""
+
+
+def install_stale_since_trigger(connection):
+    """Test/schema installer parity with migration 0054."""
+    connection.exec_driver_sql(STALE_SINCE_SQL)
+    connection.exec_driver_sql("DROP TRIGGER IF EXISTS zz_browse_stale_since ON browse_state")
+    connection.exec_driver_sql("""
+        CREATE TRIGGER zz_browse_stale_since BEFORE UPDATE ON browse_state
+        FOR EACH ROW EXECUTE FUNCTION track_browse_stale_since()
+    """)
+
+
 def install_workspace_triggers(connection):
     connection.exec_driver_sql(RECEIPT_SQL)
     connection.exec_driver_sql("""
@@ -778,3 +874,5 @@ def install(connection):
     install_identity_link_triggers(connection)
     install_identity_entity_triggers(connection)
     install_company_membership_triggers(connection)
+    install_structural_fence_triggers(connection)
+    install_stale_since_trigger(connection)

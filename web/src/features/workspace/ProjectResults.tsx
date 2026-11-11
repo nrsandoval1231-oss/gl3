@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
+import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
 import { clearProjectBrowseCache, invalidateProjectBrowseCache, projectBrowseCacheKey, projectBrowseCacheVersion, readProjectBrowseCache, writeProjectBrowseCache, type ProjectBrowseRoute } from '../../state/projectBrowseCache'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from './opportunityExport'
@@ -128,8 +128,8 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
           if (cohortChanged) { setExpanded({}); setChildren({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}) }
           if (parentReloadNotice.current) {
             parentReloadNotice.current = false
-            setNotice('Results changed. Reloaded from the first page.')
-          } else setNotice('')
+            setNotice(['Results changed. Reloaded from the first page.', browseUpdatingNotice(value)].filter(Boolean).join(' '))
+          } else setNotice(browseUpdatingNotice(value))
           return
         } catch (e) {
           if (controller.signal.aborted) return

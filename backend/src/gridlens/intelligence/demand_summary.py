@@ -12,14 +12,14 @@ from sqlalchemy.orm import Session, aliased
 
 from gridlens.intelligence.customer_results import _ASSET_B
 from gridlens.intelligence.equipment_intelligence import current_equipment_investigations
-from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_browse import current_generation, refresh_state
 from gridlens.persistence.models import BrowseRow, EvidencePackage, PowerNeed, Project
 
 MAX_CANDIDATES = 500
 
 
 def summarize(session: Session, sector: str = "all") -> dict:
-    generation = current_generation(session)
+    generation = current_generation(session, route="demand_summary")
     if generation is None:
         return _unavailable(sector, "Current canonical browse generation is unavailable.")
     browse = aliased(BrowseRow, name="b")
@@ -136,7 +136,12 @@ def summarize(session: Session, sector: str = "all") -> dict:
         "counts_complete": True,
         "availability": "available" if totals["known_mw_records"] else "unavailable",
         "sector": sector,
-        "as_of": datetime.now(UTC).isoformat(),
+        # A stale snapshot must report when it was built, never "now".
+        "as_of": (
+            generation.built_at.isoformat()
+            if refresh_state(generation) == "updating"
+            else datetime.now(UTC).isoformat()
+        ),
         "totals": totals,
         "classes": classes,
         "provenance": {

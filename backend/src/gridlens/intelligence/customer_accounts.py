@@ -47,7 +47,7 @@ def account_queue(
     """SQL-bounded page of generation-bound current customer accounts."""
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     term = (search or "").strip().casefold()
     params = {"generation": generation.id, "term": term, "limit": limit, "offset": offset}
     base = """
@@ -145,8 +145,9 @@ def account_browse_page(
         session, filters, alias="r"
     )
     cohort = f"ca1_{cohort}"
+    # The second plan re-reads the same generation for the same request: count it once.
     sql_generation, _sql_cohort, base, filtered_without_search, base_params = query_plan(
-        session, {**filters, "search": None}, alias="r"
+        session, {**filters, "search": None}, alias="r", route=None
     )
     if sql_generation.id != generation.id:
         raise HTTPException(409, "Customer account cohort changed; restart pagination")
@@ -522,7 +523,7 @@ def account_projects(
 ) -> dict[str, Any]:
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     account_row = (
         session.execute(
             text(
@@ -680,7 +681,7 @@ def unresolved_projects(
     """Bounded unresolved research page from the current saved generation."""
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     term = (search or "").strip().casefold()
     params = {"generation": generation.id, "term": term, "limit": limit, "offset": offset}
     where = (

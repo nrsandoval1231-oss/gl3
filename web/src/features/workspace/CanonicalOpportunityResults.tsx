@@ -1,7 +1,7 @@
 import { Zap, Download } from 'lucide-react'
 import { downloadProjectPage } from './opportunityExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type DemandSummary, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
+import { browseRefreshIsServable, browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type DemandSummary, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
 import './canonical-opportunity-results.css'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 
@@ -20,7 +20,7 @@ function pageIsCurrent(page: ProjectResultsPage | null) {
   if (!page || !Array.isArray(page.items) || !Number.isSafeInteger(page.total) || page.total < 0 || !Number.isSafeInteger(page.limit) || page.limit <= 0 || !Number.isSafeInteger(page.offset) || page.offset < 0 || typeof page.cohort_token !== 'string') return false
   if (page.items.some(item => !item || typeof item.id !== 'string' || typeof item.name !== 'string' || !Array.isArray(item.needs))) return false
   if (page.qualification_state && page.qualification_state !== 'current') return false
-  if (page.refresh_state && page.refresh_state !== 'current') return false
+  if (!browseRefreshIsServable(page.refresh_state)) return false
   if (!page.valid_until) return true
   const expires = Date.parse(page.valid_until)
   return Number.isFinite(expires) && Date.now() < expires
@@ -208,6 +208,7 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     <header className="cfr-heading"><div><h1>Opportunities</h1><p>{shortlist ? 'Source-backed development and power activity for review.' : 'All source-backed project records, including Signals.'}</p></div><div><span>{visiblePage ? `${projectCount(visiblePage.total)} · ${shortlist ? 'Shortlist' : visiblePage.results_scope === 'discovery' ? 'All projects · Signals included' : 'All qualified projects'}` : 'Unavailable'}<small className="cfr-filter-scope" title="Region, stage and priority filter the current page. Search and project type cover all results.">Page filters</small></span><label className="cfr-sort-label">Sort<select aria-label="Sort opportunities" disabled={!canInteract} value={sort} onChange={event => selectSort(event.target.value as Sort)}><option value="priority">Priority</option><option value="priority_asc">Priority (ascending)</option><option value="company">Company</option><option value="project">Project</option></select></label><button type="button" onClick={exportRows} disabled={!visible.length || !canInteract}><Download size={13} aria-hidden="true"/> Export current page</button></div></header>
     <div className="cfr-filters" aria-describedby="canonical-filter-scope"><div className="cfr-view-switch" role="group" aria-label="Opportunity view"><button type="button" aria-pressed={shortlist} onClick={() => selectShortlist(true)}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => selectShortlist(false)}>All Projects</button></div><input aria-label="Search opportunities" placeholder="Search opportunities…" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}/><select aria-label="Region" value={region} onChange={event => { setRegion(event.target.value); setFilterParam('region', event.target.value) }}><option value="">All Regions</option>{regionOptions.map(value => <option key={value}>{value}</option>)}</select><select aria-label="Project type" value={sector} onChange={event => selectSector(event.target.value as Sector)}><option value="all">All Project Types</option><option value="oil_gas">Oil &amp; Gas</option><option value="data_centers">Data Centers</option></select><select aria-label="Stage" value={stage} onChange={event => { setStage(event.target.value); setFilterParam('stage', event.target.value) }}><option value="">All Stages</option>{stageOptions.map(value => <option key={value} value={value}>{stageLabel(value)}</option>)}</select>{!shortlist && <select aria-label="Priority" value={priority} onChange={event => { setPriority(event.target.value); setFilterParam('priority', event.target.value) }}><option value="">All Priorities</option><option value="ranked">Ranked</option><option value="unranked">Unranked</option></select>}<button type="button" onClick={clearFilters}>Clear</button></div>
     <p className="cfr-scope" id="canonical-filter-scope">Region and stage filter this page · Search and project type cover all results{!shortlist && ' · Priority filters this page'}</p>
+    {page && browseUpdatingNotice(page) && <p role="status">{browseUpdatingNotice(page)}</p>}
     {pageErrorNotice && <p role="status">{pageErrorNotice}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryKey(value => value + 1)}>Retry</button></p>}
     {loading && !page && !error && <p role="status">Loading current opportunities…</p>}
     {!loading && visiblePage && !visible.length && (shortlist && visiblePage.total === 0

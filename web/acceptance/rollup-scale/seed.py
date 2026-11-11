@@ -85,8 +85,8 @@ def main() -> None:
         metadata.reflect(bind=engine)
         with engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-            if revision != "0051_canonical_need_aliases":
-                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0051_canonical_need_aliases.")
+            if revision != "0054_browse_stale_since":
+                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0054_browse_stale_since.")
             for table in metadata.sorted_tables:
                 if table.name == "alembic_version":
                     continue
@@ -95,7 +95,7 @@ def main() -> None:
                     if len(rows) != 1:
                         raise SystemExit("Refusing to seed unless browse_state contains only the migration-owned singleton.")
                     row = rows[0]
-                    # Schema 0051 adds only canonical need aliases after the
+                    # Schemas 0051-0054 add canonical need aliases, lookup indexes, the structural-fence column (defaulting 0) and a nullable stale_since, so the pristine check below still holds, after the
                     # pursuit tables and does not touch browse_state; the pristine migration chain owns the
                     # empty singleton: 0021 creates it; 0030, 0031, and 0034
                     # each force one full publication revision; 0032 bumps the

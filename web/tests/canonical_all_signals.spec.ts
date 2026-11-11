@@ -74,3 +74,20 @@ test('synthetic All view requests discovery so Signals render, and pagination an
   await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'Mesa' && url.searchParams.get('include_signals') === 'true')).toBeTruthy()
   expect(requests.every(url => url.searchParams.get('include_signals') === 'true')).toBe(true)
 })
+
+test('Opportunities list labels a snapshot that is still being refreshed', async ({ page }) => {
+  let state = 'updating'
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/projects?**', route => {
+    const url = new URL(route.request().url())
+    return route.fulfill({ json: { ...pageFor(url), as_of: '2026-10-29T15:00:00Z', generation_id: 'last-complete', qualification_state: 'current', refresh_state: state } })
+  })
+  await page.goto('/?view=workspace&projectBrowse=1&shortlist=0')
+  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
+  await expect(page.getByRole('status').filter({ hasText: 'Showing results as of' })).toBeVisible()
+  state = 'current'
+  await page.reload()
+  await expect(page.locator('.cfr-table tbody tr')).toHaveCount(25)
+  await expect(page.getByText('Showing results as of')).toHaveCount(0)
+})

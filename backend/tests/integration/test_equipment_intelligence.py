@@ -195,7 +195,7 @@ def publish_test_browse(session, monkeypatch, needs, *, sector="oil_gas", identi
     session.flush()
     monkeypatch.setattr(
         "gridlens.intelligence.demand_summary.current_generation",
-        lambda _session: generation,
+        lambda _session, **_kwargs: generation,
     )
 
 

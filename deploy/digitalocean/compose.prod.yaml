@@ -18,6 +18,7 @@ x-backend: &backend
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
     SAVED_BROWSE_ENABLED: ${SAVED_BROWSE_ENABLED:-false}
+    BROWSE_SERVE_STALE: ${BROWSE_SERVE_STALE:-false}
     OPERATIONAL_RECEIPT_FILE: ${OPERATIONAL_RECEIPT_FILE:-}
   restart: unless-stopped
 
@@ -29,7 +30,9 @@ services:
 
   api:
     <<: *backend
-    command: ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
+    # Handlers are synchronous; extra processes keep one slow read from stalling the rest.
+    # Each process holds its own database pool (up to 15 connections).
+    command: ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers", "--workers", "${API_WORKERS:-2}"]
     volumes:
       - ${OPERATIONAL_RECEIPT_HOST_FILE:-/dev/null}:/run/gridlens/operational-receipt.json:ro
     depends_on:

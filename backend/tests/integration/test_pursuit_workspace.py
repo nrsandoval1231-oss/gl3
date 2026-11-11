@@ -146,7 +146,9 @@ def test_workspace_rejects_missing_preview_and_missing_generation(saved_db, monk
     monkeypatch.setattr(
         pursuit_workspace,
         "current_generation",
-        lambda _session: (_ for _ in ()).throw(HTTPException(503, "saved generation unavailable")),
+        lambda _session, **_kwargs: (_ for _ in ()).throw(
+            HTTPException(503, "saved generation unavailable")
+        ),
     )
     with saved_db() as session, pytest.raises(HTTPException) as missing:
         page(session, filters, limit=50, offset=0, token=None)
@@ -488,7 +490,9 @@ def test_signal_decision_counts_uses_canonical_cohort_when_saved_browse_is_disab
     monkeypatch.setattr(
         api,
         "current_generation",
-        lambda _session: (_ for _ in ()).throw(AssertionError("disabled path used saved browse")),
+        lambda _session, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("disabled path used saved browse")
+        ),
     )
     client = TestClient(api.app, base_url="https://testserver")
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
