@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import pytest
+from alembic import command
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError
@@ -24,6 +25,8 @@ from gridlens.persistence import (
 )
 from gridlens.persistence.database import Base
 from gridlens.settings import settings
+
+pytest_plugins = ["test_project_match_hardening"]  # provides the migration_env fixture
 
 # Verbatim copy of the dirty_browse_project / browse_observation_projects definitions installed by
 # migrations 0030-0054 (row-level triggers, one function call per row).
@@ -759,7 +762,6 @@ def test_index_driven_observation_projects_returns_the_same_set_for_every_input(
     assert not mismatches, mismatches[:5]
     # Not vacuous: many inputs return projects, and the keyed/NULL cases are present.
     assert sum(1 for row in rows if row[5]) > 20
-    assert any(row[0] is None and row[5] for row in rows) or True
     assert any(row[2] is None and row[3] is None for row in rows)
 
 
@@ -819,3 +821,95 @@ def test_migration_definitions_match_the_installer():
     assert migration.DIRTY_NO_INSERT_TABLES == bi.DIRTY_NO_INSERT_TABLES
     # The restored (downgrade) definition is the oracle text above.
     assert migration.OLD_DIRTY_SQL.strip() == OLD_DIRTY_SQL.strip()
+
+
+def test_multi_event_statement_keeps_dirty_revisions_inside_the_refresh_window(schemas):
+    """An upsert that inserts and updates fires two statement events.
+
+    Each event reads the revision under the lock, so unlike a single-event statement the
+    dirty rows may carry more than one revision. The contract scoped refresh relies on is
+    only that every dirty revision lies in (revision before, revision after].
+    """
+    engine = schemas["new"]
+    with engine.begin() as connection:
+        for statement in seed_statements():
+            connection.exec_driver_sql(statement)
+        connection.exec_driver_sql("DELETE FROM browse_dirty_projects")
+        before = connection.exec_driver_sql(
+            "SELECT input_revision FROM browse_state WHERE id = 1"
+        ).scalar()
+        existing = connection.exec_driver_sql(
+            "SELECT id, identity_key, source_id, external_id FROM projects ORDER BY id LIMIT 1"
+        ).one()
+        fresh = u("upsert-new")
+        connection.exec_driver_sql(
+            "INSERT INTO projects (id, identity_key, name, source_id, external_id, identity_facts)"
+            f" VALUES ('{existing.id}', '{existing.identity_key}', 'Renamed', "
+            f"'{existing.source_id}', '{existing.external_id}', '{{}}'),"
+            f" ('{fresh}', 'key-upsert-new', 'Brand new', 'src-a', 'upsert-new', '{{}}')"
+            " ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"
+        )
+        after = connection.exec_driver_sql(
+            "SELECT input_revision FROM browse_state WHERE id = 1"
+        ).scalar()
+        dirty = connection.exec_driver_sql(
+            "SELECT project_id::text, revision FROM browse_dirty_projects"
+        ).all()
+    assert after > before
+    assert {row[0] for row in dirty} == {str(existing.id), fresh}
+    assert all(before < row[1] <= after for row in dirty), (before, after, dirty)
+
+
+def _dirty_inventory(connection):
+    return {
+        (table, name, level)
+        for table, name, level in connection.exec_driver_sql(
+            """
+            SELECT c.relname, t.tgname, t.tgtype & 1 FROM pg_trigger t
+            JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = current_schema() AND t.tgname ~ '^dirty_browse'
+                AND NOT t.tgisinternal
+            """
+        )
+    }
+
+
+def test_0056_upgrade_downgrade_and_installer_parity(migration_env, schemas):
+    config, engine = migration_env
+    command.upgrade(config, "0055_project_match_keys")
+    with engine.connect() as connection:
+        before = _dirty_inventory(connection)
+        functions_before = connection.exec_driver_sql(
+            "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace"
+            " WHERE n.nspname = current_schema() AND p.proname = 'dirty_browse_project'"
+        ).scalar()
+    assert functions_before == 1
+    assert before and all(level == 1 for _table, _name, level in before)  # row-level triggers
+
+    command.upgrade(config, "0056_statement_dirty_projects")
+    with engine.connect() as connection:
+        migrated = _dirty_inventory(connection)
+    # Every dirty trigger is statement-level except the unchanged row-level fact-decision insert.
+    assert migrated and all(
+        level == 0
+        for _table, name, level in migrated
+        if name != "dirty_browse_fact_decision_insert"
+    )
+    with schemas["new"].connect() as connection:
+        installed = _dirty_inventory(connection)
+    assert migrated == installed  # the migrated schema and install() agree exactly
+
+    command.downgrade(config, "0055_project_match_keys")
+    with engine.connect() as connection:
+        assert _dirty_inventory(connection) == before
+        assert (
+            connection.exec_driver_sql(
+                "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace"
+                " WHERE n.nspname = current_schema() AND p.proname = 'dirty_browse_project'"
+            ).scalar()
+            == 1
+        )
+    command.upgrade(config, "head")
+    command.check(config)
+    with engine.connect() as connection:
+        assert _dirty_inventory(connection) == migrated
