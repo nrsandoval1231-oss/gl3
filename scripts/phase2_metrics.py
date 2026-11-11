@@ -907,6 +907,9 @@ def seed_browser(args: argparse.Namespace) -> int:
                         "power_value": power.get("value"),
                         "power_unit": power.get("unit"),
                         "power_scope": power.get("scope"),
+                        "power_limitations": [
+                            str(value) for value in power.get("limitations") or []
+                        ],
                         "power_status": power.get("status"),
                         "best_contact_label": best_contact.get("contact"),
                         "best_contact_href": best_contact.get("href"),
