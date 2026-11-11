@@ -6,15 +6,24 @@ the same database, one ``process_job`` call (one source run) per phase:
 
   (a) all-new:       R records never seen before
   (b) all-unchanged: the same R records replayed byte-for-byte
-  (c) mixed:         the same R records, ``--changed-fraction`` of them amended. RRC treats the LOWEST
-                     amendment sequence as the latest amendment, so records start at
+  (c) mixed:         the same R records, ``--changed-fraction`` of them amended. RRC treats the
+                     LOWEST amendment sequence as the latest amendment, so records start at
                      sequence 2 and the changed ones move to sequence 1 (a higher sequence would
                      be retained as older evidence, a different and cheaper path)
 
-Fixture payloads only: ``service.retrieve_collection_segment`` is monkeypatched, so there is no
-network or provider access. The target database is dropped and recreated on every run and
-migrated to head with alembic (``DATABASE_URL`` set for the subprocess), so the real
-browse-invalidation triggers are installed and ``browse_state`` starts as a pristine singleton.
+``--source legacy`` instead runs the Fort Worth data-center permit source through the same
+``process_job``; that source takes the legacy ``process_records(commit=True)`` path with real
+per-record commits (the RRC source commits once per segment). The Federal Register EIS source was
+considered first but its mine notices are admitted as context only (no project matching), so a
+permit-family source that admits a Signal in an eligible region is used instead. Rows are built by
+the adapter's own ``record()`` from synthetic permits and flow through project matching, needs,
+lifecycle and material-state code. Interpretation is deterministic and offline (no model).
+
+Fixture payloads only: ``service.retrieve_collection_segment`` (rrc) and ``service.retrieve_source``
+(legacy) are monkeypatched, so there is no network or provider access. The target database is
+dropped and recreated on every run and migrated to head with alembic (``DATABASE_URL`` set for the
+subprocess), so the real browse-invalidation triggers are installed and ``browse_state`` starts as
+a pristine singleton.
 
 Corpus recipe (project i of N, deterministic, bulk-inserted with
 ``session_replication_role = replica`` so seeding fires no triggers; ``browse_state`` is
@@ -76,18 +85,14 @@ BROWSE_FUNCTION_RE = (
     r"^(dirty_browse_|invalidate_browse_|browse_observation_projects|scope_browse_"
     r"|mark_browse_|track_browse_stale_since)"
 )
-LOCK_RE = re.compile(
-    r"FOR\s+(NO\s+KEY\s+UPDATE|UPDATE|SHARE|KEY\s+SHARE)\b", re.IGNORECASE
-)
+LOCK_RE = re.compile(r"FOR\s+(NO\s+KEY\s+UPDATE|UPDATE|SHARE|KEY\s+SHARE)\b", re.IGNORECASE)
 PROJECT_SCAN_RE = re.compile(r"\bFROM\s+projects\b", re.IGNORECASE)
 SOURCE_COUNT = 6
 
 
 def guard_database(url: URL) -> None:
     if not (url.database or "").endswith("_test"):
-        raise SystemExit(
-            f"refusing: database name {url.database!r} must end with '_test'"
-        )
+        raise SystemExit(f"refusing: database name {url.database!r} must end with '_test'")
 
 
 def recreate_database(url: URL) -> None:
@@ -95,9 +100,7 @@ def recreate_database(url: URL) -> None:
     with admin.connect() as conn:
         conn.execute(text(f'DROP DATABASE IF EXISTS "{url.database}" WITH (FORCE)'))
         conn.execute(text(f'CREATE DATABASE "{url.database}"'))
-        conn.execute(
-            text(f"ALTER DATABASE \"{url.database}\" SET track_functions = 'all'")
-        )
+        conn.execute(text(f"ALTER DATABASE \"{url.database}\" SET track_functions = 'all'"))
     admin.dispose()
 
 
@@ -186,9 +189,7 @@ def _backfill_match_keys(conn: Any) -> None:
             [
                 {
                     "id": row.id,
-                    "keys": project_match_keys(
-                        row.name, row.location, row.identity_facts
-                    ),
+                    "keys": project_match_keys(row.name, row.location, row.identity_facts),
                 }
                 for row in rows
             ],
@@ -212,17 +213,13 @@ def seed(engine: Any, projects: int) -> float:
         conn.execute(text("DELETE FROM browse_dirty_projects"))
         for row in state:
             sets = ", ".join(f"{k} = :{k}" for k in row if k != "id")
-            conn.execute(
-                text(f"UPDATE browse_state SET {sets} WHERE id = :id"), dict(row)
-            )
+            conn.execute(text(f"UPDATE browse_state SET {sets} WHERE id = :id"), dict(row))
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("ANALYZE"))
     return time.perf_counter() - started
 
 
-def permit(
-    definition: dict[str, Any], portal: str, project: int, sequence: int
-) -> dict:
+def permit(definition: dict[str, Any], portal: str, project: int, sequence: int) -> dict:
     digest = hashlib.sha256(f"{project}:{sequence}".encode()).hexdigest()
     index = project % len(OPERATORS)
     operator = OPERATORS[index]
@@ -269,6 +266,44 @@ def permit(
             "sequence": sequence,
         },
     }
+
+
+def legacy_row(project: int, variant: int) -> dict:
+    """A Fort Worth data-center building permit, as the adapter's own ``record()`` shapes it.
+
+    The permit interprets into a dated, site-identified Signal in a region-eligible state, so it
+    flows through project matching, needs, lifecycle and material-state code. One third of the
+    facility names reuse the seeded ``Bench Energy Campus <group>`` base so matching has
+    near-duplicate candidates; the rest are unique. ``variant`` 1 amends the work description.
+    """
+    from gridlens.ingestion.adapters.fort_worth_permits import record
+
+    group = project % 1700
+    facility = (
+        f"Bench Energy Campus {group} Data Center"
+        if project % 3 == 0
+        else f"Legacy Bench Data Center {project}"
+    )
+    street = f"{100 + project % 900} Bench Parkway"
+    filed = (datetime.now(UTC).date() - timedelta(days=2 + project % 20)).isoformat()
+    return record(
+        {
+            "permit_no": f"PB{project}",
+            "permit_type": "Building",
+            "subtype": "New",
+            "project": facility,
+            "work": "New data center building 120,000 SF"
+            + (" with added substation yard" if variant else ""),
+            "status": "Issued",
+            "status_date": filed,
+            "filed": filed,
+            "job_value": "$25,000,000",
+            "owners": [f"Bench Owner {project % 50} LLC"],
+            "addresses": [f"{street}, Fort Worth, TX 76177"],
+            "latitude": 32.9 + (project % 100) / 1000,
+            "longitude": -97.3 - (project % 100) / 1000,
+        }
+    )
 
 
 class Counters:
@@ -351,8 +386,11 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     from gridlens.ingestion.registry import load_registry
     from gridlens.persistence.models import Job, Source
 
+    legacy = args.source == "legacy"
     definition = next(
-        r for r in load_registry() if r["id"] == "texas-rrc-drilling-permits"
+        r
+        for r in load_registry()
+        if r["id"] == ("fort-worth-development-permits" if legacy else "texas-rrc-drilling-permits")
     )
     engine = create_engine(url, pool_size=4)
     factory = sessionmaker(engine, expire_on_commit=False)
@@ -360,15 +398,9 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     seed_seconds = seed(engine, args.projects)
     with engine.connect() as conn:
         corpus = {
-            "projects": conn.execute(
-                text("SELECT count(*) FROM projects")
-            ).scalar_one(),
-            "power_needs": conn.execute(
-                text("SELECT count(*) FROM power_needs")
-            ).scalar_one(),
-            "browse_state": dict(
-                conn.execute(text("SELECT * FROM browse_state")).mappings().one()
-            ),
+            "projects": conn.execute(text("SELECT count(*) FROM projects")).scalar_one(),
+            "power_needs": conn.execute(text("SELECT count(*) FROM power_needs")).scalar_one(),
+            "browse_state": dict(conn.execute(text("SELECT * FROM browse_state")).mappings().one()),
         }
 
     with factory.begin() as session:
@@ -403,15 +435,23 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "observed_count": len(records),
         }
 
-    service.retrieve_collection_segment = segment
+    client = None
+    if legacy:
+        service.retrieve_source = lambda *_a, **_k: list(batch)
+    else:
+        service.retrieve_collection_segment = segment
 
     base = 70_000_000
     changed_count = max(1, round(args.records * args.changed_fraction))
-    unchanged = [permit(definition, PORTAL, base + i, 2) for i in range(args.records)]
-    mixed = [
-        permit(definition, PORTAL, base + i, 1 if i < changed_count else 2)
-        for i in range(args.records)
-    ]
+    if legacy:
+        unchanged = [legacy_row(base + i, 0) for i in range(args.records)]
+        mixed = [legacy_row(base + i, 1 if i < changed_count else 0) for i in range(args.records)]
+    else:
+        unchanged = [permit(definition, PORTAL, base + i, 2) for i in range(args.records)]
+        mixed = [
+            permit(definition, PORTAL, base + i, 1 if i < changed_count else 2)
+            for i in range(args.records)
+        ]
     phases = [
         ("a_all_new", unchanged),
         ("b_all_unchanged", unchanged),
@@ -444,7 +484,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
         counters.reset()
         started = time.perf_counter()
         with factory() as session:
-            outcome = service.process_job(session, job_id, "bench", 1, definition)
+            outcome = service.process_job(session, job_id, "bench", 1, definition, client)
         wall = time.perf_counter() - started
         snapshot = (
             counters.commits,
@@ -481,17 +521,14 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
 
     with engine.connect() as conn:
         final = {
-            "projects": conn.execute(
-                text("SELECT count(*) FROM projects")
-            ).scalar_one(),
-            "observations": conn.execute(
-                text("SELECT count(*) FROM observations")
-            ).scalar_one(),
+            "projects": conn.execute(text("SELECT count(*) FROM projects")).scalar_one(),
+            "observations": conn.execute(text("SELECT count(*) FROM observations")).scalar_one(),
         }
     engine.dispose()
     return {
         "date": datetime.now(UTC).date().isoformat(),
         "args": {
+            "source": args.source,
             "projects": args.projects,
             "records": args.records,
             "changed_fraction": args.changed_fraction,
@@ -534,6 +571,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--database-url", required=True)
     parser.add_argument("--projects", type=int, default=5000)
+    parser.add_argument("--source", choices=("rrc", "legacy"), default="rrc")
     parser.add_argument("--records", type=int, default=300)
     parser.add_argument("--changed-fraction", type=float, default=0.05)
     parser.add_argument("--json-out", type=Path)

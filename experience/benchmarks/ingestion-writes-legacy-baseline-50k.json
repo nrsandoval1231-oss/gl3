@@ -1,0 +1,216 @@
+{
+  "date": "2026-11-11",
+  "args": {
+    "source": "legacy",
+    "projects": 50000,
+    "records": 300,
+    "changed_fraction": 0.05
+  },
+  "database": "gl3_s3b_test",
+  "migrate_seconds": 2.2867775090003306,
+  "seed_seconds": 3.6471664390001024,
+  "corpus": {
+    "projects": 50000,
+    "power_needs": 5000,
+    "browse_state": {
+      "id": 1,
+      "input_revision": 4,
+      "generation_id": null,
+      "full_revision": 4,
+      "prepared_generation_id": null,
+      "structural_revision": 4,
+      "stale_since": null
+    }
+  },
+  "final_counts": {
+    "projects": 50300,
+    "observations": 300
+  },
+  "phases": [
+    {
+      "phase": "a_all_new",
+      "records": 300,
+      "wall_seconds": 137.9273102530001,
+      "records_per_second": 2.175058728033701,
+      "commits": 901,
+      "commits_per_record": 3.0033333333333334,
+      "statements": 22809,
+      "statements_per_record": 76.03,
+      "explicit_lock_statements": 3904,
+      "explicit_lock_statements_per_record": 13.013333333333334,
+      "project_scan_statements": 1500,
+      "project_scan_seconds": 2.722960072007936,
+      "trigger_calls": 14700,
+      "trigger_calls_per_record": 49.0,
+      "trigger_total_ms_inclusive": 109308.46299999999,
+      "trigger_pct_of_wall": 79.25077549869961,
+      "trigger_functions": {
+        "invalidate_browse_generation": {
+          "calls": 4800,
+          "total_ms": 732.98,
+          "self_ms": 631.27
+        },
+        "mark_browse_structural_deactivation": {
+          "calls": 300,
+          "total_ms": 14.439,
+          "self_ms": 14.439
+        },
+        "dirty_browse_project": {
+          "calls": 4800,
+          "total_ms": 108459.398,
+          "self_ms": 108459.398
+        },
+        "track_browse_stale_since": {
+          "calls": 4800,
+          "total_ms": 101.646,
+          "self_ms": 101.646
+        }
+      },
+      "process_job_result": {
+        "new": 300,
+        "changed": 0,
+        "unchanged": 0,
+        "signals": 300,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": null,
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "attempt_fetched": 300,
+        "attempt_processed": 300,
+        "attempt_rejected": 0,
+        "attempt_duplicate": 0,
+        "attempt_new": 300,
+        "attempt_changed": 0
+      }
+    },
+    {
+      "phase": "b_all_unchanged",
+      "records": 300,
+      "wall_seconds": 4.807729320999897,
+      "records_per_second": 62.39951960057662,
+      "commits": 601,
+      "commits_per_record": 2.0033333333333334,
+      "statements": 4209,
+      "statements_per_record": 14.03,
+      "explicit_lock_statements": 1504,
+      "explicit_lock_statements_per_record": 5.013333333333334,
+      "project_scan_statements": 300,
+      "project_scan_seconds": 0.07377703100200961,
+      "trigger_calls": 0,
+      "trigger_calls_per_record": 0.0,
+      "trigger_total_ms_inclusive": 0,
+      "trigger_pct_of_wall": 0.0,
+      "trigger_functions": {},
+      "process_job_result": {
+        "new": 0,
+        "changed": 0,
+        "unchanged": 300,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": null,
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "attempt_fetched": 300,
+        "attempt_processed": 300,
+        "attempt_rejected": 0,
+        "attempt_duplicate": 0,
+        "attempt_new": 0,
+        "attempt_changed": 0
+      }
+    },
+    {
+      "phase": "c_5%_changed",
+      "records": 300,
+      "wall_seconds": 12.422492085000158,
+      "records_per_second": 24.14974370257336,
+      "commits": 616,
+      "commits_per_record": 2.0533333333333332,
+      "statements": 5109,
+      "statements_per_record": 17.03,
+      "explicit_lock_statements": 1639,
+      "explicit_lock_statements_per_record": 5.463333333333333,
+      "project_scan_statements": 345,
+      "project_scan_seconds": 0.0874739129981208,
+      "trigger_calls": 600,
+      "trigger_calls_per_record": 2.0,
+      "trigger_total_ms_inclusive": 6493.843999999993,
+      "trigger_pct_of_wall": 52.274889414831215,
+      "trigger_functions": {
+        "invalidate_browse_generation": {
+          "calls": 195,
+          "total_ms": 49.097999999999956,
+          "self_ms": 43.20399999999995
+        },
+        "mark_browse_structural_deactivation": {
+          "calls": 15,
+          "total_ms": 1.0199999999999996,
+          "self_ms": 1.0199999999999996
+        },
+        "dirty_browse_project": {
+          "calls": 195,
+          "total_ms": 6437.838999999993,
+          "self_ms": 6437.838999999993
+        },
+        "track_browse_stale_since": {
+          "calls": 195,
+          "total_ms": 5.8870000000000005,
+          "self_ms": 5.8870000000000005
+        }
+      },
+      "process_job_result": {
+        "new": 0,
+        "changed": 15,
+        "unchanged": 285,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": null,
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "attempt_fetched": 300,
+        "attempt_processed": 300,
+        "attempt_rejected": 0,
+        "attempt_duplicate": 0,
+        "attempt_new": 0,
+        "attempt_changed": 15
+      }
+    }
+  ],
+  "approximations": [
+    "Rows locked cannot be measured from the client; reported proxies are explicit FOR UPDATE/SHARE statements and per-record calls of browse-invalidation trigger functions.",
+    "Trigger function total_ms is inclusive of nested function calls and may double count; it bounds time spent in browse invalidation from above.",
+    "Project scan statements are client statements containing 'FROM projects'."
+  ]
+}

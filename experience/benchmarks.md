@@ -91,3 +91,44 @@ Findings:
   statements. Wall time at 50k fell only 10% (1,044 s to 936 s): the remaining roughly 900 s is client-side
   work that scales with corpus size and is not attributed here (cursor time in `FROM projects` statements is
   only 29.5 s; unindexed project matching and ORM hydration are the suspected remainder, targeted by Step 1).
+
+## Legacy commit-per-record path baseline (before Step 3), 2026-11-11
+
+The RRC source above commits once per collection segment, so it cannot show per-record commit cost. Step 3 changes
+the other path: `process_job` calling `process_records(commit=True)`, which commits at every durable boundary of
+every record. `scripts/ingestion_write_benchmark.py --source legacy` measures it with the Fort Worth data-center
+permit source (`fort-worth-development-permits`, retrieval method `fort-worth-permits`, not in the structured-segment
+list). The planned Federal Register source was not usable: its mine notices are admitted as context only, so they
+never reach project matching. Fort Worth rows are built by the adapter's own `record()` from synthetic permits (filed
+within 22 days, Issued, new data-center building, Texas address), interpret to a Signal, create or match projects
+(one third reuse seeded `Bench Energy Campus <n>` names for near-duplicate candidates), and run needs, lifecycle,
+material state and adjudication. Offline: `service.retrieve_source` is monkeypatched, no model, no network. Phase c
+amends the work description of 5% of records. R = 300 per phase, same corpus recipe, same machine and Postgres as
+above. The integration head already includes Step 1 (indexed project matching), so these numbers are Step 1 plus
+nothing else.
+
+```
+python ../scripts/ingestion_write_benchmark.py --database-url "$TEST_DATABASE_URL" --source legacy --projects 5000 --records 300 --json-out ../experience/benchmarks/ingestion-writes-legacy-baseline-5k.json
+python ../scripts/ingestion_write_benchmark.py --database-url "$TEST_DATABASE_URL" --source legacy --projects 50000 --records 300 --json-out ../experience/benchmarks/ingestion-writes-legacy-baseline-50k.json
+```
+
+5,000 seeded projects (5,300 after phase a):
+
+| phase | wall s | rec/s | commits/rec | stmts/rec | lock stmts/rec | trigger calls/rec | trigger ms | trigger % wall | project scans | scan s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| a all new | 25.8 | 11.62 | 3.00 | 76.0 | 13.01 | 49.0 | 5502 | 21.3% | 1500 | 0.9 |
+| b all unchanged | 4.3 | 70.24 | 2.00 | 14.0 | 5.01 | 0.0 | 0 | 0.0% | 300 | 0.1 |
+| c 5% changed | 4.4 | 67.84 | 2.05 | 17.0 | 5.46 | 2.0 | 264 | 6.0% | 345 | 0.1 |
+
+50,000 seeded projects (50,300 after phase a):
+
+| phase | wall s | rec/s | commits/rec | stmts/rec | lock stmts/rec | trigger calls/rec | trigger ms | trigger % wall | project scans | scan s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| a all new | 137.9 | 2.18 | 3.00 | 76.0 | 13.01 | 49.0 | 109308 | 79.3% | 1500 | 2.7 |
+| b all unchanged | 4.8 | 62.40 | 2.00 | 14.0 | 5.01 | 0.0 | 0 | 0.0% | 300 | 0.1 |
+| c 5% changed | 12.4 | 24.15 | 2.05 | 17.0 | 5.46 | 2.0 | 6494 | 52.3% | 345 | 0.1 |
+
+Reading: 300 new records give 300 signals and 300 accepted permits in phase a, 300 unchanged in b, 15 changed in c.
+The legacy path really does commit 2 to 3 times per record (commit events counted client side; an empty COMMIT still
+counts). At 50k, all-new wall time is dominated by browse-invalidation triggers (79% inclusive), not by commits.
+Single run per size, no variance; the machine is shared with other builders, so wall times carry noise.
