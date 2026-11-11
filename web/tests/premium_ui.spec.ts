@@ -229,3 +229,29 @@ test('account actions remain reachable in a short landscape viewport', async ({ 
   expect(bounds!.y).toBeGreaterThanOrEqual(0)
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(390)
 })
+
+for (const kind of ['source_context', undefined, 'supported_gap', 'activity_requirement', 'facility_demand']) {
+  test(`legacy power summary preserves claim scope: ${kind ?? 'missing kind'}`, async ({ page }) => {
+    await installSyntheticApi(page)
+    await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: {
+      items: [{ id: 'cg_power_scope', name: 'Synthetic power scope account', group_kind: 'resolved_identity', role: 'customer', project_count: 1, need_count: 1, sectors: ['data_centers'], featured_project: {
+        id: 'project_power_scope', project_id: 'project_power_scope', name: 'Synthetic power scope project', company: 'Synthetic power scope account', location: 'Synthetic, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null,
+        representative_need_id: 'need_power_scope', needs: [{ id: 'need_power_scope', project_id: 'project_power_scope', name: 'Synthetic power scope project' }], need_count: 1, event: null, contact: [],
+        power_summary: '12 MW synthetic source statement; confirm package scope.', power_summary_kind: kind, power_amount_class: 'estimated', next_action: null,
+      } }], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'power-scope', generation: 'synthetic',
+    } }))
+    await page.goto('/?view=workspace&groupBrowse=1')
+    const card = page.locator('.premium-account-card')
+    await expect(card).toHaveCount(1)
+    const power = card.locator('.premium-power')
+    await expect(power).toHaveCount(1)
+    if (kind === 'activity_requirement' || kind === 'facility_demand') {
+      await expect(power).toContainText('12 MW synthetic source statement; confirm package scope.')
+      await expect(power).toContainText('Estimated')
+      await expect(power.locator('strong')).toHaveText(kind === 'facility_demand' ? 'Facility demand' : 'Power need')
+    } else {
+      await expect(power).toContainText('Unknown')
+      await expect(card).not.toContainText('12 MW')
+    }
+  })
+}
