@@ -5,6 +5,8 @@ import { expect, test } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
 const screenshotDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../docs/validation/premium-ui-20261111')
+const refreshCaptures = process.env.GRIDLENS_REFRESH_UI_CAPTURES === '1'
+const capturePath = (name: string) => refreshCaptures ? resolve(screenshotDir, name) : test.info().outputPath(name)
 
 // Every response in this test is synthetic and visibly identified as such.
 async function installSyntheticApi(page: import('@playwright/test').Page, event: { kind: string; label: string; date: string } | null = null) {
@@ -83,7 +85,7 @@ async function installSyntheticApi(page: import('@playwright/test').Page, event:
 }
 
 test('premium shell holds its desktop and phone layout and keeps search and account controls usable', async ({ page }) => {
-  mkdirSync(screenshotDir, { recursive: true })
+  if (refreshCaptures) mkdirSync(screenshotDir, { recursive: true })
   const searchQueries = await installSyntheticApi(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
@@ -156,12 +158,12 @@ test('premium shell holds its desktop and phone layout and keeps search and acco
   await expect(page.locator('.premium-account-card')).toHaveCount(3)
 
   // Capture the desktop surface with the synthetic fixture name visible.
-  await page.screenshot({ path: resolve(screenshotDir, 'desktop-1440x900.png') })
+  await page.screenshot({ path: capturePath('desktop-1440x900.png') })
 
   for (const size of [{ width: 1648, height: 928 }, { width: 1280, height: 800 }, { width: 768, height: 1024 }]) {
     await page.setViewportSize(size)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
-    await page.screenshot({ path: resolve(screenshotDir, `desktop-${size.width}x${size.height}.png`), fullPage: true })
+    await page.screenshot({ path: capturePath(`desktop-${size.width}x${size.height}.png`), fullPage: true })
   }
 
   for (const width of [390, 375]) {
@@ -172,8 +174,8 @@ test('premium shell holds its desktop and phone layout and keeps search and acco
     expect(primaryAction).not.toBeNull()
     expect(primaryAction!.y + primaryAction!.height).toBeLessThanOrEqual(844)
     if (width === 390) {
-      await page.screenshot({ path: resolve(screenshotDir, 'mobile-390x844.png') })
-      await page.screenshot({ path: resolve(screenshotDir, 'mobile-full.png'), fullPage: true })
+      await page.screenshot({ path: capturePath('mobile-390x844.png') })
+      await page.screenshot({ path: capturePath('mobile-full.png'), fullPage: true })
     }
   }
 

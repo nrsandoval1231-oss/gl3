@@ -3,7 +3,9 @@ import type { Page } from '@playwright/test'
 /** Open the Opportunities filter disclosure without closing it when already open. */
 export async function openProjectFilters(page: Page) {
   const filters = page.locator('details.premium-filters')
-  if (await filters.count() === 0) return
+  const route = new URL(page.url()).searchParams
+  if (route.get('projectBrowse') === '1' || route.get('accountBrowse') === '1') return
+  await filters.waitFor({ state: 'visible' })
   if (!(await filters.evaluate(element => (element as HTMLDetailsElement).open))) {
     await filters.locator('summary').click()
   }

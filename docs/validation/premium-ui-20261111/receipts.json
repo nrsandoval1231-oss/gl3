@@ -13,7 +13,7 @@
   },
   "screenshots_sha256": {
     "desktop-1280x800.png": "12d45e9aad7e400fef15c371a6afd03b35c838fcd1c8a3c4294ee77deb4f48d1",
-    "desktop-1440x900.png": "09570fe6a8be21c953b60d7d1764c4d58f9ad6197194de7493d529ac3888ab42",
+    "desktop-1440x900.png": "820d67f46d1bfc31c134da06f39e520290612aeefbf41cf85fdd7a5d753b364a",
     "desktop-1648x928.png": "a705b715e5d83d4b436daf427780ec6722b5d5e4444dae3a654b16653f0a9846",
     "desktop-768x1024.png": "8fb68cafcdfb4652bcc16ad6e48ee6ae978849639eafef4978510713ce4df989",
     "mobile-390x844.png": "ec3d0cb9455e195af7ecd1fdeb8749462d61cc5626126b24388496a6282a8a8e",
@@ -34,6 +34,21 @@
     "real_backend_rollup": {
       "passed": 3,
       "failed": 0
+    },
+    "second_full_run": {
+      "passed": 334,
+      "failed": 1,
+      "reason": "Filter-disclosure test helper returned before the authenticated view mounted after reload"
+    },
+    "filter_ready_module": {
+      "passed": 7,
+      "failed": 0,
+      "seconds": 17.8
+    },
+    "capture_policy_module": {
+      "passed": 11,
+      "failed": 0,
+      "seconds": 43.3
     }
   },
   "full_backend": {
@@ -48,7 +63,8 @@
       "failed": 0,
       "seconds": 1.96
     },
-    "final_complete_result": "See exact-head PR CI; scoped repairs do not replace full gates"
+    "final_complete_result": "See exact-head PR CI; scoped repairs do not replace full gates",
+    "skip_reason": "Optional local NC Commerce probe is absent; independently reproduced with -rs"
   },
   "pr": "https://github.com/nrsandoval1231-oss/gl3/pull/189"
 }

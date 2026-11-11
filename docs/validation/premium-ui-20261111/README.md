@@ -69,3 +69,11 @@ The local full-backend command completed with 5,203 passed, one skipped and one 
 The earlier slow backend tail was independently sampled with py-spy: it was actively running the existing 200-record ingestion/map-concurrency test under CPU contention, not evidence of a deadlock. That test passed. The actual failure was the Compose fixture described above. No speculative performance repair or test timeout increase was made.
 
 The final candidate preserves the UI source and screenshot hashes in receipts.json. The last two UI expectation repairs and Compose test-only repair were independently inspected by Astra. Final approval requires the exact PR head's checks and explicit independent attestation in the PR description. No CI result, source merge or local image is evidence that production was deployed.
+
+## Final test-harness and capture receipts
+
+The next complete local browser run recorded 334 passes and one test-helper readiness race: after reload, the helper checked for the disclosure before authenticated mount and returned early. It now waits for the existing disclosure to become visible, retaining the explicit flat/legacy route exceptions. The complete seven-test environment module passes in 17.8 seconds with its history/search assertions intact. A fresh complete run is recorded in PR validation metadata.
+
+The 11-case premium module also passes in 43.3 seconds, including both review repairs, all power-kind boundaries, landscape account access and mobile action bounds. Ordinary test runs now save screenshots into Playwright's per-test output folder. Set `GRIDLENS_REFRESH_UI_CAPTURES=1` explicitly when regenerating the six committed review captures; ordinary CI must not rewrite the committed receipt images. All final capture hashes were recomputed after regeneration.
+
+The sole local backend skip was independently reproduced with `pytest tests/unit/test_nc_commerce.py::test_live_probe_article_parses_without_becoming_a_fixture_or_runtime_seed -q -rs`: the optional local access probe is absent. No live probe was fetched or converted into production data.
