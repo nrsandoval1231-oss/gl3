@@ -9,12 +9,17 @@ Current-base completed checks:
 - `npm run build --prefix web` — passed; existing application bundle exceeds Vite's 500 KB advisory threshold (534.46 KB uncompressed / 152.17 KB gzip).
 - `npm audit --prefix web --audit-level=high` — zero vulnerabilities.
 - Locked backend `pip-audit==2.10.1` — no known vulnerabilities.
-- `uv run alembic upgrade head` / `uv run alembic check` — passed on task-owned disposable database through schema0054; no schema drift.
+- `uv run alembic upgrade head` / `uv run alembic check` — passed on task-owned disposable database through schema0056; no schema drift.
 - `uv run ruff check src tests` — passed.
 - `uv run ruff format --check src tests` — 585 files already formatted.
 - Astra independent `npm run typecheck` and login suite — 14 passed; see independent-review.md.
 
-In progress: full backend suite (5,351 tests), full frontend regression, backend authentication checks, docs graph and mypy final output. Final results will replace this status before handoff.
+- `uv run mypy src` — passed, 266 source files.
+- `uv run python ../scripts/check_docs.py` — passed, 112 maintained documents / 540 local targets / 18 anchors.
+- Backend authentication suite (`test_auth_persistence.py`, `test_api_auth.py`, `test_security.py`, `test_origin.py`) — 17 passed.
+- `uv run --project backend pytest web/acceptance/pursuits-release/test_seed_safety.py -q` — 32 passed.
+
+Full-suite/acceptance outcomes and current-head CI status are recorded in [PR194](https://github.com/nrsandoval1231-oss/gl3/pull/194), which is the final delivery receipt. A scoped pass does not imply those wider suites passed. The PR remains draft; no merge or deployment is authorized.
 
 Local execution uses a fresh loopback-only PostgreSQL 17.11 cluster on port5543 with separate task-owned app/test databases. CI uses PostgreSQL18.6 and remains the exact-version gate. No retained or production data or external paid providers are used. `scripts/check.ps1` cannot run directly because PowerShell is unavailable; equivalent checks are executed individually. Operational live-source acceptance is not established by these isolated tests.
 
