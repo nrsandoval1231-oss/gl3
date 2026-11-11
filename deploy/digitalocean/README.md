@@ -9,8 +9,10 @@ The repository's newer wrapper companion has not been established as installed o
 ## Frontend build identity
 
 Before an authorized frontend image build, export `GRIDLENS_BUILD_SHA` from
-`git rev-parse HEAD` in the exact clean source checkout being built. Production
-Compose requires this value and identifies its deployment environment as production.
+`git rev-parse HEAD` in the exact clean source checkout being built. The production
+web-image build requires a 40-character hexadecimal value and identifies its
+deployment environment as production. Compose configuration remains usable without
+frontend metadata for backend-only collection, alerting and migration commands.
 The account dropdown reads this build identity; it does not query the running Git checkout.
 The application version comes from `web/package.json` unless `VITE_APP_VERSION` is
 explicitly supplied. Set `GRIDLENS_DEPLOYED_AT` only when the deployment process

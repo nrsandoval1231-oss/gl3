@@ -162,13 +162,14 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     assert services["web"]["build"]["args"]["GRIDLENS_DEPLOYMENT_ENVIRONMENT"] == "production"
 
 
-def test_production_web_build_requires_source_revision(tmp_path):
+def test_backend_compose_operations_do_not_require_frontend_revision(tmp_path):
     if not shutil.which("docker"):
         pytest.skip("Docker Compose unavailable")
     root = Path(__file__).resolve().parents[3]
     config = tmp_path / ".env.prod"
     config.write_text((root / "deploy/digitalocean/env.prod.example").read_text())
-    compose = tmp_path / "compose.prod.yaml"
+    compose = tmp_path / "deploy/digitalocean/compose.prod.yaml"
+    compose.parent.mkdir(parents=True)
     compose.write_text((root / "deploy/digitalocean/compose.prod.yaml").read_text())
     result = subprocess.run(
         [
@@ -188,8 +189,37 @@ def test_production_web_build_requires_source_revision(tmp_path):
         text=True,
         check=False,
     )
-    assert result.returncode != 0
-    assert "GRIDLENS_BUILD_SHA" in result.stderr
+    assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    assert "worker" in services
+    assert services["web"]["build"]["args"]["GRIDLENS_BUILD_SHA"] == ""
+
+
+@pytest.mark.parametrize(
+    ("environment", "sha", "accepted"),
+    [
+        ("production", "", False),
+        ("production", "invalid-revision", False),
+        ("production", "abc123", False),
+        ("production", "a" * 40, True),
+        ("Local build", "", True),
+    ],
+)
+def test_web_image_build_revision_guard(environment, sha, accepted):
+    root = Path(__file__).resolve().parents[3]
+    result = subprocess.run(
+        _shell_command(root / "deploy/validate-web-build.sh"),
+        env=_process_environment(
+            VITE_DEPLOYMENT_ENVIRONMENT=environment,
+            VITE_GIT_SHA=sha,
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (result.returncode == 0) is accepted
+    if not accepted:
+        assert "40-character commit SHA" in result.stderr
 
 
 # Total-deadline enforcement is covered against a loopback server in

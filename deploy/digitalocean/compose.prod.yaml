@@ -67,7 +67,7 @@ services:
       context: ../..
       dockerfile: deploy/Dockerfile.web
       args:
-        GRIDLENS_BUILD_SHA: ${GRIDLENS_BUILD_SHA:?set GRIDLENS_BUILD_SHA to the actual source commit before building}
+        GRIDLENS_BUILD_SHA: ${GRIDLENS_BUILD_SHA:-}
         GRIDLENS_DEPLOYMENT_ENVIRONMENT: production
         GRIDLENS_DEPLOYED_AT: ${GRIDLENS_DEPLOYED_AT:-}
     depends_on:

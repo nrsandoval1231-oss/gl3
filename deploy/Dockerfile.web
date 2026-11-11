@@ -9,7 +9,8 @@ ARG GRIDLENS_DEPLOYED_AT
 ENV VITE_GIT_SHA=$GRIDLENS_BUILD_SHA \
     VITE_DEPLOYMENT_ENVIRONMENT=$GRIDLENS_DEPLOYMENT_ENVIRONMENT \
     VITE_DEPLOYED_AT=$GRIDLENS_DEPLOYED_AT
-RUN npm run build
+COPY deploy/validate-web-build.sh /usr/local/bin/validate-web-build.sh
+RUN sh /usr/local/bin/validate-web-build.sh && npm run build
 
 FROM nginx:1.28-alpine
 RUN apk upgrade --no-cache
