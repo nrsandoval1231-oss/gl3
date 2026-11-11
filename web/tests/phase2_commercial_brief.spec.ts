@@ -107,6 +107,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   await sourceDisclosure.locator('summary').click()
   await expect(sourceDisclosure).not.toHaveAttribute('open', '')
   const powerClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
+  // Mirrors meaningfulPowerLimitations in ProjectResults.tsx: split on ';' and drop only the generic unknown-amount parts.
   const informativePowerLimitations = (manifest.brief.power_limitations ?? []).flatMap(value => value.split(/;\s*/).map(part => part.trim()).filter(part => part && !/^(?:(?:activity-specific )?(?:power )?(?:need|amount)(?: for [^.]*)? is unknown\.?|unknown is not zero\.?|unknown does not mean zero\.?)$/i.test(part)))
   if (manifest.brief.power_amount_class === 'unknown' || !manifest.brief.power_value) {
     if (manifest.brief.power_scope && informativePowerLimitations.length) {
