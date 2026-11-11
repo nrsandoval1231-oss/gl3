@@ -35,8 +35,10 @@ export function WorkspaceAccount({ onResearch, onSignals, onDiagnostics, onSignO
   useEffect(() => {
     if (!open) return
     const dismiss = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); trigger.current?.focus() } }
     document.addEventListener('pointerdown', dismiss)
-    return () => { document.removeEventListener('pointerdown', dismiss) }
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape) }
   }, [open])
 
   useEffect(() => {

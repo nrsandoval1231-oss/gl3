@@ -15,6 +15,7 @@ All screenshot data is **synthetic acceptance data**, visibly labeled Synthetic,
 - [Desktop 1280×800](desktop-1280x800.png)
 - [Tablet 768×1024](desktop-768x1024.png)
 - [iPhone 390×844](mobile-390x844.png)
+- [Full phone page, including contacts and sources](mobile-full.png)
 
 Direct visual inspection against the attached owner reference checked the two header levels, contained original logo, architectural center artwork, right-hand statement, active underline, introduction/metrics alignment, segmented toolbar and compact company/power/Why now/contact/action grouping. Sora follows the explicit brand instruction despite the reference headline's serif appearance. Cards expand for substantive scope/uncertainty text instead of truncating material qualifications. On phones the first Pursuit action is inside the initial 844px viewport; contact routes and secondary context remain below. The retained raster artwork is only 145×53, so the enlarged center is visibly softer than a high-resolution reference; no replacement artwork was invented.
 
@@ -39,3 +40,9 @@ Observed before final source freeze:
 - Retained project detail acceptance: 14 passed, including action bounds at 1648/1440/1280/390 widths and overflow/footer checks.
 
 The initial broad browser run was interrupted after 99 passes and obsolete selector failures. An intermediate broad run overlapped an isolated run sharing Playwright's output folder, causing artifact ENOENT failures; isolated runs now use separate output paths. The first real-backend rollup attempt exceeded its 15-second initial navigation budget during concurrent cold builds; its failure is retained separately. These are not claimed as successful final acceptance.
+
+## Independent review repair
+
+Independent Astra reviewed `9544d4762a1b3906d5360978d449bd8147b9d4c6` and withheld approval for two concrete issues: populated mobile search results could remain open after the close toggle, and an unbounded energization substring test could mislabel decommissioning or regulatory commission events. The repair closes both search state flags and restricts timing to explicit normalized lifecycle kinds. New browser cases cover close/reopen/Escape, a genuine commissioning positive and decommissioning/regulatory-permit/free-text negatives. The account disclosure also gains Escape/focus restoration and bounded short-screen scrolling; tablet cards avoid word fragmentation and artwork no longer overlaps the statement. This is a repair record, not a final approval claim.
+
+The isolated real-backend rollup lane subsequently passed all three viewport journeys (1440, 768 and 390 pixels) against 2,098 synthetic persisted rows, with providers disabled. This demonstrates actual API/account/pagination behavior using fixtures; it does not prove production freshness or research coverage.

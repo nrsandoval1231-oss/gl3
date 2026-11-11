@@ -7,7 +7,7 @@ import { mockDemandSummary } from './mock-demand-summary'
 const screenshotDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../docs/validation/premium-ui-20261111')
 
 // Every response in this test is synthetic and visibly identified as such.
-async function installSyntheticApi(page: import('@playwright/test').Page) {
+async function installSyntheticApi(page: import('@playwright/test').Page, event: { kind: string; label: string; date: string } | null = null) {
   const searchQueries: string[] = []
   await mockDemandSummary(page)
   await page.route(url => new URL(url).pathname.startsWith('/api/'), route => {
@@ -43,7 +43,7 @@ async function installSyntheticApi(page: import('@playwright/test').Page) {
             customer_identity_id: `synthetic-company-${index}`, location: 'Synthetic, TX', sector: 'data_centers', asset_type: 'data_center', priority_score: null,
             representative_need_id: needId, need_count: 1,
             needs: [{ id: needId, project_id: projectId, name: `${name} campus phase`, activity: 'construction', tier: 'Prospect', commercial_brief: brief(kind, name) }],
-            eligible_need_ids: [needId], event: { kind: 'construction', label: 'Synthetic planned construction', date: '2026-12-01', source: 'https://example.invalid/synthetic' },
+            eligible_need_ids: [needId], event,
             contact: [], commercial_brief: brief(kind, name), power_summary: null, power_summary_kind: kind === 'unknown' ? 'unknown' : 'activity_requirement', next_action: null,
             shortlist_assessment: { eligible: true, reasons: [], evidence_refs: [], why_now: 'Synthetic fixture for browser acceptance.', next_step: 'Review synthetic source.' }, updated_at: null,
           },
@@ -117,6 +117,10 @@ test('premium shell holds its desktop and phone layout and keeps search and acco
   await page.getByRole('button', { name: 'Account menu' }).click()
   const accountOptions = page.getByRole('region', { name: 'Account options' }).or(page.locator('.workspace-account__menu'))
   await expect(accountOptions).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(accountOptions).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Account menu' })).toBeFocused()
+  await page.getByRole('button', { name: 'Account menu' }).click()
   await expect(accountOptions).toContainText('Build SHA')
   const sha = (await accountOptions.locator('dd').nth(2).innerText()).trim()
   expect(sha).toMatch(/^[0-9a-f]{40}$/i)
@@ -181,9 +185,47 @@ test('premium shell holds its desktop and phone layout and keeps search and acco
   await search.fill('synthetic')
   await expect.poll(() => searchQueries).toContain('synthetic')
   await expect(page.getByRole('region', { name: 'Search results' }).getByRole('button', { name: /Synthetic Estimated Operator/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Close search' }).click()
+  await expect(search).toBeHidden()
+  await expect(page.getByRole('region', { name: 'Search results' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open search' }).click()
+  await expect(search).toBeFocused()
+  await expect(page.getByRole('region', { name: 'Search results' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Open search' })).toBeFocused()
   await expect(search).toBeHidden()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   expect(await header.evaluate(el => el.getBoundingClientRect().width <= window.innerWidth)).toBeTruthy()
+})
+
+for (const event of [
+  { kind: 'commissioning_planned', label: 'Commissioning expected', date: '2027-06-01', supported: true },
+  { kind: 'decommissioning', label: 'Site decommissioning scheduled', date: '2027-06-01', supported: false },
+  { kind: 'permit_issued', label: 'Railroad Commission permit issued', date: '2027-06-01', supported: false },
+  { kind: 'planning', label: 'Application mentions energization and commissioning', date: '2027-06-01', supported: false },
+]) {
+  test(`energization requires a supported lifecycle type: ${event.kind}`, async ({ page }) => {
+    await installSyntheticApi(page, event)
+    await page.goto('/?view=workspace&groupBrowse=1')
+    await expect(page.locator('.premium-account-card')).toHaveCount(3)
+    const timing = page.locator('.premium-account-card').first().locator('.premium-energization')
+    if (event.supported) {
+      await expect(timing).toContainText('Commissioning expected')
+      await expect(timing).toContainText('2027-06-01')
+    } else await expect(timing).toHaveCount(0)
+  })
+}
+
+test('account actions remain reachable in a short landscape viewport', async ({ page }) => {
+  await installSyntheticApi(page)
+  await page.setViewportSize({ width: 844, height: 390 })
+  await page.goto('/?view=workspace&groupBrowse=1')
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  const menu = page.locator('.workspace-account__menu')
+  const signOut = menu.getByRole('button', { name: 'Sign out', exact: true })
+  await signOut.scrollIntoViewIfNeeded()
+  const bounds = await signOut.boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds!.y).toBeGreaterThanOrEqual(0)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(390)
 })

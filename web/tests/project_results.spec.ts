@@ -1293,13 +1293,17 @@ test('cached browse context expires at the backend valid-until boundary', async 
 })
 
 test('mounted account project details and contacts disappear at their independent generation expiry', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let openReads = 0
   let freshGeneration = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
   await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
-  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
+  await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', async route => {
+    // Hold the browser clock at the exact snapshot start while the initial
+    // account projection and its contact are observed, then cross expiry below.
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
     openReads += 1
     const validUntil = freshGeneration ? '2026-10-29T12:00:20Z' : '2026-10-29T12:00:02Z'
     const name = freshGeneration ? 'Current buyer' : 'Expired buyer'

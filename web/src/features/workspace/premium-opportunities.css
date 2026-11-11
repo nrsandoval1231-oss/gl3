@@ -21,7 +21,7 @@
 .premium-filters .premium-filter-search { grid-column:1/-1; }
 .premium-filters input,.premium-filters select { width:100%; min-height:40px; min-width:0; padding:8px; border:1px solid #A9B4BC; border-radius:6px; background:white; color:#233B4C; font:14px Inter,sans-serif; }
 .premium-export { min-height:40px; padding:8px; border:1px solid #A9B4BC; border-radius:6px; background:white; color:#233B4C; font:12px Inter,sans-serif; cursor:pointer; }
-.premium-opportunities .project-results-count { margin:-10px 18px 0; color:#607F8B; font-size:12px; }
+.premium-opportunities .project-results-count { margin:-10px 18px 0; color:#233B4C; font-size:12px; }
 .premium-account-list { display:grid; gap:12px; padding:0 18px 18px; margin-top:-8px; background:#ffffffb8; border-radius:0 0 14px 14px; }
 .premium-account-card { position:relative; display:grid; grid-template-columns:minmax(220px,26%) minmax(0,1fr); align-items:stretch; min-width:0; border:1px solid #d4dbdf; border-radius:14px; background:white; box-shadow:0 2px 4px #0B1F3314; }
 .premium-account-card::before { content:''; position:absolute; top:22px; bottom:22px; left:16px; width:7px; border-radius:5px; background:#6E909A; }
@@ -30,32 +30,32 @@
 .premium-account-card .customer-group-toggle>span:first-child { display:grid; gap:8px; min-width:0; }
 .premium-account-card .customer-group-name { font:650 20px/1.25 Sora,sans-serif; overflow-wrap:anywhere; }
 .premium-account-card .customer-group-toggle small { color:#233B4C; font:400 13px/1.4 Inter,sans-serif; }
-.premium-account-card .customer-group-count { grid-column:1; grid-row:2; justify-self:start; font-size:11px; color:#607F8B; }
+.premium-account-card .customer-group-count { grid-column:1; grid-row:2; justify-self:start; font-size:11px; color:#233B4C; }
 .premium-account-card .customer-group-chevron { grid-column:2; grid-row:1/span 2; }
 .premium-account-detail.customer-group-featured { display:grid; grid-template-columns:minmax(105px,.8fr) minmax(0,1.5fr) minmax(175px,1.2fr); align-content:center; align-items:start; gap:9px 20px; min-width:0; padding:18px 22px; border:0; font:13px Inter,sans-serif; }
-.premium-account-detail>.premium-featured-project { grid-column:1/-1; margin:0; color:#607F8B; font-size:11px; }
+.premium-account-detail>.premium-featured-project { grid-column:1/-1; margin:0; color:#233B4C; font-size:11px; }
 .premium-account-detail .customer-commercial-brief { display:contents; }
 .premium-account-detail .customer-brief-claim { display:grid; align-content:start; gap:3px; min-width:0; }
 .premium-account-detail .customer-brief-claim strong,.premium-account-detail .customer-group-contact>strong { color:#233B4C; font-size:12px; font-weight:650; }
 .premium-account-detail .customer-brief-claim p { grid-column:auto; margin:0; color:#1E2A33; font-size:14px; line-height:1.4; overflow-wrap:anywhere; }
-.premium-account-detail .customer-brief-claim small { color:#607F8B; font-size:11px; line-height:1.4; }
+.premium-account-detail .customer-brief-claim small { color:#233B4C; font-size:11px; line-height:1.4; }
 .premium-account-detail .premium-power { grid-column:1; grid-row:2; }
 .premium-account-detail .premium-power p { font-weight:650; }
 .premium-account-detail .premium-why { grid-column:2; grid-row:2; }
 .premium-account-detail .premium-next-action { grid-column:2; grid-row:3; }
-.premium-account-detail .premium-next-action strong { font-size:11px; color:#607F8B; }
+.premium-account-detail .premium-next-action strong { font-size:11px; color:#233B4C; }
 .premium-account-detail .premium-next-action p { font-size:12px; }
 .premium-account-detail .premium-energization { grid-column:1; grid-row:3; }
 .premium-account-detail .customer-group-contact { display:grid; grid-column:3; grid-row:2; align-content:start; gap:4px; min-width:0; font-size:13px; }
 .premium-account-detail .customer-group-contact a { color:#233B4C; overflow-wrap:anywhere; line-height:1.4; }
-.premium-account-detail .customer-group-contact small { color:#607F8B; font-size:11px; }
+.premium-account-detail .customer-group-contact small { color:#233B4C; font-size:11px; }
 .premium-account-detail .customer-brief-sources { grid-column:1; grid-row:4; font-size:11px; }
 .premium-account-detail .customer-brief-sources[open] { grid-column:1/-1; }
 .premium-account-detail .customer-brief-sources p { margin:6px 0; font-size:12px; }
 .premium-account-detail>.cod-actions { grid-column:3; grid-row:3; display:flex; flex-wrap:wrap; align-items:center; gap:4px; min-width:0; }
 .premium-account-detail>.cod-actions .cod-action-primary { display:block; width:100%; min-height:36px; padding:8px 14px; border:0; border-radius:20px; background:#0B1F33; color:white; font:600 14px Inter,sans-serif; text-align:center; }
 .premium-account-detail>button { grid-column:3; grid-row:4; justify-self:start; padding:2px 0; border:0; background:transparent; color:#233B4C; font-size:11px; text-decoration:underline; }
-.premium-account-detail>small { grid-column:3; color:#607F8B; font-size:11px; }
+.premium-account-detail>small { grid-column:3; color:#233B4C; font-size:11px; }
 .premium-account-card>.customer-group-projects { grid-column:1/-1; }
 .premium-opportunities :is(button,a,summary,select,input):focus-visible { outline:2px solid #607F8B; outline-offset:3px; }
 @media(max-width:1100px) {
@@ -122,4 +122,15 @@
 /* Retained project-detail pane reserves the taller masthead above its existing KPI row. */
 @media(min-width:1051px) {
   .canonical-workspace-main .cod-panel.cod-panel:has(.cod-overview-body) { height:calc(100dvh - 310px); max-height:calc(100dvh - 310px); }
+}
+@media(min-width:761px) and (max-width:1000px) {
+  .premium-opportunities-intro { flex-direction:column; align-items:stretch; gap:20px; }
+  .premium-opportunities-intro h1 { max-width:30ch; }
+  .premium-metrics { flex:initial; width:100%; }
+  .premium-account-card { grid-template-columns:minmax(0,1fr); }
+  .premium-account-card::before { top:18px; bottom:auto; height:48px; }
+  .premium-account-card .customer-group-heading { margin:0 22px; padding:16px 0; border-right:0; border-bottom:1px solid #E8ECEF; }
+  .premium-account-card .customer-group-toggle { padding:0 0 0 14px; }
+  .premium-account-card .customer-group-name { font-size:20px; }
+  .premium-account-detail.customer-group-featured { grid-template-columns:minmax(130px,.8fr) minmax(160px,1.2fr) minmax(160px,1fr); padding:16px 22px; }
 }

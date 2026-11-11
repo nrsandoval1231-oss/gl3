@@ -68,3 +68,6 @@
   .canonical-header.canonical-header .global-search-results { position: fixed; top: 144px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 164px); }
 }
 @media (max-width: 375px) { .canonical-header__brand { width: 184px; } .canonical-header__tools { gap: 3px; padding-right: 10px; } .canonical-header__nav { gap: 8px; padding-inline: 12px; } .canonical-header__nav button { font-size: 12px; } }
+@media(min-width:761px) and (max-width:1100px) {
+  .canonical-header__architecture { left:auto; right:230px; width:220px; }
+}

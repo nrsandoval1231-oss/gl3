@@ -367,7 +367,33 @@ test('mobile selected detail keeps the compact header and clear return', async (
   await expect(action).toBeInViewport()
   await expect(action.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
   await expect(page.locator('.canonical-header .global-search label > span')).toBeHidden()
-  expect(await page.locator('.canonical-header__brand').evaluate(node => getComputedStyle(node).width)).toBe('143px')
+  const header = page.locator('.canonical-header')
+  const brand = page.locator('.canonical-header__brand')
+  const brandArt = page.locator('.canonical-header__brand-art')
+  const headerBounds = await header.boundingBox()
+  const brandBounds = await brand.boundingBox()
+  const logo = await brandArt.evaluate(node => {
+    const image = node as HTMLImageElement
+    const bounds = image.getBoundingClientRect()
+    return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
+      naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+      objectFit: getComputedStyle(image).objectFit }
+  })
+  expect(headerBounds).not.toBeNull()
+  expect(brandBounds).not.toBeNull()
+  expect(brandBounds!.width).toBeGreaterThan(143)
+  expect(brandBounds!.x).toBeGreaterThanOrEqual(headerBounds!.x)
+  expect(brandBounds!.x + brandBounds!.width).toBeLessThanOrEqual(Math.min(headerBounds!.x + headerBounds!.width, 390))
+  expect(brandBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y)
+  expect(brandBounds!.y + brandBounds!.height).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height)
+  expect(logo.width).toBeGreaterThan(143)
+  expect(logo.x).toBeGreaterThanOrEqual(headerBounds!.x)
+  expect(logo.x + logo.width).toBeLessThanOrEqual(Math.min(headerBounds!.x + headerBounds!.width, 390))
+  expect(logo.y).toBeGreaterThanOrEqual(headerBounds!.y)
+  expect(logo.y + logo.height).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height)
+  expect(logo.objectFit).toBe('contain')
+  expect(logo.naturalWidth).toBeGreaterThan(0)
+  expect(Math.abs(logo.width / logo.height - logo.naturalWidth / logo.naturalHeight)).toBeLessThan(0.01)
   await expect(page.getByRole('button', { name: '← Opportunities' })).toBeVisible()
 })
 
