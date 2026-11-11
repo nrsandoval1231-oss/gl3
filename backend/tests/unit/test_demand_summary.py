@@ -24,7 +24,7 @@ class _Session:
 
 def test_summary_uses_only_current_projection_and_separates_unknown(monkeypatch):
     monkeypatch.setattr(
-        demand_summary, "current_generation", lambda _session: SimpleNamespace(id="g")
+        demand_summary, "current_generation", lambda _session, **_kwargs: SimpleNamespace(id="g")
     )
     project = SimpleNamespace(
         id="p1",
@@ -89,7 +89,7 @@ def test_summary_uses_only_current_projection_and_separates_unknown(monkeypatch)
 
 def test_summary_does_not_add_multiple_needs_for_same_project(monkeypatch):
     monkeypatch.setattr(
-        demand_summary, "current_generation", lambda _session: SimpleNamespace(id="g")
+        demand_summary, "current_generation", lambda _session, **_kwargs: SimpleNamespace(id="g")
     )
     project = SimpleNamespace(
         id="p",
@@ -113,7 +113,7 @@ def test_summary_does_not_add_multiple_needs_for_same_project(monkeypatch):
 
 def test_over_budget_summary_marks_counts_incomplete_and_skips_projection(monkeypatch):
     monkeypatch.setattr(
-        demand_summary, "current_generation", lambda _session: SimpleNamespace(id="g")
+        demand_summary, "current_generation", lambda _session, **_kwargs: SimpleNamespace(id="g")
     )
     project = SimpleNamespace(id="p", region_status="ELIGIBLE")
     rows = [
