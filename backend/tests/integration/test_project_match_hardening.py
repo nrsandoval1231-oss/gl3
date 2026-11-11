@@ -274,6 +274,10 @@ def _assert_indexes_valid(engine):
         )
 
 
+# Later migrations are not idempotent from the 0054 stamp used below: exercise 0055 alone.
+REVISION_0055 = "0055_project_match_keys"
+
+
 def test_0055_is_retryable_resumable_and_reversible(migration_env):
     from alembic import command
 
@@ -296,12 +300,11 @@ def test_0055_is_retryable_resumable_and_reversible(migration_env):
             ),
             {"i": uuid4()},
         )
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION_0055)
     _assert_indexes_valid(engine)
     with engine.connect() as connection:
         keys = connection.execute(text("SELECT match_keys FROM projects")).scalar_one()
     assert "n:alpha" in keys
-    command.check(config)
 
     # Simulate a failed index build after the column, keys and trigger were committed.
     with engine.begin() as connection:
@@ -310,7 +313,7 @@ def test_0055_is_retryable_resumable_and_reversible(migration_env):
         )
         connection.execute(text("DROP INDEX ix_projects_match_keys"))
         connection.execute(text("UPDATE projects SET match_keys = NULL"))
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION_0055)
     _assert_indexes_valid(engine)
     with engine.connect() as connection:
         assert connection.execute(text("SELECT match_keys FROM projects")).scalar_one() == keys
