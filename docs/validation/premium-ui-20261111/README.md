@@ -27,6 +27,8 @@ Authentication exposes no individual user name, so the account button uses an ac
 
 ## Verification
 
+This is the source-freeze receipt. Final exact-head CI and independent acceptance are recorded in PR #189 metadata, avoiding a receipt-only commit/CI loop.
+
 Local checks use disposable loopback PostgreSQL databases and disabled providers. Full command logs are retained under `.artifacts/premium-ui/` in the task workspace. Final results and independent review are recorded in the PR; earlier failed or interrupted runs are not passing receipts.
 
 Observed before final source freeze:
@@ -62,4 +64,8 @@ UI source is frozen at `689b1366cb531c6003a3771c7f38b926a5e27b43`. The [hash rec
 - `uv run alembic upgrade head` and `uv run alembic check`: schema 0051 and no new upgrade operations; no migration introduced.
 - Brand validator: 216 assets/eight semantic AA pairs passed; maintained docs: 111 documents/539 local targets/18 anchors passed.
 
-The local full-backend run remains pending with one visible failure. The independent critic accepted the frozen UI source with no remaining material source findings and explicitly withheld overall acceptance until final gates and this failure are resolved. Required exact-head PR CI supplies a fresh complete run; do not read the scoped module result as a full-suite pass.
+The local full-backend command completed with 5,203 passed, one skipped and one failed in 1,775.38 seconds. The failure was the existing Compose fixture omitting the newly required build SHA. A direct isolated reproduction reported the same required-variable error. The fixture now supplies a clearly synthetic SHA, keeps every provider-key isolation assertion, and checks the build metadata. A new negative test rejects a missing SHA. Its complete 19-test module passes in 1.96 seconds. No backend source or test deadline was changed. The full run remains a failed receipt; the scoped repair does not retroactively turn it into a full pass. Required exact-head PR CI supplies the fresh complete result.
+
+The earlier slow backend tail was independently sampled with py-spy: it was actively running the existing 200-record ingestion/map-concurrency test under CPU contention, not evidence of a deadlock. That test passed. The actual failure was the Compose fixture described above. No speculative performance repair or test timeout increase was made.
+
+The final candidate preserves the UI source and screenshot hashes in receipts.json. The last two UI expectation repairs and Compose test-only repair were independently inspected by Astra. Final approval requires the exact PR head's checks and explicit independent attestation in the PR description. No CI result, source merge or local image is evidence that production was deployed.

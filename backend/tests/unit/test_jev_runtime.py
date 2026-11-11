@@ -118,6 +118,7 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
         OPENAI_API_KEY="injected-openai-sentinel",
         FIRECRAWL_API_KEY="injected-firecrawl-sentinel",
         CLOUDFLARE_TUNNEL_TOKEN="synthetic-tunnel",
+        GRIDLENS_BUILD_SHA="a" * 40,
     )
     result = subprocess.run(
         [
@@ -157,6 +158,38 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     assert "TYPESAFE_API_KEY" not in services["web"].get("environment", {})
     assert "OPENAI_API_KEY" not in services["web"].get("environment", {})
     assert "FIRECRAWL_API_KEY" not in services["web"].get("environment", {})
+    assert services["web"]["build"]["args"]["GRIDLENS_BUILD_SHA"] == "a" * 40
+    assert services["web"]["build"]["args"]["GRIDLENS_DEPLOYMENT_ENVIRONMENT"] == "production"
+
+
+def test_production_web_build_requires_source_revision(tmp_path):
+    if not shutil.which("docker"):
+        pytest.skip("Docker Compose unavailable")
+    root = Path(__file__).resolve().parents[3]
+    config = tmp_path / ".env.prod"
+    config.write_text((root / "deploy/digitalocean/env.prod.example").read_text())
+    compose = tmp_path / "compose.prod.yaml"
+    compose.write_text((root / "deploy/digitalocean/compose.prod.yaml").read_text())
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(config),
+            "-f",
+            str(compose),
+            "config",
+            "--no-env-resolution",
+            "--format",
+            "json",
+        ],
+        env=_process_environment(CLOUDFLARE_TUNNEL_TOKEN="synthetic-tunnel"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "GRIDLENS_BUILD_SHA" in result.stderr
 
 
 # Total-deadline enforcement is covered against a loopback server in

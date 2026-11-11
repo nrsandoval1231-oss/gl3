@@ -36,5 +36,19 @@
       "failed": 0
     }
   },
-  "full_backend": "Pending; one failure visible; no full pass claimed"
+  "full_backend": {
+    "passed": 5203,
+    "failed": 1,
+    "skipped": 1,
+    "seconds": 1775.38,
+    "failed_case": "tests/unit/test_jev_runtime.py::test_compose_forwards_injected_keys_without_a_secret_file",
+    "root_cause": "Compose fixture omitted newly required production build SHA",
+    "repair_module": {
+      "passed": 19,
+      "failed": 0,
+      "seconds": 1.96
+    },
+    "final_complete_result": "See exact-head PR CI; scoped repairs do not replace full gates"
+  },
+  "pr": "https://github.com/nrsandoval1231-oss/gl3/pull/189"
 }
