@@ -80,8 +80,8 @@ measurement of this source: its baseline was taken after Step 1 and before Step 
 | 50k | all unchanged | 4.8 | 2.3 | 128.90 | 2.00 |
 | 50k | 5% changed | 12.4 | 3.4 | 88.10 | 2.05 |
 
-The legacy gain at 50k comes from Step 2a (its trigger time was 79% of wall). Commits per record are still 3.0 because
-batching ships off.
+The legacy gain at 50k comes from Step 2a (its trigger time was 79% of wall). Commits per record are still 3.0
+(no batching).
 
 **By step (RRC all-new wall seconds):**
 
@@ -91,7 +91,7 @@ batching ships off.
 | 1, indexed matching alone | 26.2 | 73.8 | provisional (other builders running) |
 | 2a, index-driven statement-level triggers alone | 115.8 | 935.9 | builder run, without Step 1 |
 | 1 + 2a | 24.0 | 26.2 | provisional |
-| final head (Step 3 off, Step 4 analysis only) | 22.1 | 25.4 | quiet |
+| final head (Steps 0, 1, 2a; Step 4 analysis only) | 22.1 | 25.4 | quiet; measured before Step 3 was removed with its code path off, which the critic verified identical to the code without it |
 
 Step 1 removes the corpus-scaling matcher cost (about 14 minutes of ORM hydration at 50k). Step 2a removes the corpus-scaling
 trigger cost (`dirty_browse_project` 113 s at 50k became 6 s; per-call cost about 0.3 ms at every size) but on its own moved
@@ -109,16 +109,29 @@ references to `input_revision`. That is an owner decision (Step 2b) and was not 
 `browse_state` lock per statement (not per row), and since the ORM writes one row per statement the lock count per record
 is unchanged (about 21 calls per new record).
 
-**Step 3, batch commits: implemented, default off, recommend dropping or deferring.** Gain is replay-only (unchanged
-records 1.4 to 1.8 times faster, amended 8 to 22%); all-new is unchanged (24.9 s vs 25.8 s at 5k, 142 s vs 138 s at 50k)
-and statements per record rise by 3 to 4. With a batch open, pursuit, owner-fact and need-status inserts that reference a
-project or need wait for the batch (FK `FOR KEY SHARE` against ingestion's `FOR UPDATE`), the job row and `browse_state`
-row are held for the whole batch, and lock-order deadlocks become more likely. The proposed narrowing to
-`FOR NO KEY UPDATE` (`experience/benchmarks/step3-lock-narrowing.patch`) needs an existing test's text match changed, so it
-was not applied; it also would not remove the `browse_state` wait. `INGESTION_BATCH_SIZE` therefore defaults to 1
-(today's behaviour, verified identical by the critic). The first review found and this branch fixes a defect in batched mode
-(a failed flush discarded the whole batch). Only the structured collection path (`commit=False`) and publisher RSS are not
-affected by the setting.
+**Step 3, batch commits: implemented and measured, then removed from this PR.** The work stays recoverable in this
+branch's history (implementation and 13 tests at `83fd547c`, default-off at `287afce7`, review fix at `dae09679`; the PR
+removes them with one revert commit). Measured on the legacy `commit=True` source: all-new ingestion was unchanged (24.9 s
+vs 25.8 s at 5k, 142 s vs 138 s at 50k) and statements per record rose by 3 to 4; only replays gained (unchanged records
+2.4 s vs 4.3 s at 5k and 3.3 s vs 4.8 s at 50k, amended 8 to 22%). With a batch open, pursuit, owner-fact and need-status
+inserts that reference a project or need wait for the batch (FK `FOR KEY SHARE` against ingestion's `FOR UPDATE`), the job
+row and the `browse_state` row are held for the whole batch (the lock probe's test schema cannot show the latter), and
+lock-order deadlocks become more likely. The proposed narrowing to `FOR NO KEY UPDATE` needs an existing test's text match
+changed and would not remove the `browse_state` wait. Without a measurable all-new gain and with a lock regression, it is
+not worth about 600 lines in the hottest ingestion function even when off by default. Revisit it only after Step 2b below,
+and only if a remote-database measurement shows commit latency matters. A review of the batched mode found and fixed a bug
+(a failed flush discarded the whole batch) that the original tests did not cover; a revival must keep that regression test.
+
+**Step 2b, lock-free revision, deferred to Phase 4.** Single-writer ingestion now spends 3 to 13% of wall time in browse
+triggers, so removing the writers' queue has no current throughput value; it matters once Phase 4 adds parallel job lanes.
+It needs: a revision assigned at commit time (a `DEFERRABLE INITIALLY DEFERRED` constraint trigger per transaction that
+merges an append-only per-transaction journal into `browse_dirty_projects` and does the single `browse_state` update as its
+last action, so revision order equals commit order); the pinned test
+`test_all_declared_input_tables_have_transactional_statement_triggers` rewritten to assert on the post-commit revision;
+the structural-fence and stale-since triggers moved to that commit step (they currently read `input_revision` at statement
+time); an audit of the roughly 237 test references to `input_revision`; and a concurrency test where two open transactions
+write different projects and both commit without waiting. A journal-plus-sequence design was rejected because revision
+order and commit order differ (a publication can cover a revision whose writer commits later).
 
 **Step 4, bulk-skip unchanged records: analysis only, recommend dropping.** See the analysis below. An unchanged structured
 permit already writes nothing to any record table and costs about 4.7 ms; a prefilter would cost about 0.04 ms per record,
