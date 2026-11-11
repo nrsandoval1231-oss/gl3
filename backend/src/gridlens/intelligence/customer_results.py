@@ -14,6 +14,7 @@ from sqlalchemy import select, text
 from gridlens.intelligence.customer_primary import CUSTOMER_ROLE_ORDER, OWNER_ROLES
 from gridlens.intelligence.project_results import page as project_page
 from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_browse import refresh_state as _refresh_state
 
 _ASSET = """CASE
  WHEN compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'
@@ -87,7 +88,7 @@ def _snapshot_metadata(generation) -> dict[str, str]:
         "as_of": as_of,
         "valid_until": generation.valid_until.isoformat(),
         "qualification_state": "current",
-        "refresh_state": "current",
+        "refresh_state": _refresh_state(generation),
     }
 
 

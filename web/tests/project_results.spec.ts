@@ -1339,3 +1339,26 @@ test('an already expired account project snapshot stays hidden while retaining t
   await expect(account.getByRole('link', { name: 'Call Current cached buyer' })).toBeVisible()
   expect(openReads).toBeGreaterThan(1)
 })
+
+test('account list shows the last prepared snapshot with its time while newer data is processed', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  let updating = true
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T15:00:00Z', valid_until: '2099-01-01T00:00:00Z', generation_id: 'synthetic-last-complete', qualification_state: 'current', refresh_state: updating ? 'updating' : 'current' } }))
+  await page.goto('/?groupBrowse=1&shortlist=0')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Showing results as of' })).toContainText('Newer source data is still being processed')
+  updating = false
+  await page.getByRole('button', { name: 'Refresh customer accounts' }).click()
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await expect(page.getByText('Showing results as of')).toHaveCount(0)
+})
+
+test('account list still rejects an unrecognized refresh state', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, valid_until: '2099-01-01T00:00:00Z', qualification_state: 'current', refresh_state: 'rebuilding' } }))
+  await page.goto('/?groupBrowse=1&shortlist=0')
+  await expect(page.getByRole('alert')).toContainText('Could not load accounts')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
+})

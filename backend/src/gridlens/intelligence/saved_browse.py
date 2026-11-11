@@ -59,6 +59,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     Project,
 )
+from gridlens.settings import settings
 
 
 def _policy_fingerprint() -> str:
@@ -371,7 +372,42 @@ def clock_deadline(session, now: datetime) -> datetime:
     return min(boundaries)
 
 
-def current_generation(session, *, now: datetime | None = None) -> BrowseGeneration:
+def refresh_state(generation: BrowseGeneration) -> str:
+    """Report whether a served generation trails project-scoped canonical writes."""
+    return "updating" if getattr(generation, "serving_stale", False) else "current"
+
+
+def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None:
+    """Select the published generation that only project-scoped writes have passed.
+
+    Policy, clock and full-scope fences stay closed: identity, membership,
+    editorial, source-policy and unknown writes advance ``full_revision`` and
+    keep readers pending. The build-age bound stops serving when republication
+    has stalled. Contact suppressions are applied at read time, not from here.
+    """
+    generation = session.scalar(
+        select(BrowseGeneration)
+        .join(BrowseState, BrowseState.generation_id == BrowseGeneration.id)
+        .where(
+            BrowseState.id == 1,
+            BrowseState.input_revision > BrowseGeneration.input_revision,
+            BrowseState.full_revision <= BrowseGeneration.input_revision,
+            BrowseGeneration.policy_version == POLICY_VERSION,
+            BrowseGeneration.valid_from <= now,
+            BrowseGeneration.valid_until > now,
+            BrowseGeneration.built_at >= now - timedelta(seconds=settings.browse_stale_max_seconds),
+        )
+        .limit(1)
+    )
+    if generation is not None:
+        # Transient, per-instance marker; never persisted.
+        generation.serving_stale = True  # type: ignore[attr-defined]
+    return generation
+
+
+def current_generation(
+    session, *, now: datetime | None = None, strict: bool = False
+) -> BrowseGeneration:
     requested_now = now
     # A writer may publish between our clock sample and the SELECT snapshot.
     # Retry once with the actual clock, preserving explicit evaluation instants
@@ -401,6 +437,11 @@ def current_generation(session, *, now: datetime | None = None) -> BrowseGenerat
             )
             .limit(1)
         )
+        if generation is not None:
+            return generation
+    # Explicit evaluation instants, builders and maintenance always stay strict.
+    if requested_now is None and not strict and settings.browse_serve_stale:
+        generation = _last_complete_generation(session, datetime.now(UTC))
         if generation is not None:
             return generation
     raise HTTPException(
@@ -824,7 +865,7 @@ def prepare_next(factory, *, lead_seconds=PREPARE_LEAD_SECONDS, before_publish=N
     """Prepare exactly the next canonical clock interval, never expose it early."""
     try:
         with factory() as session:
-            generation = current_generation(session)
+            generation = current_generation(session, strict=True)
             state = session.get(BrowseState, 1)
             candidate = (
                 session.get(BrowseGeneration, state.prepared_generation_id)
@@ -853,7 +894,7 @@ def maintain_once(factory) -> dict:
         state = session.scalar(select(BrowseState).where(BrowseState.id == 1).with_for_update())
         if state is not None and state.prepared_generation_id is not None:
             try:
-                selected = current_generation(session)
+                selected = current_generation(session, strict=True)
             except HTTPException:
                 selected = None
             if selected is not None and selected.id == state.prepared_generation_id:
@@ -1413,7 +1454,7 @@ def page(
             "built_at": generation.built_at.isoformat(),
             "as_of": generation.built_at.isoformat(),
             "valid_until": generation.valid_until.isoformat(),
-            "refresh_state": "current",
+            "refresh_state": refresh_state(generation),
         }
     sql, params = _filtered_cte(filters)
     params.update(generation=generation.id, limit=limit, offset=offset)
@@ -1488,7 +1529,7 @@ def page(
         "built_at": generation.built_at.isoformat(),
         "as_of": generation.built_at.isoformat(),
         "valid_until": generation.valid_until.isoformat(),
-        "refresh_state": "current",
+        "refresh_state": refresh_state(generation),
     }
 
 

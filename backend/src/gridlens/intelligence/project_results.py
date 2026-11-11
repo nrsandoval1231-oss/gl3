@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from gridlens.domain.opportunity_shortlist import POLICY_VERSION
 from gridlens.intelligence.saved_browse import current_generation
+from gridlens.intelligence.saved_browse import refresh_state as _refresh_state
 from gridlens.intelligence.saved_history_privacy import (
     _redact_all_contact_tokens,
     project_saved_history_privacy,
@@ -912,5 +913,5 @@ def page(
         "as_of": generation.built_at.isoformat(),
         "valid_until": generation.valid_until.isoformat(),
         "qualification_state": "current",
-        "refresh_state": "current",
+        "refresh_state": _refresh_state(generation),
     }

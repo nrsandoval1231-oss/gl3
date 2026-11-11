@@ -1,7 +1,7 @@
 import { Zap, Download } from 'lucide-react'
 import { downloadProjectPage } from './opportunityExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type DemandSummary, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
+import { browseRefreshIsServable, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, type DemandSummary, type ProjectResult, type ProjectResultsPage, type ProjectResultsSort } from '../../api/client'
 import './canonical-opportunity-results.css'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 
@@ -20,7 +20,7 @@ function pageIsCurrent(page: ProjectResultsPage | null) {
   if (!page || !Array.isArray(page.items) || !Number.isSafeInteger(page.total) || page.total < 0 || !Number.isSafeInteger(page.limit) || page.limit <= 0 || !Number.isSafeInteger(page.offset) || page.offset < 0 || typeof page.cohort_token !== 'string') return false
   if (page.items.some(item => !item || typeof item.id !== 'string' || typeof item.name !== 'string' || !Array.isArray(item.needs))) return false
   if (page.qualification_state && page.qualification_state !== 'current') return false
-  if (page.refresh_state && page.refresh_state !== 'current') return false
+  if (!browseRefreshIsServable(page.refresh_state)) return false
   if (!page.valid_until) return true
   const expires = Date.parse(page.valid_until)
   return Number.isFinite(expires) && Date.now() < expires

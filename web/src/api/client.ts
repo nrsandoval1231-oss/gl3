@@ -58,10 +58,20 @@ export type ProjectResultContactPerson = { record_type?: 'contact_person'; compa
 export type ShortlistAssessment = { eligible: boolean; reasons: string[]; evidence_refs: string[]; why_now: string | null; next_step: string | null; source_subject?: string | null; scope?: string | null }
 export type ProjectResultsSort = 'priority' | 'priority_asc' | 'company' | 'project' | 'updated'
 export type ProjectResult = { eligible_need_ids?: string[]; id: string; project_id: string; project_ids?: string[]; customer_identity_id?: string | null; name: string; company: string | null; location: string | null; sector: 'oil_gas' | 'data_centers' | null; asset_type: string | null; priority_score: number | null; representative_need_id: string | null; commercial_brief?: CommercialBrief | null; needs: ProjectResultNeed[]; need_count: number; event: { kind: string; label: string; date: string | null; source?: string | null; evidence_refs?: unknown[] } | null; contact: { kind: string; label: string; href?: string | null; name?: string | null; title?: string | null; company?: string | null; route_kind?: string | null; responsibility?: string | null; support?: string | null; source_url?: string | null; verified_at?: string | null }[]; contact_people?: ProjectResultContactPerson[]; power_summary: string | null; power_amount_class?: 'documented' | 'calculated' | 'estimated' | 'inferred' | 'unknown'; power_summary_kind?: 'supported_gap' | 'activity_requirement' | 'facility_demand' | 'source_context' | 'unknown'; next_action: string | null; shortlist_assessment?: ShortlistAssessment | null; updated_at: string | null }
-export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | string }
+export type BrowseGenerationMetadata = { generation_id?: string; as_of?: string; valid_until?: string; qualification_state?: 'current' | string; refresh_state?: 'current' | 'updating' | string }
+/** The server may serve its last complete snapshot while newer source data is republished. */
+export const browseRefreshIsServable = (state?: string) => !state || state === 'current' || state === 'updating'
+/** Tell the reader how old the visible snapshot is; empty when results are current. */
+export function browseUpdatingNotice(value: BrowseGenerationMetadata): string {
+  if (value.refresh_state !== 'updating') return ''
+  const asOf = value.as_of ? Date.parse(value.as_of) : NaN
+  return Number.isFinite(asOf)
+    ? `Showing results as of ${new Date(asOf).toLocaleString()}. Newer source data is still being processed.`
+    : 'Showing the last prepared results. Newer source data is still being processed.'
+}
 /** Reject browse metadata that has expired before the client can display it. */
 function requireCurrentBrowseGeneration(value: BrowseGenerationMetadata) {
-  if ((value.qualification_state && value.qualification_state !== 'current') || (value.refresh_state && value.refresh_state !== 'current')) {
+  if ((value.qualification_state && value.qualification_state !== 'current') || !browseRefreshIsServable(value.refresh_state)) {
     throw new Error('Current operator/customer results could not be confirmed.')
   }
   if (value.valid_until) {

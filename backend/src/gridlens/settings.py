@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     monitoring_max_active_per_host: int = Field(default=2, ge=1, le=20)
     monitoring_max_active_per_source: int = Field(default=1, ge=1, le=20)
     saved_browse_enabled: bool = False
+    # Owner-approved 2026-11-11: reads may use the last complete browse generation
+    # while project-scoped ingestion changes are republished. Off by default.
+    browse_serve_stale: bool = False
+    browse_stale_max_seconds: int = Field(default=1800, ge=0, le=86400)
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
     typesafe_api_key: SecretStr | None = None

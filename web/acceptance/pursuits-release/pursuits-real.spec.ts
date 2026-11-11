@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 
 type Manifest = {
   synthetic_fixture: true
-  migration_revision: '0051_canonical_need_aliases'
+  migration_revision: '0052_ingestion_lookup_indexes'
   target_need_id: string
   target_project_id: string
   target_name: string
@@ -73,7 +73,7 @@ async function capture(page: Page, testInfo: import('@playwright/test').TestInfo
 test('real account-first pursuit journey persists through navigation, reload, and lost-response retry', async ({ page }, testInfo) => {
   const manifest = await manifestPromise
   expect(manifest.synthetic_fixture).toBe(true)
-  expect(manifest.migration_revision).toBe('0051_canonical_need_aliases')
+  expect(manifest.migration_revision).toBe('0052_ingestion_lookup_indexes')
 
   const external = new Set<string>()
   const responses: ApiResponse[] = []

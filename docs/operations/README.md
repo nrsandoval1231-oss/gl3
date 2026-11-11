@@ -20,6 +20,12 @@ The observed host uses `/etc/gridlens/compose.app.yaml`, protected runtime confi
 
 The alternate `deploy/digitalocean/` proposal is not the actual production runbook. Never print runtime values or install replacement credentials. Preserve prior images and the live database; prove forward-schema compatibility before rollback and do not replay unknown provider calls.
 
+## Read availability during ingestion (2026-11-11, owner-approved, off by default)
+
+Account and project result routes normally answer `503 Qualification pending` whenever a canonical write is newer than the published browse generation. With `BROWSE_SERVE_STALE=true` on the API, those reads instead return the last complete generation with `refresh_state: "updating"` and its `as_of` time, and the UI labels the snapshot. Only project-scoped writes qualify: policy changes, clock expiry and full-scope writes (identity, membership, editorial, source policy) still return pending. A generation built more than `BROWSE_STALE_MAX_SECONDS` (default 1800) ago is not served, so stalled maintenance surfaces as pending. Builders, maintenance and explicit evaluation instants always use the strict rule. This setting is implemented and tested locally only; it is not enabled or verified in production.
+
+The `deploy/digitalocean` compose proposal now starts `API_WORKERS` API processes (default 2), each with its own database pool of up to 15 connections; the protected host compose file is separate and unchanged. Schema `0052_ingestion_lookup_indexes` adds six lookup indexes concurrently; nginx compresses text responses and caches fingerprinted `/assets/` files. The nginx change was not syntax-checked in a container in the authoring session.
+
 ## Recovery and remaining limits
 
 Before a future cutover, take a fresh on-host checkpoint through the established protected mechanism and verify its archive, digest and isolated restoration evidence. The November 2 backup and rehearsal receipts apply to that release only; they do not establish scheduled off-host retention. Production data changes require separate authorization, attributed source evidence, dry-run results and reversible history. Human contact, relationship, qualification or workflow corrections are not supported product API/CLI operations; preserve existing correction receipts and history.

@@ -300,6 +300,7 @@ class EvidencePackage(Base):
 
 class Project(Base):
     __tablename__ = "projects"
+    __table_args__ = (Index("ix_projects_source_external", "source_id", "external_id"),)
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     identity_key: Mapped[str] = mapped_column(String(220), unique=True)
     name: Mapped[str] = mapped_column(Text)
@@ -378,6 +379,8 @@ class LifecycleEvent(Base):
             "state",
             name="uq_lifecycle_event_replay",
         ),
+        Index("ix_lifecycle_events_observation", "observation_id"),
+        Index("ix_lifecycle_events_evidence", "evidence_id"),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
@@ -634,7 +637,10 @@ class BriefDailyBudget(Base):
 
 class NeedObservation(Base):
     __tablename__ = "need_observations"
-    __table_args__ = (UniqueConstraint("need_id", "observation_id", name="uq_need_observation"),)
+    __table_args__ = (
+        UniqueConstraint("need_id", "observation_id", name="uq_need_observation"),
+        Index("ix_need_observations_observation", "observation_id"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"))
     observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
@@ -784,6 +790,7 @@ class BuyingChainEvidence(Base):
     __tablename__ = "buying_chain_evidence"
     __table_args__ = (
         UniqueConstraint("project_id", "url", "content_hash", name="uq_buying_evidence_version"),
+        Index("ix_buying_chain_evidence_retained", "retained_evidence_id"),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
@@ -1208,6 +1215,7 @@ class InterconnectionFactVersion(Base):
     __tablename__ = "interconnection_fact_versions"
     __table_args__ = (
         UniqueConstraint("project_id", "evidence_id", name="uq_interconnection_fact_evidence"),
+        Index("ix_interconnection_fact_evidence", "evidence_id"),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
