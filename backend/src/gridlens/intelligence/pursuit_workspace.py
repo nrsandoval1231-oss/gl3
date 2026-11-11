@@ -15,7 +15,7 @@ from gridlens.intelligence.saved_browse import canonical_json, current_generatio
 
 def query_plan(session, filters: dict[str, Any], *, alias: str = ""):
     """Return the canonical SQL eligibility predicates shared by need/account pages."""
-    generation = current_generation(session)
+    generation = current_generation(session, route="pursuit_workspace")
     identity = hashlib.sha256(
         canonical_json([str(generation.id), generation.digest, filters]).encode()
     ).hexdigest()

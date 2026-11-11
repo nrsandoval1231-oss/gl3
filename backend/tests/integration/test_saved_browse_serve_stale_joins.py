@@ -325,45 +325,6 @@ def test_identity_and_membership_writes_close_the_stale_fence(saved_db, client_f
     assert client_for.get("/api/opportunities/groups").json()["refresh_state"] == "current"
 
 
-def test_membership_insert_fences_only_projects_the_snapshot_shows(
-    saved_db, client_for, monkeypatch
-):
-    fixture = _contact_fixture(saved_db)
-    _publish_twice(saved_db)
-    monkeypatch.setattr(settings, "browse_serve_stale", True)
-
-    def membership(project_id, evidence_id):
-        return CompanyProjectMembership(
-            company_identity_id=fixture["identity_id"],
-            project_id=project_id,
-            role="owner",
-            organization_name="Synthetic Customer",
-            source_id="texas-tdlr-tabs-data-centers",
-            source_evidence_id=evidence_id,
-            source_version_hash="0" * 64,
-            decision_basis="synthetic",
-            operator_number="000000",
-        )
-
-    with saved_db.begin() as session:  # a project created after the snapshot
-        evidence_id = session.scalars(select(Evidence)).first().id
-        newcomer = Project(
-            identity_key="site-newcomer",
-            name="Newcomer",
-            location="Dallas, TX",
-            source_id="texas-tdlr-tabs-data-centers",
-            external_id="newcomer",
-        )
-        session.add(newcomer)
-        session.flush()
-        session.add(membership(newcomer.id, evidence_id))
-    # The snapshot cannot be wrong about a project it does not contain: still served.
-    assert client_for.get("/api/opportunities/groups").json()["refresh_state"] == "updating"
-    with saved_db.begin() as session:  # a membership on a project the snapshot shows
-        session.add(membership(fixture["project_id"], evidence_id))
-    _pending(client_for, "/api/opportunities/groups")
-
-
 def test_stale_cohort_tokens_are_stable_and_republish_returns_409(
     saved_db, client_for, monkeypatch
 ):

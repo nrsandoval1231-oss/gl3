@@ -105,7 +105,9 @@ def page(
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
     if sort not in {"priority", "priority_asc", "company", "project", "updated"}:
         raise HTTPException(422, "Unsupported project sort")
-    generation = selected_generation or current_generation(session, allow_stale=True)
+    generation = selected_generation or current_generation(
+        session, allow_stale=True, route="projects"
+    )
     term = (search or "").strip().casefold()
     source_rows: list[Any] = []
     shortlist_data = None

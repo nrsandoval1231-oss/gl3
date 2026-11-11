@@ -1,11 +1,12 @@
 """Owner-approved serving of the last complete generation during scoped ingestion."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import text
-from test_saved_browse import saved_db, seed  # noqa: F401
+from test_saved_browse import seed
 
 from gridlens.intelligence import saved_browse
 from gridlens.intelligence.customer_results import groups
@@ -13,10 +14,12 @@ from gridlens.intelligence.saved_browse import current_generation, rebuild, refr
 from gridlens.persistence.models import BrowseGeneration, PowerNeed, Source
 from gridlens.settings import settings
 
+pytest_plugins = ["test_saved_browse"]
+
 
 def _scoped_write(factory, need_id):
     with factory.begin() as session:
-        session.get(PowerNeed, need_id).rationale = "Synthetic scoped change"
+        session.get(PowerNeed, need_id).rationale = f"Synthetic scoped change {uuid4()}"
 
 
 def _published(factory):
@@ -32,13 +35,13 @@ def _pending(factory, **kwargs):
     assert raised.value.headers["X-Qualification-State"] == "pending"
 
 
-def test_scoped_write_stays_pending_by_default(saved_db):  # noqa: F811
+def test_scoped_write_stays_pending_by_default(saved_db):
     ids = _published(saved_db)
     _scoped_write(saved_db, ids[0])
     _pending(saved_db, allow_stale=True)
 
 
-def test_scoped_write_serves_last_generation_as_updating(saved_db, monkeypatch):  # noqa: F811
+def test_scoped_write_serves_last_generation_as_updating(saved_db, monkeypatch):
     ids = _published(saved_db)
     with saved_db() as session:
         published = current_generation(session)
@@ -63,7 +66,7 @@ def test_scoped_write_serves_last_generation_as_updating(saved_db, monkeypatch):
         assert refresh_state(fresh) == "current"
 
 
-def test_full_scope_write_stays_pending(saved_db, monkeypatch):  # noqa: F811
+def test_full_scope_write_stays_pending(saved_db, monkeypatch):
     _published(saved_db)
     monkeypatch.setattr(settings, "browse_serve_stale", True)
     with saved_db.begin() as session:
@@ -82,63 +85,144 @@ def test_full_scope_write_stays_pending(saved_db, monkeypatch):  # noqa: F811
     _pending(saved_db, allow_stale=True)
 
 
-def test_stalled_republication_stops_serving(saved_db, monkeypatch):  # noqa: F811
+def _stale_since(factory):
+    with factory() as session:
+        return session.scalar(text("SELECT stale_since FROM browse_state"))
+
+
+def test_snapshot_built_long_ago_is_served_after_the_first_write(saved_db, monkeypatch):
     ids = _published(saved_db)
-    _scoped_write(saved_db, ids[0])
     monkeypatch.setattr(settings, "browse_serve_stale", True)
     monkeypatch.setattr(settings, "browse_stale_max_seconds", 60)
+    with saved_db.begin() as session:  # a quiet period: the snapshot is ten hours old
+        session.execute(
+            text("UPDATE browse_generations SET built_at = :built_at"),
+            {"built_at": datetime.now(UTC) - timedelta(hours=10)},
+        )
+    assert _stale_since(saved_db) is None  # nothing newer yet
+    _scoped_write(saved_db, ids[0])
+    started = _stale_since(saved_db)
+    assert started is not None and abs((datetime.now(UTC) - started).total_seconds()) < 30
     with saved_db() as session:
-        assert current_generation(session, allow_stale=True)  # stale for a moment: served
+        assert refresh_state(current_generation(session, allow_stale=True)) == "updating"
+
+
+def test_stale_longer_than_the_bound_with_continuous_writes_is_pending(saved_db, monkeypatch):
+    ids = _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    monkeypatch.setattr(settings, "browse_stale_max_seconds", 60)
+    _scoped_write(saved_db, ids[0])
     with saved_db.begin() as session:  # the first newer write is now two minutes old
         session.execute(
             text("UPDATE browse_state SET stale_since = :since"),
             {"since": datetime.now(UTC) - timedelta(seconds=120)},
         )
-    _pending(saved_db, allow_stale=True)
+    for _ in range(3):  # continuous writes never extend the window
+        _scoped_write(saved_db, ids[1 % len(ids)])
+        with saved_db() as session, pytest.raises(HTTPException):
+            current_generation(session, allow_stale=True)
+    assert (datetime.now(UTC) - _stale_since(saved_db)).total_seconds() > 100
+
+
+def test_a_second_write_does_not_move_stale_since_forward(saved_db, monkeypatch):
+    ids = _published(saved_db)
+    _scoped_write(saved_db, ids[0])
+    first = _stale_since(saved_db)
+    assert first is not None
+    with saved_db() as session:
+        revision = session.scalar(text("SELECT input_revision FROM browse_state"))
+    _scoped_write(saved_db, ids[1 % len(ids)])
+    with saved_db() as session:  # the write really happened and was newer
+        assert session.scalar(text("SELECT input_revision FROM browse_state")) > revision
+    assert _stale_since(saved_db) == first
+
+
+def test_publication_clears_stale_since_and_the_next_write_starts_a_new_window(
+    saved_db,
+):
+    ids = _published(saved_db)
+    _scoped_write(saved_db, ids[0])
+    first = _stale_since(saved_db)
+    assert first is not None
     assert rebuild(saved_db)["status"] == "published"
-    with saved_db() as session:
-        assert refresh_state(current_generation(session, allow_stale=True)) == "current"
-        assert session.scalar(text("SELECT stale_since FROM browse_state")) is None
-
-
-def test_quiet_period_does_not_close_the_age_bound(saved_db, monkeypatch):  # noqa: F811
-    ids = _published(saved_db)
-    monkeypatch.setattr(settings, "browse_serve_stale", True)
-    monkeypatch.setattr(settings, "browse_stale_max_seconds", 60)
-    with saved_db.begin() as session:  # a snapshot built long ago, with nothing newer
-        session.execute(
-            text("UPDATE browse_generations SET built_at = :built_at"),
-            {"built_at": datetime.now(UTC) - timedelta(hours=10)},
-        )
+    assert _stale_since(saved_db) is None
     _scoped_write(saved_db, ids[0])
-    with saved_db() as session:
-        served = current_generation(session, allow_stale=True)
-        assert refresh_state(served) == "updating"
-        assert session.scalar(text("SELECT stale_since FROM browse_state")) is not None
+    second = _stale_since(saved_db)
+    assert second is not None and second > first
 
 
-def test_each_read_is_counted_with_the_fence_that_closed_it(saved_db, monkeypatch):  # noqa: F811
+def test_scoped_refresh_publication_clears_stale_since(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
     ids = _published(saved_db)
-    saved_browse.reset_read_counts()
-    with saved_db() as session:
-        current_generation(session, allow_stale=True)
-    monkeypatch.setattr(settings, "browse_serve_stale", True)
     _scoped_write(saved_db, ids[0])
-    with saved_db() as session:
-        current_generation(session, allow_stale=True)
+    assert _stale_since(saved_db) is not None
     with saved_db.begin() as session:
-        session.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(session, max_projects=None, max_needs=None) is not None
+    assert _stale_since(saved_db) is None
+    with saved_db() as session:
+        assert refresh_state(current_generation(session)) == "current"
+
+
+def test_unknown_stale_start_is_pending_not_servable(saved_db, monkeypatch):
+    ids = _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    _scoped_write(saved_db, ids[0])
+    with saved_db.begin() as session:  # e.g. a state that was already behind at upgrade time
+        session.execute(text("UPDATE browse_state SET stale_since = NULL"))
     _pending(saved_db, allow_stale=True)
-    _pending(saved_db)  # an unlabelled caller
-    counts = saved_browse.read_counts()
-    assert counts["reads"]["labelled|current|-"] == 1
-    assert counts["reads"]["labelled|updating|-"] == 1
-    assert counts["reads"]["labelled|pending|deactivation"] == 1
-    assert counts["fences"]["labelled|pending|deactivation"] == 1
-    assert counts["reads"]["strict|pending|deactivation+not_opted_in"] == 1
+    _scoped_write(saved_db, ids[0])  # a later write cannot invent a start for an unknown one
+    assert _stale_since(saved_db) is None
+    _pending(saved_db, allow_stale=True)
 
 
-def test_expired_clock_window_stays_pending(saved_db, monkeypatch):  # noqa: F811
+def _arm_boundary(factory):
+    """Prepare the next interval, then move the clock boundary into the past."""
+    from gridlens.intelligence.saved_browse import prepare_next
+
+    assert prepare_next(factory, lead_seconds=90000)["status"] == "prepared"
+    boundary = datetime.now(UTC) - timedelta(seconds=1)
+    with factory.begin() as session:
+        state = session.execute(
+            text("SELECT generation_id, prepared_generation_id FROM browse_state")
+        ).one()
+        session.execute(
+            text("UPDATE browse_generations SET valid_until = :b WHERE id = :g"),
+            {"b": boundary, "g": state.generation_id},
+        )
+        session.execute(
+            text("UPDATE browse_generations SET valid_from = :b WHERE id = :g"),
+            {"b": boundary, "g": state.prepared_generation_id},
+        )
+    return state.generation_id, state.prepared_generation_id
+
+
+def test_promotion_at_a_boundary_keeps_a_current_state_unstale(saved_db):
+    from gridlens.intelligence.saved_browse import maintain_once
+
+    _published(saved_db)
+    old_id, prepared_id = _arm_boundary(saved_db)
+    maintain_once(saved_db)  # promotes the prepared interval (no newer write)
+    with saved_db() as session:
+        state = session.execute(text("SELECT generation_id, stale_since FROM browse_state")).one()
+        assert state.generation_id == prepared_id != old_id
+        assert state.stale_since is None  # the promoted generation covers the revision
+
+
+def test_a_write_that_promotes_a_boundary_starts_a_new_window(saved_db, monkeypatch):
+    ids = _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    old_id, prepared_id = _arm_boundary(saved_db)
+    _scoped_write(saved_db, ids[0])  # the invalidation promotes the interval, then moves ahead
+    with saved_db() as session:
+        state = session.execute(text("SELECT generation_id, stale_since FROM browse_state")).one()
+        assert state.generation_id == prepared_id != old_id
+        assert state.stale_since is not None  # the promoted generation fell behind just now
+        served = current_generation(session, allow_stale=True)
+        assert served.id == prepared_id and refresh_state(served) == "updating"
+
+
+def test_expired_clock_window_stays_pending(saved_db, monkeypatch):
     ids = _published(saved_db)
     _scoped_write(saved_db, ids[0])
     monkeypatch.setattr(settings, "browse_serve_stale", True)

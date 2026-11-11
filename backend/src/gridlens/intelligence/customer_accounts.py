@@ -47,7 +47,7 @@ def account_queue(
     """SQL-bounded page of generation-bound current customer accounts."""
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     term = (search or "").strip().casefold()
     params = {"generation": generation.id, "term": term, "limit": limit, "offset": offset}
     base = """
@@ -522,7 +522,7 @@ def account_projects(
 ) -> dict[str, Any]:
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     account_row = (
         session.execute(
             text(
@@ -680,7 +680,7 @@ def unresolved_projects(
     """Bounded unresolved research page from the current saved generation."""
     from gridlens.intelligence.saved_browse import current_generation
 
-    generation = current_generation(session)
+    generation = current_generation(session, route="customer_accounts")
     term = (search or "").strip().casefold()
     params = {"generation": generation.id, "term": term, "limit": limit, "offset": offset}
     where = (

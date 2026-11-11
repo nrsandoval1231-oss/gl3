@@ -705,7 +705,7 @@ FACT_DECISION_INSERT_SQL = """
 STRUCTURAL_FENCE_TABLES = (
     ("company_identities", "UPDATE OR DELETE OR TRUNCATE"),  # a bare new identity changes nothing
     ("identity_identifiers", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
-    ("company_project_memberships", "UPDATE OR DELETE OR TRUNCATE"),
+    ("company_project_memberships", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
     ("buying_chain_identity_links", "INSERT OR UPDATE OR DELETE OR TRUNCATE"),
 )
 STRUCTURAL_DELETE_TABLES = ("power_needs", "projects")
@@ -713,12 +713,7 @@ STRUCTURAL_FENCE_SQL = """
     CREATE OR REPLACE FUNCTION mark_browse_structural_fence() RETURNS trigger
     LANGUAGE plpgsql AS $$
     BEGIN
-        UPDATE browse_state SET
-            identity_revision = CASE WHEN TG_ARGV[0] = 'identity'
-                THEN input_revision ELSE identity_revision END,
-            deletion_revision = CASE WHEN TG_ARGV[0] = 'deletion'
-                THEN input_revision ELSE deletion_revision END
-        WHERE id = 1;
+        UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
         RETURN NULL;
     END $$
 """
@@ -733,44 +728,9 @@ STRUCTURAL_DEACTIVATION_SQL = """
             SELECT 1 FROM old_rows o JOIN new_rows n ON n.id = o.id
             WHERE o.active IS TRUE AND n.active IS NOT TRUE
         ) THEN
-            UPDATE browse_state SET deactivation_revision = input_revision WHERE id = 1;
+            UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
         END IF;
         RETURN NULL;
-    END $$
-"""
-
-MEMBERSHIP_INSERT_SQL = """
-    CREATE OR REPLACE FUNCTION mark_browse_membership_insert() RETURNS trigger
-    LANGUAGE plpgsql AS $$
-    BEGIN
-        -- A membership for a project the served generation does not contain cannot make
-        -- that snapshot wrong; only fence when it touches a project the snapshot shows.
-        IF EXISTS (
-            SELECT 1 FROM new_rows n JOIN browse_state s ON s.id = 1
-            JOIN browse_rows b ON b.generation_id = s.generation_id AND b.project_id = n.project_id
-        ) THEN
-            UPDATE browse_state SET identity_revision = input_revision WHERE id = 1;
-        END IF;
-        RETURN NULL;
-    END $$
-"""
-
-# Time spent stale, not snapshot age: set by the first write after a publication and
-# cleared when a generation that covers the latest revision is published.
-STALE_SINCE_SQL = """
-    CREATE OR REPLACE FUNCTION track_browse_stale_since() RETURNS trigger
-    LANGUAGE plpgsql AS $$
-    BEGIN
-        IF NEW.input_revision > OLD.input_revision AND NEW.stale_since IS NULL THEN
-            NEW.stale_since := clock_timestamp();
-        END IF;
-        IF NEW.generation_id IS DISTINCT FROM OLD.generation_id AND EXISTS (
-            SELECT 1 FROM browse_generations g
-            WHERE g.id = NEW.generation_id AND g.input_revision = NEW.input_revision
-        ) THEN
-            NEW.stale_since := NULL;
-        END IF;
-        RETURN NEW;
     END $$
 """
 
@@ -778,23 +738,6 @@ STALE_SINCE_SQL = """
 def install_structural_fence_triggers(connection):
     connection.exec_driver_sql(STRUCTURAL_FENCE_SQL)
     connection.exec_driver_sql(STRUCTURAL_DEACTIVATION_SQL)
-    connection.exec_driver_sql(STALE_SINCE_SQL)
-    connection.exec_driver_sql(MEMBERSHIP_INSERT_SQL)
-    connection.exec_driver_sql(
-        "DROP TRIGGER IF EXISTS zz_browse_structural_membership_insert"
-        " ON company_project_memberships"
-    )
-    connection.exec_driver_sql("""
-        CREATE TRIGGER zz_browse_structural_membership_insert
-        AFTER INSERT ON company_project_memberships
-        REFERENCING NEW TABLE AS new_rows
-        FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_membership_insert()
-    """)
-    connection.exec_driver_sql("DROP TRIGGER IF EXISTS track_browse_stale_since ON browse_state")
-    connection.exec_driver_sql("""
-        CREATE TRIGGER track_browse_stale_since BEFORE UPDATE ON browse_state
-        FOR EACH ROW EXECUTE FUNCTION track_browse_stale_since()
-    """)
     connection.exec_driver_sql(
         "DROP TRIGGER IF EXISTS zz_browse_structural_deactivation ON power_needs"
     )
@@ -803,15 +746,51 @@ def install_structural_fence_triggers(connection):
         REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows
         FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_deactivation()
     """)
-    for table, operations, cause in (
-        *((t, ops, "identity") for t, ops in STRUCTURAL_FENCE_TABLES),
-        *((t, "DELETE OR TRUNCATE", "deletion") for t in STRUCTURAL_DELETE_TABLES),
+    for table, operations in (
+        *STRUCTURAL_FENCE_TABLES,
+        *((t, "DELETE OR TRUNCATE") for t in STRUCTURAL_DELETE_TABLES),
     ):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS zz_browse_structural_fence ON {table}")
         connection.exec_driver_sql(f"""
             CREATE TRIGGER zz_browse_structural_fence AFTER {operations} ON {table}
-            FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_fence('{cause}')
+            FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_fence()
         """)
+
+
+STALE_SINCE_SQL = """
+    CREATE OR REPLACE FUNCTION track_browse_stale_since() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    DECLARE published_revision bigint;
+    BEGIN
+        SELECT input_revision INTO published_revision
+            FROM browse_generations WHERE id = NEW.generation_id;
+        -- A different published generation starts a new staleness window.
+        IF NEW.generation_id IS DISTINCT FROM OLD.generation_id THEN
+            NEW.stale_since := NULL;
+        END IF;
+        IF published_revision IS NOT NULL AND published_revision = NEW.input_revision THEN
+            NEW.stale_since := NULL;  -- the published generation is current
+        ELSIF published_revision IS NOT NULL AND published_revision < NEW.input_revision
+            AND NEW.stale_since IS NULL
+            AND (NEW.generation_id IS DISTINCT FROM OLD.generation_id
+                 OR published_revision = OLD.input_revision) THEN
+            -- It fell behind just now: this write, or a publication that landed behind.
+            -- Later writes keep the original value; an unknown start stays NULL.
+            NEW.stale_since := clock_timestamp();
+        END IF;
+        RETURN NEW;
+    END $$
+"""
+
+
+def install_stale_since_trigger(connection):
+    """Test/schema installer parity with migration 0054."""
+    connection.exec_driver_sql(STALE_SINCE_SQL)
+    connection.exec_driver_sql("DROP TRIGGER IF EXISTS zz_browse_stale_since ON browse_state")
+    connection.exec_driver_sql("""
+        CREATE TRIGGER zz_browse_stale_since BEFORE UPDATE ON browse_state
+        FOR EACH ROW EXECUTE FUNCTION track_browse_stale_since()
+    """)
 
 
 def install_workspace_triggers(connection):
@@ -896,3 +875,4 @@ def install(connection):
     install_identity_entity_triggers(connection)
     install_company_membership_triggers(connection)
     install_structural_fence_triggers(connection)
+    install_stale_since_trigger(connection)

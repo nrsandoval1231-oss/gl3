@@ -2337,7 +2337,7 @@ def customer_group_open(
     with SessionLocal() as session:
         _begin_consistent_read(session)
         session.execute(text("SET TRANSACTION READ ONLY"))
-        generation = current_generation(session, allow_stale=True)
+        generation = current_generation(session, allow_stale=True, route="group_open")
         payload = group_open(
             session,
             group_id,
@@ -5019,7 +5019,7 @@ def signal_decision_counts():
     with SessionLocal() as session:
         _begin_consistent_read(session)
         if settings.saved_browse_enabled:
-            generation = current_generation(session)
+            generation = current_generation(session, route="signal_counts")
             rows = session.execute(
                 text(
                     "SELECT compact->>'signal_display_decision' AS decision, count(*) "

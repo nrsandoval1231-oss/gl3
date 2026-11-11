@@ -350,7 +350,6 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             "invalidate_browse_company_membership_delete",
             "invalidate_browse_company_membership_truncate",
             "zz_browse_structural_fence",
-            "zz_browse_structural_membership_insert",
         }
         # The serve-stale fence also watches need/project deletion and need deactivation.
         for table, expected in (
@@ -367,6 +366,15 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
                 {"table": table},
             ).all()
             assert expected in names
+        # Staleness bookkeeping lives on browse_state itself (schema 0054).
+        state_triggers = session.scalars(
+            text("""
+            SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname=current_schema() AND c.relname='browse_state' AND NOT t.tgisinternal
+            """)
+        ).all()
+        assert set(state_triggers) == {"zz_browse_stale_since"}
         session.rollback()
 
 

@@ -36,8 +36,9 @@ def _cohort(
     priority: str | None = None,
     selected_generation=None,
     shortlist=False,
+    route: str | None = None,
 ):
-    generation = selected_generation or current_generation(session, allow_stale=True)
+    generation = selected_generation or current_generation(session, allow_stale=True, route=route)
     term = (search or "").strip().casefold()
     from gridlens.domain.opportunity_shortlist import POLICY_VERSION
     from gridlens.intelligence.account_shortlist import assess_generation
@@ -953,6 +954,7 @@ def groups(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        route="groups",
     )
     _validate_token(token, cohort, offset)
     _disable_jit_for_search(session, term)
@@ -1364,6 +1366,7 @@ def group_projects(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        route="group_projects",
     )
     if parent_token is None:
         raise HTTPException(422, "parent_cohort_token is required for customer projects")
@@ -1547,6 +1550,7 @@ def group_open(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        route="group_open",
     )
     _disable_jit_for_search(session, term)
 

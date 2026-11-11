@@ -19,7 +19,7 @@ MAX_CANDIDATES = 500
 
 
 def summarize(session: Session, sector: str = "all") -> dict:
-    generation = current_generation(session)
+    generation = current_generation(session, route="demand_summary")
     if generation is None:
         return _unavailable(sector, "Current canonical browse generation is unavailable.")
     browse = aliased(BrowseRow, name="b")
