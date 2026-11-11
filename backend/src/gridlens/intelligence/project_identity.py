@@ -1,4 +1,7 @@
+import hashlib
+import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 _ADDRESS = re.compile(
@@ -221,6 +224,95 @@ def same_physical_site(left: str | None, right: str | None) -> bool:
         and right_match
         and normalized_identity(left_match.group()) == normalized_identity(right_match.group())
     )
+
+
+def site_match_key(value: str | None) -> str | None:
+    """Key under which ``same_physical_site`` treats two values as the same address.
+
+    ``same_physical_site(a, b)`` is exactly ``site_match_key(a) is not None and
+    site_match_key(a) == site_match_key(b)``; the matcher's own functions build the key.
+    """
+    if not physical_site(value):
+        return None
+    match = _ADDRESS.search(value or "")
+    return normalized_identity(match.group()) if match else None
+
+
+def location_match_key(value: str | None) -> str | None:
+    """Key for the structured matcher's whole-location equality of physical sites."""
+    return normalized_identity(value) if physical_site(value) else None
+
+
+MAX_MATCH_KEY_LENGTH = 200
+
+
+def bounded_match_key(prefix: str, value: str) -> str:
+    """One shared bound for stored and incoming keys (GIN rejects entries above ~2.7 KB).
+
+    Over-long keys become ``<prefix>h:<sha256>`` of the full key. Both sides use this helper,
+    so equality is preserved; real keys never contain ``:`` after the prefix for n/s/l, and
+    JSON asset keys start with ``[``/``{``/``"``, so a hashed key cannot collide with a literal.
+    """
+    key = prefix + value
+    if len(key) <= MAX_MATCH_KEY_LENGTH:
+        return key
+    return f"{prefix}h:{hashlib.sha256(key.encode('utf-8')).hexdigest()}"
+
+
+# Persisted candidate keys (``projects.match_keys``). Prefixes keep the namespaces apart:
+# n: normalized name or alias, s: physical-site key of identity_facts['site'] or location,
+# l: normalized physical location, x: stable asset identity.
+def project_match_keys(
+    name: str | None, location: str | None, identity_facts: dict[str, object] | None
+) -> list[str] | None:
+    """Keys a matcher comparison could use to relate a stored project to an incoming record.
+
+    Returns ``None`` (unknown: always treated as a candidate) rather than guessing when the
+    stored values are not in the shape the matcher expects.
+    """
+    try:
+        facts = identity_facts or {}
+        aliases = facts.get("project_aliases", [])
+        if not isinstance(aliases, list):
+            return None
+        keys = {bounded_match_key("n:", normalized_identity(name))}
+        keys.update(
+            bounded_match_key("n:", normalized_identity(a)) for a in aliases if isinstance(a, str)
+        )
+        site_key = site_match_key(facts.get("site") or location)  # type: ignore[arg-type]
+        if site_key is not None:
+            keys.add(bounded_match_key("s:", site_key))
+        location_key = location_match_key(location)
+        if location_key is not None:
+            keys.add(bounded_match_key("l:", location_key))
+        asset = facts.get("asset_identity")
+        if asset:
+            keys.add(bounded_match_key("x:", json.dumps(asset, sort_keys=True)))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return sorted(keys)
+
+
+def incoming_match_keys(
+    *,
+    names: Iterable[str | None] = (),
+    sites: Iterable[str | None] = (),
+    locations: Iterable[str | None] = (),
+    asset_identity: Iterable[str] | None = None,
+) -> list[str]:
+    """Keys of every stored project that could share a matcher fact with these values."""
+    keys = {bounded_match_key("n:", normalized_identity(name)) for name in names}
+    for site in sites:
+        site_key = site_match_key(site)
+        if site_key is not None:
+            keys.add(bounded_match_key("s:", site_key))
+    for location in locations:
+        location_key = location_match_key(location)
+        if location_key is not None:
+            keys.add(bounded_match_key("l:", location_key))
+    if asset_identity:
+        keys.add(bounded_match_key("x:", json.dumps(list(asset_identity), sort_keys=True)))
+    return sorted(keys)
 
 
 def conflicting_geography(left: str | None, right: str | None) -> bool:

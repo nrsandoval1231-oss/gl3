@@ -85,8 +85,8 @@ def main() -> None:
         metadata.reflect(bind=engine)
         with engine.connect() as connection:
             revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-            if revision != "0054_browse_stale_since":
-                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0054_browse_stale_since.")
+            if revision != "0055_project_match_keys":
+                raise SystemExit("Refusing to seed unless the dedicated database is migrated to 0055_project_match_keys.")
             for table in metadata.sorted_tables:
                 if table.name == "alembic_version":
                     continue

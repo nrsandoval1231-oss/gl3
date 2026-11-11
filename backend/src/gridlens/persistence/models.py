@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -23,7 +24,7 @@ from sqlalchemy import (
     true,
 )
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -301,7 +302,11 @@ class EvidencePackage(Base):
 
 class Project(Base):
     __tablename__ = "projects"
-    __table_args__ = (Index("ix_projects_source_external", "source_id", "external_id"),)
+    __table_args__ = (
+        Index("ix_projects_source_external", "source_id", "external_id"),
+        Index("ix_projects_match_keys", "match_keys", postgresql_using="gin"),
+        Index("ix_projects_match_keys_unset", "id", postgresql_where=text("match_keys IS NULL")),
+    )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     identity_key: Mapped[str] = mapped_column(String(220), unique=True)
     name: Mapped[str] = mapped_column(Text)
@@ -321,6 +326,15 @@ class Project(Base):
     )
     region_provenance: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    # Candidate keys for identity matching, derived from name/location/identity_facts by
+    # ``project_match_keys``. Guarantees: the ORM insert/update hooks below compute them; a
+    # raw INSERT leaves NULL; any UPDATE of name/location/identity_facts that is not an ORM
+    # flush (old app version, raw SQL, scripts) sets them to NULL through the database guard
+    # trigger ``projects_match_keys_guard``. NULL means "not computed" and the candidate
+    # query always treats such rows as candidates, so a key can never be silently stale.
+    match_keys: Mapped[list[str] | None] = mapped_column(
+        ARRAY(Text).with_variant(JSON(), "sqlite"), nullable=True
     )
 
 
@@ -348,6 +362,71 @@ def _persist_project_region(_mapper, _connection, project: Project) -> None:
             "external_id": project.external_id,
         },
     }
+
+
+_MATCH_KEY_SOURCE_COLUMNS = ("name", "location", "identity_facts")
+_MATCH_KEYS_GUC = "gridlens.match_keys_managed"
+
+
+@event.listens_for(Project, "before_insert")
+def _persist_project_match_keys_on_insert(_mapper, _connection, project: Project) -> None:
+    from gridlens.intelligence.project_identity import project_match_keys
+
+    project.match_keys = project_match_keys(project.name, project.location, project.identity_facts)
+
+
+@event.listens_for(Project, "before_update")
+def _persist_project_match_keys_on_update(_mapper, connection, project: Project) -> None:
+    from gridlens.intelligence.project_identity import project_match_keys
+
+    project.match_keys = project_match_keys(project.name, project.location, project.identity_facts)
+    committed = sa_inspect(project).committed_state
+    if connection.dialect.name == "postgresql" and any(
+        column in committed for column in _MATCH_KEY_SOURCE_COLUMNS
+    ):
+        # Tell the guard trigger these keys were computed from the new values. Scoped to
+        # this flush by ``after_update`` so later raw UPDATEs in the same transaction are
+        # still guarded.
+        connection.exec_driver_sql(f"SELECT set_config('{_MATCH_KEYS_GUC}', 'on', true)")
+
+
+@event.listens_for(Project, "after_update")
+def _release_project_match_keys_guard(_mapper, connection, project: Project) -> None:
+    if connection.dialect.name == "postgresql" and any(
+        column in sa_inspect(project).committed_state for column in _MATCH_KEY_SOURCE_COLUMNS
+    ):
+        connection.exec_driver_sql(f"SELECT set_config('{_MATCH_KEYS_GUC}', 'off', true)")
+
+
+_GUARD_FUNCTION_DDL = f"""
+CREATE OR REPLACE FUNCTION projects_match_keys_guard() RETURNS trigger AS $fn$
+BEGIN
+  IF coalesce(current_setting('{_MATCH_KEYS_GUC}', true), '') <> 'on' THEN
+    NEW.match_keys := NULL;
+  END IF;
+  RETURN NEW;
+END
+$fn$ LANGUAGE plpgsql
+"""
+_GUARD_TRIGGER_DDL = (
+    "CREATE TRIGGER projects_match_keys_guard BEFORE UPDATE OF name, location, identity_facts "
+    "ON projects FOR EACH ROW EXECUTE FUNCTION projects_match_keys_guard()"
+)
+
+
+@event.listens_for(Project.__table__, "after_create")
+def _create_match_keys_guard(_target, connection, **_kw) -> None:
+    if connection.dialect.name != "postgresql":
+        return
+    connection.exec_driver_sql(_GUARD_FUNCTION_DDL)
+    connection.exec_driver_sql("DROP TRIGGER IF EXISTS projects_match_keys_guard ON projects")
+    connection.exec_driver_sql(_GUARD_TRIGGER_DDL)
+
+
+@event.listens_for(Project.__table__, "after_drop")
+def _drop_match_keys_guard(_target, connection, **_kw) -> None:
+    if connection.dialect.name == "postgresql":
+        connection.exec_driver_sql("DROP FUNCTION IF EXISTS projects_match_keys_guard()")
 
 
 class ProjectLifecycle(Base):
