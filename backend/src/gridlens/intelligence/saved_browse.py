@@ -381,12 +381,11 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
     """Select the published generation that only project-scoped writes have passed.
 
     Policy and clock fences stay closed, as do writes that advance
-    ``full_revision`` (source policy, editorial and unscoped writes). Identity,
-    membership, identity-link and pursuit writes are project-scoped in
-    ``browse_invalidation`` and therefore do NOT close the fence: a stale page can
-    briefly show a retracted membership or pre-merge account name. The build-age
-    bound (``built_at``) only stops serving after a generation is old, not after it
-    has been stale for long. Contact suppressions are applied at read time.
+    ``full_revision`` (source policy, editorial, unscoped) or ``structural_revision``
+    (company identity, identifier, membership and identity-link writes), so a stale
+    page never shows a retracted membership or pre-merge account name. The build-age
+    bound (``built_at``) stops serving old generations; it does not measure how long
+    a generation has been stale. Contact suppressions are applied at read time.
     """
     generation = session.scalar(
         select(BrowseGeneration)
@@ -395,6 +394,7 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
             BrowseState.id == 1,
             BrowseState.input_revision > BrowseGeneration.input_revision,
             BrowseState.full_revision <= BrowseGeneration.input_revision,
+            BrowseState.structural_revision <= BrowseGeneration.input_revision,
             BrowseGeneration.policy_version == POLICY_VERSION,
             BrowseGeneration.valid_from <= now,
             BrowseGeneration.valid_until > now,

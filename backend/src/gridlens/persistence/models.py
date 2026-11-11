@@ -1260,6 +1260,7 @@ class BrowseState(Base):
     input_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
     generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     full_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    structural_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
     prepared_generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
 

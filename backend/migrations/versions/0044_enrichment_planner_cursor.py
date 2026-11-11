@@ -1,7 +1,7 @@
 """Persist bounded company research scan progress without creating a new queue."""
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0044_enrichment_planner_cursor"
 down_revision = "0043_company_graph_assertions"

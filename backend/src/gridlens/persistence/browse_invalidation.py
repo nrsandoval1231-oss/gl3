@@ -697,6 +697,41 @@ FACT_DECISION_INSERT_SQL = """
 """
 
 
+# Serve-stale fence: identity, membership and identity-link writes are project-scoped for
+# rebuilds, and need/project deletions only dirty their own project, but a stale page would
+# keep a retracted membership, pre-merge account name or deleted need. These statement
+# triggers sort after the invalidation triggers (trigger name order), so input_revision is
+# already incremented and this write's revision is recorded exactly.
+STRUCTURAL_FENCE_TABLES = (
+    "company_identities",
+    "identity_identifiers",
+    "company_project_memberships",
+    "buying_chain_identity_links",
+)
+STRUCTURAL_DELETE_TABLES = ("power_needs", "projects")
+STRUCTURAL_FENCE_SQL = """
+    CREATE OR REPLACE FUNCTION mark_browse_structural_fence() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        UPDATE browse_state SET structural_revision = input_revision WHERE id = 1;
+        RETURN NULL;
+    END $$
+"""
+
+
+def install_structural_fence_triggers(connection):
+    connection.exec_driver_sql(STRUCTURAL_FENCE_SQL)
+    for table, operations in (
+        *((t, "INSERT OR UPDATE OR DELETE OR TRUNCATE") for t in STRUCTURAL_FENCE_TABLES),
+        *((t, "DELETE OR TRUNCATE") for t in STRUCTURAL_DELETE_TABLES),
+    ):
+        connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS zz_browse_structural_fence ON {table}")
+        connection.exec_driver_sql(f"""
+            CREATE TRIGGER zz_browse_structural_fence AFTER {operations} ON {table}
+            FOR EACH STATEMENT EXECUTE FUNCTION mark_browse_structural_fence()
+        """)
+
+
 def install_workspace_triggers(connection):
     connection.exec_driver_sql(RECEIPT_SQL)
     connection.exec_driver_sql("""
@@ -778,3 +813,4 @@ def install(connection):
     install_identity_link_triggers(connection)
     install_identity_entity_triggers(connection)
     install_company_membership_triggers(connection)
+    install_structural_fence_triggers(connection)
