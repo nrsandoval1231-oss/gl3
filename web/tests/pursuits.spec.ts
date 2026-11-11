@@ -1,3 +1,4 @@
+import { setAccountMenuOpen } from './ui-helpers'
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
@@ -333,8 +334,8 @@ test('header Pursuits button and account-menu Research route to separate views',
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: /Pursuits/ }).click()
   await expect(page).toHaveURL(/view=pursuits/)
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toBeVisible()
-  await page.locator('.wh-account summary').click()
-  await page.locator('.wh-account').getByRole('button', { name: 'Research progress' }).click()
+  await setAccountMenuOpen(page)
+  await page.locator('.workspace-account').getByRole('button', { name: 'Research progress' }).click()
   await expect(page).toHaveURL(/view=research/)
   await expect(page.getByRole('heading', { name: 'Pursuits', level: 1 })).toHaveCount(0)
 })

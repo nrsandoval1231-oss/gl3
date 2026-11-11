@@ -1,3 +1,4 @@
+import { setAccountMenuOpen } from './ui-helpers'
 import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -40,8 +41,8 @@ async function signIn(page: import('@playwright/test').Page) {
 }
 
 async function openSecondaryRoute(page: import('@playwright/test').Page, name: 'Research' | 'Research progress' | 'Signals') {
-  const menu = page.locator('.wh-account')
-  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  const menu = page.locator('.workspace-account')
+  if ((await menu.getByRole('button', { name: 'Account menu' }).getAttribute('aria-expanded')) !== 'true') await menu.getByRole('button', { name: 'Account menu' }).click()
   await menu.getByRole('button', { name, exact: true }).click()
 }
 
@@ -105,7 +106,7 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   expect(inbox.status).toBe(200)
   expect(inbox.page.total, 'local retained evidence must populate the ingestion inbox').toBeGreaterThan(0)
   await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveCount(1)
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Technical diagnostics' }).click()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
   await expect(page.locator('.wh-ingestion-row').first()).toContainText(inbox.page.items[0].title)
@@ -220,7 +221,7 @@ test('retained out-of-region permits remain inspectable without active Signals',
   }
   expect(retained.signals.some(item => /(?:,\s*(?:GA|IL)\b|Georgia|Illinois)/i.test(item.location ?? ''))).toBe(false)
 
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Technical diagnostics' }).click()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
   const sourceFilter = page.getByLabel('Filter by source', { exact: true })

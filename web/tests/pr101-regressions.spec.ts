@@ -1,3 +1,4 @@
+import { setAccountMenuOpen } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
@@ -81,7 +82,7 @@ test('secondary technical diagnostics keeps the filtered inbox URL and readback 
   await expect(page.getByLabel('Filter by source', { exact: true })).toHaveValue('city-permits')
   await expect(page.getByLabel('Filter by source sector', { exact: true })).toHaveValue('data-centers')
   const before = new URL(page.url()).search
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Technical diagnostics' }).click()
   expect(new URL(page.url()).search).toBe(before)
   await page.reload()
@@ -96,6 +97,6 @@ test('default account-first landing hides the legacy queue and briefing controls
   await page.goto('/?view=workspace')
   await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
   await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.getByText('No accounts are available in this scope.')).toBeVisible()
 })

@@ -1,5 +1,24 @@
 # GridLens production UI canon — brand approved 2026-10-24, autonomous amendment 2026-10-26
 
+## Owner-approved premium UI refinement — November 11, 2026
+
+The screenshot attached to the November 11 implementation request is the latest
+visual contract. Its two-level navy masthead, cinematic architectural artwork,
+four-destination navigation, restrained workspace introduction, single toolbar and
+compact horizontal canonical-company cards supersede the older compact-header
+layout notes below. Preserve existing metallic G/wordmark assets without redrawing,
+Sora headings, Inter interface text and the supplied palette (Deep Slate #233B4C,
+Slate Steel #607F8B). On phones use a compact masthead, search disclosure and
+vertically stacked cards. Existing APIs, identity aggregation, source attribution,
+research, authentication and need-scoped Pursuits remain authoritative.
+
+Counts without a corresponding backend aggregate remain unavailable; never
+substitute page counts or reference numbers. Shared-password authentication has
+no individual initials. Unsupported notifications and saved stars are omitted.
+Build identity belongs in the account dropdown and must come from the actual
+build/deployment inputs. This authorization is implementation and draft PR only,
+without merge, deployment, paid providers or production writes.
+
 ## Current execution scope — Phase 2, November 8, 2026
 
 The owner authorizes scheduled autonomous commercial research on the existing account-first foundation, through one tested, independently reviewed draft PR. Cards show source-backed Why now, useful scoped Power need, permitted Best contact and one justified Next action; evidence stays on demand. Shared canonical-company research must preserve distinct projects and needs. Existing owner-managed need-scoped Commercial Pursuits is the only manual execution workspace; research never creates its stages, tasks or activity. Existing Jev authority is unchanged. No merge, deployment, production writes, credential changes, paid-provider calls or source activation is authorized. [Current contracts and acceptance](../engineering/autonomous-commercial-research-20261108.md) distinguish disabled/mock validation from live operation; older release permissions below are historical.

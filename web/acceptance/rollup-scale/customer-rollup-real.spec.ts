@@ -1,3 +1,4 @@
+import { openProjectFilters, selectProjectType } from '../../tests/ui-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -123,6 +124,7 @@ async function openTarget(page: Page, target: Target) {
   }
   // Search is server-side. The returned persisted group id must be visible
   // before clicking it; the test never synthesizes a response.
+  await openProjectFilters(page)
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   const result = page.waitForResponse(async response => {
     const url = new URL(response.url())
@@ -214,7 +216,8 @@ for (const viewport of viewports) {
       const url = new URL(response.url())
       return url.pathname === '/api/opportunities/groups' && url.searchParams.get('sector') === 'oil_gas' && url.searchParams.get('search') === 'DE CENTRAL' && url.searchParams.get('sort') === 'priority' && url.searchParams.get('limit') === '25'
     }, { timeout: httpBudgetMs })
-    await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
+    await selectProjectType(page, 'oil_gas')
+    await openProjectFilters(page)
     await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('DE CENTRAL')
     const failingSearchResponse = await failingSearch
     expect(failingSearchResponse.status()).toBe(200)
@@ -226,13 +229,13 @@ for (const viewport of viewports) {
 
     // Exercise global filters and sort through the actual UI, then inspect the
     // resulting browser request. Global paging must expose a second page.
-    await page.getByText('More filters and sorting', { exact: true }).click()
+    await openProjectFilters(page)
     const requests: URL[] = []
     page.on('request', request => {
       const url = new URL(request.url())
       if (url.pathname === '/api/opportunities/groups') requests.push(url)
     })
-    await page.getByRole('button', { name: 'All', exact: true }).click()
+    await selectProjectType(page, 'all')
     await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('')
     await expect.poll(() => requests.at(-1)?.searchParams.get('search') ?? '', { timeout: uiBudgetMs }).toBe('')
     await waitForGroups(page)

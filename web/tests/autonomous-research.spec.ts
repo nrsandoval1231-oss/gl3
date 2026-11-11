@@ -1,3 +1,4 @@
+import { fillAccountSearch } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
@@ -233,6 +234,6 @@ test('All search explains when no source-backed operator/customer groups match',
   await install(page)
   await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } }))
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await page.getByLabel('Search accounts and projects').fill('Ridgeview')
+  await fillAccountSearch(page, 'Ridgeview')
   await expect(page.getByText(/No accounts match this search/)).toBeVisible()
 })

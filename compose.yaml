@@ -81,6 +81,10 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.web
+      args:
+        GRIDLENS_BUILD_SHA: ${GRIDLENS_BUILD_SHA:-}
+        GRIDLENS_DEPLOYMENT_ENVIRONMENT: ${GRIDLENS_DEPLOYMENT_ENVIRONMENT:-}
+        GRIDLENS_DEPLOYED_AT: ${GRIDLENS_DEPLOYED_AT:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

@@ -1,3 +1,4 @@
+import { fillAccountSearch, openProjectFilters, selectProjectType, setAccountMenuOpen } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 import { resolve } from 'node:path'
@@ -67,19 +68,19 @@ test('account-first list filters and pages the entire server cohort before openi
   await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.locator('.cfr-kpis')).toHaveCount(0)
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
   expect(requests[0].searchParams.get('sector')).toBe('all')
   expect(requests[0].searchParams.get('shortlist')).toBe('false')
 
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page.locator('.customer-group')).toContainText('Customer 00')
   expect(new URL(page.url()).searchParams.get('sector')).toBe('data_centers')
-  await page.getByRole('button', { name: 'All', exact: true }).click()
+  await selectProjectType(page, 'all')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page.locator('.customer-group')).toContainText('Filter Edge Customer')
@@ -87,7 +88,7 @@ test('account-first list filters and pages the entire server cohort before openi
   await page.getByRole('button', { name: 'Previous', exact: true }).click()
   await expect(page.locator('.customer-group')).toHaveCount(25)
 
-  await page.getByText('More filters and sorting', { exact: true }).click()
+  await openProjectFilters(page)
   await page.getByRole('combobox', { name: 'Sort opportunities' }).selectOption('company')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sort')).toBe('company')
   await page.getByRole('combobox', { name: 'Region' }).selectOption('Austin, TX')
@@ -96,6 +97,7 @@ test('account-first list filters and pages the entire server cohort before openi
   await expect.poll(() => requests.at(-1)?.searchParams.get('stage')).toBe('Construction notice')
   await page.getByRole('combobox', { name: 'Priority' }).selectOption('ranked')
   await expect.poll(() => requests.at(-1)?.searchParams.get('priority')).toBe('ranked')
+  await openProjectFilters(page)
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await search.fill('Filter Edge Customer')
   await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('Filter Edge Customer')
@@ -122,8 +124,9 @@ test('account-first list filters and pages the entire server cohort before openi
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Filter Edge Customer', exact: true })).toBeVisible()
   await page.goBack()
+  await openProjectFilters(page)
   await expect(search).toHaveValue('Filter Edge Customer')
-  await page.getByText('More filters and sorting', { exact: true }).click()
+  await openProjectFilters(page)
   await expect(page.getByRole('combobox', { name: 'Sort opportunities' })).toHaveValue('company')
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Austin, TX')
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Construction notice')
@@ -275,7 +278,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
     associated_account: { company_identity_id: 'group-synthetic-1', name: 'Example Energy', support_status: 'current' },
   } }))
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('1 account')
   await page.locator('.customer-group').getByRole('button', { name: /Example Energy/ }).click()
   const account = page.getByRole('region', { name: 'Company Example Energy' })
@@ -294,7 +297,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
   await page.goBack()
   await expect(account.getByRole('heading', { name: 'Projects' })).toBeVisible()
   await account.getByRole('button', { name: 'Back to accounts' }).click()
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
   for (const width of [390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 })
@@ -319,7 +322,7 @@ test('synthetic project pagination retains its cohort and browser Back restores 
   await page.getByRole('button', { name: 'Previous' }).click()
   await expect.poll(() => requests.some(url => url.searchParams.get('offset') === '0' && url.searchParams.get('cohort_token') === 'synthetic-page-cohort')).toBeTruthy()
   fail = true
-  await page.getByRole('button', { name: 'Data Centers' }).click()
+  await selectProjectType(page, 'data_centers')
   await expect(page.getByRole('alert')).toContainText('Could not load accounts')
   await expect(page.getByRole('heading', { name: 'Synthetic customer 0' })).toHaveCount(0)
   fail = false
@@ -516,7 +519,7 @@ test('synthetic delayed account recovery cannot restore a project page after sea
   await account.getByRole('button', { name: 'Load more projects' }).click()
   await requested
   await account.getByRole('button', { name: 'Back to accounts' }).click()
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('fresh')
+  await fillAccountSearch(page, 'fresh')
   await expect(page.getByRole('button', { name: /Fresh Search Operator/ })).toBeVisible()
   releaseOpen?.()
   await expect(page.getByRole('region', { name: 'Company Example Energy' })).toHaveCount(0)
@@ -548,7 +551,7 @@ test('synthetic delayed account project page cannot repopulate results after a s
   await account.getByRole('button', { name: 'Load more projects' }).click()
   await requested
   await account.getByRole('button', { name: 'Back to accounts' }).click()
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('fresh')
+  await fillAccountSearch(page, 'fresh')
   await expect(page.getByRole('button', { name: /Fresh Search Operator/ })).toBeVisible()
   releaseChild?.()
   await expect(page.getByRole('region', { name: 'Company Example Energy' })).toHaveCount(0)
@@ -878,7 +881,7 @@ test('pending parent retry timer is cancelled when a new search supersedes it', 
   await expect(page.getByRole('status').filter({ hasText: /still being prepared.*Retrying automatically/i })).toBeVisible()
   const initialPendingRequests = requests.length
   expect(initialPendingRequests).toBeGreaterThan(0)
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('fresh')
+  await fillAccountSearch(page, 'fresh')
   await expect(page.getByRole('button', { name: /Superseding search result/ })).toBeVisible()
   expect(requests).toHaveLength(initialPendingRequests + 1)
   await page.clock.fastForward(5000)
@@ -1021,7 +1024,7 @@ test('leaving opportunities during pending account detail cancels the retry time
   await expect.poll(() => openReads).toBeGreaterThan(0)
   const readsBeforeNavigation = openReads
   // Navigation unmounts account detail while preserving the browser realm and timer.
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Signals' })).toBeVisible()
   await page.clock.fastForward(5000)
@@ -1050,6 +1053,7 @@ test('rapid project searches debounce and an older response cannot replace the n
   await page.goto('/?q=seed&groupBrowse=1&shortlist=0')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   const diaRequest = page.waitForRequest(request => new URL(request.url()).searchParams.get('search') === 'Dia')
+  await openProjectFilters(page)
   const input = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await input.fill('D')
   await input.fill('Di')
@@ -1084,6 +1088,7 @@ test('returning to a cached search shows only that cohort while its fresh read i
   })
   await page.goto('/?q=seed&groupBrowse=1&shortlist=0')
   await expect(page.getByRole('button', { name: /Cached Seed Group/ })).toBeVisible()
+  await openProjectFilters(page)
   const input = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await input.fill('other')
   await expect(page.getByRole('button', { name: /Other Search Group/ })).toBeVisible()
@@ -1118,10 +1123,11 @@ test('refresh keeps the rendered cohort labeled as updating and clears it when t
   await page.goto('/?groupBrowse=1&shortlist=0')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   refresh = true
+  await openProjectFilters(page)
   await page.getByRole('button', { name: 'Refresh customer accounts' }).click()
   await expect(page.getByRole('status')).toContainText('Retrying automatically')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Data Centers' }).click()
+  await selectProjectType(page, 'data_centers')
   await dataCentersStarted
   await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden.')
   await expect(page.locator('.customer-group-list')).toHaveCount(0)
@@ -1141,17 +1147,17 @@ test('account detail survives More-menu navigation and returns to the same brows
   const account = page.getByRole('region', { name: 'Company Example Energy' })
   await expect(account.locator('.cmp-projects li strong', { hasText: /^Example Compressor Station$/ })).toBeVisible()
   expect(new URL(page.url()).searchParams.get('account')).toBe('group-synthetic-1')
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Signals' })).toBeVisible()
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Company Example Energy' }).getByRole('heading', { name: 'Projects' })).toBeVisible()
   expect(new URL(page.url()).searchParams.get('q')).toBe('Diamondback')
   expect(new URL(page.url()).searchParams.get('account')).toBe('group-synthetic-1')
   expect(new URL(page.url()).searchParams.get('sector')).toBe('oil_gas')
   await expect(page.locator('.cmp-projects li')).toHaveCount(1)
-  await expect(page.locator('.wh-account[open]')).toHaveCount(0)
+  await expect(page.locator('.workspace-account button[aria-label="Account menu"][aria-expanded="true"]')).toHaveCount(0)
 })
 
 test('Signals and source health distinguish a loading request from terminal unavailability', async ({ page }) => {
@@ -1229,6 +1235,7 @@ test('a session failure removes the cached browse surface before a later return'
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
   const initialGroupReads = groupReads
   expireSession = true
+  await openProjectFilters(page)
   await page.getByRole('button', { name: 'Refresh customer accounts' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await expect.poll(() => groupReads).toBeGreaterThan(initialGroupReads)
@@ -1248,7 +1255,7 @@ test('a session expiry from Signals clears the browse cache while results are un
   await page.route(url => new URL(url).pathname === '/api/opportunities', route => expireSession ? route.fulfill({ status: 401, json: { detail: 'Authentication required' } }) : route.fulfill({ json: [] }))
   await page.goto('/?groupBrowse=1&shortlist=0')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   expireSession = true
   await page.getByRole('button', { name: 'Signals', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()

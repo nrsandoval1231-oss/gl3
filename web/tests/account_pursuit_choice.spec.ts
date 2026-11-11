@@ -123,6 +123,6 @@ test('unresolved legacy account route shows the unavailable state without render
   await page.goto('/?view=workspace&accountBrowse=1&account=company-unknown')
   await expect(page.getByRole('heading', { name: 'Saved account unavailable' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Open Companies' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toHaveCount(0)
   expect(workspaceCalls).toBe(0)
 })

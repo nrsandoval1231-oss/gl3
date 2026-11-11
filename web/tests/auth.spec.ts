@@ -1,3 +1,4 @@
+import { setAccountMenuOpen } from './ui-helpers'
 import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -18,7 +19,7 @@ test('real session protects the workspace, survives reload, and ends on sign-out
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
-  await page.locator('.wh-account > summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   expect((await page.request.get('/api/health')).status()).toBe(401)

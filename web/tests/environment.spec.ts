@@ -1,3 +1,4 @@
+import { openProjectFilters, setAccountMenuOpen } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test, type Page, type Route } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
@@ -21,8 +22,8 @@ const opportunity = (id: string, location: string | null): Opportunity => ({
 } as Opportunity)
 
 async function openSecondaryRoute(page: Page, name: 'Research' | 'Research progress' | 'Signals') {
-  const menu = page.locator('.wh-account')
-  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  const menu = page.locator('.workspace-account')
+  if ((await menu.getByRole('button', { name: 'Account menu' }).getAttribute('aria-expanded')) !== 'true') await menu.getByRole('button', { name: 'Account menu' }).click()
   await menu.getByRole('button', { name, exact: true }).click()
 }
 
@@ -128,7 +129,7 @@ test('legacy action deep link restores selected need without retired call prepar
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a&projectBrowse=1&shortlist=0')
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
   await expect(detail.getByRole('heading', { name: 'Test project a', exact: true })).toBeVisible()
-  await page.locator('.wh-account summary').click()
+  await setAccountMenuOpen(page)
   await expect(page.getByRole('button', { name: 'Research progress', exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('Call note')).toHaveCount(0)
   expect(writes).toEqual([])
@@ -196,20 +197,24 @@ test('section navigation keeps Opportunities and Signals searches independent th
   page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/opportunities/groups') requests.push(url) })
   await mockDemandSummary(page)
   await page.goto('/?view=workspace&q=alpha&groupBrowse=1&shortlist=0')
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('alpha')
   await openSecondaryRoute(page, 'Signals')
   await page.getByRole('textbox', { name: 'Search projects' }).fill('beta')
   await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('beta')
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('alpha')
   expect(new URL(page.url()).searchParams.get('q')).toBe('alpha')
   expect(new URL(page.url()).searchParams.has('decision')).toBe(false)
   await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('alpha')
   await page.reload()
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('alpha')
   await page.goBack()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('beta')
   await page.goForward()
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('alpha')
   expect(new URL(page.url()).searchParams.get('q')).toBe('alpha')
 })
@@ -222,14 +227,17 @@ test('Research navigation keeps Opportunities search and selection state indepen
   await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /WATCH|ACTION NOW|REJECT/i })).toHaveCount(0)
   await page.getByRole('button', { name: 'Opportunities', exact: true }).click()
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)
   expect(new URL(page.url()).searchParams.has('researchNeed')).toBe(false)
   await page.reload()
-  await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await openProjectFilters(page)
+  await expect(page.getByRole('combobox', { name: 'Project type' })).toHaveValue('all')
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Research progress', exact: true })).toBeVisible()
   await page.goForward()
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue('a')
   expect(new URL(page.url()).searchParams.has('disposition')).toBe(false)
 })

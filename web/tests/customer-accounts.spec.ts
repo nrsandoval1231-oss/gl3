@@ -1,3 +1,4 @@
+import { fillAccountSearch, setAccountMenuOpen } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test, type Page } from '@playwright/test'
 import type { OpportunityGroup, ProjectResult } from '../src/api/client'
@@ -261,7 +262,7 @@ test('group account pages use server filters and restore page, cohort and search
   await page.reload()
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page).toHaveURL(/offset=25/)
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Company 02')
+  await fillAccountSearch(page, 'Company 02')
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect.poll(() => browse.parentQueries.at(-1)?.searchParams.get('search')).toBe('Company 02')
   expect(browse.parentQueries.at(-1)?.searchParams.get('offset')).toBe('0')
@@ -288,8 +289,8 @@ test('a saved account URL resolves its canonical identity before showing account
   await expect.poll(() => browse.opens.at(-1)?.searchParams.get('search')).toBe('Northstar')
   await expect(page).toHaveURL(/account=cg_north/)
   await expect(page).toHaveURL(/q=Northstar/)
-  await page.locator('.wh-account summary').click()
-  await expect(page.locator('.wh-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
+  await setAccountMenuOpen(page)
+  await expect(page.locator('.workspace-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
 })
 
 test('account project detail shows a retry after read failure without changing the canonical route', async ({ page }) => {
@@ -358,9 +359,9 @@ test('search changes discard a delayed previous group response', async ({ page }
     return route.fulfill({ json: { items: [value], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'current-search', generation: 'synthetic' } })
   })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Alpha')
+  await fillAccountSearch(page, 'Alpha')
   await expect.poll(() => queries.some(url => url.searchParams.get('search') === 'Alpha')).toBe(true)
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('Beta')
+  await fillAccountSearch(page, 'Beta')
   await expect(page.locator('.customer-group')).toContainText('Beta Synthetic Account')
   releaseAlpha?.()
   await expect(page.locator('.customer-group')).toContainText('Beta Synthetic Account')

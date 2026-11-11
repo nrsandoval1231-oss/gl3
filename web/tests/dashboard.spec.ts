@@ -1,3 +1,4 @@
+import { fillAccountSearch, openProjectFilters, selectProjectType } from './ui-helpers'
 import { expect, test } from '@playwright/test'
 import { needB } from './fixtures/dashboard'
 
@@ -60,10 +61,11 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
   await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button')).toHaveText(['All', 'Oil & Gas', 'Data Centers'])
+  await openProjectFilters(page)
+  await expect(page.getByRole('combobox', { name: 'Project type' })).toHaveValue('all')
   await page.locator('.customer-group-toggle').first().click()
   const account = page.getByRole('region', { name: 'Company Fixture Customer 1' })
   await expect(account.getByRole('region', { name: 'Account projects' }).locator('.cmp-projects li')).toHaveCount(1)
@@ -98,13 +100,13 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   await expect(page.locator('.customer-group')).toHaveCount(25)
 
   await page.setViewportSize({ width: 1280, height: 800 })
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('customer')
+  await fillAccountSearch(page, 'customer')
   await expect(page).not.toHaveURL(/need=/)
   await expect(page.locator('.cod-panel')).toHaveCount(0)
 
-  await page.getByRole('textbox', { name: 'Search accounts and projects' }).fill('customer')
+  await fillAccountSearch(page, 'customer')
   await expect.poll(() => requests.at(-1)?.searchParams.get('search')).toBe('customer')
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
   await page.getByRole('button', { name: 'Next' }).click()
   await expect.poll(() => requests.at(-1)?.searchParams.get('cohort_token')).toBe('dashboard-group-cohort')

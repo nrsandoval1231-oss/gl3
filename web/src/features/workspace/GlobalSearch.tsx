@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Search, X } from 'lucide-react'
 import { client, type GlobalSearchResult } from '../../api/client'
 import './global-search.css'
 
@@ -13,6 +14,8 @@ export function GlobalSearch({ onNeed, onCompany }: { onNeed: (needId: string) =
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const value = query.trim()
@@ -30,7 +33,7 @@ export function GlobalSearch({ onNeed, onCompany }: { onNeed: (needId: string) =
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [query])
   useEffect(() => {
-    const close = (event: PointerEvent) => { if (event.target instanceof Node && !searchRef.current?.contains(event.target)) setOpen(false) }
+    const close = (event: PointerEvent) => { if (event.target instanceof Node && !searchRef.current?.contains(event.target)) { setOpen(false); setMobileOpen(false) } }
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [])
@@ -42,13 +45,14 @@ export function GlobalSearch({ onNeed, onCompany }: { onNeed: (needId: string) =
   const opportunities = list(currentResult?.opportunities)
   const select = (hit: SearchHit, group: string) => {
     const needId = hit.need_id ?? (group === 'Opportunity intelligence' ? hit.id : undefined)
-    if (needId) { setOpen(false); onNeed(needId); return }
-    if (hit.company_identity_id) { setOpen(false); onCompany(hit.company_identity_id, label(hit)) }
+    if (needId) { setOpen(false); setMobileOpen(false); onNeed(needId); return }
+    if (hit.company_identity_id) { setOpen(false); setMobileOpen(false); onCompany(hit.company_identity_id, label(hit)) }
   }
   const groups: [string, SearchHit[]][] = [['Projects', projects], ['Companies', companies], ['Contacts', contacts], ['Opportunity intelligence', opportunities]]
 
-  return <div className="global-search" ref={searchRef}>
-    <label><span aria-hidden="true">Search</span><input type="search" aria-label="Search companies, projects, contacts and opportunities" placeholder="Search companies, projects or locations…" value={query} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true) }}/></label>
+  return <div className={`global-search ${mobileOpen ? 'is-mobile-open' : ''}`} ref={searchRef} onKeyDown={event => { if (event.key === 'Escape') { setOpen(false); setMobileOpen(false); searchRef.current?.querySelector<HTMLButtonElement>('.global-search__toggle')?.focus() } }}>
+    <button type="button" className="global-search__toggle" aria-label={mobileOpen ? 'Close search' : 'Open search'} aria-expanded={mobileOpen} onClick={() => { setMobileOpen(value => !value); setOpen(true); window.setTimeout(() => inputRef.current?.focus(), 0) }}>{mobileOpen ? <X aria-hidden="true"/> : <Search aria-hidden="true"/>}</button>
+    <label><Search className="global-search__icon" aria-hidden="true"/><span aria-hidden="true">Search</span><input ref={inputRef} type="search" aria-label="Search companies, projects, contacts and opportunities" placeholder="Search companies, projects or locations…" value={query} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true) }}/></label>
     {open && query.trim().length >= 2 && <section className="global-search-results" aria-label="Search results" aria-live="polite">
       {loading && <p role="status">Searching current intelligence…</p>}{error && <p role="alert">{error}</p>}
       {!loading && !error && currentResult && !groups.some(([, items]) => items.length) && currentResult.companies_status !== 'qualification_pending' && currentResult.opportunities_status !== 'qualification_pending' && <p>No current companies, projects, contacts or opportunities match this search.</p>}

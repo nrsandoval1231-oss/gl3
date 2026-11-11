@@ -60,7 +60,11 @@ test('canonical shell searches opportunities, navigates, and remains usable at n
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
-  await expect(page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open search' }).click()
+  const mobileSearch = page.getByRole('searchbox', { name: 'Search companies, projects, contacts and opportunities' })
+  await expect(mobileSearch).toBeVisible()
+  await mobileSearch.fill('Mesa')
+  await expect.poll(() => searchQueries).toContain('Mesa')
   expect(projectQueries.length).toBeGreaterThan(0)
 })
 

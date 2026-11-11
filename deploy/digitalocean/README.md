@@ -5,3 +5,17 @@
 The November 2 release completed through the existing protected process and is documented in [operations status](../../docs/operations/README.md) and the [production release record](../../docs/validation/production-release-20261102.md). The private controller and host configuration remain protected; this alternate preparation does not supply their credentials, command surface or authority. A prior `docker compose config` attempt that lacked `TYPESAFE_API_KEY` is historical and is not evidence of current running-service failure. Do not print, create or replace secret files to make this proposal work.
 
 The repository's newer wrapper companion has not been established as installed on the production host. Use the established protected controller only under separately authorized release procedures. This historical preparation document was shortened during the October 20 documentation repair; the prior bytes are archived at [the documentation inventory index](../../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md).
+
+## Frontend build identity
+
+Before an authorized frontend image build, export `GRIDLENS_BUILD_SHA` from
+`git rev-parse HEAD` in the exact clean source checkout being built. Production
+Compose requires this value and identifies its deployment environment as production.
+The account dropdown reads this build identity; it does not query the running Git checkout.
+The application version comes from `web/package.json` unless `VITE_APP_VERSION` is
+explicitly supplied. Set `GRIDLENS_DEPLOYED_AT` only when the deployment process
+knows the actual deployment timestamp (ISO 8601); absent timestamps display Unavailable.
+A build timestamp is not a deployment timestamp. Local builds identify themselves as
+Local build and derive their commit with Git when available.
+
+This wiring does not build, merge or deploy an image by itself.

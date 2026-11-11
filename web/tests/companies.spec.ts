@@ -133,7 +133,7 @@ test('directory and company view fit 390px without horizontal overflow', async (
   await mock(page, { pursuits: [pursuit] })
   await page.goto('/?view=workspace&panel=companies')
   const brand = page.locator('.canonical-header__brand')
-  await expect(brand).toHaveAttribute('aria-label', 'GridLens — Power demand and project activity')
+  await expect(brand).toHaveAttribute('aria-label', 'GridLens — Commercial Intelligence for Constrained Power')
   expect(await page.locator('.canonical-header__brand-art').evaluate(element => getComputedStyle(element).height)).toBe('15px')
   await page.screenshot({ path: test.info().outputPath('mobile-header.png'), fullPage: true })
   await expect(page.getByRole('button', { name: 'Open Northstar Energy' })).toBeVisible()

@@ -24,14 +24,18 @@ const destinations: { id: CanonicalHeaderDestination; label: string }[] = [
   { id: 'reports', label: 'Reports' },
 ]
 
-/** Reusable 54px corporate header; route behavior remains owned by the parent. */
+/** Shared branded masthead; route behavior remains owned by the parent. */
 export function CanonicalHeader({ activeDestination = 'opportunities', onNavigate, search, searchFallback, profile, homeHref = '/?view=workspace', badges }: CanonicalHeaderProps) {
   return (
     <header className="canonical-header">
+      <div className="canonical-header__masthead">
       <a className="canonical-header__brand" href={homeHref}
-        aria-label="GridLens — Power demand and project activity">
-        <span className="canonical-header__brand-art" aria-hidden="true" />
+        aria-label="GridLens — Commercial Intelligence for Constrained Power">
+        <img className="canonical-header__brand-art" src="/ui/canonical/canonical-header-brand.png" alt="GridLens" />
       </a>
+      <img className="canonical-header__architecture" src="/ui/canonical/canonical-header-architecture.png" alt="" />
+      <p className="canonical-header__statement">REAL PROJECTS<br/>REAL POWER.</p>
+      </div>
       <nav className="canonical-header__nav" aria-label="Primary navigation">
         {destinations.map(({ id, label }) => (
           <button key={id} type="button" aria-current={activeDestination === id ? 'page' : undefined}

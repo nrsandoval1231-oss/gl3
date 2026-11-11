@@ -1,3 +1,4 @@
+import { openProjectFilters, selectProjectType } from './ui-helpers'
 import { mockDemandSummary } from './mock-demand-summary'
 import { expect, test } from '@playwright/test'
 
@@ -16,11 +17,11 @@ test('changing sector clears region and stage filters and their URL state', asyn
 
   await page.goto('/?view=workspace&region=Permian+Basin%2C+TX&stage=Permit+issued&priority=ranked&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toHaveCount(1)
-  await page.getByText('More filters and sorting', { exact: true }).click()
+  await openProjectFilters(page)
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Permian Basin, TX')
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Permit issued')
 
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.get('sector')).toBe('data_centers')
   await expect.poll(() => requests.at(-1)?.searchParams.has('region')).toBe(false)
   await expect.poll(() => requests.at(-1)?.searchParams.has('stage')).toBe(false)
@@ -44,7 +45,7 @@ test('URL region and stage stay visibly selected when omitted from returned face
 
   await page.goto('/?view=workspace&region=Nonfacet+Region&stage=Nonfacet+Stage&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toHaveCount(1)
-  await page.getByText('More filters and sorting', { exact: true }).click()
+  await openProjectFilters(page)
   await expect(page.getByRole('combobox', { name: 'Region' })).toHaveValue('Nonfacet Region')
   await expect(page.getByRole('combobox', { name: 'Region' }).locator('option', { hasText: 'Nonfacet Region' })).toHaveCount(1)
   await expect(page.getByRole('combobox', { name: 'Stage' })).toHaveValue('Nonfacet Stage')
@@ -74,8 +75,8 @@ test('sector switch immediately announces loading and hides the previous cohort 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toContainText('All Sector Group')
 
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Data Centers', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await selectProjectType(page, 'data_centers')
+  await expect(page.getByRole('combobox', { name: 'Project type' })).toHaveValue('data_centers')
   await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'true')
   await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
   await expect(page.locator('.customer-group')).toHaveCount(0)
@@ -110,10 +111,10 @@ test('a rapid sector change ignores a late response from the previously requeste
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toContainText('All Sector Group')
 
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
-  await page.getByRole('button', { name: 'Oil & Gas', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Oil & Gas', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await selectProjectType(page, 'oil_gas')
+  await expect(page.getByRole('combobox', { name: 'Project type' })).toHaveValue('oil_gas')
   await expect(page.locator('.customer-group')).toContainText('Oil and Gas Group')
   releaseDataCenters()
   await expect(page.locator('.customer-group')).toContainText('Oil and Gas Group')
@@ -145,7 +146,7 @@ test('failed sector results keep retry through no-op filter clicks and reverted 
 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
   await expect(page.locator('.customer-group')).toContainText('All Sector Before Error')
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect(page.getByRole('status')).toContainText('Refreshing accounts; previous results are hidden')
   await expect(page.locator('.customer-group')).toHaveCount(0)
   releaseFailure()
@@ -158,13 +159,14 @@ test('failed sector results keep retry through no-op filter clicks and reverted 
 
   // Selecting the already-active sector does not start a new cohort request,
   // so it must leave the actionable error state in place.
-  await page.getByRole('button', { name: 'Data Centers', exact: true }).click()
+  await selectProjectType(page, 'data_centers')
   await expect(alert).toContainText('Could not load accounts')
   await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
   expect(dataCenterReads).toBe(1)
 
   // A draft that is reverted before debounce is not a request either; the
   // failed cohort's retry remains available until a real read starts.
+  await openProjectFilters(page)
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await search.fill('temporary draft')
   await search.fill('')
@@ -206,7 +208,7 @@ test('responsive sector loading and settled states render at desktop, tablet, an
     await page.setViewportSize({ width: size.width, height: size.height })
     pendingSector = size.sector
     pending = new Promise<void>(resolvePending => { releasePending = resolvePending })
-    await page.getByRole('button', { name: size.label, exact: true }).click()
+    await selectProjectType(page, size.sector)
     await expect(page.locator('.project-results')).toHaveAttribute('aria-busy', 'true')
     await expect(page.getByRole('status')).toBeVisible()
     await page.screenshot({ path: test.info().outputPath(`${size.name}-loading.png`), fullPage: true })

@@ -1,3 +1,4 @@
+import { openProjectFilters, setAccountMenuOpen } from './ui-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -62,7 +63,7 @@ async function signIn(page: Page) {
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.', exact: true })).toBeVisible()
 }
 
 test('source-backed disposable account brief survives responsive navigation and remains read-only', async ({ page }, testInfo) => {
@@ -77,6 +78,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   })
 
   await signIn(page)
+  await openProjectFilters(page)
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
   await search.fill(manifest.account.name)
   const account = page.getByRole('region', { name: new RegExp(`${escapeRegExp(manifest.account.name)} customer group`, 'i') })
@@ -174,6 +176,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   for (const project of manifest.account.projects) await expect(detail).toContainText(project.name)
   await page.goBack()
   await expect(page).toHaveURL(/groupBrowse=1/)
+  await openProjectFilters(page)
   await expect(page.getByRole('textbox', { name: 'Search accounts and projects' })).toHaveValue(manifest.account.name)
   await page.goForward()
   await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
@@ -224,7 +227,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   await expect(detail).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`[?&]account=${escapeRegExp(manifest.account.group_id)}(?:&|$)`))
   for (const project of manifest.account.projects) await expect(detail).toContainText(project.name)
-  await page.locator('.wh-account > summary').click()
+  await setAccountMenuOpen(page)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   expect(await (await page.request.get('/api/auth/session')).json()).toEqual({ authenticated: false })

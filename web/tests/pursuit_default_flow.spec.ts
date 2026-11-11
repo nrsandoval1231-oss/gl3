@@ -63,7 +63,7 @@ async function setup(page: Page, seed: ReturnType<typeof pursuit>[]) {
 async function openDefaultDetail(page: Page) {
   await page.goto('/?view=workspace')
   expect(new URL(page.url()).searchParams.get('projectBrowse')).toBeNull()
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await page.getByRole('button', { name: 'View account details' }).click()
   await expect(page.getByRole('region', { name: 'Company Example Energy' })).toBeVisible()
   await page.getByRole('button', { name: /Open project detail .*Example Compressor Station/ }).click()

@@ -1,3 +1,4 @@
+import { setAccountMenuOpen } from './ui-helpers'
 import { expect, test, type Route, type Page } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
 import { projectCards, projectTitle, serverProjectCards, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
@@ -7,8 +8,8 @@ const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/ap
 const zilkerDescription = '2026/10/02 - 2026/10/04 - Weekend 1 | 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.'
 
 async function openSecondaryRoute(page: Page, name: 'Research' | 'Signals') {
-  const menu = page.locator('.wh-account')
-  if (await menu.getAttribute('open') === null) await menu.locator('summary').click()
+  const menu = page.locator('.workspace-account')
+  if ((await menu.getByRole('button', { name: 'Account menu' }).getAttribute('aria-expanded')) !== 'true') await menu.getByRole('button', { name: 'Account menu' }).click()
   await menu.getByRole('button', { name, exact: true }).click()
 }
 
@@ -547,7 +548,7 @@ test('active first-page tier click while loading lets the matching request settl
   })
   try {
     await page.goto('/?tier=Signals')
-    await page.locator('.wh-account summary').click()
+    await setAccountMenuOpen(page)
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestCount).toBeGreaterThan(0)
     await expect(page.getByText('Loading current Signal cohort…')).toBeVisible()
@@ -657,7 +658,7 @@ test('active decision and unchanged activity filter during page load preserve th
   })
   try {
     await page.goto('/?tier=Signals&activity=event-power')
-    await page.locator('.wh-account summary').click()
+    await setAccountMenuOpen(page)
     await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('navigation', { name: 'Filter by evidence decision' }).getByRole('button', { name: /All/ }).click()
@@ -769,9 +770,9 @@ test('technical diagnostics are secondary to the commercial navigation and load 
   try {
     await page.goto('/?view=ingestion')
     await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button')).toHaveText(['Opportunities', 'Companies', 'Pursuits', 'Reports'])
-    await page.locator('.wh-account summary').click()
-    await expect(page.locator('.wh-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
-    await expect(page.locator('.wh-account').getByRole('button', { name: 'Signals' })).toBeVisible()
+    await setAccountMenuOpen(page)
+    await expect(page.locator('.workspace-account').getByRole('button', { name: 'Research progress' })).toBeVisible()
+    await expect(page.locator('.workspace-account').getByRole('button', { name: 'Signals' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
     await page.getByRole('button', { name: 'Technical diagnostics' }).click()
     releaseRequest?.()
@@ -1140,7 +1141,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
       await page.getByRole('button', { name: 'Next', exact: true }).click()
       await expect(page.locator('[data-opportunity-id="scope-page-next"]')).toBeVisible()
     } else {
-      await page.locator('.wh-account summary').click()
+      await setAccountMenuOpen(page)
       await page.getByRole('button', { name: 'Technical diagnostics' }).click()
       await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('ingestion')
     }

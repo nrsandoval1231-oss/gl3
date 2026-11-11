@@ -1,3 +1,4 @@
+import { WorkspaceAccount } from '../../components/WorkspaceAccount'
 import { useEffect, useRef, useState } from 'react'
 import { client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
 import { LoginPage } from '../auth/LoginPage'
@@ -20,6 +21,7 @@ import { CanonicalOpportunityDetail } from './CanonicalOpportunityDetail'
 import { AUTH_SESSION_ENDED } from '../../state/sessionState'
 import '../../styles/workspace.css'
 import '../../styles/canonical-workspace.css'
+import './premium-opportunities.css'
 const tabs = workspaceTabs
 type Tab = WorkspaceTab
 type WorkspaceDetail = import('../../api/client').Opportunity & Partial<Pick<WorkspaceNeed, 'commercial_disposition' | 'commercial_reason' | 'commercial_next_question' | 'commercial_next_action' | 'commercial_organization'>>
@@ -135,7 +137,6 @@ export function WorkspaceHome() {
   }
   const historyFocusSequence = useRef(0)
   const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean; origin: Element | null } | null>(null)
-  const moreMenu = useRef<HTMLDetailsElement>(null)
   const pursuitStore = usePursuitStore()
   const pursuitActions = useRef<{ openPursuit: (id: string) => void; openNeed: (id: string) => void }>({ openPursuit: () => {}, openNeed: () => {} })
   useEffect(() => { if (authenticated) void refreshPursuits() }, [authenticated])
@@ -416,7 +417,6 @@ export function WorkspaceHome() {
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 1051px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'research' | 'ingestion' | 'signals', pursuitId?: string, panel?: 'companies' | 'reports') => {
-    moreMenu.current?.removeAttribute('open')
     if (nextView === 'pursuits' && view === 'pursuits') {
       // Already on the page: push the list/deep-link URL and let the page re-read it (no remount, filter kept).
       const params = new URLSearchParams({ view: 'pursuits' }), keep = getParams().get('filter')
@@ -491,7 +491,13 @@ export function WorkspaceHome() {
       else { setNavigationPanel(null); if (navigationPanel) pushPanel(null); navigate(destination) }
     }}
     search={<GlobalSearch onNeed={id => { setNavigationPanel(null); navigate('opportunities'); openActiveNeed({ id }) }} onCompany={id => { const params = new URLSearchParams({ view: 'workspace', accountBrowse: '1', account: id }); location.assign(`/?${params}`) }}/>}
-    profile={<details ref={moreMenu} className="wh-account"><summary aria-label="Account menu"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg></summary><div><span>Private workspace</span><button onClick={() => { setNavigationPanel(null); navigate('research') }}>Research progress</button><button onClick={() => { setNavigationPanel(null); navigate('signals') }}>Signals</button><button onClick={() => { setNavigationPanel(null); navigate('ingestion') }}>Technical diagnostics</button><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></div></details>}/>
+    profile={<WorkspaceAccount
+      onResearch={() => { setNavigationPanel(null); navigate('research') }}
+      onSignals={() => { setNavigationPanel(null); navigate('signals') }}
+      onDiagnostics={() => { setNavigationPanel(null); navigate('ingestion') }}
+      onSignOut={() => void client.logout().then(() => location.reload())}
+    />}
+  />
   const researchHost = <main className="wh-single-view" hidden={view !== 'research'}>{view === 'research' && <ResearchView/>}</main>
   if (view === 'research') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'pursuits') return <div className="workspace-home">{header}<main className="pu-main"><PursuitsPage/></main></div>

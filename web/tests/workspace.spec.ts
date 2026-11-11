@@ -48,7 +48,7 @@ test('default workspace shows customer accounts and opens an existing project ne
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: accountNeed }))
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial intelligence for constrained power.' })).toBeVisible()
   await expect(page.getByText('1 account')).toBeVisible()
   await page.getByRole('button', { name: 'View account details' }).click()
   await expect(page.getByRole('region', { name: 'Company Example operator' })).toBeVisible()
@@ -258,7 +258,7 @@ test('desktop history readback does not steal Search focus after resizing to pho
   await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
-  const more = page.locator('.wh-account summary')
+  const more = page.getByRole('button', { name: 'Account menu' })
   await more.focus()
   await expect(more).toBeFocused()
   await page.setViewportSize({ width: 390, height: 844 })
@@ -521,7 +521,7 @@ test('tablet direct selection keeps detail and header reachable and restores the
   const bounds = await identity.boundingBox()
   expect(bounds!.y).toBeGreaterThanOrEqual(0)
   expect(bounds!.y + bounds!.height).toBeLessThan(1024)
-  for (const control of [page.locator('.canonical-header__brand'), page.getByRole('navigation', { name: 'Primary navigation' }), page.locator('.wh-account > summary')]) {
+  for (const control of [page.locator('.canonical-header__brand'), page.getByRole('navigation', { name: 'Primary navigation' }), page.getByRole('button', { name: 'Account menu' })]) {
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect(box!.x).toBeGreaterThanOrEqual(0)
