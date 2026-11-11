@@ -181,7 +181,7 @@ for (const viewport of viewports) {
     await page.getByLabel('Password', { exact: true }).fill(password)
     const coldResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/opportunities/groups', { timeout: httpBudgetMs })
     const coldStarted = Date.now()
-    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page.getByRole('heading', { name: 'Sign in' })).toHaveCount(0, { timeout: uiBudgetMs })
     await waitForGroups(page)
     const coldUiMs = Date.now() - coldStarted

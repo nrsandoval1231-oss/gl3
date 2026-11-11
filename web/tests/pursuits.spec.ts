@@ -449,7 +449,7 @@ test('a background 401 returns to sign-in and removes the open Pursuits data', a
   expect(seen.continuity).toBeGreaterThan(0)
   expect(seen.auth).toBeGreaterThan(0)
   await page.getByRole('textbox', { name: 'Password' }).fill('synthetic-password')
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByText('Synthetic Campus P1').first()).toBeVisible()
   await expect(page).toHaveURL(/view=pursuits&pursuit=p1/)
 })
@@ -553,7 +553,7 @@ test('a delayed 401 from the previous session cannot expire the session after re
   const endedBeforeLogin = (await events()).auth
   expect(endedBeforeLogin).toBeGreaterThan(0)
   await page.getByRole('textbox', { name: 'Password' }).fill('synthetic-password')
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('button', { name: 'View Details' })).toBeVisible()
   const endedAfterLogin = (await events()).auth
   release()

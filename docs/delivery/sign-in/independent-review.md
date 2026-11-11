@@ -20,3 +20,15 @@ Fidelity limitation: the original conversation attachment was not available in A
 Reviewed final CSS SHA-256: `17d097d2ecbd8ed6dd80b8df734f1834966d5cecab2a4f1f49495fc766413402`.
 
 Astra approved preparation of a focused draft PR with exact full-suite outcomes disclosed. No merge or deployment was performed.
+
+## Current-main integration re-review
+
+The initial workspace baseline was stale. The focused change was cherry-picked onto current `main` `f2a4a805` as `1b078020af43472066448720715e78e02e7b31cd`. Astra independently re-read updated repository instructions, authentication/session code and the integrated diff. Authentication files were unchanged upstream; newer upstream session-generation guards remain behind the unchanged login callback.
+
+Current-base independent checks:
+- `npm run typecheck` — passed.
+- `GRIDLENS_LOGIN_WEB_PORT=5188 npm run test:login -- --output=/tmp/gl3-astra-current-main-login --reporter=list` — **14 passed, 49.1 seconds**.
+- Committed and working-tree whitespace checks — passed.
+- Fresh 1280/768/390/320 captures inspected — no responsive regressions.
+
+Astra also reviewed four additional acceptance/regression test files: only login selectors changed, preserving existing assertions. The requested tagline is documented as a sign-in-specific exception to the canon's broader product-facing UI wording. **Current-main scoped result: PASS**, subject to exact full-suite outcomes. The original-attachment limitation above still applies.

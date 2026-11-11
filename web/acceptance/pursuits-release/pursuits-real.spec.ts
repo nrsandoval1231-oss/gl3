@@ -37,13 +37,13 @@ function isLoopback(url: URL) {
 
 async function signIn(page: Page): Promise<number> {
   await page.goto('/')
-  const signInHeading = page.getByRole('heading', { name: 'Sign in', exact: true })
+  const signInHeading = page.getByRole('heading', { name: 'Sign in to GridLens', exact: true })
   const opportunitiesButton = page.getByRole('button', { name: 'Opportunities' })
   await expect(signInHeading).toBeVisible()
   await page.getByLabel('Password', { exact: true }).fill(password!)
   const login = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login')
   const loginStarted = Date.now()
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   const loginResponse = await login
   expect(loginResponse.status(), 'Disposable account login must succeed').toBe(200)
   const sessionCookie = (await page.context().cookies()).find(cookie => cookie.name === 'gridlens_session')

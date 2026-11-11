@@ -11,3 +11,5 @@ Verification plan:
 - Publish a focused draft PR with screenshots and exact evidence. No merge or deploy.
 
 Known intentional deviations: single password field, no OAuth/signup/recovery link; approved repository vector logo takes priority over the reference's metallic rendering. The brief explicitly names “Real projects. Real power.”, used as headline although the attached image shows “See demand before the grid does.”
+
+The current UI canon removes Intelligence from product-facing UI. This user request explicitly retains “Commercial Intelligence for Constrained Power” in sign-in branding; that exception applies only to this sign-in page. Authenticated navigation and screens remain unchanged.
