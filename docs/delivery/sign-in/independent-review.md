@@ -32,3 +32,10 @@ Current-base independent checks:
 - Fresh 1280/768/390/320 captures inspected — no responsive regressions.
 
 Astra also reviewed four additional acceptance/regression test files: only login selectors changed, preserving existing assertions. The requested tagline is documented as a sign-in-specific exception to the canon's broader product-facing UI wording. **Current-main scoped result: PASS**, subject to exact full-suite outcomes. The original-attachment limitation above still applies.
+
+## Final image and overlay review
+
+The implementing agent identified the reference's taller near glass facade and revised only the decorative WebP. Astra inspected fresh 1280/1440/768/390 captures, accepted the improved composition and identified a faint horizontal wash cutoff. The cutoff was removed; Astra's final re-review of 1280/1440/768 confirmed no seam and readable branding/headline/footer. **Final visual result: PASS, no new findings.** The final primary login suite passed 14/14 in 19.2 seconds. React and authentication logic remain unchanged.
+
+Final CSS SHA-256: `01b274bdbb1c0060cf66f7083cf1181bee40b8804ce82eb986c62da1c5683739`.
+Final image SHA-256: `8e86a6b1691b0ec4d5b5d3ffab5c28c961dacad27426cf98fde913c608d3aba6`.
