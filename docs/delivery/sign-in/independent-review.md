@@ -39,3 +39,11 @@ The implementing agent identified the reference's taller near glass facade and r
 
 Final CSS SHA-256: `01b274bdbb1c0060cf66f7083cf1181bee40b8804ce82eb986c62da1c5683739`.
 Final image SHA-256: `8e86a6b1691b0ec4d5b5d3ffab5c28c961dacad27426cf98fde913c608d3aba6`.
+
+## Owner-requested mobile refinement review
+
+Astra inspected the final 390/320 and 1280 captures and the scoped diff: **PASS, no blocking findings**. Mobile now shares desktop imagery/headline/accents/footer, with submit initially visible at 390×844 and normal vertical scrolling at 320×568. Authentication is unchanged; desktop/tablet screenshots are pixel-identical to the earlier candidate.
+
+Independent command: `GRIDLENS_LOGIN_WEB_PORT=5188 npm run test:login -- --output=/tmp/gl3-astra-mobile-desktop --reporter=list` — **14 passed, 13.3 seconds**. Astra confirmed the initial-viewport assertion runs before Tab focus can scroll the page. Mobile asset 480×600 / 31,662 bytes verified. `git diff --check` passed.
+
+Final mobile-refinement CSS SHA-256: `8396854f819ab20d70bfbeaba92717fb433aba379e3ae122176f320d037058f3`.

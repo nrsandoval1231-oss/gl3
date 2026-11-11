@@ -41,3 +41,7 @@ Only the decorative photo and its gradient wash changed afterward; final primary
 Local wider results differ from CI and remain disclosed: frontend regression **334 passed, 1 failed** (`project_results.spec.ts` — mounted account project details and contacts disappear at their independent generation expiry). The same test fails on an untouched export of `f2a4a805`. Local persisted Pursuits timed out in the repeated Companies search loop; its baseline attempt failed at an earlier Add-to-Pursuit assertion, so the exact timeout is not claimed reproduced. Both journeys pass in the full CI run above. Local real rollup **3 passed**; local Phase 2 brief **1 passed**. The complete local backend outcome is recorded in the PR delivery receipt; no backend source changed in this PR.
 
 Browser-rendered final 1280px initial sign-in check: logo and background decoded, no horizontal overflow, no console errors. This is separate from intentional network/credential errors exercised by the automated suite.
+
+## Mobile desktop-style refinement
+
+Owner-requested follow-up: architectural hero and desktop branding retained on phones. Login suite: **14 passed**, 17.5 seconds. The keyboard test now verifies visible imagery/footer, exactly one optimized mobile image request, and a submit button within the 390×844 viewport. Prior no-image mobile evidence is superseded. Desktop 1280/1440 and tablet 768 captures are pixel-identical to the prior committed screenshots. Current PR CI remains the final-head gate.

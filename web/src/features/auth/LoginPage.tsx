@@ -41,7 +41,7 @@ export function LoginPage({ onLogin }: { onLogin: (password: string) => Promise<
     <section className="login-story" aria-label="GridLens commercial intelligence">
       <picture className="login-architecture" aria-hidden="true">
         <source media="(min-width: 641px)" srcSet="/ui/sign-in/architecture.webp" />
-        <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" width="960" height="1200" />
+        <img src="/ui/sign-in/architecture-mobile.webp" alt="" width="960" height="1200" />
       </picture>
       <div className="login-story-content">
         <img className="login-story-logo" src="/brand/logos/horizontal-light.svg" alt="GridLens" width="1000" height="240" />

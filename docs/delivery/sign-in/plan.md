@@ -13,3 +13,7 @@ Verification plan:
 Known intentional deviations: single password field, no OAuth/signup/recovery link; approved repository vector logo takes priority over the reference's metallic rendering. The brief explicitly names “Real projects. Real power.”, used as headline although the attached image shows “See demand before the grid does.”
 
 The current UI canon removes Intelligence from product-facing UI. This user request explicitly retains “Commercial Intelligence for Constrained Power” in sign-in branding; that exception applies only to this sign-in page. Authenticated navigation and screens remain unchanged.
+
+## Owner-requested mobile refinement
+
+The owner requested that mobile look more like desktop. Mobile now retains architectural imagery, diagonal overlays, the two-line headline and Identify / Qualify / Pursue icon footer in a compact 340px hero (320px at narrow widths), followed by the white sign-in panel. The 390×844 sign-in button remains within the viewport. The previous no-image mobile treatment is superseded. Authentication and desktop/tablet layouts remain unchanged.

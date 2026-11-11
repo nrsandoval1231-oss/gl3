@@ -15,3 +15,7 @@ Surfaces checked:
 Iteration history: removed duplicated tagline from the initial primary-logo asset by using the unchanged horizontal logo; tightened tagline placement in logo whitespace; changed inner input outline to a complete field focus ring. Raised the close glass facade to approximately the upper 20% of the desktop image to match the source composition; replaced a clipped light wash with a full-canvas fade to remove its horizontal seam. Fresh captures and the 14-case rerun verify the final layout; Astra independently inspected it again.
 
 Residual: exact source-photo match and metallic rendering are not claimed. The source artwork file and an explicit resolution of screenshot-versus-brief headline differences would be needed for a strict pixel-match acceptance gate. The delivered layout implements the requested adapted scope; owner visual acceptance remains reviewable in the draft PR.
+
+## Mobile refinement
+
+At the owner’s request, the phone view now carries the desktop architectural scene, two-line headline, diagonal overlays and icon footer above the white form. Reviewed fresh 390×844 and 320×568 captures. The 390px submit remains above the fold; 320px scrolls vertically. This supersedes the original compact image-free phone treatment.

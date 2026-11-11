@@ -37,7 +37,37 @@
 .login-security svg{flex:none}
 .login-page button:focus-visible,.login-page input:focus-visible{outline:3px solid var(--gl-focus);outline-offset:3px}
 @media(min-width:641px) and (max-width:1000px){.login-page{grid-template-columns:minmax(0,48fr) minmax(0,52fr)}.login-story-content{padding:48px 28px}.login-tagline{font-size:9px;letter-spacing:.13em}.login-story h2{font-size:48px}.login-stages{gap:14px;flex-direction:column}.login-stages li+li{padding-left:0;border:0}.login-panel{padding:44px 28px}}
-@media(max-width:640px){.login-page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}.login-story-content{padding:30px 24px 22px}.login-story-logo{max-width:260px}.login-tagline{margin-left:27%;margin-top:-17px;font-size:9px;letter-spacing:.15em}.login-accent{margin:18px 0;width:44px;height:3px}.login-story h2{font-size:30px;letter-spacing:-.04em}.login-story h2 br{display:none}.login-story h2 br:after{content:" "}.login-stages,.login-architecture,.login-story:before,.login-story:after{display:none}.login-panel{align-items:flex-start;padding:30px 24px 40px}.login-panel-inner{gap:14px}.login-panel h1{font-size:28px}.login-form{margin-top:10px}.login-recovery{margin:12px 0}.login-security{padding-top:18px}}
+@media(max-width:640px){
+  .login-page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
+  .login-story-content{min-height:340px;padding:24px 24px 22px}
+  .login-story-logo{max-width:260px}
+  .login-tagline{margin-left:70px;margin-top:-17px;font-size:9px;letter-spacing:.15em}
+  .login-accent{margin:18px 0 22px;width:44px;height:3px}
+  .login-story h2{font-size:40px;letter-spacing:-.05em;line-height:1.05}
+  .login-architecture img{object-position:center 65%}
+  .login-stages{padding:44px 0 0;gap:10px}
+  .login-stages li{gap:7px;font-size:9px;letter-spacing:.12em}
+  .login-stages li+li{padding-left:12px}
+  .login-stages svg{width:22px;height:22px}
+  .login-panel{align-items:flex-start;padding:28px 24px 36px}
+  .login-panel-inner{gap:12px}
+  .login-panel h1{font-size:28px}
+  .login-form{margin-top:8px}
+  .login-submit{margin-top:12px}
+  .login-recovery{margin:10px 0;font-size:13px}
+  .login-security{padding-top:16px}
+}
+@media(max-width:359px){
+  .login-story-content{min-height:320px;padding:22px 20px}
+  .login-story-logo{max-width:240px}
+  .login-tagline{margin-left:65px;font-size:8px}
+  .login-story h2{font-size:36px}
+  .login-stages{gap:6px;padding-top:34px}
+  .login-stages li{font-size:8px;gap:5px}
+  .login-stages li+li{padding-left:8px}
+  .login-stages svg{width:20px;height:20px}
+  .login-panel{padding-left:20px;padding-right:20px}
+}
 
 .login-input-wrap:focus-within{outline:3px solid var(--gl-focus);outline-offset:3px}
 .login-page .login-input-wrap input:focus-visible{outline:none}
