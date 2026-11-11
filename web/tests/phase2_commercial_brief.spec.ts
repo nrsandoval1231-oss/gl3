@@ -109,7 +109,9 @@ test('source-backed disposable account brief survives responsive navigation and 
   await sourceDisclosure.locator('summary').click()
   await expect(sourceDisclosure).not.toHaveAttribute('open', '')
   const powerClaim = brief.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
-  const informativePowerLimitations = (manifest.brief.power_limitations ?? []).filter(value => !/unknown is not zero|unknown does not mean zero|power need is unknown|power amount is unknown/i.test(value))
+  const informativePowerLimitations = (manifest.brief.power_limitations ?? [])
+    .flatMap(value => value.split(/;\s*/).map(clause => clause.trim()))
+    .filter(clause => clause && !/^(?:unknown (?:is not|does not mean) zero|(?:activity-specific )?(?:power )?(?:need|amount)(?: for [^.]*)? is unknown)\.?$/i.test(clause))
   if (manifest.brief.power_amount_class === 'unknown' || !manifest.brief.power_value) {
     if (manifest.brief.power_scope && informativePowerLimitations.length) {
       await expect(powerClaim).toContainText(manifest.brief.power_scope)

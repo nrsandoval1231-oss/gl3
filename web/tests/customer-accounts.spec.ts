@@ -201,6 +201,32 @@ test('a brief with no best contact does not repeat an unavailable-contact block 
   await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
 })
 
+test('an unknown amount retains material nameplate limitations mixed with generic boilerplate', async ({ page }) => {
+  const brief = {
+    version: 'synthetic-v1',
+    why_now: { text: 'A synthetic accepted source documents a construction milestone.', source_date: null, scope: null, sources: [] },
+    power_need: { amount_class: 'unknown' as const, scope: 'campus-capacity', value: null, unit: null, status: 'unknown', limitations: ['Activity-specific power need is unknown; Campus, IT, or equipment nameplate amount is not rental demand.'] },
+    best_contact: null,
+    next_action: { text: 'Review the accepted source before deciding whether to follow up.', kind: 'review_source', source: null },
+    freshness: { as_of: null, status: 'unknown', source_date: null },
+    limitations: [],
+    sources: [],
+  }
+  const group = { ...accountGroup(), featured_project: { ...project(1), commercial_brief: brief } }
+  await installAccountFirst(page, { groups: [group] })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
+  await expect(card.locator('[aria-label="Best contact"]')).toHaveCount(0)
+  const unknownPower = card.locator('.customer-brief-claim').filter({ hasText: 'Power need' })
+  await expect(unknownPower).toHaveCount(1)
+  await expect(unknownPower).toContainText('campus-capacity')
+  await expect(unknownPower).toContainText('Campus, IT, or equipment nameplate amount is not rental demand.')
+  await expect(unknownPower).not.toContainText('Activity-specific power need is unknown')
+  await expect(unknownPower).not.toContainText('MW')
+  await expect(card.getByText('Suppressed Contact')).toHaveCount(0)
+  await expect(card.getByText(brief.next_action.text, { exact: true })).toBeVisible()
+})
+
 test('account cards use only the exact representative need contact when the project brief omits it', async ({ page }) => {
   const brief = {
     version: 'synthetic-v1',

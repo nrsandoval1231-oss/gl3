@@ -119,5 +119,19 @@
     "stage": "unchanged npm ci",
     "diagnostic": "SELF_SIGNED_CERT_IN_CHAIN in managed proxy environment",
     "no_tls_verification_bypass": true
+  },
+  "supplementary_push_repair": {
+    "head": "82321a59da9bed17b20e4a73136b43ae7253755c",
+    "required_pr_run": 42971387331,
+    "required_pr_result": "success",
+    "supplementary_push_run": 42971377292,
+    "supplementary_push_result": "failure",
+    "cause": "Test discarded a complete mixed generic/material limitation entry; UI preserved the material nameplate qualification correctly",
+    "scope": "test-only clause normalization and explicit mixed-string fixture",
+    "account_module_passed": 17,
+    "account_module_seconds": 29.5,
+    "phase2_real_passed": 1,
+    "phase2_real_seconds": 20.3,
+    "final_acceptance_requires_both_workflows": true
   }
 }
