@@ -130,6 +130,29 @@ def test_orm_update_recomputes_keys_and_later_raw_update_is_still_guarded(engine
     )
 
 
+def test_orm_update_uses_stored_values_for_unmodified_key_inputs(engine, session):
+    """A stale session changing one input must not erase a concurrent change to another."""
+    session.add(_project("p1", "Alpha Data Center", "100 Main Street, Austin, TX"))
+    session.commit()
+    with sessionmaker(engine, expire_on_commit=False)() as other:
+        stale = other.execute(select(Project).where(Project.identity_key == "p1")).scalar_one()
+        session.execute(
+            text(
+                "UPDATE projects SET location = '200 Oak Road, Houston, TX' "
+                "WHERE identity_key = 'p1'"
+            )
+        )
+        session.commit()
+        stale.name = "Gamma Pad"
+        other.commit()
+    with engine.connect() as connection:
+        name, location, facts = connection.execute(
+            text("SELECT name, location, identity_facts FROM projects WHERE identity_key='p1'")
+        ).one()
+    assert (name, location) == ("Gamma Pad", "200 Oak Road, Houston, TX")
+    assert _keys(engine, "p1") == project_match_keys(name, location, facts)
+
+
 def test_stale_raw_updated_project_still_matches_via_null_fallback(engine, session):
     session.add(_project("p1", "Alpha Data Center", "100 Main Street, Austin, TX"))
     session.commit()

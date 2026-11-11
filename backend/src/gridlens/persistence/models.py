@@ -20,6 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     func,
+    select,
     text,
     true,
 )
@@ -379,8 +380,24 @@ def _persist_project_match_keys_on_insert(_mapper, _connection, project: Project
 def _persist_project_match_keys_on_update(_mapper, connection, project: Project) -> None:
     from gridlens.intelligence.project_identity import project_match_keys
 
-    project.match_keys = project_match_keys(project.name, project.location, project.identity_facts)
     committed = sa_inspect(project).committed_state
+    values = {column: getattr(project, column) for column in _MATCH_KEY_SOURCE_COLUMNS}
+    if connection.dialect.name == "postgresql":
+        # Lock the row and take unmodified key inputs from the database, not this session's
+        # possibly stale copy, so a concurrent writer's change to another input is not lost.
+        table = Project.__table__
+        stored = connection.execute(
+            select(*(table.c[column] for column in _MATCH_KEY_SOURCE_COLUMNS))
+            .where(table.c.id == project.id)
+            .with_for_update()
+        ).first()
+        if stored is not None:
+            for column in _MATCH_KEY_SOURCE_COLUMNS:
+                if column not in committed:
+                    values[column] = stored._mapping[column]
+    project.match_keys = project_match_keys(
+        values["name"], values["location"], values["identity_facts"]
+    )
     if connection.dialect.name == "postgresql" and any(
         column in committed for column in _MATCH_KEY_SOURCE_COLUMNS
     ):
