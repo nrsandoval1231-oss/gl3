@@ -87,12 +87,55 @@ def test_stalled_republication_stops_serving(saved_db, monkeypatch):  # noqa: F8
     _scoped_write(saved_db, ids[0])
     monkeypatch.setattr(settings, "browse_serve_stale", True)
     monkeypatch.setattr(settings, "browse_stale_max_seconds", 60)
-    with saved_db.begin() as session:
+    with saved_db() as session:
+        assert current_generation(session, allow_stale=True)  # stale for a moment: served
+    with saved_db.begin() as session:  # the first newer write is now two minutes old
         session.execute(
-            text("UPDATE browse_generations SET built_at = :built_at"),
-            {"built_at": datetime.now(UTC) - timedelta(seconds=120)},
+            text("UPDATE browse_state SET stale_since = :since"),
+            {"since": datetime.now(UTC) - timedelta(seconds=120)},
         )
     _pending(saved_db, allow_stale=True)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        assert refresh_state(current_generation(session, allow_stale=True)) == "current"
+        assert session.scalar(text("SELECT stale_since FROM browse_state")) is None
+
+
+def test_quiet_period_does_not_close_the_age_bound(saved_db, monkeypatch):  # noqa: F811
+    ids = _published(saved_db)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    monkeypatch.setattr(settings, "browse_stale_max_seconds", 60)
+    with saved_db.begin() as session:  # a snapshot built long ago, with nothing newer
+        session.execute(
+            text("UPDATE browse_generations SET built_at = :built_at"),
+            {"built_at": datetime.now(UTC) - timedelta(hours=10)},
+        )
+    _scoped_write(saved_db, ids[0])
+    with saved_db() as session:
+        served = current_generation(session, allow_stale=True)
+        assert refresh_state(served) == "updating"
+        assert session.scalar(text("SELECT stale_since FROM browse_state")) is not None
+
+
+def test_each_read_is_counted_with_the_fence_that_closed_it(saved_db, monkeypatch):  # noqa: F811
+    ids = _published(saved_db)
+    saved_browse.reset_read_counts()
+    with saved_db() as session:
+        current_generation(session, allow_stale=True)
+    monkeypatch.setattr(settings, "browse_serve_stale", True)
+    _scoped_write(saved_db, ids[0])
+    with saved_db() as session:
+        current_generation(session, allow_stale=True)
+    with saved_db.begin() as session:
+        session.get(PowerNeed, ids[0]).active = False
+    _pending(saved_db, allow_stale=True)
+    _pending(saved_db)  # an unlabelled caller
+    counts = saved_browse.read_counts()
+    assert counts["reads"]["labelled|current|-"] == 1
+    assert counts["reads"]["labelled|updating|-"] == 1
+    assert counts["reads"]["labelled|pending|deactivation"] == 1
+    assert counts["fences"]["labelled|pending|deactivation"] == 1
+    assert counts["reads"]["strict|pending|deactivation+not_opted_in"] == 1
 
 
 def test_expired_clock_window_stays_pending(saved_db, monkeypatch):  # noqa: F811

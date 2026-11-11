@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import threading
 from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
@@ -381,11 +383,11 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
     """Select the published generation that only project-scoped writes have passed.
 
     Policy and clock fences stay closed, as do writes that advance
-    ``full_revision`` (source policy, editorial, unscoped) or ``structural_revision``
-    (company identity, identifier, membership and identity-link writes), so a stale
-    page never shows a retracted membership or pre-merge account name. The build-age
-    bound (``built_at``) stops serving old generations; it does not measure how long
-    a generation has been stale. Contact suppressions are applied at read time.
+    ``full_revision`` (source policy, editorial, unscoped) or one of the structural
+    revisions (identity/membership, deletion, deactivation). The age bound is the time
+    spent stale (``browse_state.stale_since``, the first write after the last
+    publication), so a quiet period before the first write does not close it. Contact
+    suppressions are applied at read time.
     """
     generation = session.scalar(
         select(BrowseGeneration)
@@ -394,11 +396,18 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
             BrowseState.id == 1,
             BrowseState.input_revision > BrowseGeneration.input_revision,
             BrowseState.full_revision <= BrowseGeneration.input_revision,
-            BrowseState.structural_revision <= BrowseGeneration.input_revision,
+            func.greatest(
+                BrowseState.identity_revision,
+                BrowseState.deletion_revision,
+                BrowseState.deactivation_revision,
+            )
+            <= BrowseGeneration.input_revision,
             BrowseGeneration.policy_version == POLICY_VERSION,
             BrowseGeneration.valid_from <= now,
             BrowseGeneration.valid_until > now,
-            BrowseGeneration.built_at >= now - timedelta(seconds=settings.browse_stale_max_seconds),
+            # Bound the time spent stale; fall back to snapshot age when it is unknown.
+            func.coalesce(BrowseState.stale_since, BrowseGeneration.built_at)
+            >= now - timedelta(seconds=settings.browse_stale_max_seconds),
         )
         .limit(1)
     )
@@ -406,6 +415,81 @@ def _last_complete_generation(session, now: datetime) -> BrowseGeneration | None
         # Transient, per-instance marker; never persisted.
         generation.serving_stale = True  # type: ignore[attr-defined]
     return generation
+
+
+logger = logging.getLogger("gridlens.browse_reads")
+_read_counts: Counter[tuple[str, str, str]] = Counter()
+_fence_counts: Counter[str] = Counter()
+_read_counts_lock = threading.Lock()
+
+
+def read_counts() -> dict[str, dict]:
+    """In-process tally of browse reads by kind, outcome and closing fence (this worker only)."""
+    with _read_counts_lock:
+        return {
+            "reads": {"|".join(key): count for key, count in _read_counts.items()},
+            "fences": dict(_fence_counts),
+        }
+
+
+def reset_read_counts() -> None:
+    with _read_counts_lock:
+        _read_counts.clear()
+        _fence_counts.clear()
+
+
+def _record_read(kind: str, outcome: str, reasons: list[str] | None = None) -> None:
+    reason = "+".join(sorted(reasons)) if reasons else "-"
+    with _read_counts_lock:
+        _read_counts[(kind, outcome, reason)] += 1
+        for item in reasons or ():
+            _fence_counts[f"{kind}|{outcome}|{item}"] += 1
+    if kind == "labelled":  # builders poll the strict path several times a second
+        logger.info("browse_read kind=%s outcome=%s fences=%s", kind, outcome, reason)
+
+
+def _closed_fences(session, now: datetime, allow_stale: bool, explicit_now: bool) -> list[str]:
+    """Name every condition that made a read answer pending (diagnostic only)."""
+    reasons: list[str] = []
+    try:
+        if explicit_now:
+            reasons.append("explicit_instant")
+        if not allow_stale:
+            reasons.append("not_opted_in")
+        elif not settings.browse_serve_stale:
+            reasons.append("flag_off")
+        state = session.scalar(select(BrowseState).where(BrowseState.id == 1))
+        generation = (
+            session.get(BrowseGeneration, state.generation_id)
+            if state is not None and state.generation_id is not None
+            else None
+        )
+        if state is None or generation is None:
+            return [*reasons, "no_generation"]
+        fences = []
+        if generation.policy_version != POLICY_VERSION:
+            fences.append("policy_version")
+        if not generation.valid_from <= now < generation.valid_until:
+            fences.append("clock_expired")
+        if state.input_revision != generation.input_revision:
+            if state.full_revision > generation.input_revision:
+                fences.append("full_scope")
+            if state.identity_revision > generation.input_revision:
+                fences.append("identity_membership")
+            if state.deletion_revision > generation.input_revision:
+                fences.append("deletion")
+            if state.deactivation_revision > generation.input_revision:
+                fences.append("deactivation")
+            since = state.stale_since or generation.built_at
+            if since < now - timedelta(seconds=settings.browse_stale_max_seconds):
+                fences.append("stale_age")
+        elif not fences:
+            fences.append("publication_race")
+        if not fences and not reasons:
+            fences.append("unknown")
+        return [*reasons, *fences]
+    except Exception:  # diagnostics must never change the response
+        return [*reasons, "diagnostic_error"]
 
 
 def current_generation(
@@ -418,6 +502,7 @@ def current_generation(
     tell the user the data is a snapshot) stays strict.
     """
     requested_now = now
+    kind = "labelled" if allow_stale else "strict"
     # A writer may publish between our clock sample and the SELECT snapshot.
     # Retry once with the actual clock, preserving explicit evaluation instants
     # and every freshness predicate in the same session/transaction.
@@ -447,12 +532,19 @@ def current_generation(
             .limit(1)
         )
         if generation is not None:
+            _record_read(kind, "current")
             return generation
     # Explicit evaluation instants and callers that do not opt in always stay strict.
     if requested_now is None and allow_stale and settings.browse_serve_stale:
         generation = _last_complete_generation(session, datetime.now(UTC))
         if generation is not None:
+            _record_read(kind, "updating")
             return generation
+    _record_read(
+        kind,
+        "pending",
+        _closed_fences(session, datetime.now(UTC), allow_stale, requested_now is not None),
+    )
     raise HTTPException(
         503,
         "Qualification pending: saved browse summaries need a retained-data rebuild",

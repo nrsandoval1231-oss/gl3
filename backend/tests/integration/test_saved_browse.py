@@ -350,6 +350,7 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             "invalidate_browse_company_membership_delete",
             "invalidate_browse_company_membership_truncate",
             "zz_browse_structural_fence",
+            "zz_browse_structural_membership_insert",
         }
         # The serve-stale fence also watches need/project deletion and need deactivation.
         for table, expected in (
