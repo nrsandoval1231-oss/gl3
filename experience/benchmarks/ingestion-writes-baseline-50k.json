@@ -1,0 +1,287 @@
+{
+  "date": "2026-11-11",
+  "args": {
+    "projects": 50000,
+    "records": 300,
+    "changed_fraction": 0.05
+  },
+  "database": "gl3_s0_test",
+  "migrate_seconds": 1.2824842869999884,
+  "seed_seconds": 0.695203752999987,
+  "corpus": {
+    "projects": 50000,
+    "power_needs": 5000,
+    "browse_state": {
+      "id": 1,
+      "input_revision": 4,
+      "generation_id": null,
+      "full_revision": 4,
+      "prepared_generation_id": null,
+      "structural_revision": 4,
+      "stale_since": null
+    }
+  },
+  "final_counts": {
+    "projects": 50300,
+    "observations": 300
+  },
+  "phases": [
+    {
+      "phase": "a_all_new",
+      "records": 300,
+      "wall_seconds": 1043.984435469,
+      "records_per_second": 0.28736060597036384,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 25867,
+      "statements_per_record": 86.22333333333333,
+      "explicit_lock_statements": 3610,
+      "explicit_lock_statements_per_record": 12.033333333333333,
+      "project_scan_statements": 1500,
+      "project_scan_seconds": 29.248599798999408,
+      "trigger_calls": 20740,
+      "trigger_calls_per_record": 69.13333333333334,
+      "trigger_total_ms_inclusive": 112998.90400000001,
+      "trigger_pct_of_wall": 10.82381117580899,
+      "trigger_functions": {
+        "mark_browse_structural_deactivation": {
+          "calls": 300,
+          "total_ms": 18.833,
+          "self_ms": 18.833
+        },
+        "invalidate_browse_generation": {
+          "calls": 6300,
+          "total_ms": 2150.209,
+          "self_ms": 2019.465
+        },
+        "dirty_browse_project": {
+          "calls": 6300,
+          "total_ms": 110068.448,
+          "self_ms": 110068.448
+        },
+        "invalidate_browse_identity_entities": {
+          "calls": 20,
+          "total_ms": 4.894,
+          "self_ms": 4.894
+        },
+        "invalidate_browse_identity_entity_insert": {
+          "calls": 20,
+          "total_ms": 6.164,
+          "self_ms": 1.269
+        },
+        "invalidate_browse_company_membership_rows": {
+          "calls": 300,
+          "total_ms": 253.265,
+          "self_ms": 246.88
+        },
+        "invalidate_browse_company_membership_insert": {
+          "calls": 300,
+          "total_ms": 298.011,
+          "self_ms": 44.746
+        },
+        "mark_browse_structural_fence": {
+          "calls": 300,
+          "total_ms": 60.501,
+          "self_ms": 59.051
+        },
+        "track_browse_stale_since": {
+          "calls": 6900,
+          "total_ms": 138.579,
+          "self_ms": 138.579
+        }
+      },
+      "process_job_result": {
+        "new": 300,
+        "changed": 0,
+        "unchanged": 0,
+        "signals": 300,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-11",
+        "collection_window_end": "2026-11-11",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-11T14:35:25.850581+00:00",
+        "acquisition_completed_at": "2026-11-11T14:52:49.806281+00:00",
+        "partial": true
+      }
+    },
+    {
+      "phase": "b_all_unchanged",
+      "records": 300,
+      "wall_seconds": 1.715086915000029,
+      "records_per_second": 174.918248968155,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 3927,
+      "statements_per_record": 13.09,
+      "explicit_lock_statements": 1510,
+      "explicit_lock_statements_per_record": 5.033333333333333,
+      "project_scan_statements": 300,
+      "project_scan_seconds": 0.04335471499780397,
+      "trigger_calls": 0,
+      "trigger_calls_per_record": 0.0,
+      "trigger_total_ms_inclusive": 0,
+      "trigger_pct_of_wall": 0.0,
+      "trigger_functions": {},
+      "process_job_result": {
+        "new": 0,
+        "changed": 0,
+        "unchanged": 300,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-11",
+        "collection_window_end": "2026-11-11",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-11T14:52:53.838394+00:00",
+        "acquisition_completed_at": "2026-11-11T14:52:55.532374+00:00",
+        "partial": true
+      }
+    },
+    {
+      "phase": "c_5%_changed",
+      "records": 300,
+      "wall_seconds": 7.407026652000013,
+      "records_per_second": 40.502081887203055,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 4857,
+      "statements_per_record": 16.19,
+      "explicit_lock_statements": 1630,
+      "explicit_lock_statements_per_record": 5.433333333333334,
+      "project_scan_statements": 345,
+      "project_scan_seconds": 0.04397220000191737,
+      "trigger_calls": 570,
+      "trigger_calls_per_record": 1.9,
+      "trigger_total_ms_inclusive": 4993.030999999995,
+      "trigger_pct_of_wall": 67.40938347578106,
+      "trigger_functions": {
+        "mark_browse_structural_deactivation": {
+          "calls": 15,
+          "total_ms": 0.4380000000000024,
+          "self_ms": 0.4380000000000024
+        },
+        "invalidate_browse_generation": {
+          "calls": 135,
+          "total_ms": 19.89200000000028,
+          "self_ms": 17.437999999999874
+        },
+        "dirty_browse_project": {
+          "calls": 135,
+          "total_ms": 4952.619999999995,
+          "self_ms": 4952.619999999995
+        },
+        "invalidate_browse_company_membership_update": {
+          "calls": 15,
+          "total_ms": 7.583,
+          "self_ms": 3.318
+        },
+        "invalidate_browse_company_membership_rows": {
+          "calls": 30,
+          "total_ms": 6.209000000000003,
+          "self_ms": 5.850999999999999
+        },
+        "invalidate_browse_company_membership_insert": {
+          "calls": 15,
+          "total_ms": 2.742999999999995,
+          "self_ms": 0.7979999999999947
+        },
+        "mark_browse_structural_fence": {
+          "calls": 30,
+          "total_ms": 0.6559999999999988,
+          "self_ms": 0.5779999999999959
+        },
+        "track_browse_stale_since": {
+          "calls": 195,
+          "total_ms": 2.890000000000015,
+          "self_ms": 2.890000000000015
+        }
+      },
+      "process_job_result": {
+        "new": 0,
+        "changed": 15,
+        "unchanged": 285,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-11",
+        "collection_window_end": "2026-11-11",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-11T14:52:59.564456+00:00",
+        "acquisition_completed_at": "2026-11-11T14:53:06.949883+00:00",
+        "partial": true
+      }
+    }
+  ],
+  "approximations": [
+    "Rows locked cannot be measured from the client; reported proxies are explicit FOR UPDATE/SHARE statements and per-record calls of browse-invalidation trigger functions.",
+    "Trigger function total_ms is inclusive of nested function calls and may double count; it bounds time spent in browse invalidation from above.",
+    "Project scan statements are client statements containing 'FROM projects'."
+  ]
+}

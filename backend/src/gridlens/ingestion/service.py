@@ -2,13 +2,15 @@ import hashlib
 import json
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import httpx
-from sqlalchemy import Text, cast, func, or_, select, text
+from sqlalchemy import Text, cast, func, literal, or_, select, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -83,6 +85,7 @@ from gridlens.intelligence.matching import interpret
 from gridlens.intelligence.project_identity import (
     conflicting_geography,
     decide_project_match,
+    incoming_match_keys,
     labeled_site,
     labeled_sites,
     normalized_identity,
@@ -1138,7 +1141,7 @@ def _attach_news_supplement(
     incoming_site = site_claims[0] if site_claims else claim.get("location")
     matching_projects: list[Project] = []
     phase_conflict = False
-    for candidate in session.scalars(select(Project)).all():
+    for candidate in _retained_candidates(session, observation, claim, None):
         aliases = (candidate.identity_facts or {}).get("project_aliases", [])
         same_name = normalized_identity(candidate.name) == normalized_identity(
             claim.get("subject")
@@ -1324,12 +1327,280 @@ def _attach_news_supplement(
     return need, payload
 
 
+@dataclass(frozen=True)
+class _StructuredMatchContext:
+    """Incoming structured-record facts the project matcher compares against candidates."""
+
+    project_name: str
+    permit_alias: str | None
+    project_location: str | None
+    facility_scope: str | None
+    source_id: str
+    facility_source_address: str | None
+    asset_identity: tuple[str, str] | None
+    event_asset_type: Any
+
+
+def _structured_candidate_decision(candidate: Project, ctx: _StructuredMatchContext) -> Any:
+    project_name = ctx.project_name
+    permit_alias = ctx.permit_alias
+    project_location = ctx.project_location
+    facility_scope = ctx.facility_scope
+    source_id = ctx.source_id
+    facility_source_address = ctx.facility_source_address
+    asset_identity = ctx.asset_identity
+    event_asset_type = ctx.event_asset_type
+    candidate_aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+    same_name = (
+        normalized_identity(candidate.name) == normalized_identity(project_name)
+        or any(
+            normalized_identity(alias) == normalized_identity(project_name)
+            for alias in candidate_aliases
+            if isinstance(alias, str)
+        )
+        or bool(
+            permit_alias
+            and normalized_identity(permit_alias)
+            in {
+                normalized_identity(candidate.name),
+                *{
+                    normalized_identity(alias)
+                    for alias in candidate_aliases
+                    if isinstance(alias, str)
+                },
+            }
+        )
+    )
+    candidate_site = (candidate.identity_facts or {}).get("site") or candidate.location
+    same_site = same_physical_site(candidate_site, project_location) or (
+        physical_site(project_location)
+        and physical_site(candidate.location)
+        and normalized_identity(candidate.location) == normalized_identity(project_location)
+    )
+    same_facility_scope = bool(
+        facility_scope
+        and candidate.source_id == source_id
+        and same_site
+        and (candidate.identity_facts or {}).get("facility_scope") == facility_scope
+        and normalized_identity((candidate.identity_facts or {}).get("facility_source_address"))
+        == normalized_identity(facility_source_address)
+    )
+    same_asset = bool(asset_identity) and candidate.identity_facts.get("asset_identity") == (
+        list(asset_identity) if asset_identity else None
+    )
+    geographic_conflict = conflicting_geography(candidate.location, project_location)
+    return decide_project_match(
+        same_address=same_site,
+        same_project_name=same_name,
+        same_asset_identity=same_asset,
+        same_authoritative_scope=same_facility_scope,
+        conflicting_geography=geographic_conflict,
+        conflicting_asset_type=_asset_type_conflicts(
+            candidate.asset_type,
+            event_asset_type,
+        ),
+    )
+
+
+def _structured_decisions(
+    rows: Sequence[Project], ctx: _StructuredMatchContext
+) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+    decisions: list[tuple[Project, Any]] = []
+    supported: list[tuple[Project, Any]] = []
+    for candidate in rows:
+        decision = _structured_candidate_decision(candidate, ctx)
+        decisions.append((candidate, decision))
+        if decision.decision == "matched":
+            supported.append((candidate, decision))
+    return decisions, supported
+
+
+def _structured_decision_project_ids(
+    rows: Sequence[Project],
+    decisions: list[tuple[Project, Any]],
+    supported: list[tuple[Project, Any]],
+) -> set[Any]:
+    if len(supported) > 1:
+        # The established ambiguous branch writes a separate
+        # decision for every candidate, including no-fact rows.
+        return {candidate.id for candidate in rows}
+    return {
+        candidate.id
+        for candidate, decision in decisions
+        if decision.decision == "matched" or decision.matched_facts
+    }
+
+
+def _full_scan_structured_match(
+    session: Session, ctx: _StructuredMatchContext, *, refresh: bool = False
+) -> tuple[list[Project], list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+    """TEST ORACLE: the original matcher over every project."""
+    rows = _full_scan_projects(session, refresh=refresh)
+    decisions, supported = _structured_decisions(rows, ctx)
+    return rows, decisions, supported
+
+
+def _structured_match(
+    session: Session, ctx: _StructuredMatchContext, *, refresh: bool = False
+) -> tuple[list[Project], list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+    """Indexed matcher: decisions over a key-narrowed superset of the projects that can match.
+
+    Every fact ``decide_project_match`` can report here (name/alias, physical site, location,
+    asset identity, phase-scoped facility, which requires the site) implies a shared
+    ``match_keys`` entry, so projects outside the candidate set have no matched facts and
+    cannot affect the outcome. Only the ambiguous-match branch (two or more supported
+    projects) records a decision for every project, so it alone widens to the full set.
+    """
+    keys = incoming_match_keys(
+        names=[ctx.project_name, *([ctx.permit_alias] if ctx.permit_alias else [])],
+        sites=[ctx.project_location],
+        locations=[ctx.project_location],
+        asset_identity=ctx.asset_identity,
+    )
+    statement = select(Project).where(_match_key_filter(keys)).order_by(Project.id)
+    if refresh:
+        statement = statement.execution_options(populate_existing=True)
+    rows = list(session.scalars(statement).all())
+    decisions, supported = _structured_decisions(rows, ctx)
+    if len(supported) > 1:
+        return _full_scan_structured_match(session, ctx, refresh=refresh)
+    return rows, decisions, supported
+
+
+def _match_key_filter(keys: list[str], extra: Any | None = None) -> Any:
+    """Candidate predicate shared by every indexed matching query.
+
+    ``match_keys`` is derived by the matcher's own functions (``project_match_keys``) in the
+    ORM insert/update hooks, and a shared key is necessary for each fact the matchers can
+    report (name/alias, physical site, location, asset identity). Guarantee: a raw INSERT
+    leaves the keys NULL, and any UPDATE of name/location/identity_facts outside an ORM flush
+    sets them back to NULL (database guard trigger ``projects_match_keys_guard``), so a stored
+    key is never stale. NULL rows are always candidates; the original Python comparison, not
+    the index, makes every decision and an unindexed row cannot silently change one.
+    """
+    condition = or_(
+        Project.match_keys.is_(None), Project.match_keys.overlap(literal(keys, ARRAY(Text)))
+    )
+    return condition if extra is None else or_(condition, extra)
+
+
+def _retained_candidates(
+    session: Session,
+    observation: Observation,
+    claim: dict[str, Any],
+    target_identity: str | None,
+    *,
+    refresh: bool = False,
+) -> list[Project]:
+    """Indexed superset of retained-news projects that share a name, alias or site key."""
+    site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+    keys = incoming_match_keys(
+        names=[claim.get("subject")], sites=[*site_claims, claim.get("location")]
+    )
+    extra = Project.identity_key == target_identity if target_identity else None
+    statement = select(Project).where(_match_key_filter(keys, extra)).order_by(Project.id)
+    if refresh:
+        statement = statement.execution_options(populate_existing=True)
+    return list(session.scalars(statement).all())
+
+
+def _full_scan_projects(session: Session, *, refresh: bool = False) -> list[Project]:
+    """TEST ORACLE and ambiguity fallback: the original unfiltered project scan.
+
+    Production matching uses the indexed candidate queries; tests compare them with this.
+    It is also the only way to enumerate "every project", which the ambiguous-match
+    branches need because they write a decision row for each project.
+    """
+    statement = select(Project)
+    if refresh:
+        statement = statement.execution_options(populate_existing=True)
+    return list(session.scalars(statement).all())
+
+
+def _all_project_ids(session: Session) -> Callable[[], set[Any]]:
+    return lambda: set(session.scalars(select(Project.id)).all())
+
+
+def _retained_identity_decisions(
+    candidates: Sequence[Project],
+    observation: Observation,
+    claim: dict[str, Any],
+    site_claim: str | None,
+    ambiguous_sites: bool,
+) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+    matching_candidates: list[tuple[Project, Any]] = []
+    identity_decisions: list[tuple[Project, Any]] = []
+    for candidate in candidates:
+        aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+        same_name = normalized_identity(candidate.name) == normalized_identity(
+            claim["subject"]
+        ) or any(
+            normalized_identity(alias) == normalized_identity(claim["subject"])
+            for alias in aliases
+            if isinstance(alias, str)
+        )
+        candidate_site = (candidate.identity_facts or {}).get("site") or candidate.location
+        incoming_site = site_claim or claim.get("location")
+        same_site = not ambiguous_sites and same_physical_site(candidate_site, incoming_site)
+        decision = decide_project_match(
+            same_address=same_site,
+            same_project_name=same_name,
+            conflicting_geography=bool(
+                conflicting_geography(candidate.location, claim.get("location"))
+            ),
+            conflicting_asset_type=_asset_type_conflicts(
+                candidate.asset_type,
+                classify_event(observation.title, observation.abstract),
+            ),
+        )
+        identity_decisions.append((candidate, decision))
+        if decision.decision == "matched":
+            matching_candidates.append((candidate, decision))
+    return identity_decisions, matching_candidates
+
+
+def _retained_identity_match(
+    session: Session,
+    candidates: Sequence[Project],
+    observation: Observation,
+    claim: dict[str, Any],
+    site_claim: str | None,
+    ambiguous_sites: bool,
+    locked_project_ids: set[Any] | None = None,
+) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+    """Decisions over the narrowed candidates, widened to every project only when ambiguous.
+
+    ``locked_project_ids`` are the projects locked in order beforehand. The widened scan is
+    the very row set that gets decision rows, so the subset check runs on those same rows: a
+    project committed by another worker after the locks cannot receive an unlocked decision.
+    """
+    identity_decisions, matching_candidates = _retained_identity_decisions(
+        candidates, observation, claim, site_claim, ambiguous_sites
+    )
+    if len(matching_candidates) > 1:
+        # The ambiguous branch writes a decision for every project (all locked earlier).
+        everything = _full_scan_projects(session, refresh=True)
+        if locked_project_ids is not None and not {p.id for p in everything}.issubset(
+            locked_project_ids
+        ):
+            raise RuntimeError("Retained project candidate changed after ordered locks")
+        identity_decisions, matching_candidates = _retained_identity_decisions(
+            everything,
+            observation,
+            claim,
+            site_claim,
+            ambiguous_sites,
+        )
+    return identity_decisions, matching_candidates
+
+
 def _retained_candidate_lock_ids(
     projects: Sequence[Project],
     observation: Observation,
     claim: dict[str, Any],
     admitted: bool,
     target_identity: str | None,
+    all_project_ids: Callable[[], set[Any]] | None = None,
 ) -> set[Any]:
     """Discover every possible retained match-decision FK before ordered locks."""
     ids = {
@@ -1372,7 +1643,8 @@ def _retained_candidate_lock_ids(
     # The existing ambiguous-match branch writes a separate decision even for
     # candidates with no matched facts. Preserve that behavior and its locks.
     if admitted and matched > 1:
-        ids.update(project.id for project in projects)
+        # ``projects`` may be the narrowed candidate set; every project is needed here.
+        ids.update(all_project_ids() if all_project_ids else (p.id for p in projects))
     return ids
 
 
@@ -1548,22 +1820,32 @@ def assess_retained_news(
     # A retained version can be reassigned to a different supported project;
     # acquire old and candidate project/advisory locks in one stable order.
     candidate_project_ids = set(old_project_ids)
-    candidate_projects = session.scalars(select(Project)).all()
     target_identity = payload.get("project_identity_key")
+    candidate_projects = _retained_candidates(session, observation, claim, target_identity)
     candidate_project_ids.update(
         _retained_candidate_lock_ids(
-            candidate_projects, observation, claim, admission.admitted, target_identity
+            candidate_projects,
+            observation,
+            claim,
+            admission.admitted,
+            target_identity,
+            _all_project_ids(session),
         )
     )
     for candidate_project_id in sorted(candidate_project_ids, key=str):
         lock_project(session, candidate_project_id)
     # Discovery is read-only. A newly relevant FK target must not acquire a
     # late, out-of-order project lock after this point.
-    current_candidates = session.scalars(
-        select(Project).execution_options(populate_existing=True)
-    ).all()
+    current_candidates = _retained_candidates(
+        session, observation, claim, target_identity, refresh=True
+    )
     current_project_ids = set(old_project_ids) | _retained_candidate_lock_ids(
-        current_candidates, observation, claim, admission.admitted, target_identity
+        current_candidates,
+        observation,
+        claim,
+        admission.admitted,
+        target_identity,
+        _all_project_ids(session),
     )
     if not current_project_ids.issubset(candidate_project_ids):
         raise RuntimeError("Retained project candidate changed after ordered locks")
@@ -1682,49 +1964,26 @@ def assess_retained_news(
                     )
                 )
         if project is None:
-            candidates = session.scalars(
-                select(Project).execution_options(populate_existing=True)
-            ).all()
+            candidates = _retained_candidates(
+                session, observation, claim, identity_key, refresh=True
+            )
             current_project_ids = _retained_candidate_lock_ids(
-                candidates, observation, claim, True, identity_key
+                candidates, observation, claim, True, identity_key, _all_project_ids(session)
             )
             if not current_project_ids.issubset(candidate_project_ids):
                 raise RuntimeError("Retained project candidate changed after ordered locks")
-            matching_candidates: list[tuple[Project, Any]] = []
-            identity_decisions = []
             site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
             site_claim = site_claims[0] if len(site_claims) == 1 else None
             ambiguous_sites = len(site_claims) > 1
-            for candidate in candidates:
-                aliases = (candidate.identity_facts or {}).get("project_aliases", [])
-                same_name = normalized_identity(candidate.name) == normalized_identity(
-                    claim["subject"]
-                ) or any(
-                    normalized_identity(alias) == normalized_identity(claim["subject"])
-                    for alias in aliases
-                    if isinstance(alias, str)
-                )
-                candidate_site = (candidate.identity_facts or {}).get("site") or (
-                    candidate.location
-                )
-                incoming_site = site_claim or claim.get("location")
-                same_site = not ambiguous_sites and same_physical_site(
-                    candidate_site, incoming_site
-                )
-                decision = decide_project_match(
-                    same_address=same_site,
-                    same_project_name=same_name,
-                    conflicting_geography=bool(
-                        conflicting_geography(candidate.location, claim.get("location"))
-                    ),
-                    conflicting_asset_type=_asset_type_conflicts(
-                        candidate.asset_type,
-                        classify_event(observation.title, observation.abstract),
-                    ),
-                )
-                identity_decisions.append((candidate, decision))
-                if decision.decision == "matched":
-                    matching_candidates.append((candidate, decision))
+            identity_decisions, matching_candidates = _retained_identity_match(
+                session,
+                candidates,
+                observation,
+                claim,
+                site_claim,
+                ambiguous_sites,
+                candidate_project_ids,
+            )
             if len(matching_candidates) == 1:
                 project = matching_candidates[0][0]
                 payload["project_identity_key"] = project.identity_key
@@ -4938,119 +5197,23 @@ def process_records(
                 candidate_source_id = source.id
                 event_asset_type = classify_event(observation.title, observation.abstract)
 
-                def candidate_decisions(
-                    rows: Sequence[Project],
-                ) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
-                    decisions: list[tuple[Project, Any]] = []
-                    supported: list[tuple[Project, Any]] = []
-                    for candidate in rows:
-                        decision = candidate_decision(candidate)
-                        decisions.append((candidate, decision))
-                        if decision.decision == "matched":
-                            supported.append((candidate, decision))
-                    return decisions, supported
-
-                def candidate_decision(
-                    candidate: Project,
-                    context: tuple[Any, ...] = (
-                        project_name,
-                        permit_alias,
-                        project_location,
-                        facility_scope,
-                        candidate_source_id,
-                        facility_source_address,
-                        asset_identity,
-                        event_asset_type,
-                    ),
-                ) -> Any:
-                    (
-                        project_name,
-                        permit_alias,
-                        project_location,
-                        facility_scope,
-                        source_id,
-                        facility_source_address,
-                        asset_identity,
-                        event_asset_type,
-                    ) = context
-                    candidate_aliases = (candidate.identity_facts or {}).get("project_aliases", [])
-                    same_name = (
-                        normalized_identity(candidate.name) == normalized_identity(project_name)
-                        or any(
-                            normalized_identity(alias) == normalized_identity(project_name)
-                            for alias in candidate_aliases
-                            if isinstance(alias, str)
-                        )
-                        or bool(
-                            permit_alias
-                            and normalized_identity(permit_alias)
-                            in {
-                                normalized_identity(candidate.name),
-                                *{
-                                    normalized_identity(alias)
-                                    for alias in candidate_aliases
-                                    if isinstance(alias, str)
-                                },
-                            }
-                        )
-                    )
-                    candidate_site = (candidate.identity_facts or {}).get(
-                        "site"
-                    ) or candidate.location
-                    same_site = same_physical_site(candidate_site, project_location) or (
-                        physical_site(project_location)
-                        and physical_site(candidate.location)
-                        and normalized_identity(candidate.location)
-                        == normalized_identity(project_location)
-                    )
-                    same_facility_scope = bool(
-                        facility_scope
-                        and candidate.source_id == source_id
-                        and same_site
-                        and (candidate.identity_facts or {}).get("facility_scope") == facility_scope
-                        and normalized_identity(
-                            (candidate.identity_facts or {}).get("facility_source_address")
-                        )
-                        == normalized_identity(facility_source_address)
-                    )
-                    same_asset = bool(asset_identity) and candidate.identity_facts.get(
-                        "asset_identity"
-                    ) == (list(asset_identity) if asset_identity else None)
-                    geographic_conflict = conflicting_geography(
-                        candidate.location, project_location
-                    )
-                    return decide_project_match(
-                        same_address=same_site,
-                        same_project_name=same_name,
-                        same_asset_identity=same_asset,
-                        same_authoritative_scope=same_facility_scope,
-                        conflicting_geography=geographic_conflict,
-                        conflicting_asset_type=_asset_type_conflicts(
-                            candidate.asset_type,
-                            event_asset_type,
-                        ),
-                    )
-
-                def decision_project_ids(
-                    rows: Sequence[Project],
-                    decisions: list[tuple[Project, Any]],
-                    supported: list[tuple[Project, Any]],
-                ) -> set[Any]:
-                    if len(supported) > 1:
-                        # The established ambiguous branch writes a separate
-                        # decision for every candidate, including no-fact rows.
-                        return {candidate.id for candidate in rows}
-                    return {
-                        candidate.id
-                        for candidate, decision in decisions
-                        if decision.decision == "matched" or decision.matched_facts
-                    }
+                ctx = _StructuredMatchContext(
+                    project_name=project_name,
+                    permit_alias=permit_alias,
+                    project_location=project_location,
+                    facility_scope=facility_scope,
+                    source_id=candidate_source_id,
+                    facility_source_address=facility_source_address,
+                    asset_identity=asset_identity,
+                    event_asset_type=event_asset_type,
+                )
 
                 # Discover every eventual match-decision FK, then lock only
                 # those projects in the shared UUID order before need locks.
-                candidates = session.scalars(select(Project)).all()
-                decisions, supported = candidate_decisions(candidates)
-                locked_candidate_ids = decision_project_ids(candidates, decisions, supported)
+                candidates, decisions, supported = _structured_match(session, ctx)
+                locked_candidate_ids = _structured_decision_project_ids(
+                    candidates, decisions, supported
+                )
                 if native_project_rebind and prior_native_project_identity:
                     prior_native_project = session.scalar(
                         select(Project).where(Project.identity_key == prior_native_project_identity)
@@ -5059,11 +5222,8 @@ def process_records(
                         locked_candidate_ids.add(prior_native_project.id)
                 for candidate_id in sorted(locked_candidate_ids, key=str):
                     lock_project(session, candidate_id)
-                candidates = session.scalars(
-                    select(Project).execution_options(populate_existing=True)
-                ).all()
-                decisions, supported = candidate_decisions(candidates)
-                if not decision_project_ids(candidates, decisions, supported).issubset(
+                candidates, decisions, supported = _structured_match(session, ctx, refresh=True)
+                if not _structured_decision_project_ids(candidates, decisions, supported).issubset(
                     locked_candidate_ids
                 ):
                     raise RuntimeError("Structured project candidate changed after ordered locks")

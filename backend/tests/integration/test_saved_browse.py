@@ -16,7 +16,12 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.intelligence.saved_browse import current_generation, page, rebuild
-from gridlens.persistence.browse_invalidation import INPUT_TABLES, install
+from gridlens.persistence.browse_invalidation import (
+    DIRTY_NO_INSERT_TABLES,
+    INPUT_TABLES,
+    SCOPED_TABLES,
+    install,
+)
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BrowseCustomerMembership,
@@ -375,6 +380,23 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
             """)
         ).all()
         assert set(state_triggers) == {"zz_browse_stale_since"}
+        # Dirty-project recording is statement-level (schema 0056): one single-event trigger per
+        # operation on every scoped table, never a row-level trigger.
+        dirty_triggers = session.execute(
+            text("""
+            SELECT c.relname, t.tgname, t.tgtype & 1 AS row_level
+            FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+            JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname=current_schema() AND t.tgname ~ '^dirty_browse_(insert|update|delete)$'
+            """)
+        ).all()
+        assert {row.row_level for row in dirty_triggers} == {0}
+        assert {(row.relname, row.tgname) for row in dirty_triggers} == {
+            (table, f"dirty_browse_{operation}")
+            for table in SCOPED_TABLES
+            for operation in ("insert", "update", "delete")
+            if not (operation == "insert" and table in DIRTY_NO_INSERT_TABLES)
+        }
         session.rollback()
 
 
