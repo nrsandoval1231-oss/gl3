@@ -49,7 +49,90 @@ An all-unchanged run leaves the database identical to the current code apart fro
 
 ## Results
 
-Filled in per step below as each lands.
+All numbers are single runs of `scripts/ingestion_write_benchmark.py` (300 records per phase, one run per size) in a 4 vCPU
+container with Postgres 16, default fsync and a local database, so commits are cheap and there is no network latency.
+Wall times carry roughly 10% noise. Rows marked "provisional" ran while other builders used the CPU. Raw JSON is under
+`experience/benchmarks/`; commands and approximations are in `experience/benchmarks.md`.
+
+**Shipped state, RRC drilling permits (structured collection path), before Phase 2 and at the final head:**
+
+| Corpus | Phase | Before s | Before rec/s | After s | After rec/s | Speedup |
+|---|---|---|---|---|---|---|
+| 5k projects | all new | 124.1 | 2.42 | 22.1 | 13.58 | 5.6x |
+| 5k projects | all unchanged | 1.5 | 196.84 | 1.9 | 158.88 | 0.8x (noise) |
+| 5k projects | 5% changed | 2.8 | 108.43 | 2.3 | 133.26 | 1.2x |
+| 50k projects | all new | 1044.0 | 0.29 | 25.4 | 11.82 | 41x |
+| 50k projects | all unchanged | 1.7 | 174.92 | 1.6 | 189.24 | 1.1x (noise) |
+| 50k projects | 5% changed | 7.4 | 40.50 | 2.5 | 120.28 | 3.0x |
+
+All-new cost no longer depends on corpus size (22.1 s at 5k, 25.4 s at 50k). Statements per record are unchanged
+(about 88), commits per record stay at 0.02 on this path and explicit row-lock statements stay at 12 per new record.
+
+**Legacy per-record-commit path (Fort Worth permits via `process_job`, `commit=True`).** There is no pre-Phase-2
+measurement of this source: its baseline was taken after Step 1 and before Step 3.
+
+| Corpus | Phase | Baseline (after Step 1) s | Final s | Final rec/s | Commits per record |
+|---|---|---|---|---|---|
+| 5k | all new | 25.8 | 15.9 | 18.87 | 3.00 |
+| 5k | all unchanged | 4.3 | 2.7 | 112.71 | 2.00 |
+| 5k | 5% changed | 4.4 | 2.9 | 103.25 | 2.05 |
+| 50k | all new | 137.9 | 20.7 | 14.48 | 3.00 |
+| 50k | all unchanged | 4.8 | 2.3 | 128.90 | 2.00 |
+| 50k | 5% changed | 12.4 | 3.4 | 88.10 | 2.05 |
+
+The legacy gain at 50k comes from Step 2a (its trigger time was 79% of wall). Commits per record are still 3.0 because
+batching ships off.
+
+**By step (RRC all-new wall seconds):**
+
+| Step | 5k | 50k | Basis |
+|---|---|---|---|
+| 0, baseline | 124.1 | 1044.0 | quiet |
+| 1, indexed matching alone | 26.2 | 73.8 | provisional (other builders running) |
+| 2a, index-driven statement-level triggers alone | 115.8 | 935.9 | builder run, without Step 1 |
+| 1 + 2a | 24.0 | 26.2 | provisional |
+| final head (Step 3 off, Step 4 analysis only) | 22.1 | 25.4 | quiet |
+
+Step 1 removes the corpus-scaling matcher cost (about 14 minutes of ORM hydration at 50k). Step 2a removes the corpus-scaling
+trigger cost (`dirty_browse_project` 113 s at 50k became 6 s; per-call cost about 0.3 ms at every size) but on its own moved
+50k wall time only about 10% because the scans dominated; it matters once Step 1 is in.
+
+**Step 2, set-based invalidation: delivered as 2a only.** The brief asked to remove the per-row `browse_state` lock so
+concurrent writers do not queue. That cannot be done while the pinned test
+`test_all_declared_input_tables_have_transactional_statement_triggers` requires every statement on a hot table (even a
+zero-row one) to advance `browse_state.input_revision` visibly inside the writing transaction: seeing your own change to a
+shared row means updating it, which holds its row lock until commit. The only lock-free design found assigns the revision
+at commit time (a deferrable constraint trigger that merges an append-only journal and does the single `browse_state`
+update at the end), which makes the revision visible only after commit, rewrites that pinned assertion, the
+structural-fence and stale-since triggers' use of the in-transaction revision, and affects some of the roughly 237 test
+references to `input_revision`. That is an owner decision (Step 2b) and was not attempted. Step 2a still takes one
+`browse_state` lock per statement (not per row), and since the ORM writes one row per statement the lock count per record
+is unchanged (about 21 calls per new record).
+
+**Step 3, batch commits: implemented, default off, recommend dropping or deferring.** Gain is replay-only (unchanged
+records 1.4 to 1.8 times faster, amended 8 to 22%); all-new is unchanged (24.9 s vs 25.8 s at 5k, 142 s vs 138 s at 50k)
+and statements per record rise by 3 to 4. With a batch open, pursuit, owner-fact and need-status inserts that reference a
+project or need wait for the batch (FK `FOR KEY SHARE` against ingestion's `FOR UPDATE`), the job row and `browse_state`
+row are held for the whole batch, and lock-order deadlocks become more likely. The proposed narrowing to
+`FOR NO KEY UPDATE` (`experience/benchmarks/step3-lock-narrowing.patch`) needs an existing test's text match changed, so it
+was not applied; it also would not remove the `browse_state` wait. `INGESTION_BATCH_SIZE` therefore defaults to 1
+(today's behaviour, verified identical by the critic). The first review found and this branch fixes a defect in batched mode
+(a failed flush discarded the whole batch). Only the structured collection path (`commit=False`) and publisher RSS are not
+affected by the setting.
+
+**Step 4, bulk-skip unchanged records: analysis only, recommend dropping.** See the analysis below. An unchanged structured
+permit already writes nothing to any record table and costs about 4.7 ms; a prefilter would cost about 0.04 ms per record,
+a ceiling of roughly 4.6 s saved per 1,000-record segment and only for the proven-safe classes (older RRC amendments whose
+evidence is retained, current rejected or regionally ineligible permits). Accepted-and-admitted permits, stale-evaluator
+and elapsed-`review_after` records and all non-permit sources are not safe to skip. The real record-class mix is unknown.
+
+**Finding outside this plan:** non-permit legacy sources (for example `federal-register-eis`) are not idempotent on replay:
+each replay resets the interpretation to pending, re-interprets, grows `previous_decisions`, refetches the PDF and takes
+about 3.7 commits per record.
+
+**Not verified:** behaviour on Postgres 18 (CI) and on a remote database; migrations 0055 and 0056 at production table
+size (0055 holds `ACCESS EXCLUSIVE` on `projects` during its backfill; run it with the worker stopped); real record-class mix;
+concurrency under production load; WAL volume.
 
 ## Step 4 analysis
 
