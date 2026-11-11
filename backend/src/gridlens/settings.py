@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     # Ingestion batches record processing into one database transaction (a savepoint per
     # durable boundary). 1 reproduces commit-per-boundary exactly; the time bound limits how long
     # row locks are held and how long the job lease goes without being refreshed.
-    ingestion_batch_size: int = Field(default=200, ge=1, le=10_000)
+    # Off by default (1 = commit at every boundary, today's behaviour): batching holds project and
+    # need row locks for up to ingestion_batch_max_seconds and blocks FK-referencing API writes.
+    ingestion_batch_size: int = Field(default=1, ge=1, le=10_000)
     ingestion_batch_max_seconds: float = Field(default=2.0, gt=0, le=30)
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
