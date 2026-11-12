@@ -605,7 +605,16 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
 
 def _write_rows(session, generation_id, summaries, *, check_budget=None):
     from gridlens.api import app as api
+    from gridlens.domain.customer_intelligence import (
+        apply_priority_context,
+        resolve_customer_intelligence,
+    )
+    from gridlens.persistence.models import ChangeEvent
 
+    generation = session.get(BrowseGeneration, generation_id)
+    if generation is None:
+        raise RuntimeError("customer facts require a bound browse generation")
+    customer_as_of = generation.valid_from.date()
     digest = hashlib.sha256()
     row_count = 0
     for start in range(0, len(summaries), 50):
@@ -646,6 +655,21 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         from gridlens.intelligence.rrc_well_research import verified_rrc_metadata
 
         project_ids = {UUID(str(item["project_id"])) for item in details}
+        from gridlens.intelligence.customer_intelligence import project_customer_facts
+
+        customer_facts_by_project = project_customer_facts(session, project_ids, generation=None)
+        material_change_projects = set(
+            session.scalars(
+                select(ChangeEvent.project_id)
+                .where(
+                    ChangeEvent.project_id.in_(project_ids),
+                    ChangeEvent.material.is_(True),
+                    ChangeEvent.created_at <= generation.valid_from,
+                    ChangeEvent.created_at >= generation.valid_from - timedelta(days=90),
+                )
+                .distinct()
+            )
+        )
         official_rrc_by_project = verified_rrc_metadata(session, project_ids)
         chains = buying_chain_views(session, project_ids)
         actions_by_project: dict[str, list[dict]] = {}
@@ -712,8 +736,24 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                     ),
                 }
             )
+            compact["customer_facts"] = customer_facts_by_project.get(
+                str(summary["project_id"]), []
+            )
+            compact["customer_priority"] = resolve_customer_intelligence(
+                [{"project_id": str(summary["project_id"]), "facts": compact["customer_facts"]}],
+                as_of=customer_as_of,
+            )["priority"]
             compact["contact_actions"] = actions_by_project.get(str(summary["project_id"]), [])
             compact["contact_people"] = people_by_project.get(str(summary["project_id"]), [])
+            compact["customer_priority"] = apply_priority_context(
+                compact["customer_priority"],
+                recent_material_change=UUID(str(summary["project_id"])) in material_change_projects,
+                verified_contact_available=any(
+                    person.get("responsibility")
+                    in {"Verified project responsibility", "Verified organizational responsibility"}
+                    for person in compact["contact_actions"] + compact["contact_people"]
+                ),
+            )
             preview = previews[str(summary["id"])]
             compact["commercial_preview"] = {
                 "disposition": preview.get("disposition", "WATCH"),

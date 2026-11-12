@@ -4507,6 +4507,15 @@ def process_records(
                             interpretation,
                             current_source,
                         )
+                        from gridlens.intelligence.customer_intelligence import (
+                            persist_customer_facts,
+                        )
+
+                        persist_customer_facts(
+                            session,
+                            project_id=project.id,
+                            evidence_id=current_evidence.id,
+                        )
             regional_scope = (interpretation.assessment or {}).get("regional_scope")
             if isinstance(regional_scope, dict) and regional_scope.get("status") != "ELIGIBLE":
                 counts[
@@ -5764,6 +5773,11 @@ def process_records(
                     lifecycle_evidence,
                     interpretation,
                     source,
+                )
+                from gridlens.intelligence.customer_intelligence import persist_customer_facts
+
+                persist_customer_facts(
+                    session, project_id=project.id, evidence_id=lifecycle_evidence.id
                 )
 
         # TDLR's primary registration is direct evidence for the exact project

@@ -477,6 +477,49 @@ def retain_research_document(
         published_at=document.published_at,
         today=date.today(),
     )
+    from gridlens.domain.customer_intelligence import extract_customer_facts
+    from gridlens.intelligence.customer_intelligence import (
+        extract_commissioning_plan,
+        scope_customer_facts,
+    )
+
+    customer_facts = scope_customer_facts(
+        extract_customer_facts(
+            document.text,
+            project_id=str(project.id),
+            source={"url": document.url},
+        ),
+        project.name,
+        project.location or "",
+    )
+    customer_claims = (
+        [
+            *customer_facts["capacity_claims"],
+            *customer_facts["timeline_claims"],
+        ]
+        if document.published_at and document.published_at <= date.today()
+        else []
+    )
+    engineering_blocks = extract_commissioning_plan(
+        document.text,
+        project_id=str(project.id),
+        project_name=project.name,
+        source={"url": document.url},
+    )
+    # Only complete scoped source sections justify narrow supplemental admission.
+    # Invalid engineering inputs remain unavailable, never a partial numeric plan.
+    if (
+        document.published_at
+        and document.published_at <= date.today()
+        and engineering_blocks
+        and all("invalid_reason" not in block for block in engineering_blocks)
+    ):
+        customer_claims.extend(
+            {"quote": ref["quote"]}
+            for block in engineering_blocks
+            for ref in block.get("evidence", {}).get("rating", [])
+            if ref.get("quote")
+        )
     # Every adverse clause must be understood; a positive elsewhere never masks
     # an unparsed negative. Supported explicit negatives are typed reports.
     uncovered = unparsed_adverse_text(document.text, semantic_claims)
@@ -514,8 +557,10 @@ def retain_research_document(
     # excerpt. The excerpt keeps exclusion text first so normal rejection sees it.
     digest = fingerprint([document.title, document.text, document.published_at])
     original_document = document
-    if semantic_claims:
-        excerpt = "\n".join(dict.fromkeys(claim["quote"] for claim in semantic_claims))
+    if semantic_claims or customer_claims:
+        excerpt = "\n".join(
+            dict.fromkeys(claim["quote"] for claim in [*semantic_claims, *customer_claims])
+        )
         if len(excerpt) > 4000:
             return _quarantine_existing_public(
                 session, project, need, document, receipt, "semantic_claim_retention_budget"
@@ -576,6 +621,9 @@ def retain_research_document(
         }
     try:
         with session.begin_nested():
+            from gridlens.intelligence.change_detection import seed_material_state
+
+            customer_material_baseline = seed_material_state(session, project)
             host = urlsplit(url).hostname
             source_id = "research-public-" + fingerprint(host)[:32]
             source = session.get(Source, source_id)
@@ -652,7 +700,7 @@ def retain_research_document(
                 == document.capture_version
             )
             semantic_replay = bool(
-                semantic_claims
+                (semantic_claims or customer_claims)
                 and previous
                 and previous.status == "accepted"
                 and previous.content_hash == digest
@@ -662,7 +710,7 @@ def retain_research_document(
                 and (previous.assessment or {}).get("evidence_hash") == digest
                 and (previous.assessment or {}).get("target_need_id") == str(need.id)
             )
-            if semantic_claims and not semantic_replay:
+            if (semantic_claims or customer_claims) and not semantic_replay:
                 # Normal rejection cleanup retracts the previous whole-document
                 # interpretation before narrowly admitting only typed reports.
                 assess_retained_news(
@@ -690,7 +738,7 @@ def retain_research_document(
             ):
                 raise _PublicTargetMismatch()
             if (
-                semantic_claims
+                (semantic_claims or customer_claims)
                 and interpretation is not None
                 and not semantic_replay
                 and _need_admission_basis_is_current(session, need, project)
@@ -711,6 +759,9 @@ def retain_research_document(
                     "semantic_hash": digest,
                     "evidence_hash": digest,
                     "reason": "Explicit dated project reports; no public tier qualification",
+                    "customer_facts_version": customer_facts["version"]
+                    if customer_claims
+                    else None,
                     "research_claims": [
                         {
                             **claim,
@@ -816,6 +867,12 @@ def retain_research_document(
                 ],
             }
         session.flush()
+        from gridlens.intelligence.customer_intelligence import persist_customer_facts
+
+        persist_customer_facts(session, project_id=project.id, evidence_id=evidence.id)
+        from gridlens.intelligence.change_detection import record_material_diff
+
+        record_material_diff(session, project, evidence, customer_material_baseline)
     return {
         **receipt,
         "evidence_id": str(evidence.id),

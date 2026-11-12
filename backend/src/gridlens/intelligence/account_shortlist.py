@@ -69,6 +69,130 @@ def _physical_duplicate_components(
     ]
 
 
+def _customer_refs(facts: list) -> list[dict]:
+    refs = []
+    for package in facts:
+        if not isinstance(package, dict):
+            continue
+        for field in ("capacity_claims", "timeline_claims"):
+            for claim in package.get(field, []):
+                if isinstance(claim, dict) and isinstance(claim.get("source"), dict):
+                    refs.append(claim["source"])
+    return refs
+
+
+def _sources(session, evidence_ids: list[str], decisions: dict) -> dict:
+    if not evidence_ids:
+        return {}
+    rows = (
+        session.execute(
+            text("""
+        SELECT e.id,e.title,e.abstract,e.url,e.published_at,e.event_date,e.event_date_label,
+               e.content_hash,o.source_id,o.content_hash AS semantic_hash,
+               o.url AS observation_url,i.status AS interpretation_status,
+               i.content_hash AS interpretation_hash,i.assessment
+        FROM evidence e JOIN observations o ON o.id=e.observation_id
+        LEFT JOIN interpretations i ON i.observation_id=o.id
+        WHERE e.id=ANY(CAST(:ids AS uuid[]))
+    """),
+            {"ids": evidence_ids},
+        )
+        .mappings()
+        .all()
+    )
+    return {
+        str(row["id"]): {
+            **dict(row),
+            "id": str(row["id"]),
+            "text": row["abstract"],
+            "jev_decision": decisions.get(str(row["id"])),
+        }
+        for row in rows
+    }
+
+
+def _typed_assessment(row, sources: dict) -> dict | None:
+    from gridlens.domain.customer_intelligence import resolve_customer_intelligence
+    from gridlens.domain.opportunity_shortlist import MAX_SOURCE_AGE_DAYS
+
+    project_id = str(row["project_id"])
+    packages = (row["compact"] or {}).get("customer_facts", [])
+    admitted, supported = [], {}
+    for package in packages if isinstance(packages, list) else []:
+        if not isinstance(package, dict) or package.get("project_id") != project_id:
+            continue
+        if package.get("overflow"):
+            return None
+        copied = {**package, "commissioning_inputs": []}
+        for field in ("capacity_claims", "timeline_claims"):
+            copied[field] = []
+            for claim in package.get(field, []):
+                ref = claim.get("source") if isinstance(claim, dict) else None
+                if not isinstance(ref, dict):
+                    continue
+                source = sources.get(str(ref.get("evidence_id")))
+                if not source or source.get("jev_decision") == "HOLD":
+                    continue
+                assessment = source.get("assessment") or {}
+                try:
+                    published = source.get("published_at")
+                    age = (date.today() - published).days
+                except (TypeError, ValueError):
+                    continue
+                if not (
+                    0 <= age <= MAX_SOURCE_AGE_DAYS
+                    and source.get("interpretation_status") == "accepted"
+                    and source.get("interpretation_hash") == source.get("semantic_hash")
+                    and assessment.get("decision") == "accepted"
+                    and assessment.get("semantic_hash") == source.get("semantic_hash")
+                    and assessment.get("evidence_hash") == source.get("content_hash")
+                    and assessment.get("admission_status") != "relationship_supplement"
+                    and assessment.get("project_identity_key")
+                    == package.get("binding", {}).get("project_identity_key")
+                    and ref.get("content_hash") == source.get("content_hash")
+                    and ref.get("semantic_hash") == source.get("semantic_hash")
+                    and ref.get("source_id") == source.get("source_id")
+                    and ref.get("url") == source.get("url") == source.get("observation_url")
+                ):
+                    continue
+                copied[field].append(claim)
+                supported[source["id"]] = source
+        admitted.append(copied)
+    intelligence = resolve_customer_intelligence(
+        [{"project_id": project_id, "facts": admitted}], as_of=date.today()
+    )
+    capacity, timelines = intelligence["capacity"], intelligence["timelines"]
+    if (
+        capacity.get("conflicts")
+        or timelines.get("conflicts")
+        or capacity.get("status") in {"conflict", "unknown_overlap"}
+    ):
+        return None
+    if (
+        not (
+            capacity.get("selected_claim_ids")
+            or timelines.get("construction_start")
+            or timelines.get("expected_energization")
+        )
+        or not supported
+    ):
+        return None
+    chosen = max(supported.values(), key=lambda source: (source["published_at"], source["id"]))
+    reason = "Source-backed build capacity or construction schedule"
+    return {
+        "eligible": True,
+        "reasons": [reason, "Build capacity is not a rental requirement."],
+        "evidence_refs": sorted(supported),
+        "why_now": f"Published {chosen['published_at'].isoformat()}: {reason.lower()}.",
+        "next_step": "Confirm the commissioning schedule and responsible project contact.",
+        "source_subject": (row["summary"] or {}).get("name"),
+        "scope": reason,
+        "priority": 20,
+        "duplicate_key": None,
+        "policy_version": POLICY_VERSION,
+    }
+
+
 def assess_generation(session, generation) -> dict[str, Any]:
     """Assess one saved generation without pagination truncation.
 
@@ -88,6 +212,7 @@ def assess_generation(session, generation) -> dict[str, Any]:
         and request_cache
         and request_cache[0] is transaction
         and request_cache[1] == request_key
+        and not request_cache[2].get("has_customer_facts")
     ):
         cached_result = request_cache[2]
         current_decisions = _current_jev_decisions(session, cached_result["evidence_ids"])
@@ -130,6 +255,9 @@ def assess_generation(session, generation) -> dict[str, Any]:
                     "need_id": row["need_id"],
                     "project_id": row["project_id"],
                     "physical_identity": physical_identity,
+                    "customer_sources": _customer_refs(
+                        (row["compact"] or {}).get("customer_facts", [])
+                    ),
                 }
             )
         evidence_ids = sorted(
@@ -139,6 +267,12 @@ def assess_generation(session, generation) -> dict[str, Any]:
                 for ev in (row["summary"] or {}).get("evidence", [])
                 if ev.get("id") and ev.get("assessment_current") is True
             }
+            | {
+                str(ref["evidence_id"])
+                for row in lightweight_rows
+                for ref in row.get("customer_sources", [])
+                if ref.get("evidence_id")
+            }
         )
     else:
         lightweight_rows, evidence_ids = cached_input
@@ -146,12 +280,24 @@ def assess_generation(session, generation) -> dict[str, Any]:
     digest = hashlib.sha256(
         json.dumps(sorted(decisions.items()), separators=(",", ":")).encode()
     ).hexdigest()
+    has_customer_facts = any(row.get("customer_sources") for row in lightweight_rows)
+    sources = _sources(session, evidence_ids, decisions) if has_customer_facts else None
+    support_digest = (
+        hashlib.sha256(
+            json.dumps(sources, default=str, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        if has_customer_facts
+        else ""
+    )
+    if sources is not None:
+        session.info["customer_fact_current_sources"] = (session.get_transaction(), sources)
     cache_key = (
         str(generation.id),
         generation.digest,
         date.today().isoformat(),
         POLICY_VERSION,
         digest,
+        support_digest,
     )
     with _CACHE_LOCK:
         cached = _CACHE.get(cache_key)
@@ -176,30 +322,11 @@ def assess_generation(session, generation) -> dict[str, Any]:
             .mappings()
             .all()
         )
-    sources: dict[str, dict[str, Any]] = {}
-    if evidence_ids:
-        evidence = (
-            session.execute(
-                text("""SELECT e.id,e.title,e.abstract,e.url,e.published_at,e.event_date,
-                e.event_date_label,o.source_id FROM evidence e
-                JOIN observations o ON o.id=e.observation_id
-            WHERE e.id=ANY(CAST(:ids AS uuid[]))"""),
-                {"ids": evidence_ids},
-            )
-            .mappings()
-            .all()
-        )
-        sources = {
-            str(row["id"]): {
-                **dict(row),
-                "id": str(row["id"]),
-                "text": row["abstract"],
-                "jev_decision": decisions.get(str(row["id"])),
-            }
-            for row in evidence
-        }
-    else:
-        decisions = {}
+    if sources is None:
+        sources = _sources(session, evidence_ids, decisions)
+    # Same-transaction account serialization may reuse these exact current source
+    # checks; no stale global cache can authorize a withdrawn commercial claim.
+    session.info["customer_fact_current_sources"] = (session.get_transaction(), sources)
     assessments: dict[str, dict[str, Any]] = {}
     eligible: list[UUID] = []
     priority: dict[UUID, int] = {}
@@ -213,6 +340,8 @@ def assess_generation(session, generation) -> dict[str, Any]:
             and ev.get("source_id") == sources[str(ev["id"])].get("source_id")
         ]
         result = shortlist_assessment({**summary, **(row["compact"] or {})}, refs)
+        if not result.get("eligible"):
+            result = _typed_assessment(row, sources) or result
         assessments[str(row["need_id"])] = result
         if result.get("eligible"):
             eligible.append(row["need_id"])
@@ -229,11 +358,14 @@ def assess_generation(session, generation) -> dict[str, Any]:
         duplicate_map.update({project: root for project in component})
     result = {
         "rows": lightweight_rows,
+        "has_customer_facts": has_customer_facts,
         "assessments": assessments,
         "eligible_need_ids": eligible,
         "priority_by_need": priority,
         "duplicate_project_map": duplicate_map,
-        "jev_map_digest": digest,
+        "jev_map_digest": hashlib.sha256(f"{digest}:{support_digest}".encode()).hexdigest()
+        if has_customer_facts
+        else digest,
         "evidence_ids": evidence_ids,
     }
     with _CACHE_LOCK:

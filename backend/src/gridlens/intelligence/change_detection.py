@@ -32,7 +32,96 @@ from gridlens.persistence.models import (
     ProjectMaterialState,
 )
 
-MATERIAL_FIELDS = ("phase", "contractor", "utility_timing", "power_need", "buyer")
+CUSTOMER_MATERIAL_FIELDS = ("capacity", "build_timing")
+MATERIAL_FIELDS = (
+    "phase",
+    "contractor",
+    "utility_timing",
+    "power_need",
+    "buyer",
+) + CUSTOMER_MATERIAL_FIELDS
+_CUSTOMER_EVIDENCE = "_customer_fact_evidence"
+
+
+def _customer_material_state(session: Session, project_id: UUID, *, now: datetime) -> dict:
+    """Current admitted facts, with source metadata kept outside semantic comparisons."""
+    from gridlens.domain.customer_intelligence import resolve_customer_intelligence
+    from gridlens.intelligence.customer_intelligence import project_customer_facts
+
+    facts = project_customer_facts(session, [project_id], generation=None)[str(project_id)]
+    resolved = resolve_customer_intelligence(
+        [{"project_id": str(project_id), "facts": facts}], as_of=now.date()
+    )
+    result: dict = {_CUSTOMER_EVIDENCE: {}}
+    for field, section, names, grouping in (
+        (
+            "capacity",
+            "capacity",
+            (
+                "value_mw",
+                "capacity_type",
+                "basis",
+                "scope_id",
+                "phase_id",
+                "qualifier",
+                "includes_scope_ids",
+                "disjoint_scope_ids",
+            ),
+            ("basis", "scope_id"),
+        ),
+        (
+            "build_timing",
+            "timelines",
+            ("event_type", "scope_id", "precision", "start", "end", "status", "qualifier"),
+            ("event_type", "scope_id"),
+        ),
+    ):
+        view = resolved[section]
+        admitted = set(view["selected_claim_ids"])
+        for conflict in view["conflicts"]:
+            admitted.update(conflict["claim_ids"])
+        groups: dict[tuple, dict[str, dict]] = {}
+        references = {}
+        for claim in view["claims"]:
+            if claim["fact_id"] not in admitted:
+                continue
+            semantic = {name: claim.get(name) for name in names}
+            key = json.dumps(semantic, sort_keys=True, default=str)
+            groups.setdefault(tuple(claim.get(name) for name in grouping), {})[key] = semantic
+            source = claim["source"]
+            references[json.dumps(source, sort_keys=True, default=str)] = source
+        rows: list[dict] = []
+        for values in groups.values():
+            rows.extend({**value, "conflicted": len(values) > 1} for value in values.values())
+        result[field] = {"claims": sorted(rows, key=lambda row: json.dumps(row, sort_keys=True))}
+        result[_CUSTOMER_EVIDENCE][field] = [references[key] for key in sorted(references)]
+    return result
+
+
+def _customer_change_is_causal(
+    session: Session, evidence: Evidence, references: list[dict]
+) -> bool:
+    """A same-observation replacement/retraction can invalidate the old fact receipt."""
+    evidence_ids: set[UUID] = set()
+    for reference in references:
+        try:
+            evidence_ids.add(UUID(str(reference.get("evidence_id"))))
+        except (TypeError, ValueError):
+            continue
+    if evidence.id in evidence_ids:
+        return True
+    if not evidence_ids:
+        return False
+    return (
+        session.scalar(
+            select(Evidence.id)
+            .where(
+                Evidence.id.in_(evidence_ids), Evidence.observation_id == evidence.observation_id
+            )
+            .limit(1)
+        )
+        is not None
+    )
 
 
 def lock_project(session: Session, project_id: UUID) -> None:
@@ -127,6 +216,7 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
             row["conflicts"] = conflicts
         power_rows.append(row)
     return {
+        **_customer_material_state(session, project_id, now=now or datetime.now(UTC)),
         "phase": lifecycle.current_state if lifecycle else None,
         "utility_timing": sorted(
             {
@@ -163,9 +253,23 @@ def seed_material_state(session: Session, project: Project) -> ProjectMaterialSt
         # A persisted pre-R7 row has no conflict metadata. Capture the actual
         # pre-action claims under the project lock, then preserve the stored
         # selected values so only this metadata is quietly normalized.
-        current_by_activity = {
-            item["activity"]: item for item in material_state(session, project.id)["power_need"]
+        current = material_state(session, project.id)
+        # Add new snapshot dimensions quietly for pre-contract rows. Existing
+        # selected facts remain the actual predecessor; this is not a backfill alert.
+        missing = {
+            field: current[field] for field in CUSTOMER_MATERIAL_FIELDS if field not in row.state
         }
+        if missing:
+            row.state = {
+                **row.state,
+                **missing,
+                _CUSTOMER_EVIDENCE: {
+                    **row.state.get(_CUSTOMER_EVIDENCE, {}),
+                    **{field: current[_CUSTOMER_EVIDENCE][field] for field in missing},
+                },
+            }
+            session.flush()
+        current_by_activity = {item["activity"]: item for item in current["power_need"]}
         prior_needs = row.state.get("power_need", [])
         normalized = []
         for prior in prior_needs:
@@ -277,6 +381,19 @@ def record_material_diff(
     created: list[ChangeEvent] = []
     for field in MATERIAL_FIELDS:
         before, after = previous.state.get(field), current.get(field)
+        if field in CUSTOMER_MATERIAL_FIELDS:
+            if field not in previous.state:
+                # Direct-diff callers may encounter an old snapshot without seeding.
+                continue
+            prior_refs = previous.state.get(_CUSTOMER_EVIDENCE, {}).get(field, [])
+            next_refs = current[_CUSTOMER_EVIDENCE][field]
+            if before != after and not _customer_change_is_causal(
+                session, evidence, prior_refs + next_refs
+            ):
+                # An unrelated receipt must neither claim nor swallow this transition.
+                current[field] = before
+                current[_CUSTOMER_EVIDENCE][field] = prior_refs
+                continue
         if before == after:
             continue
         if field == "power_need" and _semantic_need_rows(before) == _semantic_need_rows(after):
@@ -348,9 +465,13 @@ def record_material_diff(
             evidence_id=None if field_support else evidence.id,
             buying_chain_evidence_id=field_support.id if field_support else None,
             field_name=field,
-            prior_state={"value": before},
+            prior_state={
+                "value": before,
+                **({"evidence_refs": prior_refs} if field in CUSTOMER_MATERIAL_FIELDS else {}),
+            },
             new_state={
                 "value": after,
+                **({"evidence_refs": next_refs} if field in CUSTOMER_MATERIAL_FIELDS else {}),
                 **(
                     {"buying_chain_evidence_ids": [str(row.id) for row in field_sources]}
                     if field_sources

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -53,7 +53,7 @@ def _cohort(
         else []
     )
     payload: list[Any] = [
-        "customer-rollup-v2-tdlr-owner-namebucket",
+        "customer-rollup-v3-commercial-facts",
         str(generation.id),
         generation.digest,
         sector,
@@ -687,7 +687,13 @@ def _ctes(where: str, shortlist_data=None) -> str:
         )::integer AS pursued_eligible_need_count,
         bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_actions')='array'
           THEN jsonb_array_length(ar.compact->'contact_actions') > 0 ELSE false END)
-          AS has_contact_actions
+          OR bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_people')='array'
+            THEN jsonb_array_length(ar.compact->'contact_people') > 0 ELSE false END)
+          AS has_contact_actions,
+        max(CASE WHEN ar.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
+          AND ar.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
+          THEN least(100, (ar.compact #>> '{customer_priority,score}')::integer)
+          ELSE NULL END) AS commercial_score
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -704,7 +710,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count,
         gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,
-        gnc.has_contact_actions,
+        gnc.has_contact_actions, gnc.commercial_score,
         count(*) FILTER (
           WHERE asset_key IN (SELECT asset_key FROM eligible_assets)
         )::integer AS relevant_project_count,
@@ -712,7 +718,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(updated_at) AS updated_at
       FROM assigned JOIN grouped_need_counts gnc USING (group_key)
       GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,
-               gnc.pursued_eligible_need_count, gnc.has_contact_actions
+               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score
     )
     """.replace("%%ASSET%%", asset_expr)
         .replace("%%WHERE%%", where)
@@ -794,12 +800,21 @@ def _account_contact_projects(
                 AND b.project_id=ar.project_id AND b.need_id=ar.need_id
               WHERE a.group_key = ANY(CAST(:contact_group_keys AS text[]))
                 AND a.group_kind='resolved_identity' AND a.company_id IS NOT NULL
-                AND jsonb_typeof(b.compact->'contact_actions')='array'
-                AND EXISTS (
-                  SELECT 1 FROM jsonb_array_elements(b.compact->'contact_actions') action
+                AND (EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(CASE
+                    WHEN jsonb_typeof(b.compact->'contact_actions')='array'
+                    THEN b.compact->'contact_actions' ELSE '[]'::jsonb END) action
                   WHERE action->>'company_identity_id'=a.company_id
                     AND action->>'kind' IN ('email','call')
-                )
+                ) OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(CASE
+                    WHEN jsonb_typeof(b.compact->'contact_people')='array'
+                    THEN b.compact->'contact_people' ELSE '[]'::jsonb END) person
+                  WHERE person->>'company_identity_id'=a.company_id
+                    AND person->>'record_type'='contact_person'
+                    AND person->>'responsibility' IN (
+                      'Verified project responsibility', 'Verified organizational responsibility')
+                ))
               ORDER BY a.group_key, a.asset_key, b.rank_score DESC,
                        b.updated_at DESC, b.project_id, b.need_id
             """
@@ -822,6 +837,16 @@ def _account_contact_projects(
             if str(action.get("company_identity_id") or "") == primary_id
             and action.get("kind") in {"email", "call"}
         ]
+        actions.extend(
+            person
+            for person in ((row["compact"] or {}).get("contact_people") or [])
+            if isinstance(person, dict)
+            and str(person.get("company_identity_id") or "") == primary_id
+            and person.get("record_type") == "contact_person"
+            and person.get("name")
+            and person.get("responsibility")
+            in {"Verified project responsibility", "Verified organizational responsibility"}
+        )
         if not actions:
             continue
         candidates[id(row)] = {"row": row, "actions": actions}
@@ -849,7 +874,13 @@ def _account_contact_projects(
                 safe_href = _safe_href(href, kind)
             except (TypeError, ValueError):
                 safe_href = None
-            if not safe_href:
+            named_professional = (
+                action.get("record_type") == "contact_person"
+                and action.get("name")
+                and action.get("responsibility")
+                in {"Verified project responsibility", "Verified organizational responsibility"}
+            )
+            if not safe_href and not named_professional:
                 continue
             responsibility = action.get("responsibility")
             responsibility_rank = {
@@ -862,7 +893,7 @@ def _account_contact_projects(
                 responsibility_rank,
                 not bool(action.get("name")),
                 not bool(action.get("title")),
-                0 if kind == "email" else 1,
+                0 if kind == "email" else 1 if kind == "call" else 2,
                 -int(row["priority_score"] or 0),
                 -(row["updated_at"].timestamp() if row["updated_at"] else 0),
                 str(row["project_id"]),
@@ -910,7 +941,7 @@ def _account_contact_projects(
             ),
             None,
         )
-        if candidate_group and item.get("contact"):
+        if candidate_group and (item.get("contact") or item.get("contact_people")):
             item["customer_identity_id"] = str(chosen[candidate_group]["company_id"])
             result[candidate_group] = item
     return result
@@ -962,8 +993,14 @@ def groups(
     # so counts and child serialization remain complete when one project hits.
     where, params = _query_parts(generation, "", sector)
     order = {
-        "priority": "priority_score DESC NULLS LAST, name, group_key",
-        "priority_asc": "priority_score ASC NULLS LAST, name, group_key",
+        "priority": (
+            "(commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, "
+            "priority_score DESC NULLS LAST, name, group_key"
+        ),
+        "priority_asc": (
+            "(commercial_score IS NOT NULL) DESC, commercial_score ASC NULLS LAST, "
+            "priority_score ASC NULLS LAST, name, group_key"
+        ),
         "company": "lower(name), group_key",
         "updated": "updated_at DESC NULLS LAST, group_key",
     }[sort]
@@ -1227,6 +1264,16 @@ def groups(
     )
     for item, row in zip(items, rows, strict=True):
         item["account_contact_project"] = account_contact_by_group.get(row["group_key"])
+    intelligence = _commercial_by_groups(
+        session,
+        generation=generation,
+        where=where,
+        params=params,
+        shortlist_data=shortlist_state["data"],
+        group_keys=[row["group_key"] for row in rows],
+    )
+    for item, row in zip(items, rows, strict=True):
+        item["commercial_intelligence"] = intelligence.get(row["group_key"])
     return {
         "items": items,
         "count_unit": "groups",
@@ -1238,6 +1285,156 @@ def groups(
         "generation": str(generation.id),
         "facets": _facets(session, generation, sector),
         **_snapshot_metadata(generation),
+    }
+
+
+def _commercial_by_groups(session, *, generation, where, params, shortlist_data, group_keys):
+    """One frozen fact read for every physical project in the requested accounts.
+
+    No source/research IO occurs here. The generation's existing policy and
+    identity fences apply, then the existing history privacy projector runs at
+    publication time so later suppressions cannot leak through copied quotes.
+    """
+    if not group_keys:
+        return {}
+    from gridlens.domain.customer_intelligence import resolve_customer_intelligence
+    from gridlens.intelligence.saved_history_privacy import (
+        _redact_all_contact_tokens,
+        project_saved_history_privacy,
+    )
+
+    rows = (
+        session.execute(
+            text(
+                _ctes(where, shortlist_data)
+                + """
+        SELECT DISTINCT a.group_key, a.group_kind, a.company_id, ar.project_id,
+               ar.compact->'customer_facts' AS facts,
+               ar.compact->'customer_priority' AS priority
+        FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
+        WHERE a.group_key = ANY(CAST(:commercial_groups AS text[]))
+        ORDER BY a.group_key, ar.project_id
+    """
+            ),
+            {**params, "commercial_groups": group_keys},
+        )
+        .mappings()
+        .all()
+    )
+    updating = _refresh_state(generation) == "updating"
+    by_group = {}
+    for row in rows:
+        by_group.setdefault(row["group_key"], []).append(row)
+    project_ids = sorted({str(row["project_id"]) for row in rows})
+    developments = {}
+    if project_ids:
+        changes = (
+            session.execute(
+                text("""
+            SELECT * FROM (
+                SELECT id, project_id, field_name, source_date, created_at, evidence_id,
+                       prior_state, new_state,
+                       row_number() OVER (PARTITION BY project_id
+                         ORDER BY created_at DESC, id DESC) AS position
+                FROM change_events
+                WHERE project_id = ANY(CAST(:commercial_project_ids AS uuid[]))
+                  AND field_name IN ('capacity', 'build_timing') AND material
+                  AND created_at <= :commercial_as_of AND created_at >= :commercial_since
+            ) recent WHERE position <= 3
+            ORDER BY created_at DESC, id DESC
+        """),
+                {
+                    "commercial_project_ids": project_ids,
+                    "commercial_as_of": generation.built_at,
+                    "commercial_since": generation.built_at - timedelta(days=90),
+                },
+            )
+            .mappings()
+            .all()
+        )
+        for change in changes:
+            developments.setdefault(str(change["project_id"]), []).append(
+                {
+                    "id": str(change["id"]),
+                    "project_id": str(change["project_id"]),
+                    "summary": "Build capacity revised"
+                    if change["field_name"] == "capacity"
+                    else "Construction or energization schedule revised",
+                    "source_date": change["source_date"].isoformat()
+                    if change["source_date"]
+                    else None,
+                    "observed_at": change["created_at"].isoformat(),
+                    "evidence_id": str(change["evidence_id"]) if change["evidence_id"] else None,
+                    "before": change["prior_state"],
+                    "after": change["new_state"],
+                }
+            )
+    cards = []
+    keys = []
+    for key, members in by_group.items():
+        resolved = all(row["group_kind"] == "resolved_identity" for row in members)
+        projects = (
+            [
+                {
+                    "project_id": str(row["project_id"]),
+                    "facts": row["facts"]
+                    if not updating and isinstance(row["facts"], list)
+                    else [],
+                }
+                for row in members
+            ]
+            if resolved
+            else []
+        )
+        summary = resolve_customer_intelligence(projects, as_of=generation.built_at.date())
+        summary["recent_developments"] = (
+            [event for row in members for event in developments.get(str(row["project_id"]), [])][:3]
+            if resolved
+            else []
+        )
+        if summary["recent_developments"]:
+            summary["recommended_next_action"] = (
+                "Review the revised capacity or schedule evidence and confirm the "
+                "commissioning plan with the verified project owner."
+            )
+        if updating:
+            summary["recent_developments"] = []
+            summary["limitations"].append(
+                "Commercial facts are refreshing; source changes require a new snapshot. "
+                "Account ordering retains the prior published snapshot."
+            )
+        if not resolved:
+            summary["limitations"].append(
+                "Company identity is unresolved; portfolio totals withheld."
+            )
+        ranked = [row["priority"] for row in members if isinstance(row["priority"], dict)]
+        if ranked and not updating:
+            best = max(ranked, key=lambda value: value.get("score", 0))
+            summary["priority"] = {
+                **summary["priority"],
+                **best,
+                "ranking_method": "maximum supported project score before account pagination",
+            }
+        summary["canonical_company_identity_ids"] = sorted(
+            {str(row["company_id"]) for row in members if resolved and row["company_id"]}
+        )
+        summary["scope"] = (
+            "all account projects in selected sector; independent of child pagination"
+        )
+        cards.append(
+            {
+                "saved_card": {
+                    "project_id": str(members[0]["project_id"]),
+                    "related_project_ids": [str(row["project_id"]) for row in members],
+                    "commercial_intelligence": summary,
+                }
+            }
+        )
+        keys.append(key)
+    projected = project_saved_history_privacy(session, {"versions": cards})["versions"]
+    return {
+        key: _redact_all_contact_tokens(item["saved_card"]["commercial_intelligence"])
+        for key, item in zip(keys, projected, strict=True)
     }
 
 
@@ -1316,7 +1513,7 @@ def group_metadata(
     )
     if row is None:
         raise HTTPException(404, "Customer group not found in this cohort")
-    return {
+    result = {
         "id": _group_id(row["group_key"]),
         "name": row["name"],
         "role": row["role"],
@@ -1331,6 +1528,16 @@ def group_metadata(
         "priority_score": row["priority_score"],
         "sectors": row["sectors"],
     }
+
+    result["commercial_intelligence"] = _commercial_by_groups(
+        session,
+        generation=generation,
+        where=where,
+        params=params,
+        shortlist_data=shortlist_state["data"],
+        group_keys=[row["group_key"]],
+    ).get(row["group_key"])
+    return result
 
 
 def group_projects(
@@ -1768,6 +1975,14 @@ def group_open(
         "priority_score": first["priority_score"],
         "sectors": first["sectors"],
     }
+    group["commercial_intelligence"] = _commercial_by_groups(
+        session,
+        generation=generation,
+        where=where,
+        params=params,
+        shortlist_data=shortlist_state["data"],
+        group_keys=[first["group_key"]],
+    ).get(first["group_key"])
     if shortlist:
         group["featured_project"] = featured_project
     contact_projects = (
