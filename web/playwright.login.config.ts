@@ -7,6 +7,6 @@ export default defineConfig({
   testMatch: '**/login.spec.ts',
   workers: 1,
   reporter: 'list',
-  use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 }, channel: 'chrome' },
+  use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1280, height: 900 } },
   webServer: { command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`, port: Number(webPort), reuseExistingServer: !process.env.CI },
 })

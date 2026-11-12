@@ -60,9 +60,9 @@ function loadManifest(): Manifest {
 async function signIn(page: Page) {
   if (!password) throw new Error('Set GRIDLENS_TEST_PASSWORD to the private password for the disposable test API.')
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
-  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to GridLens', exact: true })).toBeVisible()
   await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toBeVisible()
 }
 
@@ -229,7 +229,7 @@ test('source-backed disposable account brief survives responsive navigation and 
   for (const project of manifest.account.projects) await expect(detail).toContainText(project.name)
   await page.locator('.wh-account > summary').click()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to GridLens', exact: true })).toBeVisible()
   expect(await (await page.request.get('/api/auth/session')).json()).toEqual({ authenticated: false })
   await expect(page.getByText(manifest.brief.why_now_text, { exact: true })).toHaveCount(0)
   expect(browserWrites).toEqual([])
