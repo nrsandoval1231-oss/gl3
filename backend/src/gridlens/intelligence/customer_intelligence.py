@@ -126,6 +126,20 @@ def scope_customer_facts(payload: dict, project_name: str, project_location: str
             quote = str(claim.get("quote") or "")
             # City/county location is not an interchangeable physical-project subject.
             predicate = _subject_predicate(quote, [project_name])
+            if project_name.strip() and project_location.strip():
+                # A location can qualify this named subject, never replace it.
+                named_site = re.fullmatch(
+                    re.escape(project_name.strip())
+                    + r"\s+at\s+"
+                    + re.escape(project_location.strip())
+                    + r"\s+(.+)",
+                    quote.strip(),
+                    re.I,
+                )
+                if named_site:
+                    predicate = _subject_predicate(
+                        project_name.strip() + " " + named_site[1], [project_name]
+                    )
             if not predicate or re.search(
                 r"\b(?:and|while|whereas|versus|but|compared|other|another)\b", predicate, re.I
             ):
