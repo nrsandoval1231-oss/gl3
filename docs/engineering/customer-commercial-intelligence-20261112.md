@@ -46,7 +46,7 @@ GitHub metadata was checked on 2026-11-12:
 - PR193 match-key race and Phase 2 browser-manifest repair: merged `f2a4a8051374bd86bd3d152d063035a524bdef66`.
 - PR194 sign-in: merged as audited main above. Preserve its existing authentication behavior.
 - PR189 premium workspace: open draft, head `cfedab6c7a7e0531b430ab06f1ebe4acb3a53164`, conflicting with main.
-- Source migration head: `0056_statement_level_dirty_projects`. Older 0049/0050/0051 overview claims are dated, not current migration inventory.
+- Source migration head: `0056_statement_dirty_projects`. Older 0049/0050/0051 overview claims are dated, not current migration inventory.
 
 PR189's prior acceptance is source-specific. Reconcile its header, compact cards, mobile layout
 and build identity against current main. Preserve serve-stale notices, current auth, contact
@@ -184,3 +184,15 @@ package/environment and artifact verification; dated deployment receipts do not 
 
 At audit publication, the managed executor remains starting. No new executable tests, database
 measurements, screenshots, or production readiness are claimed by this document.
+
+## Independent architecture review corrections
+
+Astra reviewed audit commit `72ca2777` against main. The implementation must additionally:
+
+- Treat `cg_` as a generation-derived browse route ID, distinct from durable CompanyIdentity UUIDs. Persist project/company facts and resolve account membership, including ambiguity, through existing rules.
+- Store versioned `EvidencePackage` payloads with all contributing immutable references and input digests. Campus facts may have null need IDs. Do not select by newest package creation alone.
+- Compute commercial ordering before account LIMIT/OFFSET. Freeze facts/model revision in browse generation publication; old membership must not mix with unrelated current aggregates.
+- Use short change keys (`capacity`, `build_timing`, `ownership`, `commissioning`) within ChangeEvent's 30-character kind limit. Preserve project lock ordering, revision replay, source causality and quiet initial backfill.
+- Rebuild and test saved-generation recovery even without DDL: all backend Python sources affect the existing policy fingerprint.
+
+The executor became available after the remote audit commit. Local current-main source was fetched into an isolated worktree; tests use new task-local disposable databases.
