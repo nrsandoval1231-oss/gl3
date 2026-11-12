@@ -124,7 +124,8 @@ def scope_customer_facts(payload: dict, project_name: str, project_location: str
             if not isinstance(claim, dict):
                 continue
             quote = str(claim.get("quote") or "")
-            predicate = _subject_predicate(quote, [project_name, project_location])
+            # City/county location is not an interchangeable physical-project subject.
+            predicate = _subject_predicate(quote, [project_name])
             if not predicate or re.search(
                 r"\b(?:and|while|whereas|versus|but|compared|other|another)\b", predicate, re.I
             ):

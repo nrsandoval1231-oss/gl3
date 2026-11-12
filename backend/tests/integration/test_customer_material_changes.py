@@ -156,6 +156,16 @@ def test_deadline_to_within_year_is_a_schedule_change_and_replay_is_quiet(equipm
         assert record_material_diff(session, project, evidence, baseline) == []
 
 
+def test_roman_to_decimal_phase_notation_is_not_a_material_change(equipment_db):
+    with equipment_db.begin() as session:
+        rows = seed(session)
+        project = rows[1]
+        replace_source(session, rows, text=f"{NAME} Phase I has 100 MW of IT capacity.")
+        baseline = seed_material_state(session, project)
+        evidence = replace_source(session, rows, text=f"{NAME} Phase 1 has 100 MW of IT capacity.")
+        assert record_material_diff(session, project, evidence, baseline) == []
+
+
 def test_syndicated_article_and_metadata_refresh_do_not_alert(equipment_db):
     with equipment_db.begin() as session:
         rows = seed(session)

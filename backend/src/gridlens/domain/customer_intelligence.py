@@ -388,6 +388,25 @@ def _source_copy(source: dict) -> dict:
     }
 
 
+def _phase_token(value: str) -> str:
+    value = value.lower()
+    if value.isdigit():
+        return str(int(value))
+    words = {"first": "1", "second": "2", "third": "3", "fourth": "4"}
+    if value in words:
+        return words[value]
+    # Canonical Roman notation supported by the existing I/V/X phase grammar.
+    for number in range(1, 40):
+        remaining, roman = number, ""
+        for amount, symbol in ((10, "x"), (9, "ix"), (5, "v"), (4, "iv"), (1, "i")):
+            while remaining >= amount:
+                roman += symbol
+                remaining -= amount
+        if roman == value:
+            return str(number)
+    return value
+
+
 def _scope_at(clause: str, position: int, project_id: str) -> tuple[str, str | None]:
     phases = list(_PHASE.finditer(clause[:position]))
     named = list(
@@ -395,7 +414,7 @@ def _scope_at(clause: str, position: int, project_id: str) -> tuple[str, str | N
     )
     phases.extend(named)
     phases.sort(key=lambda phase: phase.start())
-    phase_id = phases[-1][1].lower() if phases else None
+    phase_id = _phase_token(phases[-1][1]) if phases else None
     return (
         (f"{project_id}:phase:{phase_id}", phase_id) if phase_id else (f"{project_id}:site", None)
     )
@@ -447,7 +466,10 @@ def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
                 ):
                     scope, phase_id = f"{project_id}:site", None
                     includes = sorted(
-                        {f"{project_id}:phase:{p[1].lower()}" for p in _PHASE.finditer(clause)}
+                        {
+                            f"{project_id}:phase:{_phase_token(p[1])}"
+                            for p in _PHASE.finditer(clause)
+                        }
                     )
                 with localcontext() as context:
                     context.prec = 40
