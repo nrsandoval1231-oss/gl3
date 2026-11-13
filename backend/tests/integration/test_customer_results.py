@@ -909,6 +909,29 @@ def test_customer_shortlist_is_bound_into_account_cohort(saved_db, monkeypatch):
         and row["compact"].get("project_metadata", {}).get("oil_gas", {}).get("operator_number")
         == "12345"
     ]
+    with saved_db() as session:
+        conflicting_project_ids = set(
+            session.scalars(
+                select(BrowseUnresolvedCustomer.project_id).where(
+                    BrowseUnresolvedCustomer.generation_id == generation.id,
+                    BrowseUnresolvedCustomer.role == "conflicting_customer",
+                )
+            )
+        )
+    # Put the conflicting same-operator-number fixture first so UUID ordering
+    # cannot hide the case where this project is selected as the second need.
+    eligible_candidates.sort(
+        key=lambda row: (
+            row["project_id"] not in conflicting_project_ids,
+            str(row["need_id"]),
+        )
+    )
+    assert any(
+        row["project_id"] in conflicting_project_ids for row in eligible_candidates
+    )
+    eligible_candidates = [
+        row for row in eligible_candidates if row["project_id"] not in conflicting_project_ids
+    ]
     chosen_rows = [contact_source] + [
         row for row in eligible_candidates if row["need_id"] != contact_source["need_id"]
     ][:1]
