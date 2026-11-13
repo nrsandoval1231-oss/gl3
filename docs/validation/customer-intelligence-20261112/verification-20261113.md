@@ -76,3 +76,37 @@ The screenshot restoration harness initially extracted a web-relative image arch
 The quiet full rerun passed **341 tests in 5.3 minutes**, with retries disabled and two workers. Its exact shell command was the configured full regression command above, piped through `tee /workspace/task-runtime/customer-project-results-full-regression-20261113-quiet.log` with `pipefail` enabled. This includes authentication, the corrected lease boundary and the earlier setup/navigation cases. Original failed trace ZIPs were inspected but not archived before Playwright cleared/replaced its results; they are not retained artifacts. The failed/incomplete attempt is not relabeled as passing.
 
 All tracked screenshot bytes were restored after the run; the root-relative before/after archive SHA-256 was identical (`e9ef3f0309e03856c6bccda80a923fb48cc3649af36d306ba7dfb8e7b4198f32`). No screenshot assertion or application assertion was removed.
+
+## Native source-coverage publication gates
+
+The isolated `feat/native-source-coverage-20261113` worktree merged local
+`ff08016b` without rebasing (`0e92dbb1`). The accepted parser, planned-developer
+producer, and test hashes still match the bounded source review: adapter
+`44075d0339dc49ad894f96e8aadeb8ae4a6a6190a009393c0b2c5eb511f87256`, producer
+`16d791bc5735fd24a3db82edf77727a38943c69575337cbc8579a3a26aaba5c1`, and saved
+projection integration test
+`92ded813020e740e3041c6fa9571c56b08721bb0344f85b60bfac25d4de058e0`.
+
+From that worktree's `backend/`, full Ruff and formatting checks passed using
+the shared commercial virtualenv and the worktree's own `backend/src` on
+`PYTHONPATH`: `ruff check .` and `ruff format --check .` (704 files already
+formatted). `mypy src` passed across 276 source files.
+
+With `/workspace/task-runtime/security-env.sh` sourced, a guard confirmed the
+integration target was loopback `commercial_security_backend_test`, distinct
+from application database `commercial_security_app_test`; no credentials were
+printed. The selected unit suite passed **126 tests in 3.98 seconds** across
+the retained native source parser, planned-developer producer, activity
+binding, publication-date boundary, retained-source admission/organization,
+and customer-intelligence modules. The saved-customer integration selection
+passed **7 tests in 16.56 seconds** across the new regional guard, the new
+Switch retained-source saved-browse/cancellation path, and existing customer
+intelligence projection tests. No test source or fixtures were changed for
+these checks.
+
+The maintained documentation graph passed with 122 documents, 571 local
+targets, and 18 anchors. Both commercial evaluation scripts compiled, and
+`git diff --check` passed. The saved browse test proves source-backed Switch
+membership and project detail in a disposable database; this remains a finite
+offline regression, not current production coverage, verified legal
+ownership, customer usefulness, or a broad source-coverage claim.
