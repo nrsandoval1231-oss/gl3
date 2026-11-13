@@ -603,6 +603,97 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
     return streams
 
 
+def _recent_material_revisions(session, project_ids, *, as_of: datetime):
+    """Commercial recency requires a dated revision, not first observation.
+
+    Keep the immutable change ledger intact. Its creation time bounds this
+    snapshot, while a source event/publication date establishes recency. Filter
+    before the per-project limit so newer discoveries cannot hide a revision.
+    """
+    return (
+        session.execute(
+            text("""
+        WITH supported AS (
+            SELECT c.*,
+                   coalesce(c.source_date,e.published_at,b.published_at) AS effective_source_date,
+                   CASE WHEN c.prior_state ? 'value' THEN c.prior_state->'value'
+                        WHEN c.field_name='source_listing' THEN c.prior_state->'listed'
+                   END AS previous_value,
+                   CASE WHEN c.new_state ? 'value' THEN c.new_state->'value'
+                        WHEN c.field_name='source_listing' THEN c.new_state->'listed'
+                   END AS current_value
+            FROM change_events c
+            LEFT JOIN evidence e ON e.id=c.evidence_id
+                AND e.observation_id=c.observation_id AND e.content_hash=c.content_hash
+            LEFT JOIN buying_chain_evidence b ON b.id=c.buying_chain_evidence_id
+                AND b.project_id=c.project_id
+            WHERE c.project_id=ANY(CAST(:project_ids AS uuid[])) AND c.material
+              AND c.created_at<=:as_of AND c.created_at>=:since
+        ), revisions AS (
+            SELECT * FROM supported
+            WHERE effective_source_date BETWEEN :source_since AND :source_as_of
+              AND current_value IS NOT NULL
+              AND previous_value IS DISTINCT FROM current_value
+              AND CASE jsonb_typeof(previous_value)
+                    WHEN 'object' THEN previous_value <> '{}'::jsonb AND
+                        (NOT previous_value ? 'claims' OR
+                         (jsonb_typeof(previous_value->'claims')='array' AND
+                          previous_value->'claims' <> '[]'::jsonb))
+                    WHEN 'array' THEN previous_value <> '[]'::jsonb
+                    WHEN 'string' THEN lower(btrim(previous_value #>> '{}')) NOT IN
+                        ('', 'unknown', 'unavailable', 'unverified', 'not assessed')
+                    WHEN 'number' THEN true
+                    WHEN 'boolean' THEN true
+                    ELSE false
+                  END
+        ), ranked AS (
+            SELECT *, row_number() OVER (
+                PARTITION BY project_id,(field_name IN ('capacity','build_timing'))
+                ORDER BY effective_source_date DESC,created_at DESC,id DESC
+            ) AS position FROM revisions
+        )
+        SELECT * FROM ranked WHERE position=1 OR
+            (field_name IN ('capacity','build_timing') AND position<=3)
+        ORDER BY effective_source_date DESC,created_at DESC,id DESC
+        """),
+            {
+                "project_ids": list(project_ids),
+                "as_of": as_of,
+                "since": as_of - timedelta(days=90),
+                "source_as_of": as_of.date(),
+                "source_since": as_of.date() - timedelta(days=90),
+            },
+        )
+        .mappings()
+        .all()
+    )
+
+
+def _customer_revision_summary(change) -> str:
+    if change["field_name"] == "capacity":
+        return "Build capacity revised"
+    before = (change["prior_state"] or {}).get("value")
+    after = (change["new_state"] or {}).get("value")
+    previous = before.get("claims", []) if isinstance(before, dict) else []
+    current = after.get("claims", []) if isinstance(after, dict) else []
+    changed = [claim for claim in previous if claim not in current] + [
+        claim for claim in current if claim not in previous
+    ]
+    event_types = {claim.get("event_type") for claim in changed if isinstance(claim, dict)}
+    for supported_types, label in (
+        ({"operational_target", "full_operational_target"}, "Operational target revised"),
+        ({"ready_for_service"}, "Ready-for-service target revised"),
+        (
+            {"announced_construction_start", "actual_construction_start"},
+            "Construction schedule revised",
+        ),
+        ({"expected_first_energization", "phase_energization"}, "Energization schedule revised"),
+    ):
+        if event_types and event_types <= supported_types:
+            return label
+    return "Project schedule revised"
+
+
 def _write_rows(session, generation_id, summaries, *, check_budget=None):
     from gridlens.api import app as api
     from gridlens.domain.customer_intelligence import (
@@ -659,31 +750,8 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         customer_facts_by_project = project_customer_facts(session, project_ids, generation=None)
         # Freeze bounded recent events in the same existing context read used by
         # priority. Requests never scan ChangeEvent or rebuild this source cohort.
-        recent_changes = (
-            session.execute(
-                text("""
-            SELECT * FROM (
-                SELECT project_id,id,field_name,source_date,created_at,evidence_id,
-                       buying_chain_evidence_id,observation_id,content_hash,prior_state,new_state,
-                       row_number() OVER (
-                         PARTITION BY project_id,(field_name IN ('capacity','build_timing'))
-                         ORDER BY created_at DESC,id DESC
-                       ) AS position
-                FROM change_events
-                WHERE project_id=ANY(CAST(:project_ids AS uuid[])) AND material
-                  AND created_at<=:as_of AND created_at>=:since
-            ) recent WHERE position=1 OR
-                (field_name IN ('capacity','build_timing') AND position<=3)
-            ORDER BY created_at DESC,id DESC
-        """),
-                {
-                    "project_ids": list(project_ids),
-                    "as_of": generation.valid_from,
-                    "since": generation.valid_from - timedelta(days=90),
-                },
-            )
-            .mappings()
-            .all()
+        recent_changes = _recent_material_revisions(
+            session, project_ids, as_of=generation.valid_from
         )
         material_change_projects = {row["project_id"] for row in recent_changes}
         customer_developments: dict[str, list[dict]] = {}
@@ -694,12 +762,8 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                 {
                     "id": str(change["id"]),
                     "project_id": str(change["project_id"]),
-                    "summary": "Build capacity revised"
-                    if change["field_name"] == "capacity"
-                    else "Construction or energization schedule revised",
-                    "source_date": change["source_date"].isoformat()
-                    if change["source_date"]
-                    else None,
+                    "summary": _customer_revision_summary(change),
+                    "source_date": change["effective_source_date"].isoformat(),
                     "observed_at": change["created_at"].isoformat(),
                     "evidence_id": str(change["evidence_id"]) if change["evidence_id"] else None,
                     "buying_chain_evidence_id": str(change["buying_chain_evidence_id"])
