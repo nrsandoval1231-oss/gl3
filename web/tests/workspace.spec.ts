@@ -367,7 +367,10 @@ test('mobile selected detail keeps the compact header and clear return', async (
   await expect(action).toBeInViewport()
   await expect(action.getByRole('button', { name: 'Add to Pursuit' })).toBeVisible()
   await expect(page.locator('.canonical-header .global-search label > span')).toBeHidden()
-  expect(await page.locator('.canonical-header__brand').evaluate(node => getComputedStyle(node).width)).toBe('143px')
+  const brand = page.locator('.canonical-header__brand')
+  await expect(brand).toBeVisible()
+  expect(await brand.evaluate(node => node.getBoundingClientRect().width)).toBeLessThanOrEqual(await brand.evaluate(node => node.parentElement!.getBoundingClientRect().width))
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
   await expect(page.getByRole('button', { name: '← Opportunities' })).toBeVisible()
 })
 

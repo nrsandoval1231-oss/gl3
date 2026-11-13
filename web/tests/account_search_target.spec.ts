@@ -153,7 +153,7 @@ test('account contact can come from a permitted project beyond page one with its
 })
 
 test('an explicit null or malformed account contact selection does not fall back to featured project routes', async ({ page }) => {
-  const featured = { ...firstPage[0], contact: [{ kind: 'call', label: 'Call legacy featured contact', href: 'tel:+15555550100', name: 'Legacy Contact', title: 'Site Manager', company, route_kind: 'named_contact' }] }
+  const featured = { ...firstPage[0], contact: [{ kind: 'call', label: 'Call legacy featured contact', href: 'tel:+15555550100', name: 'Legacy Contact', title: 'Site Manager', company, route_kind: 'named_contact' }], commercial_brief: { version: 'synthetic-v1', why_now: { text: 'Synthetic project context.', source_date: null, scope: null, sources: [] }, power_need: { amount_class: 'unknown', scope: null, value: null, unit: null, status: 'unknown', limitations: [] }, best_contact: { contact: 'Legacy Contact', href: 'tel:+15555550100', kind: 'call', route_kind: 'person_method', authority: 'Sensitive contact authority', deliverability: 'Sensitive contact deliverability', sources: [{ title: 'Contact-only source', url: 'https://sources.example.test/contact-only', evidence_id: 'contact-only', date: null }] }, next_action: { text: 'Review synthetic context.', kind: 'review', source: null }, freshness: { as_of: null, status: 'unknown', source_date: null }, limitations: [], sources: [] } }
   let account = { ...group, featured_project: featured, account_contact_project: null as unknown }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
@@ -164,21 +164,25 @@ test('an explicit null or malformed account contact selection does not fall back
   await page.goto('/?groupBrowse=1&shortlist=1')
   const card = page.getByRole('region', { name: `${company} customer group` })
   await expect(card.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
+  await expect(card.locator('[aria-label="Best contact"]')).toHaveCount(0)
+  await expect(card).not.toContainText('Sensitive contact authority')
+  await expect(card).not.toContainText('Sensitive contact deliverability')
+  await expect(card.getByRole('link', { name: 'Contact-only source' })).toHaveCount(0)
   await card.getByRole('button', { name: 'Choose opportunity' }).click()
   const detail = page.getByRole('region', { name: `Company ${company}` })
   const overview = detail.getByRole('region', { name: 'Account overview' })
-  await expect(overview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(overview.getByText('No verified business contact is currently available. Contact research is needed.')).toBeVisible()
   await expect(overview.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
 
   account = { ...account, account_contact_project: { project_id: 'malformed', name: 'Malformed contact project', contact: [null] } }
   await page.reload()
   const refreshedOverview = page.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account overview' })
-  await expect(refreshedOverview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(refreshedOverview.getByText('No verified business contact is currently available. Contact research is needed.')).toBeVisible()
   await expect(refreshedOverview.getByRole('link', { name: 'Call Legacy Contact' })).toHaveCount(0)
 
   account = { ...account, account_contact_project: { project_id: 'malformed-name', name: 'Malformed contact project', contact: [{ kind: 'email', label: 'Email', href: 'mailto:bad@example.test', name: { unexpected: true } }] } }
   await page.reload()
   const malformedOverview = page.getByRole('region', { name: `Company ${company}` }).getByRole('region', { name: 'Account overview' })
-  await expect(malformedOverview.getByText('No current business contact route is available.')).toBeVisible()
+  await expect(malformedOverview.getByText('No verified business contact is currently available. Contact research is needed.')).toBeVisible()
   await expect(malformedOverview.getByRole('link', { name: 'Email' })).toHaveCount(0)
 })
