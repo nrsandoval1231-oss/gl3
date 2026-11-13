@@ -1071,7 +1071,11 @@ def _bounded_opportunity_map_window_payload(payload: dict[str, Any]) -> dict[str
 
 def _begin_consistent_read(session) -> None:
     """Pin multi-query reads to one PostgreSQL cohort snapshot."""
-    session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+    connection = session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+    if connection.dialect.name == "postgresql":
+        # These reads are large, short-lived CTE queries. Just-in-time compilation cost
+        # about 2.5 s per request at 40k projects (measured) and never pays back here.
+        connection.exec_driver_sql("SET LOCAL jit = off")
 
 
 def _preflight_opportunity_details(session, rows: list[dict]) -> None:
