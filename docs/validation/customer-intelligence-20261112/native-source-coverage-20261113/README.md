@@ -106,13 +106,14 @@ evidence.
 
 Use a configured loopback PostgreSQL `TEST_DATABASE_URL` whose base database
 ends in `_test`, plus a distinct configured `DATABASE_URL`. The runner creates
-and drops its own uniquely named `_test` database. Choose a new output filename;
-the script refuses to overwrite an existing receipt.
+and drops its own uniquely named `_test` database. V1 is frozen; keep generated
+receipts in this dated validation directory. Choose a new output filename; the
+script refuses to overwrite an existing receipt.
 
 ```sh
 : "${TEST_DATABASE_URL:?configure a loopback PostgreSQL test URL ending in _test}"
 : "${DATABASE_URL:?configure a distinct application database URL}"
 uv run --project backend python scripts/evaluate_customer_commercial_runtime.py \
   --database-url "$TEST_DATABASE_URL" \
-  --output "eval/customer-commercial-v1/runtime/native-runtime-replay-$(date -u +%Y%m%dT%H%M%SZ).json"
+  --output "docs/validation/customer-intelligence-20261112/native-source-coverage-20261113/native-runtime-replay-$(date -u +%Y%m%dT%H%M%SZ).json"
 ```
