@@ -225,6 +225,12 @@ function isUnavailableAccountRead(cause: unknown) {
   return cause instanceof OpportunityGroupUnavailableError
 }
 
+export function commercialCapacityUnavailableMessage(status?: string) {
+  if (status === 'unknown_overlap') return 'Overlapping project or phase claims prevent a supported combined capacity total.'
+  if (status === 'mixed_bounds') return 'Capacity claims mix upper and lower bounds, so no single supported total is available.'
+  return 'No supported build-capacity total is available.'
+}
+
 function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
   const intel: CommercialCustomerIntelligence | null = group?.commercial_intelligence ?? null
   if (!intel) return null
@@ -250,7 +256,7 @@ function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
     const phase = scope.match(/:phase:([^:]+)$/)
     return phase ? `Phase ${phase[1]}` : 'Project scope'
   }
-  const eventLabel = (value: unknown) => ({ actual_construction_start: 'Actual construction start', announced_construction_start: 'Announced construction start', expected_first_energization: 'Expected first energization', phase_energization: 'Phase energization', full_operational_target: 'Full operational target' } as Record<string, string>)[String(value)] ?? 'Lifecycle event'
+  const eventLabel = (value: unknown) => ({ actual_construction_start: 'Actual construction start', announced_construction_start: 'Announced construction start', expected_first_energization: 'Expected first energization', phase_energization: 'Phase energization', full_operational_target: 'Full operational target', operational_target: 'Operational target', ready_for_service: 'Ready for service' } as Record<string, string>)[String(value)] ?? 'Lifecycle event'
   const capacityBasis = (value: unknown) => ({ campus_development: 'Campus development', it_load: 'IT load', utility_service: 'Utility service', generation: 'Generation', individual_phase: 'Individual phase' } as Record<string, string>)[String(value)] ?? (typeof value === 'string' ? value.replaceAll('_', ' ') : 'Capacity')
   const citedSource = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
   const sourceLink = (value: unknown) => {
@@ -272,7 +278,7 @@ function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
   }
   return <details className="cmp-commercial-analysis"><summary>Commercial analysis</summary>
     <div className="cmp-commercial-grid">
-      <section><h4>Build capacity</h4>{totals.length ? totals.map((item, index) => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; const basis = ({ campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' } as Record<string,string>)[item.basis] ?? item.basis.replaceAll('_',' '); const qualifier = detail.qualifier === 'up_to' || item.status === 'upper_bound' ? 'Up to ' : detail.qualifier === 'approximate' ? 'Approximately ' : detail.qualifier === 'more_than' ? 'More than ' : detail.qualifier === 'at_least' || item.status === 'lower_bound' ? 'At least ' : ''; return <p key={index}>{qualifier}{item.value_mw} MW · {basis}{detail.complete === false ? ' · partial coverage' : ''}</p> }) : <p>No supported build-capacity total is available.</p>}{intel.capacity.coverage && <small>{String(intel.capacity.coverage.projects_with_capacity ?? 0)} of {String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity</small>}{asRows((intel.capacity as CommercialCustomerIntelligence['capacity'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting capacity claims require review.</p>}</section>
+      <section><h4>Build capacity</h4>{totals.length ? totals.map((item, index) => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; const basis = ({ campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' } as Record<string,string>)[item.basis] ?? item.basis.replaceAll('_',' '); const qualifier = detail.qualifier === 'up_to' || item.status === 'upper_bound' ? 'Up to ' : detail.qualifier === 'approximate' ? 'Approximately ' : detail.qualifier === 'more_than' ? 'More than ' : detail.qualifier === 'at_least' || item.status === 'lower_bound' ? 'At least ' : ''; return <p key={index}>{qualifier}{item.value_mw} MW · {basis}{detail.complete === false ? ' · partial coverage' : ''}</p> }) : <p>{commercialCapacityUnavailableMessage(intel.capacity.status)}</p>}{intel.capacity.coverage && <small>{String(intel.capacity.coverage.projects_with_capacity ?? 0)} of {String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity</small>}{asRows((intel.capacity as CommercialCustomerIntelligence['capacity'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting capacity claims require review.</p>}</section>
       <section><h4>Timing</h4>{show(intel.timelines?.construction_start) && <p>Construction start · {show(intel.timelines?.construction_start)}</p>}{show(intel.timelines?.expected_energization) && <p>Expected energization · {show(intel.timelines?.expected_energization)}</p>}{!show(intel.timelines?.construction_start) && !show(intel.timelines?.expected_energization) && <p>No supported timeline is available.</p>}{asRows((intel.timelines as CommercialCustomerIntelligence['timelines'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting timeline claims require review.</p>}</section>
       <section><h4>Commissioning scenario</h4>{scenarioText() ? <p>{scenarioText()}</p> : <p>Insufficient data for an engineering scenario.</p>}{commissioning?.limitations?.map((item, index) => <small key={index}>{item}</small>)}</section>
       <section><h4>Recent developments</h4>{intel.recent_developments?.length ? intel.recent_developments.map((item, index) => <p key={index}>{show(item)}</p>) : <p>No material recent development is available.</p>}</section>

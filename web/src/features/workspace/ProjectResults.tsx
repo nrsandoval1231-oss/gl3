@@ -3,7 +3,7 @@ import { browseUpdatingNotice, client, OpportunityBrowsePendingError, Opportunit
 import { clearProjectBrowseCache, invalidateProjectBrowseCache, projectBrowseCacheKey, projectBrowseCacheVersion, readProjectBrowseCache, writeProjectBrowseCache, type ProjectBrowseRoute } from '../../state/projectBrowseCache'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from './opportunityExport'
-import { bestProjectContactRoutes, CompanyView, generalCompanyContactRoutes, safeContactSourceUrl, selectAccountContactProject, verifiedContactPeople, VerifiedContactPeople } from '../companies/CompanyView'
+import { bestProjectContactRoutes, commercialCapacityUnavailableMessage, CompanyView, generalCompanyContactRoutes, safeContactSourceUrl, selectAccountContactProject, verifiedContactPeople, VerifiedContactPeople } from '../companies/CompanyView'
 
 type Props = { selectedNeedId?: string; accountContextStatus?: 'valid' | 'pending' | 'unavailable'; onNeed: (need: { id: string }, context?: { accountId: string; projectId?: string }) => void; onBrowseChange?: () => void }
 function commercialIntel(group: OpportunityGroup): CommercialCustomerIntelligence | null { return group.commercial_intelligence ?? null }
@@ -30,7 +30,7 @@ function CustomerIntelSummary({ group }: { group: OpportunityGroup }) {
   const development = (intel?.recent_developments ?? []).map(intelLabel).find(Boolean)
   const nextAction = intelLabel(intel?.recommended_next_action)
   return <div className="premium-intelligence-summary" aria-label="Commercial intelligence">
-    <span><strong>Build capacity</strong>{capacity || 'Not available from supported evidence'}{capacityCoverage && <small>{capacityCoverage}</small>}{(capacityConflictCount > 0 || intel?.capacity.status === 'conflict') && <small role="status">Conflicting capacity claims require review.</small>}</span>
+    <span><strong>Build capacity</strong>{capacity || commercialCapacityUnavailableMessage(intel?.capacity.status)}{capacityCoverage && <small>{capacityCoverage}</small>}{(capacityConflictCount > 0 || intel?.capacity.status === 'conflict') && <small role="status">Conflicting capacity claims require review.</small>}</span>
     <span><strong>Timing</strong><small><b>Construction start</b> · {construction || 'Not established'}</small><small><b>Expected energization</b> · {energization || 'Not established'}</small>{timelineConflictCount > 0 && <small role="status">Conflicting timeline claims require review.</small>}</span>
     <span><strong>Commissioning</strong>{scenarioText || 'Insufficient data for an engineering scenario'}</span>
     {development && <span className="premium-intelligence-development"><strong>Recent development</strong>{development}</span>}
