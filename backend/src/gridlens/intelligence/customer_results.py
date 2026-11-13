@@ -783,13 +783,19 @@ def _account_contact_projects(
             text(
                 sql
                 + """
+              , contact_assigned AS MATERIALIZED (
+                SELECT * FROM assigned
+                WHERE group_key = ANY(CAST(:contact_group_keys AS text[]))
+                  AND group_kind='resolved_identity' AND company_id IS NOT NULL
+              )
               SELECT a.group_key, a.asset_key, a.company_id, a.group_kind,
                      a.priority_score, b.project_id, b.updated_at, b.compact,
-                     ARRAY(SELECT ar2.project_id FROM all_rows ar2
-                           WHERE ar2.asset_key=a.asset_key GROUP BY ar2.project_id
-                           ORDER BY ar2.project_id) AS asset_project_ids
-              FROM assigned a
+                     ap.project_ids AS asset_project_ids
+              FROM contact_assigned a
               JOIN all_rows ar ON ar.asset_key=a.asset_key
+              JOIN (SELECT asset_key,
+                           array_agg(DISTINCT project_id ORDER BY project_id) AS project_ids
+                    FROM all_rows GROUP BY asset_key) ap ON ap.asset_key=a.asset_key
               JOIN browse_rows b ON b.generation_id=:generation
                 AND b.project_id=ar.project_id AND b.need_id=ar.need_id
               WHERE a.group_key = ANY(CAST(:contact_group_keys AS text[]))
