@@ -9,15 +9,13 @@ oracle identity context; this does not measure project matching or identity
 accuracy. Native aliases derive only from freshly reparsed source text, never
 from expected claim values or reference aliases.
 
-The latest replay is
-[`source-text-scope-replay-source-role-final-20261113.json`](source-text-scope-replay-source-role-final-20261113.json). The preceding source-coverage capture remains at
-[`source-text-scope-replay-source-coverage-final-20261113.json`](source-text-scope-replay-source-coverage-final-20261113.json)
+The frozen replay is
+[`source-text-scope-replay-operational-final-20261113.json`](source-text-scope-replay-operational-final-20261113.json)
 (gold SHA-256 `dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922`,
 source manifest SHA-256 `4b8831df9e94261806d2df7d51a4df1fd4299fe3b4daf862fdc64b99f192c5fb`).
 It uses reference identity/location only as disclosed oracle evaluation context.
 The current native validation capture is
-[`native-runtime-replay-source-role-final-20261113.json`](native-runtime-replay-source-role-final-20261113.json); the prior source-coverage receipt is preserved at
-[`native-runtime-replay-source-coverage-final-20261113.json`](native-runtime-replay-source-coverage-final-20261113.json).
+[`native-runtime-replay-operational-final-20261113.json`](native-runtime-replay-operational-final-20261113.json).
 
 Across 32 physical capacity assertions, scoped predictions score **2 TP, 0 FP,
 30 FN**. The two true positives are DataBank Red Oak's phase 1 up-to 240 MW IT
@@ -25,20 +23,15 @@ load and the up-to 480 MW campus IT total. Across 30 timeline assertions, the
 score is **0 TP, 0 FP, 30 FN**. The replay is high precision on very sparse
 coverage. It does not show that remaining facts are absent from sources.
 
-The native adapter admitted 4 of 22 unique-URL document groups (Aligned,
-CyrusOne, DataBank, and Switch) and held 18. This created 4 Projects, 4 accepted
-Evidence/Interpretation pairs, and 3 PowerNeeds, all with `required_mw: null`.
-Aligned's Conesville Industrial Park project has an unknown region state and no
-PowerNeed under current region policy. Switch creates an eligible Round Rock
-PowerNeed and now has a source-derived, project-scoped developer association.
-The runtime contains 3 account queue cards and 3 current project-scoped company
-links (CyrusOne, DataBank, Switch). The ordinary and primary canonical-only
-group queries each return those 3 project-scoped groups; the explicit shortlist
-is empty. These counts measure this bounded offline path, not production source
-activation, global identity accuracy, or legal ownership. The DataBank source
-facts remain evidence and do not become required demand.
+The native adapter admitted two of 22 unique-URL document groups (DataBank and
+CyrusOne), covering two of the 20 organizations. It held 20 document groups with `No complete source-bound
+project/location/activity relation`. The resulting two account cards and two
+project-scoped company links are a bounded validation path, not production
+source activation or canonical identity accuracy. The two `PowerNeed` rows
+retain `required_mw: null`; the DataBank source facts do not become required
+demand.
 
-The native runtime's CyrusOne project detail includes its retained-source
+The native runtime's CyrusOne project detail now includes its retained-source
 operational forecast: expected to be operational by the fourth quarter of 2026,
 with quarter precision and a deadline qualifier, from the July 30, 2025 source.
 This is a reported operational target, not construction start, energization, or
@@ -47,13 +40,6 @@ timeline fact and the saved detail API displays it. The separate source-text
 oracle replay below still scopes zero timeline claims for CyrusOne and scores
 the reference's Q4 2026 target as a false negative. Do not combine the runtime
 projection result with oracle-scoped extraction metrics.
-
-The source-backed runtime fact packages include DataBank's up-to 240 MW Phase 1
-IT load and up-to 480 MW campus IT total as separate scopes. They do not set
-required MW. The only timeline package claim is CyrusOne's expected operational
-Q4 2026 target. Aligned and Switch have no source-backed capacity or timeline
-claims in this run; their different admission/Need and organization-link states
-do not imply fact coverage. All three created PowerNeeds have unknown required MW.
 
 ## Per-source miss diagnosis
 
@@ -66,11 +52,11 @@ project/location/activity admission result, not proof that the fact is absent.
 | Reference source set | Frozen raw candidates | Main reason reference assertion(s) remain unmatched |
 | --- | --- | --- |
 | Vantage / Frontier | 2 capacity; 0 timeline | The 1,400 MW source phrase is found, but the parser records ordinary campus-development capacity rather than preserving the quoted GPU-compute basis. The first-building second-half-2026 delivery target is not parsed. Native admission lacks a complete source-bound site/activity relation. |
-| Aligned / Conesville | 0 capacity; 0 timeline | No physical MW assertion is in this excerpt. “Targeting initial capacity delivery mid 2026” is not recognized as a supported delivery event. The native adapter now binds the Conesville Industrial Park site and activity, but does not bind Ohio from the title to the physical site; the resulting Project has unknown state and is region-held without a PowerNeed. |
+| Aligned / Conesville | 0 capacity; 0 timeline | No physical MW assertion is in this excerpt. “Targeting initial capacity delivery mid 2026” is not recognized as a supported delivery event. The body names Conesville Industrial Park; locality is in the dateline, so the source-native site/location relation is not bound. |
 | DataBank / Red Oak | 3 capacity; 1 timeline | The strict scoper retains the phase and campus IT claims (the two TPs). The 400 MW substation rating is not emitted by the raw typed extractor. The RFS quarter is parsed raw, but site-anaphora scoping withholds it. Native admission succeeds from body text and the explicit adjacent “Red Oak Campus” alias. |
 | CyrusOne / Bosque | 2 capacity; 2 timeline | The oracle-scoped replay finds raw 190 MW agreement capacity and the Q4 2026 operational deadline but withholds both during project scoping: the deadline occurs in the later “The deal … facility” clause. The separate 400 MW Calpine platform capability is not an exclusive CyrusOne facility claim and is correctly absent from this source's raw candidates. Separately, the native retained-source runtime now admits the Q4 operational target into the CyrusOne project detail with quarter precision. The raw oracle scope replay still scores the timeline as 0 TP / 1 FN for this project; the native projection is not a scoring TP. Native admission succeeds, and the project/customer relationship does not turn 190 MW agreement capacity into IT load. |
 | QTS / Hillsboro | 2 capacity; 0 timeline | Raw 27 MW initial-building and 250 MW campus candidates exist; both are lost at source-to-project scoping. The approximately 4.5 MW lease is outside the physical-capacity denominator because its basis is unspecified. “Open and commission … mid-2020” and second-half-2020 additional power are not parsed into their distinct event types. Native relation is held. |
-| Switch / The Rock | 0 capacity; 0 timeline | The 60 MW acquired Austin/Houston properties and 185 MW Texas ecosystem total are expressly multi-site claims, not The Rock capacity. They must remain unbound. “Begin site preparation and permitting … summer 2021” is not extracted as a site-preparation event. The native adapter admits the Round Rock/Fifth Prime project and preserves the source-native The Rock alias. A source-backed developer claim now links a project-scoped Switch identity to the project; extraction still produces no MW or timeline facts for it. |
+| Switch / The Rock | 0 capacity; 0 timeline | The 60 MW acquired Austin/Houston properties and 185 MW Texas ecosystem total are expressly multi-site claims, not The Rock capacity. They must remain unbound. “Begin site preparation and permitting … summer 2021” is not extracted as a site-preparation event. Native relation is held; the source separates the Dell/Round Rock location clause from the later The Rock alias. |
 | Meta / Richland Parish | 2 capacity; 0 timeline | Raw parser emits 5 GW and over 2 GW as campus-development candidates, while the source wording explicitly says compute capacity. The December 2024 announcement is an announcement date, not a construction/operation milestone; no timeline candidate is appropriate without a distinct announcement event type. Native project/location/activity relation is held. |
 | Google / Fort Wayne | 0 capacity; 0 timeline | The retained set has no reference capacity or timeline assertion. No commercial extraction miss is scored for this source set. |
 | AWS / Madison County | 0 capacity; 0 timeline | The retained set has no reference capacity or timeline assertion. No commercial extraction miss is scored for this source set. |

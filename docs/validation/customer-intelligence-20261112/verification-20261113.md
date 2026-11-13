@@ -79,6 +79,10 @@ All tracked screenshot bytes were restored after the run; the root-relative befo
 
 ## Native source-coverage publication gates
 
+The updated native replay and source-text scope captures are retained in the
+[November 13 source-coverage receipts](native-source-coverage-20261113/README.md).
+They are preserved outside the frozen V1 evaluation corpus.
+
 The isolated `feat/native-source-coverage-20261113` worktree merged local
 `ff08016b` without rebasing (`0e92dbb1`) and fetched the target branch at
 `aa678d77`. The accepted parser, planned-developer
