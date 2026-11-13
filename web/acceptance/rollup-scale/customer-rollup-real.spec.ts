@@ -332,12 +332,18 @@ for (const viewport of viewports) {
       const url = new URL(response.url())
       return url.pathname === '/api/opportunities/projects' && deNeedIds.has(url.searchParams.get('need_id') ?? '')
     }, { timeout: httpBudgetMs })
-    const detail = deGroup.getByRole('region', { name: 'Account projects' }).locator('[data-project-id]').first().getByRole('button', { name: /Open (?:project detail|matching opportunity)/ })
+    // Fixture index 0 receives a current native contact/source. Page ordering
+    // can put it first, so choose the explicit historical-only fixture member.
+    const historicalProjectId = de48.project_ids[1]
+    const historicalNeedId = de48.need_ids[1]
+    expect(historicalProjectId).not.toBe(de48.project_ids[0])
+    const detail = deGroup.getByRole('region', { name: 'Account projects' }).locator(`[data-project-id="${historicalProjectId}"]`).getByRole('button', { name: /Open (?:project detail|matching opportunity)/ })
     await detail.click()
     const detailResponse = await detailResponseWait
     expect(detailResponse.status(), 'Project detail identity request must return HTTP 200 from the real API').toBe(200)
     const detailBody = await detailResponse.json() as { id: string }
     expect(deNeedIds.has(detailBody.id), 'Detail response must identify a member of the opened synthetic group').toBe(true)
+    expect(detailBody.id, 'Historical-source assertion must use its explicit fixture need').toBe(historicalNeedId)
     const preparedProjectResponse = await preparedProjectWait
     expect(preparedProjectResponse.status(), 'Project overview readback must return HTTP 200 from the real API').toBe(200)
     const preparedProjectBody = await preparedProjectResponse.json() as { items: Array<{ needs: Array<{ id: string }> }> }
