@@ -36,14 +36,17 @@ and saved API state after the metadata became part of the version hash.
 
 ## Receipts and limits
 
-- Native runtime: [`native-runtime-replay-publication-final-20261113.json`](native-runtime-replay-publication-final-20261113.json). Its fresh database was `gl3_customer_runtime_20261113085209_c4098418_test` and was dropped after the run.
-- Source-text oracle replay: [`source-text-scope-replay-publication-final-20261113.json`](source-text-scope-replay-publication-final-20261113.json).
+- Initial post-review receipts: [`native-runtime-replay-publication-final-20261113.json`](native-runtime-replay-publication-final-20261113.json) and [`source-text-scope-replay-publication-final-20261113.json`](source-text-scope-replay-publication-final-20261113.json).
+- Follow-up operational receipts after source freeze: [`native-runtime-replay-operational-final-20261113.json`](native-runtime-replay-operational-final-20261113.json) and [`source-text-scope-replay-operational-final-20261113.json`](source-text-scope-replay-operational-final-20261113.json). The native run used fresh database `gl3_customer_runtime_20261113091202_b2b37411_test`, which was dropped after completion.
 
 The native runtime surfaces CyrusOne's source-reported operational deadline:
 expected operation by Q4 2026, with quarter precision, in the July 30, 2025
 source. This is not a construction-start or energization date. The separate
 oracle-scoped text replay still scores that timeline assertion as a false
-negative; the runtime output is not counted as a scoring true positive.
+negative; the runtime output is not counted as a scoring true positive. The
+follow-up replay uses the post-freeze source-subject binding hash shown in its
+implementation manifest; it leaves the publication parser and reviewed date
+test hashes above unchanged.
 
 This review establishes behavior for the bounded header/date controls and the
 retained DataBank/CyrusOne native records. It is not a measure of publication

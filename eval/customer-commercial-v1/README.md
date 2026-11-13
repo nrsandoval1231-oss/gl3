@@ -1,5 +1,7 @@
 # Customer commercial intelligence evaluation v1
 
+For the subsequent native ingestion/API evaluation, see the [runtime receipt index](runtime/README.md). The original offline baseline below remains historical and uses a different evaluation path.
+
 This is a reproducible, offline evaluation against retained public-source excerpts for **20 real organizations**: 17 data-center developers/operators and three generation-infrastructure owners. It is a purposive stress cohort, not a representative production sample. Source observations are dated November 12, 2026; historical announcements are not current operational verification.
 
 ## Reproduce

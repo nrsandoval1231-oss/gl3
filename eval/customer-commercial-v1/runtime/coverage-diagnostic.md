@@ -10,12 +10,12 @@ accuracy. Native aliases derive only from freshly reparsed source text, never
 from expected claim values or reference aliases.
 
 The frozen replay is
-[`source-text-scope-replay-publication-final-20261113.json`](source-text-scope-replay-publication-final-20261113.json)
+[`source-text-scope-replay-operational-final-20261113.json`](source-text-scope-replay-operational-final-20261113.json)
 (gold SHA-256 `dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922`,
 source manifest SHA-256 `4b8831df9e94261806d2df7d51a4df1fd4299fe3b4daf862fdc64b99f192c5fb`).
 It uses reference identity/location only as disclosed oracle evaluation context.
 The current native validation capture is
-[`native-runtime-replay-publication-final-20261113.json`](native-runtime-replay-publication-final-20261113.json).
+[`native-runtime-replay-operational-final-20261113.json`](native-runtime-replay-operational-final-20261113.json).
 
 Across 32 physical capacity assertions, scoped predictions score **2 TP, 0 FP,
 30 FN**. The two true positives are DataBank Red Oak's phase 1 up-to 240 MW IT

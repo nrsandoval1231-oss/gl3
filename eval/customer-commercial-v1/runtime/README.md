@@ -23,7 +23,7 @@ Austin/Houston portfolio quantities were not attached to that site.
 
 ## Latest native runtime receipt
 
-See [native-runtime-replay-publication-final-20261113.json](native-runtime-replay-publication-final-20261113.json)
+See [native-runtime-replay-operational-final-20261113.json](native-runtime-replay-operational-final-20261113.json)
 for the latest complete output. It was created in a fresh loopback PostgreSQL database
 ending in `_test`, which the runner dropped after completion. The run produced:
 
@@ -60,7 +60,7 @@ withdrawal removes the published account membership. These are finite offline
 source-path controls, not production coverage.
 
 The separately scored 20-project source-text replay is in
-[source-text-scope-replay-publication-final-20261113.json](source-text-scope-replay-publication-final-20261113.json).
+[source-text-scope-replay-operational-final-20261113.json](source-text-scope-replay-operational-final-20261113.json).
 It verified 29 retained artifacts against 27 distinct source captures in the
 reference bundle; 2 artifacts were not assigned to those source captures. With
 reference project/location used only as disclosed oracle scope context, it
@@ -76,6 +76,9 @@ oracle-scope true positive.
 
 The publication date rule and bounded reviewer outcome are recorded in
 [publication-date-boundary-review-20261113.md](publication-date-boundary-review-20261113.md).
+The per-source miss breakdown and the difference between runtime projection
+and oracle-scoped scores are detailed in
+[coverage-diagnostic.md](coverage-diagnostic.md).
 
 ## Measurement limits
 

@@ -1,5 +1,7 @@
 # GridLens commercial intelligence delivery checkpoint
 
+The following checkpoint is historical. The [latest delivery and acceptance record](final-delivery-20261113.md) supersedes its runtime coverage, performance and verification status.
+
 November 13, 2026. **Draft, undeployed, commercially blocked.** This is a reviewable implementation checkpoint, not completion of the full mission or permission to release.
 
 ## Reviewable changes

@@ -9,7 +9,7 @@ The retained-source runtime evaluation traversed native ingestion, enrichment, c
 | Current default `groups(shortlist=True)` | 0 groups |
 | Open DataBank from ordinary groups | Succeeded |
 
-The exact receipt is [native-runtime-replay-20261113-ui-path.json](../../../eval/customer-commercial-v1/runtime/native-runtime-replay-20261113-ui-path.json). Both companies have zero eligible needs under the existing opportunity-shortlist policy. Their commissioning/rental demand is unknown; creating fictional demand to qualify them would be incorrect.
+The exact receipt is [native-runtime-replay-operational-final-20261113.json](../../../eval/customer-commercial-v1/runtime/native-runtime-replay-operational-final-20261113.json). Both companies have zero eligible needs under the existing opportunity-shortlist policy. Their commissioning/rental demand is unknown; creating fictional demand to qualify them would be incorrect.
 
 The primary customer workspace still defaults to Shortlist. The existing `web/tests/default_browse_mode.spec.ts:53` explicitly asserts the Shortlist button is pressed; line60 also requires a `shortlist=true` request. Those checks encode the earlier product policy. They pass as written but contradict the requested customer-first default for these real retained sources.
 
