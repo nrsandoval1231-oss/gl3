@@ -1,0 +1,585 @@
+{
+  "schema_version": "gridlens-customer-commercial-contact-refresh-v1",
+  "observation_date": "2026-11-13",
+  "purpose": "Public, observed first-party role research with currentness limits for the 20 reference customer organizations. This is a source-backed research dataset, not an outreach list or native GridLens identity binding.",
+  "collection": {
+    "method": "Firecrawl web search and direct Firecrawl scrapes of first-party company leadership, project, and SEC pages; no Alexandria or person-enrichment providers.",
+    "currentness_rule": "A first-party roster shows a role as presented when retrieved; an undated page does not independently verify continued employment or the role effective date. Dated announcements remain historical.",
+    "association_rule": "A company leadership page supports the person's company/role association. It does not prove assignment to the named reference project unless the source explicitly says so.",
+    "privacy_rule": "No personal email, phone, inferred address, or private profile contact method is included. Public organizational contact pages/shared inboxes only.",
+    "identity_rule": "Company-site self-identification is not independent native GridLens company-domain proof. SEC proof is recorded separately with exact issuer, EIN, domain statement, source URL and quote offsets."
+  },
+  "source_manifest": "source-manifest.json",
+  "identity_evidence": "company-identity-evidence.json",
+  "records": [
+    {
+      "reference_record_id": "vantage-frontier",
+      "company": "Vantage Data Centers",
+      "decision_makers": [
+        {
+          "name": "Jeff Tench",
+          "role": "Executive Vice President, Global",
+          "relevance": "Global leadership; current page assigns EMEA and APAC growth remit, while explicitly describing North America presidency as his previous role.",
+          "source_id": "vantage-leadership",
+          "evidence_quote": "Jeff TenchExecutive Vice President, Global\n\nAs global executive vice president at Vantage, Jeff Tench is responsible for accelerating growth in Europe, the Middle East and Africa (EMEA), and the Asia-Pacific (APAC) region. This role expands on his previous position as president, North America, where he led the company’s growth and overall P&L across the U.S. and Canada.",
+          "currentness": "The same undated company page presents him as Executive Vice President, Global and explicitly describes President, North America as his previous position; observed 2026-11-13, effective date unspecified.",
+          "role_history": [
+            {
+              "role": "President, North America",
+              "status": "explicitly previous per current bio text",
+              "source_id": "vantage-leadership",
+              "evidence_quote": "This role expands on his previous position as president, North America"
+            }
+          ],
+          "project_relevance_note": "Current bio remit is EMEA/APAC; prior North America role is historical in the page. No Frontier assignment is evidenced."
+        },
+        {
+          "name": "Dana Adams",
+          "role": "President, North America",
+          "relevance": "regional infrastructure leadership",
+          "source_id": "vantage-leadership",
+          "evidence_quote": "Dana AdamsPresident, North America\n\nAs president of Vantage’s North America business, Dana Adams oversees market development, sales, construction and operations across the United States and Canada.",
+          "currentness": "The company page lists her as President, North America and describes current regional responsibilities; observed 2026-11-13, effective date unspecified.",
+          "project_relevance_note": "Regional leadership includes construction and operations; no Frontier assignment is evidenced."
+        },
+        {
+          "name": "Samuel Huckaby",
+          "role": "Vice President, Construction",
+          "relevance": "North American development execution, commissioning and closeout",
+          "source_id": "vantage-leadership",
+          "evidence_quote": "Samuel HuckabyVice President, Construction",
+          "currentness": "The name/title appear in the captured company page, but the block is undated and retained with mixed-period leadership content; current employment is not independently verified.",
+          "research_relevance_status": "relevant construction role listed; currentness unverified"
+        }
+      ],
+      "research_status": "roster_role_history_explicit_but_undated",
+      "project_assignment": "No Frontier-specific assignment evidenced. Jeff current bio remit is EMEA/APAC; Dana is listed for North America; Samuel currentness remains unverified.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://vantage-dc.com/company/contact-us/",
+          "source_id": "vantage-leadership"
+        }
+      ],
+      "research_note": "The same page has a legacy Jeff Tench President, North America fragment; his global EVP bio says that was his previous role. The page lists Dana Adams as President, North America. Neither effective date is stated. Samuel Huckaby is listed as VP, Construction in an undated retained block, so current employment is not independently verified."
+    },
+    {
+      "reference_record_id": "aligned-conesville",
+      "company": "Aligned Data Centers",
+      "decision_makers": [
+        {
+          "name": "Chris Drumgoole",
+          "role": "Chief Operating Officer",
+          "relevance": "company operations leadership",
+          "source_id": "aligned-leadership",
+          "evidence_quote": "### Chris Drumgoole\n\nChief Operating Officer"
+        },
+        {
+          "name": "Michael Morris",
+          "role": "Chief Development Officer",
+          "relevance": "development leadership",
+          "source_id": "aligned-leadership",
+          "evidence_quote": "### Michael Morris\n\nChief Development Officer"
+        },
+        {
+          "name": "Michael Welch",
+          "role": "Chief Technology Officer",
+          "relevance": "technology and engineering leadership",
+          "source_id": "aligned-leadership",
+          "evidence_quote": "### Michael Welch\n\nChief Technology Officer"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Conesville assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://aligneddc.com/contact/",
+          "source_id": "aligned-leadership"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "databank-red-oak",
+      "company": "DataBank",
+      "decision_makers": [
+        {
+          "name": "Joe Minarik",
+          "role": "Chief Operating Officer",
+          "relevance": "data center operations, engineering and construction oversight",
+          "source_id": "databank-leadership",
+          "evidence_quote": "Joe Minarik\n\nChief Operating Officer"
+        },
+        {
+          "name": "Eric Swartz",
+          "role": "VP, Operations Engineering",
+          "relevance": "operations engineering",
+          "source_id": "databank-leadership",
+          "evidence_quote": "Eric Swartz\n\nVP, Operations Engineering"
+        },
+        {
+          "name": "Danny Allen",
+          "role": "VP, Engineering",
+          "relevance": "engineering leadership",
+          "source_id": "databank-leadership",
+          "evidence_quote": "Danny Allen\n\nVP, Engineering"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Red Oak assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_support_or_quote_page",
+          "url": "https://www.databank.com/support/",
+          "source_id": "databank-leadership"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "cyrusone-bosque",
+      "company": "CyrusOne",
+      "decision_makers": [
+        {
+          "name": "Danny Cowser",
+          "role": "Senior Vice President, Construction",
+          "relevance": "data center project delivery",
+          "source_id": "cyrusone-leadership",
+          "evidence_quote": "#### Danny Cowser\n\nSenior Vice President, Construction"
+        },
+        {
+          "name": "Gene Alessandrini",
+          "role": "Executive Vice President, Chief Development Officer",
+          "relevance": "leads Energy and Land organization; site evaluation through shovel-ready development",
+          "source_id": "cyrusone-leadership",
+          "evidence_quote": "Gene Alessandrini is Chief Development Officer at CyrusOne and a member of the company’s leadership team. He leads the Energy and Land organization"
+        },
+        {
+          "name": "Rob Johnson",
+          "role": "Executive Vice President, Chief Operating Officer",
+          "relevance": "global operations",
+          "source_id": "cyrusone-leadership",
+          "evidence_quote": "#### Rob Johnson\n\nExecutive Vice President, Chief Operating Officer"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Bosque-specific assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.cyrusone.com/contact",
+          "source_id": "cyrusone-leadership"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "qts-hillsboro",
+      "company": "QTS Realty Trust",
+      "decision_makers": [
+        {
+          "name": "Lane Anderson",
+          "role": "Chief Delivery Officer",
+          "relevance": "delivering complex data center projects",
+          "source_id": "qts-leadership",
+          "evidence_quote": "Lane Anderson\n\n###### Chief Delivery Officer"
+        },
+        {
+          "name": "Brian Herlihy",
+          "role": "Chief Development Officer",
+          "relevance": "development, design, safety and energy infrastructure",
+          "source_id": "qts-leadership",
+          "evidence_quote": "Brian Herlihy\n\n###### Chief Development Officer"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Hillsboro assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://q.com/contact-us/",
+          "source_id": "qts-leadership"
+        },
+        {
+          "kind": "shared_business_email",
+          "value": "sales@q.com",
+          "source_id": "qts-leadership"
+        }
+      ],
+      "publisher_entity_label": "QTS Realty Trust, LLC",
+      "publisher_entity_source_quote": "© 2026 QTS Realty Trust, LLC. All Rights Reserved",
+      "company_association_note": "Brand-level QTS association only; do not bind the LLC footer label or any historical Inc. legal form to the reference organization without separate identity evidence."
+    },
+    {
+      "reference_record_id": "switch-the-rock",
+      "company": "Switch",
+      "decision_makers": [
+        {
+          "name": "Joshua Ewing",
+          "role": "Chief Construction Officer",
+          "relevance": "construction leadership",
+          "source_id": "switch-executive-team",
+          "evidence_quote": "### Joshua Ewing\n\n##### Chief Construction officer"
+        },
+        {
+          "name": "Jonathan H. King",
+          "role": "Chief Business Officer",
+          "relevance": "power and land development, sales and go-to-market",
+          "source_id": "switch-executive-team",
+          "evidence_quote": "### Jonathan H. King\n\n##### CHIEF BUSINESS OFFICER"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no The Rock assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.switch.com/contact/",
+          "source_id": "switch-executive-team"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "meta-richland",
+      "company": "Meta",
+      "decision_makers": [],
+      "research_status": "no_current_full_named_relevant_person_found",
+      "research_note": "The current Meta Richland project page was checked; it identifies the project and construction activity but names no relevant construction, engineering, energy or commissioning decision-maker.",
+      "project_assignment": "Project page is first-party, but no person assignment named.",
+      "public_organization_channels": [],
+      "identity_binding_note": "SEC issuer Meta Platforms, Inc. states investor.atmeta.com and meta.com/news; the reference source host datacenters.atmeta.com is not independently bound by the captured SEC domain statement."
+    },
+    {
+      "reference_record_id": "google-fort-wayne",
+      "company": "Google",
+      "decision_makers": [],
+      "research_status": "no_full_named_relevant_person_found",
+      "research_note": "Google's official data-center careers page exposes role labels with first names only (for example, “Jim”, “Stephen”, “Sri”); no full person identity suitable for a decision-maker record was found.",
+      "project_assignment": "No Fort Wayne assignment evidenced.",
+      "public_organization_channels": []
+    },
+    {
+      "reference_record_id": "aws-madison",
+      "company": "Amazon Web Services",
+      "decision_makers": [
+        {
+          "name": "Roger Wehner",
+          "role": "AWS director of economic development",
+          "relevance": "historical project announcement spokesperson, not a verified construction/engineering decision-maker",
+          "source_id": "aws-madison-announcement",
+          "evidence_quote": "said Roger Wehner, AWS director of economic development.",
+          "source_publication_date": "2024-01-25",
+          "currentness": "historical_only; no current role verification"
+        }
+      ],
+      "research_status": "historical_only_no_current_relevant_person_verified",
+      "research_note": "The official announcement names Wehner in a dated 2024 statement. This is retained as historical evidence only; no current employment or current authority is inferred.",
+      "project_assignment": "Dated Mississippi announcement, not a current role check.",
+      "public_organization_channels": [],
+      "identity_binding_note": "SEC evidence concerns Amazon.com, Inc.; it does not establish a direct legal-entity/domain binding for the Amazon Web Services reference organization or aboutamazon.com project-source host."
+    },
+    {
+      "reference_record_id": "microsoft-fairwater",
+      "company": "Microsoft",
+      "decision_makers": [
+        {
+          "name": "Noelle Walsh",
+          "role": "President, Cloud Operations and Innovation",
+          "relevance": "leads global Microsoft Cloud organization and oversees company physical cloud infrastructure and operations",
+          "source_id": "microsoft-pecos-datacenter-post",
+          "evidence_quote": "Noelle Walsh leads the organization that powers the global Microsoft Cloud. She oversees the company’s physical cloud infrastructure and operations, with a charter focused on safety, security, availability, sustainability and competitive infrastructure growth — bringing decades of global operational leadership.",
+          "source_publication_date": "2026-06-22",
+          "currentness": "Current role evidenced by a dated first-party Microsoft datacenter article; role current as of publication, observed within the previous 365 days."
+        }
+      ],
+      "research_status": "current_dated_first_party_company_role",
+      "project_assignment": "Company-wide CO+I role; the source does not assign Walsh to Fairwater.",
+      "public_organization_channels": [],
+      "identity_binding_note": "SEC 10-K independently links Microsoft Corporation and microsoft.com; the company-wide role source is a Microsoft-owned publication."
+    },
+    {
+      "reference_record_id": "stack-svy01",
+      "company": "STACK Infrastructure",
+      "decision_makers": [
+        {
+          "name": "Omar Muhialdin",
+          "role": "Senior VP Engineering & Client Services, STACK APAC",
+          "relevance": "Engineering and client-services role is explicitly STACK APAC; out of region for the U.S. SVY01 project absent contrary assignment evidence.",
+          "source_id": "stack-team",
+          "evidence_quote": "### Omar Muhialdin\n\nSenior VP Engineering & Client Services,\n\nSTACK APAC",
+          "project_relevance_status": "out_of_region_apac_not_project_relevant_without_assignment"
+        },
+        {
+          "name": "Bobby Hollis",
+          "role": "Chief Development Officer, STACK Americas",
+          "relevance": "development leadership",
+          "source_id": "stack-team",
+          "evidence_quote": "### Bobby Hollis\n\nChief Development Officer,\n\nSTACK Americas"
+        },
+        {
+          "name": "Mike Casey",
+          "role": "Chief Operating Officer, STACK Americas",
+          "relevance": "operations leadership",
+          "source_id": "stack-team",
+          "evidence_quote": "### Mike Casey\n\nChief Operating Officer,\n\nSTACK Americas"
+        },
+        {
+          "name": "Addam Friedl",
+          "role": "Chief Technology Officer, STACK Americas",
+          "relevance": "technology/engineering leadership",
+          "source_id": "stack-team",
+          "evidence_quote": "### Addam Friedl\n\nChief Technology Officer,\n\nSTACK Americas"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "No SVY01 assignment evidenced; Omar Muhialdin’s explicit APAC role is out of region for this U.S. project.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.stackinfra.com/about/contact/",
+          "source_id": "stack-team"
+        }
+      ],
+      "research_note": "Omar Muhialdin is listed for STACK APAC and is therefore out of region for SVY01; Americas leadership records are retained separately. No project assignment is stated."
+    },
+    {
+      "reference_record_id": "applied-ellendale",
+      "company": "Applied Digital Corporation",
+      "decision_makers": [
+        {
+          "name": "Laura Laltrello",
+          "role": "Chief Operating Officer",
+          "relevance": "day-to-day operations and infrastructure projects",
+          "source_id": "applied-digital-leadership",
+          "evidence_quote": "## Laura Laltrello\n\nChief Operating Officer\n\nLaura Laltrello is the Chief Operating Officer for Applied Digital.",
+          "identity_evidence_id": "applied-digital-sec-domain-proof"
+        },
+        {
+          "name": "Todd Gale",
+          "role": "Chief Development Officer",
+          "relevance": "development leadership",
+          "source_id": "applied-digital-leadership",
+          "evidence_quote": "## Todd Gale\n\nChief Development Officer\n\nTodd Gale is the Chief Development Officer of Applied Digital.",
+          "identity_evidence_id": "applied-digital-sec-domain-proof"
+        }
+      ],
+      "research_status": "current_first_party_roster_and_sec_domain_identity",
+      "project_assignment": "Company-wide roles; no Ellendale assignment evidenced.",
+      "public_organization_channels": [],
+      "identity_evidence_id": "applied-digital-sec-domain-proof"
+    },
+    {
+      "reference_record_id": "crusoe-abilene",
+      "company": "Crusoe",
+      "decision_makers": [
+        {
+          "name": "Chris Dolan",
+          "role": "Chief Data Center Officer",
+          "relevance": "development and scaling of high-density AI infrastructure",
+          "source_id": "crusoe-leadership",
+          "evidence_quote": "Chris Dolan is Chief Data Center Officer at Crusoe, where he leads the development and scaling of large-scale, high-density AI infrastructure."
+        },
+        {
+          "name": "Jamie McGrath",
+          "role": "SVP, Data Center Operations",
+          "relevance": "data center operations and construction",
+          "source_id": "crusoe-leadership",
+          "evidence_quote": "Jamie McGrath is Senior Vice President, Data Center Operations & Construction at Crusoe, where he oversees the deployment, management, and continuous operation"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Abilene assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_sales_contact_page",
+          "url": "https://www.crusoe.ai/contact-sales",
+          "source_id": "crusoe-leadership"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "compass-meridian",
+      "company": "Compass Datacenters",
+      "decision_makers": [
+        {
+          "name": "Tamara Yang",
+          "role": "Chief Delivery Officer",
+          "relevance": "responsible for Compass global construction program and Delivery organization",
+          "source_id": "compass-leadership",
+          "evidence_quote": "Tamara Yang has over 20 years of experience in the construction industry and serves as Compass Datacenters’ Chief Delivery Officer. She is responsible for Compass’ global construction program and heads the Delivery organization."
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "research_note": "The page text calls her Tamara Yang; its headshot alt text says Tammy Yang. The person is listed by the text name Tamara; source name variation retained.",
+      "project_assignment": "Company-wide role; no Meridian assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.compassdatacenters.com/about/contact-us/",
+          "source_id": "compass-leadership"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "edgecore-mesa",
+      "company": "EdgeCore Digital Infrastructure",
+      "decision_makers": [
+        {
+          "name": "Dave Rezash",
+          "role": "SVP, Design & Construction",
+          "relevance": "data-center design and construction",
+          "source_id": "edgecore-dave-rezash",
+          "evidence_quote": "# Dave Rezash\n\nSVP, Design & Construction"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide role; no Mesa-specific assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://edgecore.com/company/contact",
+          "source_id": "edgecore-dave-rezash"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "digital-realty-lagos",
+      "company": "Digital Realty",
+      "decision_makers": [
+        {
+          "name": "Jeff Tapley",
+          "role": "Chief Operating Officer",
+          "relevance": "global operations, design, construction, customer success, health and safety",
+          "source_id": "digital-realty-leadership",
+          "evidence_quote": "Jeff Tapley\n\nChief Operating Officer"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide role; no Lagos assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.digitalrealty.com/contact",
+          "source_id": "digital-realty-leadership"
+        },
+        {
+          "kind": "shared_business_email",
+          "value": "sales@digitalrealty.com",
+          "source_id": "digital-realty-leadership"
+        }
+      ],
+      "identity_binding_note": "SEC 2024 Form 10-K gives both Digital Realty Trust, Inc. and Digital Realty Trust, L.P. EINs; treat the match as ambiguous until issuer-scoped proof is established."
+    },
+    {
+      "reference_record_id": "equinix-jh2",
+      "company": "Equinix",
+      "decision_makers": [
+        {
+          "name": "Raouf Abdel",
+          "role": "Executive Vice President, Global Operations",
+          "relevance": "oversees design, construction, procurement, energy and IBX operations",
+          "source_id": "equinix-leadership",
+          "evidence_quote": "Raouf Abdel, EVP, Global Operations, oversees Design, Construction, Procurement, Energy and IBX Operations for Equinix’s world-class data centers and interconnection platform.",
+          "identity_evidence_id": "equinix-sec-domain-proof"
+        }
+      ],
+      "research_status": "current_first_party_roster_and_sec_domain_identity",
+      "project_assignment": "Company-wide role; no Johor/JH2 assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.equinix.com/contact-us",
+          "source_id": "equinix-leadership"
+        }
+      ],
+      "identity_evidence_id": "equinix-sec-domain-proof"
+    },
+    {
+      "reference_record_id": "fervo-cape-station",
+      "company": "Fervo Energy",
+      "decision_makers": [
+        {
+          "name": "Sarah Jewett",
+          "role": "COO",
+          "relevance": "company operations leadership",
+          "source_id": "fervo-team",
+          "evidence_quote": "##### Sarah Jewett\n\nCOO"
+        },
+        {
+          "name": "Dawn Owens",
+          "role": "SVP, Head of Development & Commercial Markets",
+          "relevance": "development and commercial leadership",
+          "source_id": "fervo-team",
+          "evidence_quote": "##### Dawn Owens\n\nSVP, Head of Development & Commercial Markets"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Company-wide roles; no Cape Station assignment evidenced.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://fervoenergy.com/contact",
+          "source_id": "fervo-team"
+        },
+        {
+          "kind": "shared_business_email",
+          "value": "info@fervoenergy.com",
+          "source_id": "fervo-team"
+        }
+      ]
+    },
+    {
+      "reference_record_id": "dominion-cvow",
+      "company": "Dominion Energy",
+      "decision_makers": [
+        {
+          "name": "Mark D. Mitchell",
+          "role": "President-Project Construction",
+          "relevance": "construction leadership",
+          "source_id": "dominion-executive-leadership",
+          "evidence_quote": "### Mark D. Mitchell\n\nPresident-Project Construction"
+        },
+        {
+          "name": "Emil Avram",
+          "role": "Senior Vice President-Generation Development, Dominion Energy Virginia",
+          "relevance": "Generation development leadership at Dominion Energy Virginia; parent-level employment and CVOW assignment are not established by this source.",
+          "source_id": "dominion-executive-leadership",
+          "evidence_quote": "### Emil Avram\n\nSenior Vice President-Generation Development\n\nDominion Energy Virginia",
+          "company_association_scope": "Dominion Energy Virginia, as stated on the source page; the source does not establish a separate parent-level employment relationship."
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "Listed construction/development roles; no Coastal Virginia Offshore Wind assignment evidenced.",
+      "public_organization_channels": [],
+      "identity_evidence_id": "dominion-sec-annual-report-domain-support",
+      "research_note": "Mark D. Mitchell is listed as President-Project Construction. Emil Avram is listed as Senior Vice President-Generation Development for Dominion Energy Virginia; do not collapse that division-specific association into a parent-level role or infer CVOW assignment."
+    },
+    {
+      "reference_record_id": "terrapower-kemmerer",
+      "company": "TerraPower",
+      "decision_makers": [
+        {
+          "name": "Pat Young",
+          "role": "Senior Vice President, Natrium Project Director",
+          "relevance": "direct project leadership",
+          "source_id": "terrapower-about",
+          "evidence_quote": "### Pat Young\n\n\n\n### Senior Vice President, Natrium Project Director"
+        },
+        {
+          "name": "Mark Werner",
+          "role": "Vice President, Plant Delivery – Natrium",
+          "relevance": "Natrium plant delivery",
+          "source_id": "terrapower-about",
+          "evidence_quote": "### Mark Werner\n\n### Vice President, Plant Delivery – Natrium"
+        }
+      ],
+      "research_status": "current_first_party_roster",
+      "project_assignment": "The source explicitly ties these roles to the Natrium program.",
+      "public_organization_channels": [
+        {
+          "kind": "official_contact_page",
+          "url": "https://www.terrapower.com/contact/",
+          "source_id": "terrapower-about"
+        }
+      ]
+    }
+  ]
+}

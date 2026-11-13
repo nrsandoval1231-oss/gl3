@@ -1,0 +1,207 @@
+{
+  "schema_version": "gridlens-company-domain-evidence-v1",
+  "observed_at": "2026-11-13",
+  "records": [
+    {
+      "evidence_id": "applied-digital-sec-domain-proof",
+      "customer_reference_id": "applied-ellendale",
+      "status": "supported_exact_issuer_and_registered_domain",
+      "issuer_name": "APPLIED DIGITAL CORPORATION",
+      "ein": "95-4863690",
+      "cik": "0001144879",
+      "sec_filing_type": "10-K",
+      "filing_date": "2026-07-29",
+      "sec_filing_url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+      "sec_index_source_id": "sec-apld-index",
+      "official_domain_statement": "www.applieddigital.com",
+      "reference_source_host": "ir.applieddigital.com",
+      "host_comparison": "same registered domain: applieddigital.com",
+      "quotes": [
+        {
+          "label": "exact_registrant_name",
+          "text": "| APPLIED DIGITAL CORPORATION |\n\n(Exact name of registrant as specified in its charter)",
+          "byte_start": 35319,
+          "byte_end": 35406,
+          "sha256_utf8": "b267d4a9650ab0465d0f96d086ae107cfd482bc17876f36613e9213326134073",
+          "raw_file": "raw/sec-apld-10k.md",
+          "raw_source_sha256_utf8": "a020ecb3efd2502acb561a6ad1446264b5585513ef07d5d21024c719c6c400a5"
+        },
+        {
+          "label": "issuer_ein",
+          "text": "| Nevada | 95-4863690 |\n| (State or other jurisdiction of incorporation or organization) | (I.R.S. Employer Identification No.) |",
+          "byte_start": 35639,
+          "byte_end": 35768,
+          "sha256_utf8": "042953d14ec06a0273ba65ee09d745b96beef96cc5b0a508405a89761979fb34",
+          "raw_file": "raw/sec-apld-10k.md",
+          "raw_source_sha256_utf8": "a020ecb3efd2502acb561a6ad1446264b5585513ef07d5d21024c719c6c400a5"
+        },
+        {
+          "label": "issuer_website",
+          "text": "Our principal website address is www.applieddigital.com.",
+          "byte_start": 82628,
+          "byte_end": 82684,
+          "sha256_utf8": "4a38954016920acfca0771e95e0364c7cc16a310d4eb5a7ee55e6e3db243e6a6",
+          "raw_file": "raw/sec-apld-10k.md",
+          "raw_source_sha256_utf8": "a020ecb3efd2502acb561a6ad1446264b5585513ef07d5d21024c719c6c400a5"
+        }
+      ],
+      "limits": "Current leadership page is separately captured. No project-specific assignment is inferred from the issuer/domain proof."
+    },
+    {
+      "evidence_id": "equinix-sec-domain-proof",
+      "customer_reference_id": "equinix-jh2",
+      "status": "supported_exact_issuer_and_registered_domain",
+      "issuer_name": "EQUINIX, INC.",
+      "ein": "77-0487526",
+      "cik": "0001101239",
+      "sec_filing_type": "10-K",
+      "filing_date": "2026-02-11",
+      "sec_filing_url": "https://www.sec.gov/Archives/edgar/data/1101239/000110123926000032/eqix-20251231.htm",
+      "sec_index_source_id": "sec-equinix-index",
+      "official_domain_statement": "www.equinix.com",
+      "reference_source_host": "newsroom.equinix.com",
+      "host_comparison": "same registered domain: equinix.com",
+      "quotes": [
+        {
+          "label": "exact_registrant_name",
+          "text": "EQUINIX, INC.\n\n(Exact name of registrant as specified in its charter)",
+          "byte_start": 52132,
+          "byte_end": 52201,
+          "sha256_utf8": "71304c8f83cc4b31d5ae44b51afa2fffa535780e81db58105d7294946bec6b7d",
+          "raw_file": "raw/sec-equinix-10k.md",
+          "raw_source_sha256_utf8": "282596c67590f6c2b53ce253403d24640def1e6a2066b26b32ccd581a7232539"
+        },
+        {
+          "label": "issuer_ein",
+          "text": "| Delaware |  | 77-0487526 |\n| (State of incorporation) |  | (I.R.S. Employer Identification No.) |",
+          "byte_start": 52344,
+          "byte_end": 52443,
+          "sha256_utf8": "81e28454d923835415dc1d5afc6a02e3d8c9903f60138431dd2cc13687faf05c",
+          "raw_file": "raw/sec-equinix-10k.md",
+          "raw_source_sha256_utf8": "282596c67590f6c2b53ce253403d24640def1e6a2066b26b32ccd581a7232539"
+        },
+        {
+          "label": "issuer_website",
+          "text": "You may also obtain copies of our annual reports on Form 10-K, our quarterly reports on Form 10-Q and our current reports on Form 8-K, including exhibits, and any amendments to such reports, free of charge by visiting the Investor Relations page on our website, www.equinix.com.",
+          "byte_start": 115321,
+          "byte_end": 115599,
+          "sha256_utf8": "279ab30aff15ab95b661eb248c069289b1849501ace8e2e71792223539a9208a",
+          "raw_file": "raw/sec-equinix-10k.md",
+          "raw_source_sha256_utf8": "282596c67590f6c2b53ce253403d24640def1e6a2066b26b32ccd581a7232539"
+        }
+      ],
+      "limits": "Current leadership page separately names Raouf Abdel; no JH2 project assignment is inferred."
+    },
+    {
+      "evidence_id": "microsoft-sec-domain-proof",
+      "customer_reference_id": "microsoft-fairwater",
+      "status": "supported_exact_issuer_and_registered_domain",
+      "issuer_name": "MICROSOFT CORPORATION",
+      "ein": "91-1144442",
+      "cik": "0000789019",
+      "sec_filing_type": "10-K",
+      "filing_date": "2026-07-29",
+      "sec_filing_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "sec_index_source_id": "sec-microsoft-index",
+      "official_domain_statement": "www.microsoft.com",
+      "reference_source_host": "blogs.microsoft.com",
+      "host_comparison": "same registered domain: microsoft.com",
+      "quotes": [
+        {
+          "label": "exact_issuer_name_and_ein",
+          "text": "Commission File Number 001-37845\n\nMICROSOFT CORPORATION\n\n|     |     |     |\n| --- | --- | --- |\n|  |  |  |\n| Washington |  | 91-1144442 |\n| (STATE OF INCORPORATION) |  | (I.R.S. ID) |",
+          "byte_start": 32865,
+          "byte_end": 33049,
+          "sha256_utf8": "cb89b0418666b9a78b04cccf573bb4f55ae5219051a6434c83149dba19bdb944",
+          "raw_file": "raw/sec-microsoft-10k.md",
+          "raw_source_sha256_utf8": "d88ee0d7ce516cc70736d7e851b1eaf9d357826badfe3661fedd390b3d4fdcd6"
+        },
+        {
+          "label": "issuer_website",
+          "text": "Our Internet address is www.microsoft.com.",
+          "byte_start": 84587,
+          "byte_end": 84629,
+          "sha256_utf8": "bfbb46621aff2a8ceac3f1721cf7a70c91dffb16ee6e1eef352d04f701c65c63",
+          "raw_file": "raw/sec-microsoft-10k.md",
+          "raw_source_sha256_utf8": "d88ee0d7ce516cc70736d7e851b1eaf9d357826badfe3661fedd390b3d4fdcd6"
+        }
+      ],
+      "limits": "The current Noelle Walsh source is company-wide Cloud Operations + Innovation leadership; it does not assign her to Fairwater."
+    },
+    {
+      "evidence_id": "meta-sec-domain-review",
+      "customer_reference_id": "meta-richland",
+      "status": "hold_project_host_not_explicitly_bound",
+      "issuer_name": "Meta Platforms, Inc.",
+      "ein": "20-1665019",
+      "cik": "0001326801",
+      "sec_filing_type": "10-K",
+      "filing_date": "2026-01-29",
+      "sec_filing_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/meta-20251231.htm",
+      "sec_index_source_id": "sec-meta-index",
+      "official_domains_stated_in_filing": [
+        "investor.atmeta.com",
+        "meta.com/news"
+      ],
+      "reference_source_host": "datacenters.atmeta.com",
+      "host_comparison": "not established by the captured statement; do not broaden from investor.atmeta.com or meta.com/news to datacenters.atmeta.com",
+      "quotes": [
+        {
+          "label": "issuer_ein",
+          "text": "| Delaware | 20-1665019 |\n| (State or other jurisdiction of incorporation or organization) | (I.R.S. Employer Identification Number) |",
+          "byte_start": 19630,
+          "byte_end": 19764,
+          "sha256_utf8": "62134fbaeeac9920a7b0104d1f97ed5be3e876f8bf4f93ac188ce373b75b8704",
+          "raw_file": "raw/sec-meta-10k.md",
+          "raw_source_sha256_utf8": "8cf35ad03172b927b4cb25e9eedaf2fb56ca028a4f1b661fa0f32986310b3152"
+        },
+        {
+          "label": "filing_website_statement",
+          "text": "Such reports and other information filed by us with the SEC are available free of charge on our website at investor.atmeta.com when such reports are available on the SEC's website. We use our investor.atmeta.com and meta.com/news websites as well as Mark Zuckerberg's Facebook profile (www.facebook.com/zuck), Instagram account (www.instagram.com/zuck), and Threads profile (www.threads.net/zuck) as means of disclosing material non-public information and for complying with our disclosure obligations under Regulation FD.",
+          "byte_start": 73305,
+          "byte_end": 73827,
+          "sha256_utf8": "5f83af773b79f6d6fd089f917822d26a9799ca2c94b2b74ef7c28bd9690365c0",
+          "raw_file": "raw/sec-meta-10k.md",
+          "raw_source_sha256_utf8": "8cf35ad03172b927b4cb25e9eedaf2fb56ca028a4f1b661fa0f32986310b3152"
+        }
+      ],
+      "limits": "Meta's official project page is retained separately. The SEC text does not make a direct project-host binding."
+    },
+    {
+      "evidence_id": "dominion-sec-annual-report-domain-support",
+      "customer_reference_id": "dominion-cvow",
+      "status": "supporting_annual_report_and_sec_index_pair_not_10k_proof",
+      "issuer_name": "Dominion Energy, Inc.",
+      "ein": "54-1229715",
+      "cik": "0000715957",
+      "sec_filing_type": "ARS (annual report); the SEC index is not a 10-K filing",
+      "filing_date": "2026-03-19",
+      "sec_filing_url": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/dei-ars-12312025.pdf",
+      "sec_index_source_id": "sec-dominion-index",
+      "official_domain_statement": "https://www.dominionenergy.com",
+      "reference_source_host": "www.dominionenergy.com",
+      "host_comparison": "same stated host family in issuer annual report",
+      "quotes": [
+        {
+          "label": "issuer_name",
+          "text": "Dominion Energy, Inc.",
+          "byte_start": 8362,
+          "byte_end": 8383,
+          "sha256_utf8": "ac5a73729954002db1f8b7e15217b26fccd6b6b9ca9659535e6a929daebaa045",
+          "raw_file": "raw/sec-dominion-annual-report.md",
+          "raw_source_sha256_utf8": "46f298e2d3ae2017b5d5afa1e60cadc46a21461199b545443b3b084b24df8efc"
+        },
+        {
+          "label": "issuer_website",
+          "text": "available, free of charge, through Dominion Energy’s website,\nhttps://www.dominionenergy.com, as soon as reasonably\npracticable after filing or furnishing the material to the SEC.",
+          "byte_start": 65782,
+          "byte_end": 65963,
+          "sha256_utf8": "98464e6341479cbbd49a01dde6a36aa106b3c15dfcda2ea9ad20c71e8f96323d",
+          "raw_file": "raw/sec-dominion-annual-report.md",
+          "raw_source_sha256_utf8": "46f298e2d3ae2017b5d5afa1e60cadc46a21461199b545443b3b084b24df8efc"
+        }
+      ],
+      "limits": "This is supporting identity evidence from an annual report and SEC index, not a completed same-10-K parser proof."
+    }
+  ]
+}
