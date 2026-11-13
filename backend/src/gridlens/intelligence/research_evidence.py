@@ -483,6 +483,13 @@ def retain_research_document(
         scope_customer_facts,
     )
 
+    identity_facts = project.identity_facts if isinstance(project.identity_facts, dict) else {}
+    raw_aliases = identity_facts.get("project_aliases", [])
+    project_aliases = (
+        [value for value in raw_aliases if isinstance(value, str)]
+        if isinstance(raw_aliases, list)
+        else []
+    )
     customer_facts = scope_customer_facts(
         extract_customer_facts(
             document.text,
@@ -491,6 +498,8 @@ def retain_research_document(
         ),
         project.name,
         project.location or "",
+        source_text=document.text,
+        project_aliases=project_aliases,
     )
     customer_claims = (
         [

@@ -15,8 +15,11 @@ CUSTOMER_ROLE_ORDER = {
     "owner_energy": 1,
     "owner_construction": 2,
     "asset_operator": 3,
+    # Added last to preserve existing order values for established roles.
+    "project_customer": 4,
 }
 OWNER_ROLES = ("owner_developer", "owner_energy", "owner_construction")
+PROJECT_CUSTOMER_ROLE = "project_customer"
 
 
 @dataclass(frozen=True)
@@ -113,7 +116,14 @@ def select_primary_roles(
             if not owners and (project_id in blocked or project_id in blocked_owners):
                 result[project_id] = PrimaryRoleSelection("conflict")
                 continue
-            primary = owners or [row for row in candidates if row[1].category == "asset_operator"]
+            project_customers = [
+                row for row in candidates if row[1].category == PROJECT_CUSTOMER_ROLE
+            ]
+            primary = (
+                owners
+                or project_customers
+                or [row for row in candidates if row[1].category == "asset_operator"]
+            )
         else:
             if project_id in blocked or project_id in blocked_owners:
                 result[project_id] = PrimaryRoleSelection("conflict")

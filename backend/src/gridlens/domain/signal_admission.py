@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from datetime import UTC
@@ -103,6 +104,8 @@ def source_origin(family: str, retrieval_method: str) -> str:
         }.get(retrieval_method, "Unverified RFI context")
     if family == "news" or retrieval_method == "publisher-rss":
         return "News context"
+    if retrieval_method == "retained-company-projects" and family == "retained-public-document":
+        return "Retained project announcement; customer demand remains unverified"
     if retrieval_method == "retained-document" and family == "retained-public-document":
         return "Retained public document; claimant statements are attributed, not adjudicated"
     if retrieval_method == "retained-document" and family == "retained-operator-publication":
@@ -127,6 +130,19 @@ def source_origin(family: str, retrieval_method: str) -> str:
     return "Source evidence"
 
 
+def _retained_company_interpretation(record: dict[str, Any] | None) -> dict[str, str] | None:
+    from gridlens.ingestion.adapters.retained_company_projects import (
+        interpret_retained_company_project,
+        retained_record_hash,
+    )
+
+    if not isinstance(record, dict) or not isinstance(record.get("abstract"), str):
+        return None
+    if retained_record_hash(record) != record.get("source_hash"):
+        return None
+    return interpret_retained_company_project(record)
+
+
 def admit_standalone(
     *,
     source_id: str,
@@ -139,6 +155,7 @@ def admit_standalone(
     dated: bool = False,
     citation_url: str | None = None,
     identified_project: bool = False,
+    retained_record: dict[str, Any] | None = None,
 ) -> Admission:
     """Check source authority and retained claim content before opportunity creation.
 
@@ -148,6 +165,34 @@ def admit_standalone(
     origin = source_origin(family, retrieval_method)
     if not accepted:
         return Admission(False, origin, "The current source version has no accepted assessment.")
+    if retrieval_method == "retained-company-projects":
+        from gridlens.ingestion.adapters.retained_company_projects import (
+            FAMILY,
+            SOURCE_ID,
+        )
+
+        fresh = _retained_company_interpretation(retained_record)
+        valid = bool(
+            source_id == SOURCE_ID
+            and family == FAMILY
+            and fresh
+            and identified_project
+            and dated
+            and retained_record
+            and retained_record.get("title") == title
+            and retained_record.get("abstract") == abstract
+            and retained_record.get("html_url") == citation_url
+            and fresh.get("activity_key") == activity
+        )
+        return Admission(
+            valid,
+            origin,
+            "Accepted an exact retained source/site/activity record; rental demand is unknown."
+            if valid
+            else (
+                "Retained site activity requires a current hash-bound source-local interpretation."
+            ),
+        )
     if retrieval_method == "retained-document":
         from gridlens.ingestion.adapters.retained_document import SOURCES
 
@@ -336,6 +381,59 @@ def admit_standalone(
 
 def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any) -> Admission:
     """Evaluate a persisted accepted assessment and its exact retained evidence."""
+    if source.retrieval_method == "retained-company-projects":
+        from gridlens.ingestion.adapters.retained_company_projects import (
+            FAMILY,
+            SOURCE_ID,
+        )
+
+        retained = (getattr(evidence, "provenance", None) or {}).get("retained_company_project")
+        record = {
+            "document_number": getattr(evidence, "url", None),
+            "title": getattr(evidence, "title", None),
+            "abstract": getattr(evidence, "abstract", None),
+            "html_url": getattr(evidence, "url", None),
+            "publication_date": evidence.published_at.isoformat()
+            if evidence is not None and evidence.published_at
+            else None,
+            "observation_date": evidence.observed_at.date().isoformat()
+            if evidence is not None and evidence.observed_at
+            else None,
+            "source_hash": getattr(evidence, "content_hash", None),
+            "source_body_hash": retained.get("body_hash") if isinstance(retained, dict) else None,
+            "publication_date_precision": retained.get("publication_date_precision")
+            if isinstance(retained, dict)
+            else None,
+            "retained_company_project": retained,
+        }
+        # The external ID is a source-native URL digest, never a reference label.
+        if isinstance(record["html_url"], str):
+            record["document_number"] = hashlib.sha256(record["html_url"].encode()).hexdigest()
+        retained_claim = _retained_company_interpretation(record)
+        valid = bool(
+            str(source.id) == SOURCE_ID
+            and source.family == FAMILY
+            and retained_claim
+            and assessment.get("decision") == "accepted"
+            and assessment.get("tier") == "Signal"
+            and assessment.get("evidence_hash") == evidence.content_hash
+            and assessment.get("subject") == retained_claim.get("name")
+            and assessment.get("location") == retained_claim.get("location")
+            and assessment.get("power_activity") == retained_claim.get("activity_key")
+            and evidence.published_at
+            and evidence.observed_at
+            and evidence.published_at <= evidence.observed_at.date()
+            and isinstance(assessment.get("evidence"), dict)
+            and assessment["evidence"].get("id") == str(evidence.id)
+            and assessment["evidence"].get("url") == evidence.url
+        )
+        return Admission(
+            valid,
+            source_origin(source.family, source.retrieval_method),
+            "Accepted retained site development; electrical demand and supply remain unverified."
+            if valid
+            else "Retained project assessment no longer matches its exact source/site/activity.",
+        )
     if str(source.id) == "federal-register-eis" and assessment.get("native_equipment"):
         from gridlens.domain.ferc_equipment_interpretation import (
             assess_ferc_equipment,

@@ -19,7 +19,7 @@ from typing import Any, Literal, TypedDict
 
 FACTS_VERSION = "customer-facts-v1"
 VERSION = "customer-intelligence-v1"
-PRIORITY_VERSION = "customer-commercial-priority-v1"
+PRIORITY_VERSION = "customer-commercial-priority-v2"
 MAX_TEXT = 200_000
 MAX_CLAIMS = 200
 CAPACITY_BASES = {"campus_development", "it_load", "utility_service", "generation"}
@@ -103,7 +103,22 @@ _DATE_PATTERN = (
     rf"(?:calendar\s+)?\d{{4}}|(?:first|second)\s+half\s+of\s+\d{{4}}|"
     rf"{_MONTH_PATTERN}\s+\d{{4}}|(?:early|mid|late)[\s-]+\d{{4}}|\d{{4}})"
 )
-_NUMBER = r"(?P<amount>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+_NUMBER = (
+    r"(?P<amount>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|"
+    r"one|two|three|four|five|six|seven|eight|nine|ten)"
+)
+_NUMBER_WORDS = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+}
 _UNIT = r"(?P<unit>gigawatts?|megawatts?|kilowatts?|GW|MW|kW)(?:\s*\((?:GW|MW|kW)\))?"
 _QUALIFIER = r"(?P<qualifier>approximately|about|up\s+to|around|more\s+than|at\s+least|over)?"
 _CAPACITY_LABELS = {
@@ -155,10 +170,6 @@ _CAPACITY_PATTERNS.extend(
                 rf"[\s-]*{_UNIT}\s+of\s+power\s+to\s+(?:the\s+)?(?:facility|campus|site)\b",
                 re.I,
             ),
-        ),
-        (
-            "utility_service",
-            re.compile(rf"\b{_QUALIFIER}\s*{_NUMBER}[\s-]*{_UNIT}\s+sub[\s-]?station\b", re.I),
         ),
         (
             "generation",
@@ -438,7 +449,26 @@ def _capacity_phase_scope_supported(clause: str, match: re.Match, *, campus_tota
         for marker in markers
     ):
         return False
-    return campus_total or all(marker.end() <= match.start() for marker in markers)
+    if campus_total or all(marker.end() <= match.start() for marker in markers):
+        return True
+    # A phase-specific design can state that phase's capacity before describing
+    # an explicit later-phase increase and campus-wide total. Keep the first
+    # amount bound to its phase; do not let the later phase steal its scope.
+    postfix = [marker for marker in markers if marker.start() >= match.end()]
+    preceding = [phase for phase in recognized if phase.end() <= match.start()]
+    progression = re.search(
+        r"\b(?:with\s+)?(?:the\s+)?ability\s+to\s+increase\s+this\s+"
+        r"(?:in|during)\s+(?:phase\s+)?(?:[0-9]+|[ivx]+)\b",
+        clause[match.end() :],
+        re.I,
+    )
+    later_phase = _PHASE.search(progression.group()) if progression else None
+    return bool(
+        preceding
+        and postfix
+        and later_phase
+        and _phase_token(preceding[-1][1]) != _phase_token(later_phase[1])
+    )
 
 
 def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
@@ -473,7 +503,7 @@ def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
             if _ALTERNATIVE_AMOUNT.search(clause) or _ALLOCATION.search(clause):
                 continue
             for match in pattern.finditer(clause):
-                raw = match["amount"].replace(",", "")
+                raw = _NUMBER_WORDS.get(match["amount"].lower(), match["amount"]).replace(",", "")
                 amount = _decimal(raw)
                 # A preceding sign/range means the positive point is not explicit.
                 if amount is None or (match.start() and clause[match.start() - 1] in "-+–—"):
@@ -514,6 +544,16 @@ def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
                 qualifier = (
                     "more than" if clause[match.end() : match.end() + 1] == "+" else qualifier
                 )
+                if (
+                    not qualifier
+                    and campus_total
+                    and re.search(
+                        r"\bability\s+to\s+increase\s+this\b",
+                        match[0],
+                        re.I,
+                    )
+                ):
+                    qualifier = "up to"
                 normalized_qualifier = (
                     "up_to"
                     if qualifier == "up to"
@@ -830,6 +870,16 @@ def _priority(capacity: dict, timelines: dict, *, as_of: date) -> dict:
         for t in capacity["totals"]
         if t["value_mw"] and t["status"] == "supported"
     ]
+    supported_totals = [
+        total
+        for total in capacity["totals"]
+        if total["value_mw"] and total["status"] == "supported"
+    ]
+    supported_total = max(
+        supported_totals,
+        key=lambda total: (Decimal(total["value_mw"]), total["basis"], tuple(total["claim_ids"])),
+        default=None,
+    )
     amount = max(amounts, default=Decimal(0))
     scale = (
         25
@@ -842,32 +892,167 @@ def _priority(capacity: dict, timelines: dict, *, as_of: date) -> dict:
         if amount > 0
         else 0
     )
-    construction = timelines["construction_start"]
-    event = timelines["expected_energization"] or construction
-    event_date = _date(event["start"]) if event else None
-    delta = (event_date - as_of).days if event_date else None
-    timing = (
-        30
-        if delta is not None and 0 <= delta <= 365
-        else 15
-        if delta is not None and -180 <= delta < 0
-        else 10
-        if delta is not None and 365 < delta <= 730
-        else 0
+
+    def bounded_opportunity(value: Any) -> int:
+        amount = _decimal(value)
+        if amount is None:
+            return 0
+        return 10 if amount >= 500 else 8 if amount >= 100 else 5 if amount >= 20 else 0
+
+    upper_bounds = [
+        total
+        for total in capacity["totals"]
+        if total["status"] == "upper_bound" and total.get("value_mw")
+    ]
+    upper_bound = max(
+        upper_bounds,
+        key=lambda total: (Decimal(total["value_mw"]), total["basis"], tuple(total["claim_ids"])),
+        default=None,
     )
+    opportunity_scale = (
+        bounded_opportunity(upper_bound["value_mw"]) if upper_bound and not scale else 0
+    )
+    capacity_basis_total = supported_total if scale else upper_bound if opportunity_scale else None
+    capacity_claims_by_id = {claim["fact_id"]: claim for claim in capacity["claims"]}
+    capacity_basis_claims = [
+        capacity_claims_by_id[claim_id]
+        for claim_id in (capacity_basis_total["claim_ids"] if capacity_basis_total else [])
+        if claim_id in capacity_claims_by_id
+    ]
+
+    construction = timelines["construction_start"]
+    legacy_event = timelines["expected_energization"] or construction
+
+    def timing_points(delta: int | None) -> int:
+        return (
+            30
+            if delta is not None and 0 <= delta <= 365
+            else 15
+            if delta is not None and -180 <= delta < 0
+            else 10
+            if delta is not None and 365 < delta <= 730
+            else 0
+        )
+
+    def event_delta(event: dict | None) -> int | None:
+        event_date = _date(event.get("start")) if event else None
+        return (event_date - as_of).days if event_date else None
+
+    def proxy_delta(event: dict) -> int | None:
+        start, end = _date(event.get("start")), _date(event.get("end"))
+        if start is None or end is None:
+            return None
+        if start <= as_of <= end:
+            return 0
+        return (start - as_of).days if start > as_of else (end - as_of).days
+
+    def in_priority_window(delta: int | None) -> bool:
+        return delta is not None and -180 <= delta <= 730
+
+    def valid_action_window(claim: dict | None) -> bool:
+        delta = event_delta(claim)
+        return bool(
+            claim
+            and in_priority_window(delta)
+            and not (
+                claim["event_type"] == "actual_construction_start"
+                and delta is not None
+                and delta > 0
+            )
+        )
+
+    selected_timeline_ids = set(timelines["selected_claim_ids"])
+    selected_timeline_claims = [
+        claim for claim in timelines["claims"] if claim["fact_id"] in selected_timeline_ids
+    ]
+    actionable_types = {
+        "actual_construction_start",
+        "announced_construction_start",
+        "expected_first_energization",
+        "phase_energization",
+    }
+    proxy_types = {"operational_target", "full_operational_target", "ready_for_service"}
+    eligible_action = [
+        claim
+        for claim in selected_timeline_claims
+        if claim["event_type"] in actionable_types and valid_action_window(claim)
+    ]
+    eligible_proxy = [
+        claim
+        for claim in selected_timeline_claims
+        if claim["event_type"] in proxy_types and in_priority_window(proxy_delta(claim))
+    ]
+
+    # Preserve the v1 choice when it is in range. If that selected date is no
+    # longer actionable, select another current action before a conservative
+    # operational/RFS research proxy.
+    if legacy_event and valid_action_window(legacy_event):
+        event = legacy_event
+        timing_basis = "reported_construction_or_energization"
+        timing = timing_points(event_delta(event))
+    elif eligible_action:
+        event = sorted(
+            eligible_action,
+            key=lambda claim: (
+                -timing_points(event_delta(claim)),
+                abs(event_delta(claim) or 0),
+                claim["event_type"],
+                claim["start"],
+                claim["fact_id"],
+            ),
+        )[0]
+        timing_basis = "reported_construction_or_energization"
+        timing = timing_points(event_delta(event))
+    elif eligible_proxy:
+        event = sorted(
+            eligible_proxy,
+            key=lambda claim: (
+                tuple(-part for part in _strength(claim)),
+                abs(proxy_delta(claim) or 0),
+                claim["event_type"],
+                claim["start"],
+                claim["fact_id"],
+            ),
+        )[0]
+        selected_proxy_delta = proxy_delta(event)
+        timing_basis = "reported_timing_proxy"
+        timing = (
+            12
+            if selected_proxy_delta is not None and 0 <= selected_proxy_delta <= 365
+            else 6
+            if selected_proxy_delta is not None and -180 <= selected_proxy_delta < 0
+            else 5
+            if selected_proxy_delta is not None and 365 < selected_proxy_delta <= 730
+            else 0
+        )
+    else:
+        event = legacy_event
+        action_is_valid = valid_action_window(event)
+        timing_basis = "reported_construction_or_energization" if action_is_valid else "unknown"
+        timing = timing_points(event_delta(event)) if action_is_valid else 0
     dated = [_date(c["source"].get("published_at")) for c in claims]
     ages = [(as_of - d).days for d in dated if d is not None]
     freshness = 15 if ages and min(ages) <= 90 else 5 if ages and min(ages) <= 365 else 0
+    construction_delta = event_delta(construction)
+    phase_is_relevant = in_priority_window(construction_delta) and not (
+        construction
+        and construction["event_type"] == "actual_construction_start"
+        and construction_delta is not None
+        and construction_delta > 0
+    )
     phase = (
         15
-        if construction and construction["event_type"] == "actual_construction_start"
+        if phase_is_relevant
+        and construction
+        and construction["event_type"] == "actual_construction_start"
         else 5
-        if construction
+        if phase_is_relevant and construction
         else 0
     )
-    potential = scale + timing + freshness + phase
+    potential = scale + opportunity_scale + timing + freshness + phase
     components = {
         "capacity": scale,
+        "announced_upper_bound": opportunity_scale,
         "timing": timing,
         "phase": phase,
         "freshness": freshness,
@@ -884,7 +1069,54 @@ def _priority(capacity: dict, timelines: dict, *, as_of: date) -> dict:
         "limitations": [
             "Geographic fit and contact availability require separately verified account context.",
             "Facility capacity indicates project scale, not rental demand.",
-        ],
+        ]
+        + (
+            [
+                "Announced upper-bound capacity is a research signal, not verified buildout "
+                "or demand."
+            ]
+            if opportunity_scale
+            else []
+        )
+        + (
+            [
+                "Operational and ready-for-service targets are timing proxies, not "
+                "commissioning or energization."
+            ]
+            if timing_basis == "reported_timing_proxy"
+            else []
+        ),
+        "priority_basis": {
+            "capacity": {
+                "kind": "supported_capacity"
+                if scale
+                else "announced_upper_bound"
+                if opportunity_scale
+                else "unknown",
+                "basis": capacity_basis_total["basis"] if capacity_basis_total else None,
+                "value_mw": capacity_basis_total["value_mw"] if capacity_basis_total else None,
+                "complete": capacity_basis_total["complete"] if capacity_basis_total else False,
+                "claim_ids": list(capacity_basis_total["claim_ids"])
+                if capacity_basis_total
+                else [],
+                "sources": [
+                    {
+                        "fact_id": claim["fact_id"],
+                        "quote": claim["quote"],
+                        "source": deepcopy(claim["source"]),
+                        "qualifier": claim.get("qualifier", "exact"),
+                    }
+                    for claim in capacity_basis_claims
+                ],
+            },
+            "timing": {
+                "kind": timing_basis,
+                "event_type": event["event_type"] if event else None,
+                "label": event["display_label"] if event else None,
+                "claim_id": event["fact_id"] if event else None,
+                "source": deepcopy(event["source"]) if event else None,
+            },
+        },
     }
 
 

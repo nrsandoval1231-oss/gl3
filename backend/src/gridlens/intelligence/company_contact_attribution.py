@@ -1,10 +1,8 @@
-"""Conservative company identity checks for website-derived contact claims.
+"""Conservative attribution checks for website-derived company contact claims.
 
-Names, footers, page-supplied operator IDs, and imported domains are discovery
-hints. The current schema has no authoritative company-domain binding, so
-company websites cannot currently establish an RRC company's identity. Exact
-native RRC and retained project-source records are checked against their native
-provenance before their contact claims remain visible.
+Public company pages qualify only when a fresh SEC filing independently binds
+the canonical company identity to the page's exact domain. Native RRC and
+retained project-source facts keep their existing provenance checks.
 """
 
 from __future__ import annotations
@@ -13,6 +11,8 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -32,6 +32,9 @@ from gridlens.persistence.models import (
     Project,
     Source,
 )
+
+if TYPE_CHECKING:
+    from gridlens.intelligence.regulatory_company_identity import CompanyDomainProofContext
 
 _NATIVE_IDENTITY_SOURCE_REASONS = {
     "exact-number public rrc operator registry organization phone.",
@@ -253,6 +256,7 @@ def supported_contact_facts(
     project: Project | None,
     retained_context: tuple[Evidence, Observation, Interpretation, Source] | None,
     candidate: dict,
+    domain_proof_context: CompanyDomainProofContext | None = None,
 ) -> set[NativeContactFact]:
     """Return exact native-parser method and role facts for a canonical company."""
     if identity is None:
@@ -312,6 +316,114 @@ def supported_contact_facts(
             if native_method and normalized_method
             else set()
         )
+    if source.retained_evidence_id is None and project is not None:
+        now = datetime.now(UTC)
+        from gridlens.domain.evaluation_clock import evaluation_now
+
+        now = evaluation_now(now)
+        observed_at = (
+            source.observed_at.replace(tzinfo=UTC)
+            if source.observed_at.tzinfo is None
+            else source.observed_at.astimezone(UTC)
+        )
+        last_seen_at = (
+            source.last_seen_at.replace(tzinfo=UTC)
+            if source.last_seen_at.tzinfo is None
+            else source.last_seen_at.astimezone(UTC)
+        )
+        if (
+            not _source_hash_is_current(source)
+            or observed_at > last_seen_at
+            or last_seen_at > now
+            or now - last_seen_at > timedelta(days=30)
+        ):
+            return set()
+        try:
+            from gridlens.intelligence.regulatory_company_identity import (
+                verified_company_domain_matches,
+            )
+
+            if not verified_company_domain_matches(
+                session,
+                document=source,
+                company_id=identity.id,
+                organization=organization,
+                now=now,
+                context=domain_proof_context,
+            ):
+                return set()
+        except (LookupError, TypeError, ValueError):
+            return set()
+
+        from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+        from gridlens.intelligence.buying_chain_extraction import (
+            Extracted,
+            extract_company_contacts,
+            extract_people,
+        )
+
+        doc = PublicDocument(
+            source.url,
+            source.title,
+            source.excerpt,
+            source.published_at,
+            source.last_seen_at,
+            extraction_location=source.extraction_location,
+        )
+        seed = Extracted(
+            organization=organization,
+            category=str(candidate.get("category") or "owner"),
+            organization_relationship=str(candidate.get("organization_relationship") or "DIRECT"),
+            person_organization_relationship="UNKNOWN",
+            person_project_relationship="UNKNOWN",
+        )
+        verified: set[NativeContactFact] = set()
+        for parsed in extract_people(
+            doc,
+            [seed],
+            project,
+            project_scoped=False,
+            today=now.date(),
+            verified_official_roster=True,
+        ):
+            for citation in parsed.citations:
+                citation_quote = citation.get("quote")
+                if (
+                    citation.get("supports") == "organization_person_role"
+                    and citation.get("url") == source.url
+                    and isinstance(citation_quote, str)
+                    and citation_quote in source.excerpt
+                ):
+                    verified.add(
+                        fact(
+                            "organization_person_role",
+                            citation_quote,
+                            parsed=parsed,
+                        )
+                    )
+        for parsed in extract_company_contacts(doc, [seed]):
+            for citation in parsed.citations:
+                citation_quote = citation.get("quote")
+                if (
+                    citation.get("supports") == "public_contact"
+                    and citation.get("url") == source.url
+                    and isinstance(citation_quote, str)
+                    and citation_quote in source.excerpt
+                ):
+                    for method in parsed.public_contacts:
+                        if method.get("quote") != citation_quote:
+                            continue
+                        normalized = _normalized_method(method.get("kind"), method.get("value"))
+                        if normalized:
+                            verified.add(
+                                fact(
+                                    "public_contact",
+                                    citation_quote,
+                                    parsed=parsed,
+                                    method=normalized,
+                                )
+                            )
+        return verified
     return _current_project_native_source(
         session,
         source,
@@ -533,16 +645,20 @@ def document_matches_company_identity(
     *,
     company_id: UUID,
     organization: str,
+    now: datetime | None = None,
 ) -> bool:
-    """Require independent current evidence binding the domain to the company ID.
+    """Require current SEC EIN/domain proof before a company's page is trusted."""
+    from gridlens.intelligence.regulatory_company_identity import (
+        verified_company_domain_matches,
+    )
 
-    The current schema has no authoritative company-domain assertion. A page's
-    own operator number and company footer are self-claims, while imported
-    domains are discovery hints. Until a source-backed domain producer exists,
-    public company websites cannot satisfy this attribution check.
-    """
-    del session, document, company_id, organization
-    return False
+    return verified_company_domain_matches(
+        session,
+        document=document,
+        company_id=company_id,
+        organization=organization,
+        now=now,
+    )
 
 
 def _fact_matches_candidate(fact: NativeContactFact, candidate: dict, company_id: str) -> bool:
@@ -660,6 +776,31 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
         for candidate in candidates
         if candidate.get("company_identity_id")
     }
+    from gridlens.intelligence.regulatory_company_identity import (
+        CompanyDomainProofContext,
+        load_company_domain_proof_context,
+    )
+
+    needs_domain_proof = any(
+        citation.get("supports")
+        in {"public_contact", "organization_person_role", "person_project_assignment"}
+        and (
+            source := sources.get(
+                str(citation.get("current_source_version_id") or citation.get("id") or "")
+            )
+        )
+        is not None
+        and source.retained_evidence_id is None
+        and source.project_match_reason.casefold() not in _NATIVE_IDENTITY_SOURCE_REASONS
+        and source.project_match_reason.casefold() not in _PROJECT_SCOPED_NATIVE_SOURCE_REASONS
+        for candidate in candidates
+        for citation in candidate.get("evidence", [])
+    )
+    domain_context = (
+        load_company_domain_proof_context(session, identity_ids)
+        if needs_domain_proof
+        else CompanyDomainProofContext()
+    )
     project_ids = {UUID(str(view["project_id"])) for view in views if view.get("project_id")}
     identities = (
         {
@@ -826,6 +967,7 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                         if source.retained_evidence_id
                         else None
                     ),
+                    domain_proof_context=domain_context,
                 )
                 quote = str(citation.get("quote") or "")
                 matched_facts = {
@@ -842,9 +984,12 @@ def filter_unbound_company_contacts(session: Session, views: Iterable[dict]) -> 
                     "public_contact",
                     "permit_listed_contact",
                     "project_organization",
+                    "organization_person_role",
                 }:
-                    # Native RRC/Houston contact records cannot establish a
-                    # person's employment or project assignment.
+                    # Non-retained project-role claims are allowed only when
+                    # supported_contact_facts re-extracted them from a fresh,
+                    # independently SEC-bound official company domain. Keep
+                    # the native permit-listed method path intact.
                     continue
                 url = str(citation.get("url") or "")
                 source_for_citation[(str(support), url, quote)] = matched_facts

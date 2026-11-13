@@ -196,3 +196,13 @@ Astra reviewed audit commit `72ca2777` against main. The implementation must add
 - Rebuild and test saved-generation recovery even without DDL: all backend Python sources affect the existing policy fingerprint.
 
 The executor became available after the remote audit commit. Local current-main source was fetched into an isolated worktree; tests use new task-local disposable databases.
+
+## November 13 integration checkpoint
+
+The candidate incorporates main through `5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d`
+(PR197, merged externally), preserving its page-first contact-project aggregation and
+transaction-local JIT setting. This is source state, not a deployed-version attestation.
+The [retained commercial source contract](retained-commercial-source-contract-20261113.md)
+documents the extension to existing ingestion/evidence/identity services, full versus semantic
+source versions, explicit project-customer role and rollback boundaries. Final source-backed
+coverage, performance and independent acceptance remain separate measured gates.

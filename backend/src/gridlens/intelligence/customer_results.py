@@ -164,6 +164,11 @@ def _current_graph_alias_projects(session, generation, term: str) -> list[UUID]:
                     WHERE own.generation_id=:generation AND own.project_id=be.project_id
                       AND own.role = ANY(CAST(:owner_roles AS text[]))
                   ) THEN cm.role = ANY(CAST(:owner_roles AS text[]))
+                  WHEN EXISTS (
+                    SELECT 1 FROM browse_customer_memberships pc
+                    WHERE pc.generation_id=:generation AND pc.project_id=be.project_id
+                      AND pc.role='project_customer'
+                  ) THEN cm.role='project_customer'
                   ELSE cm.role='asset_operator' END
                 ELSE true END
               AND NOT EXISTS (
@@ -345,6 +350,9 @@ def _group_filter(*, term, region, stage, priority, alias="g", session=None, gen
             "WHERE own.generation_id=sb.generation_id AND own.project_id=sb.project_id "
             "AND own.role = ANY(CAST(:owner_roles AS text[]))) "
             "THEN cm.role = ANY(CAST(:owner_roles AS text[])) "
+            "WHEN EXISTS (SELECT 1 FROM browse_customer_memberships pc "
+            "WHERE pc.generation_id=sb.generation_id AND pc.project_id=sb.project_id "
+            "AND pc.role='project_customer') THEN cm.role='project_customer' "
             "ELSE cm.role='asset_operator' END ELSE true END "
             "AND NOT EXISTS (SELECT 1 FROM browse_unresolved_customers conflict "
             "WHERE conflict.generation_id=sb.generation_id AND conflict.project_id=sb.project_id "
@@ -491,25 +499,27 @@ def _ctes(where: str, shortlist_data=None) -> str:
         ON bcm.generation_id = :generation AND bcm.project_id = r.project_id
       LEFT JOIN company_identities ci ON ci.id = bcm.company_identity_id
       WHERE bcm.role = ANY(ARRAY[%%CUSTOMER_ROLES%%]::text[])
-    ), membership_project_roles AS (
-      SELECT mc.*
+    ), membership_role_families AS (
+      SELECT mc.*,
+        CASE
+          WHEN mc.sector = 'oil_gas' THEN
+            CASE WHEN mc.role='asset_operator' THEN 0
+                 WHEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) THEN 1
+                 ELSE 99 END
+          WHEN mc.sector = 'data_centers' THEN
+            CASE WHEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) THEN 0
+                 WHEN mc.role='project_customer' THEN 1
+                 ELSE 2 END
+          ELSE 0
+        END AS family_priority
       FROM membership_candidates mc
-      WHERE CASE
-        WHEN mc.sector = 'oil_gas' THEN
-          CASE WHEN EXISTS (
-            SELECT 1 FROM membership_candidates preferred
-            WHERE preferred.project_id=mc.project_id AND preferred.role='asset_operator'
-          ) THEN mc.role='asset_operator'
-          ELSE mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) END
-        WHEN mc.sector = 'data_centers' THEN
-          CASE WHEN EXISTS (
-            SELECT 1 FROM membership_candidates preferred
-            WHERE preferred.project_id=mc.project_id
-              AND preferred.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[])
-          ) THEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[])
-          ELSE mc.role='asset_operator' END
-        ELSE true
-      END
+    ), membership_role_priorities AS (
+      SELECT mf.*,
+             min(family_priority) OVER (PARTITION BY project_id) AS preferred_family
+      FROM membership_role_families mf
+    ), membership_project_roles AS (
+      SELECT * FROM membership_role_priorities
+      WHERE family_priority=preferred_family AND family_priority < 99
     ), memberships AS (
       SELECT DISTINCT asset_key, company_id, rrc_operator_number,
              organization_name, role, role_priority
@@ -1471,6 +1481,19 @@ def _compact_commercial(value: dict) -> dict:
         if field in {"capacity", "timelines"}:
             section["conflict_count"] = len((value.get(field) or {}).get("conflicts", []))
         result[field] = section
+    timing_basis = ((value.get("priority") or {}).get("priority_basis") or {}).get("timing")
+    if (
+        isinstance(timing_basis, dict)
+        and timing_basis.get("kind") == "reported_timing_proxy"
+        and timing_basis.get("event_type")
+        in {"operational_target", "full_operational_target", "ready_for_service"}
+        and isinstance(timing_basis.get("label"), str)
+        and 0 < len(timing_basis["label"]) <= 200
+    ):
+        result["timelines"]["reported_target"] = {
+            "event_type": timing_basis["event_type"],
+            "label": timing_basis["label"],
+        }
     if isinstance(value.get("priority"), dict):
         result["priority"] = {
             key: item

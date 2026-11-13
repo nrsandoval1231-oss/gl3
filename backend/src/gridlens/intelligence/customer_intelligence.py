@@ -12,7 +12,6 @@ import json
 import re
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
@@ -22,6 +21,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from gridlens.persistence.models import (
     BrowseRow,
+    CompanyProjectMembership,
     Evidence,
     EvidencePackage,
     Interpretation,
@@ -35,6 +35,8 @@ from gridlens.persistence.models import (
 CONTRACT = "customer-facts-v1"
 MAX_SOURCE_CHARACTERS = 200_000
 MAX_PROJECT_SOURCES = 128
+_OWNER_ROLES = ("owner_developer", "owner_energy", "owner_construction", "asset_operator")
+_OWNER_POSSESSIVE = re.compile(r"(?:^|\s)(?:[A-Z][\w&.’'-]*(?:\s+[A-Z][\w&.’'-]*){0,4})[’']s\s+")
 
 
 def _digest(value: Any) -> str:
@@ -108,14 +110,54 @@ def _overflow(project_id, reason: str) -> dict:
     }
 
 
-def scope_customer_facts(payload: dict, project_name: str, project_location: str = "") -> dict:
+def _reproduces_claim(claim: dict, field: str, predicate: str, source: dict) -> bool:
+    from gridlens.domain.customer_intelligence import extract_customer_facts
+
+    reproduced = extract_customer_facts(
+        predicate,
+        project_id=str(claim.get("project_id") or ""),
+        source=source,
+    )
+    candidate_key = "capacity_claims" if field == "capacity_claims" else "timeline_claims"
+    semantic_fields = (
+        ("basis", "value_mw", "qualifier", "scope_id", "phase_id", "includes_scope_ids")
+        if field == "capacity_claims"
+        else (
+            "event_type",
+            "label",
+            "precision",
+            "qualifier",
+            "scope_id",
+            "start",
+            "end",
+            "earliest",
+            "latest",
+        )
+    )
+    return any(
+        all(candidate.get(key) == claim.get(key) for key in semantic_fields)
+        for candidate in reproduced.get(candidate_key, [])
+    )
+
+
+def scope_customer_facts(
+    payload: dict,
+    project_name: str,
+    project_location: str = "",
+    *,
+    source_text: str | None = None,
+    project_aliases: list[str] | tuple[str, ...] = (),
+    trusted_owner_names: list[str] | tuple[str, ...] = (),
+) -> dict:
     """Require an exact grammatical subject and a local electrical/timing predicate.
 
     Merely mentioning the selected project somewhere in a comparative sentence
     cannot assign another campus's quantities to it. Unsupported phrasing abstains.
     """
-    from gridlens.domain.customer_intelligence import _CAPACITY_PATTERNS, _TIMELINE_PATTERNS
-    from gridlens.domain.project_research import _subject_predicate
+    from gridlens.domain.customer_subjects import (
+        claim_has_owned_predicate,
+        resolve_claim_subject,
+    )
 
     result = dict(payload)
     for key in ("capacity_claims", "timeline_claims"):
@@ -124,64 +166,70 @@ def scope_customer_facts(payload: dict, project_name: str, project_location: str
             if not isinstance(claim, dict):
                 continue
             quote = str(claim.get("quote") or "")
-            # City/county location is not an interchangeable physical-project subject.
-            predicate = _subject_predicate(quote, [project_name])
-            if project_name.strip() and project_location.strip():
-                # A location can qualify this named subject, never replace it.
-                named_site = re.fullmatch(
-                    re.escape(project_name.strip())
-                    + r"\s+at\s+"
-                    + re.escape(project_location.strip())
-                    + r"\s+(.+)",
-                    quote.strip(),
-                    re.I,
+            if source_text is not None:
+                claim_source = claim.get("source")
+                source_hash = (
+                    claim_source.get("content_hash") if isinstance(claim_source, dict) else None
                 )
-                if named_site:
-                    predicate = _subject_predicate(
-                        project_name.strip() + " " + named_site[1], [project_name]
-                    )
-            if not predicate or re.search(
-                r"\b(?:and|while|whereas|versus|but|compared|other|another)\b", predicate, re.I
+                binding = resolve_claim_subject(
+                    source_text,
+                    quote,
+                    project_name=project_name,
+                    project_aliases=project_aliases,
+                    trusted_owner_names=trusted_owner_names,
+                    source_hash=source_hash,
+                )
+                if binding is None:
+                    continue
+                if not claim_has_owned_predicate(
+                    binding, claim, key, project_location=project_location
+                ):
+                    continue
+                if not _reproduces_claim(
+                    claim,
+                    key,
+                    binding["predicate"],
+                    claim_source if isinstance(claim_source, dict) else {},
+                ):
+                    continue
+                accepted.append({**claim, "subject_binding": binding})
+                continue
+
+            # Compatibility callers often have only the exact extracted quote,
+            # not the full evidence document. Treat that quote as the complete
+            # local source and apply the same bounded subject/predicate grammar.
+            legacy_source_value = claim.get("source")
+            source_hash = (
+                legacy_source_value.get("content_hash")
+                if isinstance(legacy_source_value, dict)
+                else None
+            )
+            binding = resolve_claim_subject(
+                quote,
+                quote,
+                project_name=project_name,
+                source_hash=source_hash,
+            )
+            if binding is None or not claim_has_owned_predicate(
+                binding, claim, key, project_location=project_location
             ):
                 continue
-            patterns = _CAPACITY_PATTERNS if key == "capacity_claims" else _TIMELINE_PATTERNS
-            for kind, pattern in patterns:
-                for match in pattern.finditer(predicate):
-                    prefix = predicate[: match.start()].strip()
-                    if not re.fullmatch(
-                        r"(?:phase\s+(?:[0-9]+|[ivx]+)\s+)?"
-                        r"(?:(?:has|will have|is developing|is planned with|plans|is)"
-                        r"\s*(?:a|an)?|)",
-                        prefix,
-                        re.I,
-                    ):
-                        continue
-                    if key == "capacity_claims":
-                        # Core's finite unit regex accepts symbols and spelled units.
-                        # Keep exact conversion identical for both representations.
-                        unit = match["unit"].lower()
-                        multiplier = (
-                            Decimal(1000)
-                            if unit.startswith("g")
-                            else Decimal("0.001")
-                            if unit.startswith("k")
-                            else Decimal(1)
-                        )
-                        normalized = Decimal(match["amount"].replace(",", "")) * multiplier
-                        if kind != claim.get("basis") or normalized != Decimal(claim["value_mw"]):
-                            continue
-                    elif match["label"] != claim.get("label"):
-                        continue
-                    accepted.append(claim)
-                    break
-                if claim in accepted:
-                    break
+            legacy_source: dict[str, Any] = (
+                legacy_source_value if isinstance(legacy_source_value, dict) else {}
+            )
+            if _reproduces_claim(claim, key, binding["predicate"], legacy_source):
+                accepted.append(claim)
         result[key] = accepted
     return result
 
 
 def extract_commissioning_plan(
-    text: str, *, project_id: str, project_name: str, source: dict
+    text: str,
+    *,
+    project_id: str,
+    project_name: str,
+    source: dict,
+    project_aliases: list[str] | tuple[str, ...] = (),
 ) -> list[dict]:
     """Read an explicitly scoped retained engineering JSON section, never infer a plan.
 
@@ -206,7 +254,18 @@ def extract_commissioning_plan(
         document = json.loads(sections[0])
     except (TypeError, ValueError):
         return invalid("Engineering test-plan JSON is malformed.")
-    if not isinstance(document, dict) or document.get("project_name") != project_name:
+    site_names = {
+        *(value for value in project_aliases if isinstance(value, str)),
+        *([project_name] if len(project_name.split()) >= 2 else []),
+    }
+    public_name = document.get("project_name") if isinstance(document, dict) else None
+    outside_json = re.sub(r"```json\s*.*?\s*```", " ", text, flags=re.S | re.I)
+    if (
+        not isinstance(document, dict)
+        or not isinstance(public_name, str)
+        or public_name not in site_names
+        or not re.search(r"(?<!\w)" + re.escape(public_name) + r"(?!\w)", outside_json, re.I)
+    ):
         return invalid("Engineering test-plan project name is not the exact canonical site.")
     blocks = document.get("commissioning_test_plan")
     if not isinstance(blocks, list) or not blocks or len(blocks) > 200:
@@ -215,7 +274,9 @@ def extract_commissioning_plan(
     admitted = []
     stage_loads: dict[str, set[str]] = defaultdict(set)
     for raw in blocks:
-        if not isinstance(raw, dict) or raw.get("project_id") != project_id:
+        if not isinstance(raw, dict) or (
+            raw.get("project_id") is not None and str(raw.get("project_id")) != project_id
+        ):
             return invalid("Engineering test blocks cannot borrow another project's identity.")
         existing = raw.get("evidence")
         if existing is not None:
@@ -236,7 +297,11 @@ def extract_commissioning_plan(
             dimensions.append("power_factor")
         if raw.get("scenarios") is not None:
             dimensions.append("scenarios")
-        block = {**raw, "evidence": {field: [dict(reference)] for field in dimensions}}
+        block = {
+            **raw,
+            "project_id": project_id,
+            "evidence": {field: [dict(reference)] for field in dimensions},
+        }
         admitted.append(block)
         stage_loads[str(raw.get("sequence_stage"))].add(str(raw.get("load_scope_id")))
     disjoint = document.get("disjoint_load_scope_ids", [])
@@ -249,7 +314,62 @@ def extract_commissioning_plan(
     return admitted
 
 
-def _payload(project, observation, evidence, interpretation, source) -> dict | None:
+def _verified_project_owner_names(session, project_ids) -> dict[str, list[str]]:
+    """Batch current source-bound owner/operator context for a project cohort."""
+    from uuid import UUID
+
+    from gridlens.intelligence.buying_chain import _retained_evidence_current_for_project
+
+    project_keys = {str(project_id) for project_id in project_ids}
+    result: dict[str, set[str]] = {key: set() for key in project_keys}
+    if not project_keys:
+        return {}
+    rows = session.execute(
+        select(CompanyProjectMembership, Project, Evidence, Observation, Interpretation, Source)
+        .join(Project, Project.id == CompanyProjectMembership.project_id)
+        .join(Evidence, Evidence.id == CompanyProjectMembership.source_evidence_id)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .join(Source, Source.id == Observation.source_id)
+        .where(
+            CompanyProjectMembership.project_id.in_([UUID(key) for key in project_keys]),
+            CompanyProjectMembership.role.in_(_OWNER_ROLES),
+            CompanyProjectMembership.state == "current",
+        )
+        .order_by(CompanyProjectMembership.organization_name)
+    )
+    for membership, project, evidence, observation, interpretation, source in rows:
+        if (
+            membership.source_id != source.id
+            or membership.source_version_hash != evidence.content_hash
+            or evidence.observation_id != observation.id
+            or not _retained_evidence_current_for_project(
+                session,
+                project,
+                evidence,
+                observation=observation,
+                interpretation=interpretation,
+                source=source,
+                preloaded=True,
+            )
+        ):
+            continue
+        name = membership.organization_name.strip()
+        if name:
+            result[str(project.id)].add(name)
+    return {project_id: sorted(names, key=str.casefold) for project_id, names in result.items()}
+
+
+def _payload(
+    project,
+    observation,
+    evidence,
+    interpretation,
+    source,
+    *,
+    trusted_owner_names=(),
+    owner_name_loader=None,
+) -> dict | None:
     from gridlens.domain.customer_intelligence import extract_customer_facts
 
     assessment = interpretation.assessment or {}
@@ -309,9 +429,39 @@ def _payload(project, observation, evidence, interpretation, source) -> dict | N
     payload = extract_customer_facts(text, project_id=str(project.id), source=provenance)
     if sum(len(payload.get(key, [])) for key in ("capacity_claims", "timeline_claims")) >= 200:
         return _overflow(project.id, "Source claims exceed the complete extraction bound.")
-    payload = scope_customer_facts(payload, project.name, project.location or "")
+    identity_facts = project.identity_facts if isinstance(project.identity_facts, dict) else {}
+    aliases = identity_facts.get("project_aliases", [])
+    aliases = (
+        [value for value in aliases if isinstance(value, str)] if isinstance(aliases, list) else []
+    )
+    trusted_owners = list(
+        dict.fromkeys(value for value in trusted_owner_names if isinstance(value, str))
+    )
+    if (
+        not trusted_owners
+        and callable(owner_name_loader)
+        and any(
+            _OWNER_POSSESSIVE.search(str(claim.get("quote") or ""))
+            for key in ("capacity_claims", "timeline_claims")
+            for claim in payload.get(key, [])
+            if isinstance(claim, dict)
+        )
+    ):
+        trusted_owners = owner_name_loader()
+    payload = scope_customer_facts(
+        payload,
+        project.name,
+        project.location or "",
+        source_text=text,
+        project_aliases=aliases,
+        trusted_owner_names=trusted_owners,
+    )
     payload["commissioning_inputs"] = extract_commissioning_plan(
-        text, project_id=str(project.id), project_name=project.name, source=provenance
+        text,
+        project_id=str(project.id),
+        project_name=project.name,
+        source=provenance,
+        project_aliases=aliases,
     )
     if not any(
         payload.get(key) for key in ("capacity_claims", "timeline_claims", "commissioning_inputs")
@@ -328,20 +478,49 @@ def _payload(project, observation, evidence, interpretation, source) -> dict | N
     return payload
 
 
-def persist_customer_facts(session, *, project_id, evidence_id) -> EvidencePackage | None:
+def persist_customer_facts(
+    session, *, project_id, evidence_id, source_text: str | None = None
+) -> EvidencePackage | None:
     """Append an idempotent receipt; caller owns transaction, leases and admission.
 
     This receipt-only writer never emits alerts or changes public execution state.
     Existing material-state hooks own normal versus quiet-backfill change detection.
     It never mutates evidence, qualification, identities, or existing package history.
     """
+    if isinstance(source_text, str) and len(source_text) <= MAX_SOURCE_CHARACTERS:
+        from gridlens.domain.customer_intelligence import extract_customer_facts
+
+        candidates = extract_customer_facts(
+            source_text,
+            project_id=str(project_id),
+            source={},
+        )
+        has_public_plan = bool(
+            re.search(
+                r"```json\s*.*?\"commissioning_test_plan\".*?```",
+                source_text,
+                re.S | re.I,
+            )
+        )
+        if (
+            not candidates.get("overflow")
+            and not candidates.get("capacity_claims")
+            and not candidates.get("timeline_claims")
+            and not has_public_plan
+        ):
+            return None
     project_id, evidence_id = UUID(str(project_id)), UUID(str(evidence_id))
     session.flush()
     row = session.execute(_query([project_id]).where(Evidence.id == evidence_id)).first()
     if row is None:
         return None
     project, observation, evidence, interpretation, source = row
-    payload = _payload(*row)
+    payload = _payload(
+        *row,
+        owner_name_loader=lambda: _verified_project_owner_names(session, [project.id]).get(
+            str(project.id), []
+        ),
+    )
     if payload is None:
         return None
     package_key = _digest({"contract": CONTRACT, "payload": payload})
@@ -399,6 +578,7 @@ def project_customer_facts(session, project_ids, *, generation) -> dict[str, lis
                         result[str(project_id)].append(payload)
         return result
     source_counts: dict[str, int] = defaultdict(int)
+    trusted_owners = _verified_project_owner_names(session, ids)
     for row in session.execute(_query(ids)).yield_per(64):
         project_id = str(row[0].id)
         source_counts[project_id] += 1
@@ -407,7 +587,7 @@ def project_customer_facts(session, project_ids, *, generation) -> dict[str, lis
                 _overflow(project_id, "Current sources exceed the complete project bound.")
             ]
             continue
-        payload = _payload(*row)
+        payload = _payload(*row, trusted_owner_names=trusted_owners[project_id])
         if payload is not None:
             project_id = str(row[0].id)
             key = _digest(payload)
