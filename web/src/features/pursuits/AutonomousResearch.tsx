@@ -1,3 +1,4 @@
+import { safeHttpUrl } from '../../api/safeUrl'
 import { useEffect, useState } from 'react'
 import { client, type AutonomousResearch as ResearchResponse, type ResearchQuestion, type ResearchRoute } from '../../api/client'
 
@@ -92,8 +93,8 @@ function Question({ question }: { question: ResearchQuestion }) {
       <b>Queries searched successfully</b>{receipt.queries_searched?.length ? <ol>{receipt.queries_searched.map((query, index) => <li key={index}>{query}</li>)}</ol> : <p>No successful searches recorded.</p>}
       <p>Searches executed: {receipt.searches ?? 0} · Retrieval attempts: {receipt.retrieval_attempts ?? 0} · Model calls: {receipt.model_calls ?? 0} · Actual cost: {receipt.cost_usd == null ? 'Unavailable' : `$${receipt.cost_usd}`} · Reserved cost: {receipt.reserved_cost_usd == null ? 'Not recorded' : `$${receipt.reserved_cost_usd}`} · Runtime: {receipt.runtime_seconds == null ? 'Unknown' : `${receipt.runtime_seconds}s`}</p>
       <h4>Sources actually checked</h4>{receipt.source_checks?.length ? <ul>{receipt.source_checks.map((source, index) => <li key={index}>
-        <a href={/^https?:\/\//i.test(source.url) ? source.url : undefined} target="_blank" rel="noreferrer">{source.url}</a> · <b>{source.disposition}</b> · {source.label ?? 'Evidence label unknown'}
-        {source.evidence_url && source.evidence_url !== source.url && <p>Canonical evidence citation: <a href={/^https?:\/\//i.test(source.evidence_url) ? source.evidence_url : undefined} target="_blank" rel="noreferrer">{source.evidence_url}</a></p>}
+        <a href={safeHttpUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.url}</a> · <b>{source.disposition}</b> · {source.label ?? 'Evidence label unknown'}
+        {source.evidence_url && source.evidence_url !== source.url && <p>Canonical evidence citation: <a href={safeHttpUrl(source.evidence_url)} target="_blank" rel="noopener noreferrer">{source.evidence_url}</a></p>}
         {source.claim_type && <p>Claim type: {source.claim_type === 'project_organization_relationship' ? 'Project organization relationship' : source.claim_type === 'project_activity' ? 'Project activity' : source.claim_type.replaceAll('_', ' ')}</p>}
         <p>Publisher: {source.publisher ?? 'Unknown'} · Extraction location: {source.extraction_location ?? 'Unknown'}</p>
         {source.cache_reused && <p>Cached source result reused.</p>}{source.duplicate && <p>Duplicate evidence avoided.</p>}
@@ -112,6 +113,6 @@ function Question({ question }: { question: ResearchQuestion }) {
 function Routes({ title, routes }: { title: string; routes?: ResearchRoute[] }) {
   return <><h4>{title}</h4>{routes?.length ? <ol>{routes.map((route, index) => <li key={index}>
     {route.kind} · {route.family} · <b>{route.status}</b>{route.source_id && ` · ${route.source_id}`}{route.external_id && ` · ${route.external_id}`}
-    {route.query && <p>Query: {route.query}</p>}{route.reason && <p>{route.reason}</p>}{route.url && <a href={/^https?:\/\//i.test(route.url) ? route.url : undefined} target="_blank" rel="noreferrer">Route source</a>}
+    {route.query && <p>Query: {route.query}</p>}{route.reason && <p>{route.reason}</p>}{route.url && <a href={safeHttpUrl(route.url)} target="_blank" rel="noopener noreferrer">Route source</a>}
   </li>)}</ol> : <p>No routes recorded.</p>}<p>A planned route does not establish that a source was checked.</p></>
 }

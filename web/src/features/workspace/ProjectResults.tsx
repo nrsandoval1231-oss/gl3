@@ -1,3 +1,4 @@
+import { safeHttpUrl } from '../../api/safeUrl'
 import { useEffect, useRef, useState } from 'react'
 import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
 import { clearProjectBrowseCache, invalidateProjectBrowseCache, projectBrowseCacheKey, projectBrowseCacheVersion, readProjectBrowseCache, writeProjectBrowseCache, type ProjectBrowseRoute } from '../../state/projectBrowseCache'
@@ -363,7 +364,7 @@ function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { proj
   const contacts = project.contact.filter(contact => /^(tel:|mailto:)/i.test(contact.href ?? ''))
   const displayName = project.company && project.name.startsWith(`${project.company} · `) ? project.name.slice(project.company.length + 3) : project.name
   const assessment = project.shortlist_assessment
-  const eventUrl = /^https?:\/\//i.test(project.event?.source ?? '') ? project.event?.source : null
+  const eventUrl = safeHttpUrl(project.event?.source)
   return <article className="project-card" aria-current={selectedNeedId && project.needs.some(need => need.id === selectedNeedId) ? 'true' : undefined}>
     <div className="project-card-top"><span>{project.asset_type?.replaceAll('_', ' ') ?? 'Project'}</span>{project.sector && <span>{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>
     {nested ? <h3>{displayName}</h3> : <h2>{displayName}</h2>}{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
@@ -373,7 +374,7 @@ function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { proj
     </>}
     <div className="project-card-actions">{project.commercial_brief ? null : contacts.map((contact, index) => <a key={`${contact.kind}-${contact.href}-${index}`} href={contact.href!}>{contact.label}</a>)}{!project.commercial_brief && contacts.length === 0 && <span>Contact method not verified</span>}{primary && <><button type="button" onClick={() => onNeed({ id: primary })}>Project details</button><AddToPursuit key={primary} needId={primary} deferLookup/></>}</div>
     {project.need_count > 1 && <details className="project-needs"><summary>Related power needs ({project.need_count})</summary><ul>{project.needs.map(need => <li key={need.id}><button type="button" onClick={() => onNeed({ id: need.id })}>{String(need.activity ?? need.browse_title ?? 'Related project detail')}{need.location ? ` · ${String(need.location)}` : ''}</button></li>)}</ul></details>}
-    {(assessment?.evidence_refs.length || eventUrl) ? <details className="project-needs"><summary>Sources</summary>{eventUrl && <p><a href={eventUrl} target="_blank" rel="noreferrer">{project.event?.label ?? 'Open source'}</a></p>}{assessment?.evidence_refs.length && <><p>Supporting evidence is available in project detail.</p>{primary && <button type="button" onClick={() => onNeed({ id: primary })}>Open project evidence</button>}</>}</details> : null}
+    {(assessment?.evidence_refs.length || eventUrl) ? <details className="project-needs"><summary>Sources</summary>{eventUrl && <p><a href={safeHttpUrl(eventUrl)} target="_blank" rel="noopener noreferrer">{project.event?.label ?? 'Open source'}</a></p>}{assessment?.evidence_refs.length && <><p>Supporting evidence is available in project detail.</p>{primary && <button type="button" onClick={() => onNeed({ id: primary })}>Open project evidence</button>}</>}</details> : null}
   </article>
 }
 
@@ -385,7 +386,7 @@ function FeaturedContact({ project, contactProject }: { project: ProjectResult; 
   const best = contacts[0]?.contact ?? general[0].contact
   const companyLine = best.route_kind === 'company_route'
   const contactSource = safeContactSourceUrl(best.source_url)
-  return <div className="customer-group-contact">{contactProject.project_id !== project.project_id && <small>Contact associated with {contactProject.name}</small>}<strong>{best.name ?? best.company ?? 'Business contact'}</strong>{best.title && <span> · {best.title}</span>}{best.responsibility && <small>{best.responsibility}. Authority needs confirmation.</small>}{companyLine && <span> · General company route</span>}{contacts.length > 0 && <span>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</span>}{general.length > 0 && <span>General company route · {general.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</span>}{contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}</div>
+  return <div className="customer-group-contact">{contactProject.project_id !== project.project_id && <small>Contact associated with {contactProject.name}</small>}<strong>{best.name ?? best.company ?? 'Business contact'}</strong>{best.title && <span> · {best.title}</span>}{best.responsibility && <small>{best.responsibility}. Authority needs confirmation.</small>}{companyLine && <span> · General company route</span>}{contacts.length > 0 && <span>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</span>}{general.length > 0 && <span>General company route · {general.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</span>}{contactSource && <details><summary>Contact source</summary><a href={safeHttpUrl(contactSource)} target="_blank" rel="noopener noreferrer">Open source</a></details>}</div>
 }
 
 function CommercialBriefSummary({ project }: { project: ProjectResult }) {
@@ -414,9 +415,9 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p></div>
     {showPowerNeed && <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{hasDocumentedAmount && <small>{humanizeBriefStatus(brief.power_need.amount_class)}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>}
-    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div>}
+    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noopener noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div>}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
-    <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
+    <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={safeHttpUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>
 }
 

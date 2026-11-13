@@ -1,3 +1,4 @@
+import { safeHttpUrl } from '../../api/safeUrl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupOpen, type ProjectResult } from '../../api/client'
 import { usePursuitStore } from '../../state/pursuitStore'
@@ -157,7 +158,7 @@ function AccountContacts({ project }: { project: ProjectResult | null }) {
     {companyLine && <span> · General company route</span>}
     {best.responsibility && <p className="cmp-note">{best.responsibility}. Public-source attribution does not confirm purchasing authority.</p>}
     <p>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</p>
-    {contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}
+    {contactSource && <details><summary>Contact source</summary><a href={safeHttpUrl(contactSource)} target="_blank" rel="noopener noreferrer">Open source</a></details>}
     {generalRoutes.length > 0 && <p><span>General company route · </span>{generalRoutes.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</p>}
   </div>
 }
@@ -458,7 +459,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
               {needId ? <button type="button" onClick={() => openNeed(matchingNeedId ?? needId, project.project_id)}>{matchingNeedId ? 'Open matching opportunity' : 'Open project detail'}<span className="cmp-sr"> {project.name}</span></button> : <span>No opportunity is linked to this project.</span>}
               <ProjectPursuitAction key={project.id} project={project} shortlist={shortlist}/>
             </div>
-            {(source || project.event?.label) && <details><summary>Sources</summary><p>{project.event?.label ?? development ?? 'Project source'}</p>{source && <a href={source} target="_blank" rel="noreferrer">Open source</a>}</details>}
+            {(source || project.event?.label) && <details><summary>Sources</summary><p>{project.event?.label ?? development ?? 'Project source'}</p>{source && <a href={safeHttpUrl(source)} target="_blank" rel="noopener noreferrer">Open source</a>}</details>}
           </li>
         })}</ul>
         {projects.length === 0 && <p>No projects are listed for this account.</p>}

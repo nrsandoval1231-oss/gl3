@@ -109,3 +109,31 @@ test('retained permit fields are useful before enrichment and preserve source ro
   await expect(page.getByText('contact_2_type: ARCHITECT', { exact: true })).toBeVisible()
   await expect(page.getByText(/Permit dates describe permitting/)).toBeVisible()
 })
+
+test('non-http(s) evidence URLs never render as links and http(s) links are hardened', async ({ page }) => {
+  const result = chain('one')
+  result.permit_summaries = [{
+    evidence_id: 'permit-unsafe', source_id: 'synthetic', url: 'javascript:alert(1)', title: 'Synthetic permit',
+    observed_at: stamp, extraction_location: 'Synthetic fields',
+    facts: [{ label: 'Permit scope', value: 'Synthetic scope', quote: 'scope: Synthetic scope' }],
+  }]
+  result.candidates![0].public_contacts = [{ kind: 'phone', value: '+1 312 555 0100', source_url: 'https://example.com/contact' } as never]
+  await shell(page, async route => { await route.fulfill({ contentType: 'application/json', body: JSON.stringify(result) }) })
+  await expect(page.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
+  await expect(page.locator('a[href^="javascript:"]')).toHaveCount(0)
+  const link = page.getByRole('link', { name: 'Contact source' })
+  await expect(link).toHaveAttribute('href', 'https://example.com/contact')
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+})
+
+test('sign-out failure shows an alert instead of failing silently', async ({ page }) => {
+  await page.route(apiRoute, async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/auth/logout') { await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"down"}' }); return }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(path === '/api/auth/session' ? { authenticated: true } : []) })
+  })
+  await page.goto('/?tier=Signals')
+  await page.getByLabel('Account menu').click()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Sign-out failed' })).toBeVisible()
+})

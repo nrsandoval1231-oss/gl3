@@ -4,6 +4,7 @@ import { BuyingChain } from '../buyingChain/BuyingChain'
 import { WorkspaceDetail, type WorkspaceTab } from './WorkspaceDetail'
 import { CalendarDays, ChartNoAxesColumnIncreasing, FileText, Mail, Phone, Target, UserRound, Zap } from 'lucide-react'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
+import { safeHttpUrl } from '../../api/safeUrl'
 import { AUTH_SESSION_ENDED } from '../../state/sessionState'
 import './canonical-opportunity-detail.css'
 
@@ -221,8 +222,8 @@ export function CanonicalOpportunityDetail(props: Props) {
   const sources = evidence.slice().sort((a, b) => (b.event_date || b.published_at || '').localeCompare(a.event_date || a.published_at || ''))
   const accountSources = accountFirst ? accountDetailSources(item, project) : []
   const additionalCardEvidence = (card?.evidence ?? []).filter(source => {
-    const href = safeSourceUrl(source.url)
-    return Boolean(href && !sources.some(itemSource => safeSourceUrl(itemSource.url) === href))
+    const href = safeHttpUrl(source.url)
+    return Boolean(href && !sources.some(itemSource => safeHttpUrl(itemSource.url) === href))
   }).slice(0, 2)
   const nextAction = item.tier === 'Signal' && (item.commercial_disposition ?? card?.disposition) === 'WATCH'
     ? 'Continue monitoring for verified power demand.'
@@ -289,7 +290,7 @@ export function CanonicalOpportunityDetail(props: Props) {
       {project && (commercialBrief ? commercialBrief.next_action.text : item.commercial_next_action || item.next_action) ? <section className="cod-next-action" aria-label="Recommended next action"><Target size={17} aria-hidden="true"/><div><strong>Next step</strong><p>{commercialBrief ? commercialBrief.next_action.text : item.commercial_next_action || item.next_action}</p></div></section> : null}
       {project && commercialBrief?.best_contact && briefBestContactHref && <section className="cod-contacts" aria-label="Best contact">
         <h3><UserRound size={14} aria-hidden="true"/>Best contact</h3>
-        <p><a href={briefBestContactHref} target={commercialBrief.best_contact.kind === 'contact' ? '_blank' : undefined} rel={commercialBrief.best_contact.kind === 'contact' ? 'noreferrer' : undefined}>{commercialBrief.best_contact.kind === 'call' ? 'Call' : commercialBrief.best_contact.kind === 'email' ? 'Email' : 'Contact'} {commercialBrief.best_contact.contact}</a></p>
+        <p><a href={briefBestContactHref} target={commercialBrief.best_contact.kind === 'contact' ? '_blank' : undefined} rel={commercialBrief.best_contact.kind === 'contact' ? 'noopener noreferrer' : undefined}>{commercialBrief.best_contact.kind === 'call' ? 'Call' : commercialBrief.best_contact.kind === 'email' ? 'Email' : 'Contact'} {commercialBrief.best_contact.contact}</a></p>
         <details className="cod-contact-confidence"><summary>Contact confidence</summary><p>Authority: {commercialBrief.best_contact.authority}. Deliverability: {commercialBrief.best_contact.deliverability}.</p></details>
       </section>}
       {project && ((commercialBrief && showBriefPower) || (!commercialBrief && (supportedPower || facilityDemandValue || timing))) && <section className="cod-details cod-account-power" aria-label="Supported power and timing">
@@ -310,13 +311,13 @@ export function CanonicalOpportunityDetail(props: Props) {
             {email && <a className="cod-contact-button" href={email.href} aria-label={`Email ${email.value}`}><Mail size={14} aria-hidden="true"/>Email</a>}
           </div></div>
           {(phone || email) && <ul className="cod-contact-methods">{phone && <li><span>{phone.value}</span><small>{phone.verifiedAt ? `Source checked ${displayDate(phone.verifiedAt)}` : 'Public-source method; deliverability and authority are unconfirmed.'}</small></li>}{email && <li><span>{email.value}</span><small>{email.verifiedAt ? `Source checked ${displayDate(email.verifiedAt)}` : 'Public-source method; deliverability and authority are unconfirmed.'}</small></li>}</ul>}
-          {companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>)}
-        </article> : companyRoutes.length ? <article>{companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>)}</article> : <p className="cod-contact-missing">No appropriate business phone or email is available in retained contact evidence.</p>}
+          {companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noopener noreferrer' : undefined}>{action.label}</a></p>)}
+        </article> : companyRoutes.length ? <article>{companyRoutes.map(action => <p className="cod-company-route" key={`${action.kind}:${action.href}`}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact page'}</strong> <a href={action.href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noopener noreferrer' : undefined}>{action.label}</a></p>)}</article> : <p className="cod-contact-missing">No appropriate business phone or email is available in retained contact evidence.</p>}
       </section>}
       <details className="cod-more-details cod-account-sources" open={explicitSources}>
         <summary>Sources</summary>
         {accountSources.length ? accountSources.map(source => <article className="cod-related-source" key={source.key}>
-          {source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}
+          {source.url ? <a href={safeHttpUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.title}</a> : <strong>{source.title}</strong>}
           <span>{source.date ? displayDate(source.date) : 'Date unavailable'} · {source.status}</span>
           {source.excerpt && <p>{source.excerpt}</p>}
         </article>) : <p>No project-scoped source records are available.</p>}
@@ -376,8 +377,8 @@ export function CanonicalOpportunityDetail(props: Props) {
             const primary = prioritizePrimaryChannels(channels)
             const phone = primary.find(channel => channel.kind === 'phone')
             const email = primary.find(channel => channel.kind === 'email')
-            const extraSources = (person.sources ?? []).filter(source => !sources.some(itemSource => safeSourceUrl(itemSource.url) && safeSourceUrl(itemSource.url) === safeSourceUrl(source.url)))
-            const note = (channel: typeof primary[number]) => channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Verification not established · <a href={channel.sourceUrl} target="_blank" rel="noreferrer">{channel.sourceTitle}</a></>
+            const extraSources = (person.sources ?? []).filter(source => !sources.some(itemSource => safeHttpUrl(itemSource.url) && safeHttpUrl(itemSource.url) === safeHttpUrl(source.url)))
+            const note = (channel: typeof primary[number]) => channel.verifiedAt ? `Source checked ${displayDate(channel.verifiedAt)}` : <>Verification not established · <a href={safeHttpUrl(channel.sourceUrl)} target="_blank" rel="noopener noreferrer">{channel.sourceTitle}</a></>
             return <article key={person.claim_id}>
             <div className="cod-contact-row">
               <div className="cod-contact-id"><strong>{person.name || person.company}</strong>
@@ -397,7 +398,7 @@ export function CanonicalOpportunityDetail(props: Props) {
               {primary.slice(2).map(channel => <span className="cod-verified-method" key={`${channel.kind}:${channel.value}`}><a href={channel.href}>{channel.kind === 'email' ? 'Email' : 'Call'} {channel.value}</a><small>{note(channel)}</small></span>)}
               {!phone && <small>Phone unavailable in retained contact evidence.</small>}
               {!email && <small>Email unavailable in retained contact evidence.</small>}
-              {extraSources.map(source => safeSourceUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">Contact source: {source.title}</a>)}
+              {extraSources.map(source => safeHttpUrl(source.url) && <a key={`${source.reference}:${source.url}`} href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer">Contact source: {source.title}</a>)}
             </details>
           </article>}) : <p>No decision-maker or public company contact is available in retained evidence.</p>}
           {(project?.contact ?? []).filter(action => action.route_kind === 'company_route').map(action => {
@@ -405,12 +406,12 @@ export function CanonicalOpportunityDetail(props: Props) {
             const normalizedHref = href ? normalizeContactHref(href) : ''
             if (!href || !normalizedHref || renderedContactHrefs.has(normalizedHref)) return null
             renderedContactHrefs.add(normalizedHref)
-            return <p className="cod-company-route" key={`${action.kind}:${href}`} title={[action.responsibility, action.support].filter(Boolean).join(' · ') || undefined}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noreferrer' : undefined}>{action.label}</a></p>
+            return <p className="cod-company-route" key={`${action.kind}:${href}`} title={[action.responsibility, action.support].filter(Boolean).join(' · ') || undefined}><strong>{action.kind === 'call' ? 'Company phone' : action.kind === 'email' ? 'Company email' : 'Company contact path'}</strong> <a href={href} target={action.kind === 'contact' ? '_blank' : undefined} rel={action.kind === 'contact' ? 'noopener noreferrer' : undefined}>{action.label}</a></p>
           })}
         </section>
         <section className="cod-evidence" aria-label="Recent evidence"><h3><FileText size={13} strokeWidth={1.6}/>Evidence ({sources.length + additionalCardEvidence.length})</h3>
-          {sources.length ? sources.slice(0, 4).map(source => safeSourceUrl(source.url) && <a className="cod-evidence-row" key={`${source.id}:${source.content_hash}`} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer"><span>{source.title}</span><time title={source.event_date ? `${source.event_date_label}: ${source.event_date}` : `Published: ${source.published_at || "Unknown"}`}>{displayDate(source.event_date || source.published_at)}</time><small className="cod-source-status">{source.assessment_current === true ? "Current support" : source.assessment_current === false ? "Historical" : "Status unavailable"}</small></a>) : <p>No dated evidence is attached to this opportunity.</p>}
-          {additionalCardEvidence.map(source => <a className="cod-evidence-row" key={source.reference} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer"><span>{source.title}</span><time>{source.source_date || 'Date unavailable'}</time><small className="cod-source-status">{source.verification_status || "Status unavailable"}</small></a>)}
+          {sources.length ? sources.slice(0, 4).map(source => safeHttpUrl(source.url) && <a className="cod-evidence-row" key={`${source.id}:${source.content_hash}`} href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer"><span>{source.title}</span><time title={source.event_date ? `${source.event_date_label}: ${source.event_date}` : `Published: ${source.published_at || "Unknown"}`}>{displayDate(source.event_date || source.published_at)}</time><small className="cod-source-status">{source.assessment_current === true ? "Current support" : source.assessment_current === false ? "Historical" : "Status unavailable"}</small></a>) : <p>No dated evidence is attached to this opportunity.</p>}
+          {additionalCardEvidence.map(source => <a className="cod-evidence-row" key={source.reference} href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer"><span>{source.title}</span><time>{source.source_date || 'Date unavailable'}</time><small className="cod-source-status">{source.verification_status || "Status unavailable"}</small></a>)}
         </section>
       </div>
       <button type="button" className="cod-view-all-evidence" onClick={() => onTab('Evidence')}>View all evidence</button>
@@ -423,20 +424,20 @@ export function CanonicalOpportunityDetail(props: Props) {
       <h3>Project details</h3>
       <p>{summary}</p>
       <dl className="cod-intelligence-facts">{metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}<small>{metric.basis}</small></dd></div>)}</dl>
-      {card?.fields.filter(value => value.value).map(value => <article className="cod-fact" key={value.key}><strong>{value.label}</strong><p>{value.value}</p><small>{value.status} · {value.basis}</small>{value.sources?.map(source => safeSourceUrl(source.url) && <a key={source.reference} href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}{source.source_date ? ` · ${source.source_date}` : ''}</a>)}</article>)}
+      {card?.fields.filter(value => value.value).map(value => <article className="cod-fact" key={value.key}><strong>{value.label}</strong><p>{value.value}</p><small>{value.status} · {value.basis}</small>{value.sources?.map(source => safeHttpUrl(source.url) && <a key={source.reference} href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer">{source.title}{source.source_date ? ` · ${source.source_date}` : ''}</a>)}</article>)}
       {card?.research_gaps?.length ? <p>{card.research_gaps.length} evidence gap{card.research_gaps.length === 1 ? '' : 's'} remain under automated research.</p> : null}
     </section>}
 
     {canonicalTab === 'Timeline' && <section className="cod-tab-content"><h3>Timeline</h3>
       {project?.event && <article className="cod-timeline-event"><time>{displayDate(project.event.date)}</time><strong>{project.event.label}</strong><span>{project.event.kind.replaceAll('_', ' ')}</span></article>}
-      {sources.map(source => <article className="cod-timeline-event" key={source.id}><time>{displayDate(source.event_date || source.published_at)}</time>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{source.event_date_label || source.source_origin}</span></article>)}
+      {sources.map(source => <article className="cod-timeline-event" key={source.id}><time>{displayDate(source.event_date || source.published_at)}</time>{safeHttpUrl(source.url) ? <a href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{source.event_date_label || source.source_origin}</span></article>)}
       {!project?.event && !sources.length && <p>No dated milestones or evidence are currently available.</p>}
     </section>}
 
     {canonicalTab === 'Related' && <section className="cod-tab-content"><h3>Related records</h3>
       {item.project_id ? <BuyingChain projectId={item.project_id} /> : <p>Project identity is not established, so related buying-chain records are unavailable.</p>}
       {project?.needs.filter(need => need.id !== item.id).length ? <section aria-label="Other source-backed records"><h4>Other source-backed records</h4>{project.needs.filter(need => need.id !== item.id).map(need => <button className="cod-related-need" type="button" key={need.id} onClick={() => dispatchEvent(new CustomEvent('gl3-open-need', { detail: need.id }))}>{need.browse_title || need.name || need.activity || 'Open related source-backed record'}{need.location ? ` · ${need.location}` : ''}</button>)}</section> : null}
-      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeSourceUrl(source.url) ? <a href={safeSourceUrl(source.url)!} target="_blank" rel="noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin} · {source.assessment_current === true ? 'Current support' : source.assessment_current === false ? 'Historical support' : 'Support status unavailable'}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
+      <h4>Sources</h4>{sources.length ? sources.map(source => <article className="cod-related-source" key={source.id}>{safeHttpUrl(source.url) ? <a href={safeHttpUrl(source.url)!} target="_blank" rel="noopener noreferrer">{source.title}</a> : <strong>{source.title}</strong>}<span>{displayDate(source.event_date || source.published_at)} · {source.source_origin} · {source.assessment_current === true ? 'Current support' : source.assessment_current === false ? 'Historical support' : 'Support status unavailable'}</span><p>{source.abstract || 'No source summary is available.'}</p></article>) : <p>No source records are attached.</p>}
       <section aria-label="What's missing" className="cod-whats-missing"><h4>What’s missing</h4>{card?.research_gaps?.length ? <ul>{card.research_gaps.map(gap => <li key={gap.key}>{gap.label}</li>)}</ul> : item.missing_facts?.length ? <ul>{item.missing_facts.map(gap => <li key={gap}>{gap}</li>)}</ul> : <p>No explicit research gaps are recorded for this opportunity.</p>}</section>
     </section>}
   </aside>
@@ -458,20 +459,12 @@ function workspaceTabFor(tab: CanonicalTab): WorkspaceTab {
   return 'Overview'
 }
 
-function safeSourceUrl(value: string | null | undefined): string | null {
-  if (!value) return null
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null
-  } catch { return null }
-}
-
 /** Only render contact routes that match their declared channel. */
 function briefContactHref(kind: string, value: string): string | null {
   const contact = value.trim()
   if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(contact)) return contact
   if (kind === 'email' && contact.toLowerCase().startsWith('mailto:') && STRICT_EMAIL.test(contact.slice(7))) return `mailto:${contact.slice(7)}`
-  if (kind === 'contact') return safeSourceUrl(contact)
+  if (kind === 'contact') return safeHttpUrl(contact) ?? null
   return null
 }
 
@@ -501,8 +494,8 @@ function contactChannels(methods: { [key: string]: string }[], sources: NonNulla
       ? /^[+()\d][\d\s().-]{5,}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7
       : STRICT_EMAIL.test(value)
     if (!valid) continue
-    const sourceUrl = safeSourceUrl(method.source_url)
-    const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeSourceUrl(source.url) === sourceUrl)
+    const sourceUrl = safeHttpUrl(method.source_url)
+    const methodSource = (sources ?? []).find(source => source.verification_status === 'Current retained support' && safeHttpUrl(source.url) === sourceUrl)
     const verifiedAt = method.verified_at && !Number.isNaN(Date.parse(method.verified_at)) ? method.verified_at : undefined
     if (!verifiedAt && (!methodSource || !sourceUrl)) continue
     const key = `${kind}:${value.toLowerCase()}`
@@ -518,7 +511,7 @@ function safeContactAction(kind: string, href: string | null | undefined): strin
   if (!href || /[\u0000-\u001f]/.test(href)) return null
   if (kind === 'call' && /^tel:\+?[0-9]{7,15}$/i.test(href)) return href
   if (kind === 'email' && href.length > 7 && STRICT_EMAIL.test(href.slice(7))) return href
-  if (kind === 'contact') return safeSourceUrl(href)
+  if (kind === 'contact') return safeHttpUrl(href) ?? null
   return null
 }
 
@@ -543,7 +536,7 @@ function prioritizePrimaryChannels<T extends { kind: 'phone' | 'email' }>(channe
 function workspaceDetailProps(props: Props): Props {
   const item = props.item
   if (!item) return props
-  const safeSources = <T extends { url?: string | null }>(sources: T[] | undefined): T[] => (sources ?? []).filter(source => Boolean(safeSourceUrl(source.url)))
+  const safeSources = <T extends { url?: string | null }>(sources: T[] | undefined): T[] => (sources ?? []).filter(source => Boolean(safeHttpUrl(source.url)))
   const card = item.intelligence_card ? {
     ...item.intelligence_card,
     evidence: safeSources(item.intelligence_card.evidence),
@@ -577,7 +570,7 @@ function accountDetailSources(
   }) => {
     const title = source.title?.trim()
     if (!title) return
-    const url = safeSourceUrl(source.url)
+    const url = safeHttpUrl(source.url)
     const date = source.event_date || source.source_date || source.date || source.published_at || null
     const status = source.assessment_current === true
       ? 'Current support'
@@ -590,7 +583,7 @@ function accountDetailSources(
     sources.set(identity, {
       key: identity,
       title,
-      url,
+      url: url ?? null,
       date,
       status,
       excerpt: source.abstract || source.source_origin || null,
@@ -607,7 +600,7 @@ function accountDetailSources(
   }
   const brief = item.commercial_brief ?? (project?.representative_need_id === item.id ? project?.commercial_brief : null)
   const addBriefSource = (source: NonNullable<typeof brief>['sources'][number]) => {
-    const url = safeSourceUrl(source.url)
+    const url = safeHttpUrl(source.url)
     if (!url || ![...sources.values()].some(existing => existing.url === url)) add(source)
   }
   for (const source of brief?.sources ?? []) addBriefSource(source)

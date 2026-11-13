@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react'
 import { client, type CompanyGraph as CompanyGraphData } from '../../api/client'
-
-function safeSource(value?: string | null) {
-  if (!value) return null
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null
-  } catch { return null }
-}
+import { safeHttpUrl } from '../../api/safeUrl'
 
 function evidenceLabel(item: CompanyGraphData['evidence'][number]) { return item.title ?? `Evidence ${item.id}` }
 
@@ -26,9 +19,9 @@ export function CompanyGraph({ companyId }: { companyId: string }) {
 
   const current = graph?.company?.id === companyId ? graph : null
   const evidenceLink = (item?: CompanyGraphData['evidence'][number] | null) => {
-    const href = safeSource(item?.url)
+    const href = safeHttpUrl(item?.url)
     const evidenceId = item?.id
-    return <small>{evidenceId ? `Evidence ${evidenceId}` : 'Evidence not established'}{item?.source_id ? ` · Source ${item.source_id}` : ''}{href && <> · <a href={href} target="_blank" rel="noreferrer">Open source</a></>}</small>
+    return <small>{evidenceId ? `Evidence ${evidenceId}` : 'Evidence not established'}{item?.source_id ? ` · Source ${item.source_id}` : ''}{href && <> · <a href={href} target="_blank" rel="noopener noreferrer">Open source</a></>}</small>
   }
 
   return <section aria-label="Company graph" className="company-graph">
@@ -64,8 +57,8 @@ export function CompanyGraph({ companyId }: { companyId: string }) {
 
         {current.evidence.length > 0 && <details><summary>Retained evidence ({current.evidence.length})</summary>
           <ul>{current.evidence.map((item, index) => {
-            const href = safeSource(item.url)
-            return <li key={item.id ?? index}>{evidenceLabel(item)}{href && <> · <a href={href} target="_blank" rel="noreferrer">Open source</a></>}</li>
+            const href = safeHttpUrl(item.url)
+            return <li key={item.id ?? index}>{evidenceLabel(item)}{href && <> · <a href={href} target="_blank" rel="noopener noreferrer">Open source</a></>}</li>
           })}</ul>
         </details>}
       </>}
