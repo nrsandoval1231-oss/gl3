@@ -80,7 +80,8 @@ All tracked screenshot bytes were restored after the run; the root-relative befo
 ## Native source-coverage publication gates
 
 The isolated `feat/native-source-coverage-20261113` worktree merged local
-`ff08016b` without rebasing (`0e92dbb1`). The accepted parser, planned-developer
+`ff08016b` without rebasing (`0e92dbb1`) and fetched the target branch at
+`aa678d77`. The accepted parser, planned-developer
 producer, and test hashes still match the bounded source review: adapter
 `44075d0339dc49ad894f96e8aadeb8ae4a6a6190a009393c0b2c5eb511f87256`, producer
 `16d791bc5735fd24a3db82edf77727a38943c69575337cbc8579a3a26aaba5c1`, and saved
@@ -110,3 +111,12 @@ targets, and 18 anchors. Both commercial evaluation scripts compiled, and
 membership and project detail in a disposable database; this remains a finite
 offline regression, not current production coverage, verified legal
 ownership, customer usefulness, or a broad source-coverage claim.
+### Main-candidate pre-push checks at target base `aa678d77`
+
+Main-candidate standalone checks from `backend/`: `.venv/bin/ruff check .`
+passed; `.venv/bin/ruff format --check .` passed (700 files); `.venv/bin/mypy
+src` passed (276 source files). Its documentation graph passed (122 documents,
+567 local targets, 18 anchors). The full browser pass above covers the main
+candidate's timer/default/lease tests. The 259-case backend contract run and
+both prior-head full backend CI passes remain separately scoped; the
+follow-up timer/fixture/documentation commits change no backend source.
