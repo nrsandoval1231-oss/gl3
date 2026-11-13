@@ -19,6 +19,11 @@ class SuppressionConflict(ValueError):
     """The requested expected version is stale or the ledger is conflicted."""
 
 
+_PHONE_EXTENSION = re.compile(
+    r"[\s,;.-]*(?:;\s*ext\s*=|extension|ext\.?|x)\s*[:#.]?\s*\d+\s*$", re.IGNORECASE
+)
+
+
 def _norm(value: str | None) -> str:
     return re.sub(r"\s+", " ", (value or "").strip().casefold())
 
@@ -36,6 +41,7 @@ def _method_parts(kind: str, value: str) -> tuple[str, str]:
     if kind == "phone":
         if value.casefold().startswith("tel:"):
             value = value[4:].split(";", 1)[0]
+        value = _PHONE_EXTENSION.sub("", value)
         digits = re.sub(r"\D", "", value)
         if len(digits) == 11 and digits.startswith("1"):
             return kind, digits[1:]

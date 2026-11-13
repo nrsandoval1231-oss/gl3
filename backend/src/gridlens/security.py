@@ -35,11 +35,22 @@ def _auth_sessions():
     return api_module.SessionLocal
 
 
+def _client_bucket_identity(identity: str) -> str:
+    """Bucket IPv6 clients by /64 (one subscriber); IPv4 and other values are unchanged."""
+    try:
+        address = ipaddress.ip_address(identity)
+    except ValueError:
+        return identity
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is None:
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return identity
+
+
 def _bucket_id(scope: str, identity: str = "") -> str:
     if scope == "global":
         return "global"
     digest = hmac.new(
-        settings.session_secret.encode(), identity.encode(), hashlib.sha256
+        settings.session_secret.encode(), _client_bucket_identity(identity).encode(), hashlib.sha256
     ).hexdigest()
     return f"client:{digest}"
 

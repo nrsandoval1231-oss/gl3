@@ -2030,7 +2030,8 @@ def runtime_readiness():
     """Report whether the API can query its database and queue state."""
     try:
         with SessionLocal() as session:
-            session.execute(select(func.count()).select_from(Job)).scalar_one()
+            # Existence probe of the queue table: proves DB + schema without a full scan.
+            session.execute(select(Job.id).limit(1)).first()
     except Exception as exc:
         raise HTTPException(503, "Database or queue is unavailable") from exc
     return {"readiness": "READY"}

@@ -179,7 +179,7 @@ def main() -> None:
             documents = [Finding("document_check_failed", "all", type(exc).__name__)]
         title, body, urgent = summarize(health(), processing_failures(), spend, documents)
     except Exception as exc:  # health itself failing is the most important alert
-        title, body, urgent = "GridLens: health check failed", f"{type(exc).__name__}: {exc}", True
+        title, body, urgent = "GridLens: health check failed", type(exc).__name__, True
     send(title, body, urgent)
     print(title)
     sys.exit(0)

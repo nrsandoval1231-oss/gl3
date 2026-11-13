@@ -27,8 +27,31 @@ def _base_test_database_url() -> str:
         return ""
 
 
+def test_database_guard_error(base: str) -> str | None:
+    """Return why a base test database URL is unsafe to drop/create on, else None."""
+    if not base:
+        return None  # nothing configured: no database is touched by this module
+    try:
+        url = make_url(base)
+    except Exception:
+        return "TEST_DATABASE_URL is not a valid database URL"
+    host = (url.host or "").lower()
+    if not url.database or not url.database.endswith("_test"):
+        return "test database name must end in '_test'"
+    if host not in {"localhost", "127.0.0.1", "::1"}:
+        return "test database host must be loopback (localhost, 127.0.0.1 or ::1)"
+    return None
+
+
+def _refuse_unsafe_test_database() -> None:
+    problem = test_database_guard_error(_base_test_database_url())
+    if problem:
+        pytest.exit(f"Refusing to run tests: {problem}", returncode=4)
+
+
 def pytest_configure(config):
     """Point each xdist worker at its own test database before settings load."""
+    _refuse_unsafe_test_database()
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if not worker:
         return
@@ -45,6 +68,7 @@ def pytest_configure(config):
 
 def pytest_sessionstart(session):
     """Create one pristine database per xdist worker (controller process only)."""
+    _refuse_unsafe_test_database()
     if os.environ.get("PYTEST_XDIST_WORKER"):
         return
     if getattr(session.config.option, "collectonly", False):
