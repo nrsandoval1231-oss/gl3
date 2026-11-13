@@ -57,7 +57,7 @@ def test_prior_evidence_must_be_immediately_before_current_accepted_version():
     assert not _adjacent_prior_retained_evidence_versions(prior, current, [current, prior])
 
 
-def _retained_version(evidence_id: str, *, adverse: bool = False):
+def _retained_version(evidence_id: str, *, adverse: bool = False, metadata: bool = False):
     from gridlens.ingestion.adapters.retained_company_projects import (
         RETRIEVAL_METHOD,
         SOURCE_ID,
@@ -78,6 +78,11 @@ def _retained_version(evidence_id: str, *, adverse: bool = False):
         )
     )
     context = record["retained_company_project"]
+    if metadata:
+        record["publication_date_metadata"] = record["publication_date"]
+        context["publication_date_metadata"] = record["publication_date_metadata"]
+        record["source_hash"] = retained_record_hash(record)
+        context["content_hash"] = record["source_hash"]
     if adverse:
         record["title"] = "Red Oak Campus canceled"
         record["abstract"] = (
@@ -133,6 +138,16 @@ def test_native_history_requires_valid_provenance_and_fails_closed_at_cap():
     )
     assert not _retained_company_project_history_is_safe(
         [version_c] * 65,
+        source_id="retained-company-project-evaluation",
+        schema_version="retained-company-project-v2",
+    )
+
+
+def test_native_history_reparses_nonempty_publication_date_metadata():
+    metadata_version = _retained_version("accepted-with-metadata", metadata=True)
+    assert metadata_version.provenance["retained_company_project"]["publication_date_metadata"]
+    assert _retained_company_project_history_is_safe(
+        [metadata_version],
         source_id="retained-company-project-evaluation",
         schema_version="retained-company-project-v2",
     )

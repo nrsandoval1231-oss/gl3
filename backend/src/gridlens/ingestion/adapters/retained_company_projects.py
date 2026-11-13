@@ -224,6 +224,45 @@ _DATE_PATTERNS = (
         re.I,
     ),
 )
+_NON_GEOGRAPHIC_DATE_LINE_WORDS = {
+    "a",
+    "an",
+    "at",
+    "began",
+    "begin",
+    "begins",
+    "building",
+    "by",
+    "construction",
+    "date",
+    "expected",
+    "for",
+    "full",
+    "in",
+    "is",
+    "last",
+    "located",
+    "of",
+    "on",
+    "open",
+    "opened",
+    "opening",
+    "opens",
+    "operation",
+    "operational",
+    "operations",
+    "project",
+    "starts",
+    "start",
+    "started",
+    "starting",
+    "the",
+    "updated",
+    "was",
+    "were",
+    "will",
+    "work",
+}
 
 
 @dataclass(frozen=True)
@@ -254,6 +293,7 @@ def retained_record_hash(record: dict[str, Any]) -> str:
         "abstract": record.get("abstract"),
         "publication_date": record.get("publication_date"),
         "publication_date_precision": record.get("publication_date_precision"),
+        "publication_date_metadata": record.get("publication_date_metadata"),
     }
     raw = json.dumps(fields, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return _digest(raw.encode("utf-8"))
@@ -266,24 +306,71 @@ def _normal_text(value: str) -> str:
 def _as_date(value: str | None, text: str) -> date | None:
     if value:
         try:
-            return date.fromisoformat(value)
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
         except ValueError:
             pass
-    # Publication metadata is limited to an exact day in a source header.
-    # Dates later in the excerpt may be event/delivery targets and are not
-    # publication dates. Month/year-only labels stay unknown.
-    header = text[:320]
-    for pattern, fmt in (
-        (_DATE_PATTERNS[0], "%B %d, %Y"),
-        (_DATE_PATTERNS[1], "%b %d, %Y"),
-    ):
-        match = pattern.search(header)
-        if match:
+    # Only a publication date field, a standalone date header, or a recognizable
+    # dateline can establish publication time. Dates in article prose may be
+    # construction/event dates and must not be promoted to publication dates.
+    for raw_line in text.splitlines()[:3]:
+        line = raw_line.strip()
+        if not line:
+            continue
+        clean = re.sub(r"^\s*(?:#{1,6}\s*)?", "", line)
+        clean = re.sub(r"^\*+|\*+$", "", clean).strip()
+        for pattern, fmt in zip(_DATE_PATTERNS, ("%B %d, %Y", "%b %d, %Y"), strict=True):
+            match = pattern.search(clean)
+            if match is None:
+                continue
             try:
                 month, day, year = match.groups()
-                return datetime.strptime(f"{month} {day}, {year}", fmt).date()
+                parsed = datetime.strptime(f"{month} {day}, {year}", fmt).date()
             except ValueError:
                 continue
+            prefix_before_date = clean[: match.start()].strip()
+            remainder = clean[match.end() :].strip()
+            time_suffix = re.fullmatch(
+                r"(?:(?:\d{1,2}:\d{2}\s*(?:AM|PM)?)(?:\s+[A-Z]{2,5})?)?",
+                remainder,
+                re.I,
+            )
+            if not prefix_before_date and time_suffix:
+                return parsed
+            # A dateline has a geographic prefix, a dash before the date, and
+            # no prose verbs in that prefix. This covers city/state headers
+            # such as "Dallas, TX – September 10, 2024 –".
+            prefix = clean[: match.start()].rstrip()
+            delimiter = re.search(r"(?:–|—|-)\s*$", prefix)
+            if delimiter is None:
+                continue
+            locality = prefix[: delimiter.start()].strip(" *(")
+            locality_match = re.fullmatch(
+                r"(?P<city>[A-Z][A-Za-z.'’\-]*(?:\s+(?:and\s+)?"
+                r"[A-Z][A-Za-z.'’\-]*){0,5}),\s*"
+                r"(?P<state>Alabama|Alaska|Arizona|Arkansas|California|Colorado|"
+                r"Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|"
+                r"Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|"
+                r"Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New\s+Hampshire|"
+                r"New\s+Jersey|New\s+Mexico|New\s+York|North\s+Carolina|North\s+Dakota|"
+                r"Ohio|Oklahoma|Oregon|Pennsylvania|Rhode\s+Island|South\s+Carolina|"
+                r"South\s+Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|"
+                r"West\s+Virginia|Wisconsin|Wyoming|AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|"
+                r"ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|"
+                r"NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)",
+                locality,
+            )
+            if locality_match is None:
+                continue
+            city_words = {
+                word.casefold() for word in re.findall(r"[A-Za-z]+", locality_match.group("city"))
+            }
+            if city_words & _NON_GEOGRAPHIC_DATE_LINE_WORDS:
+                continue
+            if time_suffix or re.fullmatch(r"(?:\*\*)?\s*(?:–|—|-).*", remainder):
+                return parsed
     return None
 
 
@@ -1081,13 +1168,11 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
                 }
             )
             if title_adverse or "Adverse or contradictory status" in str(candidate.reason):
-                publication_date = _as_date(
-                    document["publication_date_metadata"][0]
-                    if len(set(document["publication_date_metadata"])) == 1
-                    and document["publication_date_metadata"]
-                    else None,
-                    body,
+                metadata_dates = document["publication_date_metadata"]
+                publication_metadata = (
+                    metadata_dates[0] if len(set(metadata_dates)) == 1 and metadata_dates else None
                 )
+                publication_date = _as_date(publication_metadata, body)
                 status_quote = (
                     source_title
                     if title_adverse
@@ -1113,6 +1198,7 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
                     "abstract": body,
                     "html_url": url,
                     "publication_date": publication_date.isoformat() if publication_date else None,
+                    "publication_date_metadata": publication_metadata,
                     "observation_date": max(document["observation_dates"])
                     if document["observation_dates"]
                     else None,
@@ -1134,6 +1220,7 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
                         "publication_date": publication_date.isoformat()
                         if publication_date
                         else None,
+                        "publication_date_metadata": publication_metadata,
                         "publication_date_precision": "day" if publication_date else "unknown",
                     },
                 }
@@ -1145,8 +1232,11 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
             continue
         source_aliases = _source_project_aliases(sections, candidate, title=source_title)
         metadata_dates = document["publication_date_metadata"]
+        publication_metadata = (
+            metadata_dates[0] if len(set(metadata_dates)) == 1 and metadata_dates else None
+        )
         publication_date = _as_date(
-            metadata_dates[0] if len(set(metadata_dates)) == 1 and metadata_dates else None,
+            publication_metadata,
             "\n".join(sections),
         )
         if publication_date is None:
@@ -1195,6 +1285,7 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
             "abstract": body,
             "html_url": url,
             "publication_date": publication_date.isoformat(),
+            "publication_date_metadata": publication_metadata,
             "observation_date": max(document["observation_dates"])
             if document["observation_dates"]
             else None,
@@ -1226,6 +1317,7 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
                 "section_ranges": section_ranges,
                 **source_aliases,
                 "publication_date": publication_date.isoformat(),
+                "publication_date_metadata": publication_metadata,
                 "publication_date_precision": "day",
             },
         }
@@ -1330,10 +1422,13 @@ def interpret_retained_company_project(record: dict[str, Any]) -> dict[str, str]
         or context.get("phase") != candidate.phase
         or context.get("building_id") != candidate.building_id
         or context.get("publication_date") != record.get("publication_date")
+        or context.get("publication_date_metadata") != record.get("publication_date_metadata")
         or context.get("publication_date_precision") != record.get("publication_date_precision")
         or record.get("publication_date_precision") != "day"
         or context.get("rationale") != candidate.rationale
-        or _as_date(record.get("publication_date"), body) is None
+        or _as_date(record.get("publication_date_metadata"), body) is None
+        or _as_date(record.get("publication_date_metadata"), body)
+        != _as_date(record.get("publication_date"), "")
     ):
         return None
     observed = record.get("observation_date")

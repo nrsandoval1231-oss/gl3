@@ -401,6 +401,9 @@ def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any)
             else None,
             "source_hash": getattr(evidence, "content_hash", None),
             "source_body_hash": retained.get("body_hash") if isinstance(retained, dict) else None,
+            "publication_date_metadata": retained.get("publication_date_metadata")
+            if isinstance(retained, dict)
+            else None,
             "publication_date_precision": retained.get("publication_date_precision")
             if isinstance(retained, dict)
             else None,

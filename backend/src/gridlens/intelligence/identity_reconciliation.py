@@ -719,6 +719,7 @@ def _retained_company_project_history_is_safe(
             "abstract": abstract,
             "html_url": url,
             "publication_date": publication_date.isoformat() if publication_date else None,
+            "publication_date_metadata": context.get("publication_date_metadata"),
             "publication_date_precision": context.get("publication_date_precision"),
             "source_body_hash": context.get("body_hash"),
             "source_hash": context.get("content_hash"),

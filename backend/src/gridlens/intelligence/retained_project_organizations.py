@@ -93,6 +93,7 @@ def _fresh_native_context(
         "abstract": body,
         "html_url": evidence.url,
         "publication_date": evidence.published_at.isoformat() if evidence.published_at else None,
+        "publication_date_metadata": context.get("publication_date_metadata"),
         "observation_date": evidence.observed_at.date().isoformat()
         if evidence.observed_at
         else None,
