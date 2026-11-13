@@ -275,6 +275,41 @@ def _contact_yield_keys(
     return keys
 
 
+def _named_role_discovery_hints(
+    document: PublicDocument, organization: str, project: Project | None, now: datetime
+) -> set[tuple[str, str]]:
+    """Keep a promising named-role lead in bounded research, never authenticate it.
+
+    This affects only the depth heuristic after same-host/self-identification
+    checks. Canonical attribution and contact publication remain independent.
+    A repeated role on another URL is the same hint, not additional yield.
+    """
+    if project is None:
+        return set()
+    observed = document.observed_at
+    if observed.tzinfo is None:
+        observed = observed.replace(tzinfo=UTC)
+    age = now - observed
+    if age < -timedelta(minutes=5) or age > timedelta(days=30):
+        return set()
+    org = Extracted(organization, "unknown", organization_relationship="DIRECT")
+    people = extract_people(
+        document,
+        [org],
+        project,
+        project_scoped=False,
+        today=now.date(),
+        verified_official_roster=True,
+    )
+    return {
+        (_normal(person.person_name), _normal(person.title))
+        for person in people
+        if person.person_name
+        and person.title
+        and person.person_organization_relationship == "CURRENT"
+    }
+
+
 def _current_contact_yield_keys(contacts: list) -> set[tuple[str, ...]]:
     keys: set[tuple[str, ...]] = set()
     for contact in contacts:
@@ -1389,6 +1424,11 @@ def process_company_contact_discovery(
 
     checked: set[str] = set()
     consecutive_low_yield = 0
+    seen_named_hints: set[tuple[str, str]] = {
+        (_normal(contact.name), _normal(contact.title))
+        for contact in current.contacts
+        if contact.name and contact.title and relevant_named_contact(contact)
+    }
     seen_yield_keys = _current_contact_yield_keys(current.contacts)
     new_contact_yield_count = 0
     depth_stop_reason: str | None = None
@@ -1422,8 +1462,15 @@ def process_company_contact_discovery(
                     )
                     new_yield = page_yield - seen_yield_keys
                     seen_yield_keys.update(page_yield)
+                    named_hints = _named_role_discovery_hints(document, organization, anchor, now)
+                    new_named_hints = named_hints - seen_named_hints
+                    seen_named_hints.update(named_hints)
                     if new_yield:
                         new_contact_yield_count += len(new_yield)
+                        consecutive_low_yield = 0
+                    elif new_named_hints:
+                        # A concrete professional role warrants the remaining
+                        # bounded research, but is not verified contact yield.
                         consecutive_low_yield = 0
                     else:
                         consecutive_low_yield += 1
