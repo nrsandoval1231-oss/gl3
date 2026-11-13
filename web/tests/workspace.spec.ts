@@ -48,7 +48,7 @@ test('default workspace shows customer accounts and opens an existing project ne
   await page.route('**/api/opportunities/workspace?*', route => { workspaceRequests.push(new URL(route.request().url())); return route.fulfill({ json: response() }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: accountNeed }))
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.getByText('1 account')).toBeVisible()
   await page.getByRole('button', { name: 'View account details' }).click()
   await expect(page.getByRole('region', { name: 'Company Example operator' })).toBeVisible()

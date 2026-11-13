@@ -49,7 +49,7 @@ test('the bare Opportunities view is a compact server-ranked account shortlist',
   await mock(page)
   await page.route('**/api/opportunities/groups?*', route => { groupQueries.push(new URL(route.request().url())); return route.fallback() })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.customer-group')).toHaveCount(1)
   await expect(page.locator('.cfr-kpis')).toHaveCount(0)
@@ -62,7 +62,7 @@ test('the bare Opportunities view is a compact server-ranked account shortlist',
 test('the bare root path also opens the account shortlist', async ({ page }) => {
   await mock(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.customer-group')).toHaveCount(1)
 })
 
@@ -124,7 +124,7 @@ test('Companies and Reports replace the visible Opportunities page while a delay
   release()
   await expect(page).toHaveURL(/panel=companies/)
   await expect(page.getByRole('heading', { name: 'Companies', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toHaveCount(0)
   await expect(page.locator('.customer-group')).toHaveCount(0)
 
   await page.evaluate(() => {
@@ -134,11 +134,11 @@ test('Companies and Reports replace the visible Opportunities page while a delay
   await page.getByRole('button', { name: 'Reports' }).click()
   await expect(page).toHaveURL(/panel=reports/)
   await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toHaveCount(0)
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-demand-refresh')))
   await expect(page).toHaveURL(/panel=reports/)
   await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close navigation panel' }).click()
   await expect(page).not.toHaveURL(/panel=/)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
 })

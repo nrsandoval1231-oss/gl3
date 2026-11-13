@@ -60,7 +60,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
   await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button')).toHaveText(['All', 'Oil & Gas', 'Data Centers'])

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupOpen, type ProjectResult } from '../../api/client'
+import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CommercialCustomerIntelligence, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupOpen, type ProjectResult } from '../../api/client'
 import { usePursuitStore } from '../../state/pursuitStore'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from '../workspace/opportunityExport'
@@ -130,11 +130,18 @@ function validAccountContactProject(value: unknown): value is ProjectResult {
   const candidate = value as { project_id?: unknown; name?: unknown; contact?: unknown }
   if (typeof candidate.project_id !== 'string' || typeof candidate.name !== 'string' || !Array.isArray(candidate.contact)) return false
   const stringFields = ['href', 'name', 'title', 'company', 'route_kind', 'responsibility', 'support', 'source_url', 'verified_at', 'person_identity_id', 'company_identity_id', 'role'] as const
-  return candidate.contact.every((contact: unknown) => {
+  const validMethods = candidate.contact.every((contact: unknown) => {
     if (!contact || typeof contact !== 'object') return false
     const action = contact as Record<string, unknown>
     return typeof action.kind === 'string' && typeof action.label === 'string' && stringFields.every(field => action[field] == null || typeof action[field] === 'string')
   })
+  const people = (candidate as { contact_people?: unknown }).contact_people
+  if (people != null && (!Array.isArray(people) || !people.every((person: unknown) => {
+    if (!person || typeof person !== 'object') return false
+    const row = person as Record<string, unknown>
+    return ['record_type', 'company_identity_id', 'person_identity_id', 'company', 'name', 'title', 'role', 'responsibility', 'purchasing_authority', 'source_url'].every(field => row[field] == null || typeof row[field] === 'string')
+  }))) return false
+  return validMethods
 }
 
 /** An explicit null/malformed API selection is authoritative; only older responses may fall back. */
@@ -143,9 +150,16 @@ export function selectAccountContactProject(group: OpportunityGroup, fallback: P
   return validAccountContactProject(group.account_contact_project) ? group.account_contact_project : null
 }
 
+const verifiedContactResponsibilities = new Set(['verified project responsibility', 'verified organizational responsibility'])
+export function verifiedContactPeople(project: ProjectResult | null) {
+  if (!project?.customer_identity_id) return []
+  return (project.contact_people ?? []).filter(person => Boolean(person.name?.trim()) && verifiedContactResponsibilities.has((person.responsibility ?? '').trim().toLocaleLowerCase()) && person.company_identity_id === project.customer_identity_id && Boolean(safeContactSourceUrl(person.source_url)))
+}
+
 function AccountContacts({ project }: { project: ProjectResult | null }) {
   const contacts = bestProjectContactRoutes(project?.contact ?? [])
-  if (!contacts.length) return <p className="cmp-note">No current business contact route is available.</p>
+  const people = verifiedContactPeople(project)
+  if (!contacts.length) return <div aria-label="Verified business contacts">{people.length ? <><strong>Verified business contacts</strong><ul>{people.map((person, index) => <li key={`${person.person_identity_id ?? person.name}:${index}`}><strong>{person.name}</strong>{person.title && ` · ${person.title}`}{person.role && ` · ${person.role}`}<small>Verified {person.responsibility?.replace('Verified ', '').toLowerCase()}. Professional contact details unavailable.</small>{safeContactSourceUrl(person.source_url) && <a href={safeContactSourceUrl(person.source_url)!} target="_blank" rel="noreferrer">Contact source</a>}</li>)}</ul><p className="cmp-note">Research a permitted business route before outreach.</p></> : <p className="cmp-note">No verified business contact is currently available. Contact research is needed.</p>}</div>
   const best = contacts[0].contact
   const generalRoutes = generalCompanyContactRoutes(project?.contact ?? [], contacts)
   const companyLine = /general|main line|switchboard|company/i.test(`${best.label} ${best.route_kind ?? ''}`)
@@ -200,6 +214,32 @@ function earliestValidUntil(...values: (string | undefined)[]) {
 }
 function isUnavailableAccountRead(cause: unknown) {
   return cause instanceof OpportunityGroupUnavailableError
+}
+
+function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
+  const intel: CommercialCustomerIntelligence | null = group?.commercial_intelligence ?? null
+  if (!intel) return null
+  const show = (value: unknown) => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value)
+    if (!value || typeof value !== 'object') return ''
+    const row = value as Record<string, unknown>
+    if (typeof row.display_label === 'string') return row.display_label
+    return [row.display_label, row.summary, row.title, row.name, row.label, row.value, row.text, row.date, row.precision].filter((part): part is string | number => typeof part === 'string' || typeof part === 'number').join(' · ')
+  }
+  const totals = intel.capacity?.totals?.filter(item => item.value_mw != null && item.status !== 'unknown') ?? []
+  const commissioning = intel.commissioning
+  return <details className="cmp-commercial-analysis"><summary>Commercial analysis</summary>
+    <div className="cmp-commercial-grid">
+      <section><h4>Build capacity</h4>{totals.length ? totals.map((item, index) => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; const basis = ({ campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' } as Record<string,string>)[item.basis] ?? item.basis.replaceAll('_',' '); const qualifier = detail.qualifier === 'up_to' || item.status === 'upper_bound' ? 'Up to ' : detail.qualifier === 'approximate' ? 'Approximately ' : detail.qualifier === 'more_than' ? 'More than ' : detail.qualifier === 'at_least' || item.status === 'lower_bound' ? 'At least ' : ''; return <p key={index}>{qualifier}{item.value_mw} MW · {basis}{detail.complete === false ? ' · partial coverage' : ''}</p> }) : <p>No supported build-capacity total is available.</p>}{intel.capacity.coverage && <small>{String(intel.capacity.coverage.projects_with_capacity ?? 0)} of {String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity</small>}</section>
+      <section><h4>Timing</h4>{show(intel.timelines?.construction_start) && <p>Construction start · {show(intel.timelines?.construction_start)}</p>}{show(intel.timelines?.expected_energization) && <p>Expected energization · {show(intel.timelines?.expected_energization)}</p>}{!show(intel.timelines?.construction_start) && !show(intel.timelines?.expected_energization) && <p>No supported timeline is available.</p>}</section>
+      <section><h4>Commissioning scenario</h4>{commissioning && [commissioning.low_mw, commissioning.base_mw, commissioning.high_mw].some(value => value != null) ? <p>Engineering scenario · {commissioning.low_mw ?? commissioning.base_mw}–{commissioning.high_mw ?? commissioning.base_mw} MW</p> : <p>Insufficient data for an engineering scenario.</p>}{commissioning?.limitations?.map((item, index) => <small key={index}>{item}</small>)}</section>
+      <section><h4>Recent developments</h4>{intel.recent_developments?.length ? intel.recent_developments.map((item, index) => <p key={index}>{show(item)}</p>) : <p>No material recent development is available.</p>}</section>
+    </div>
+    {intel.priority && <section><h4>Priority rationale</h4><p>Potential {intel.priority.potential} · evidence confidence {intel.priority.confidence}</p>{Object.entries(intel.priority.components).map(([key, value]) => <p key={key}>{key.replaceAll('_', ' ')}: {show(value)}</p>)}</section>}
+    {intel.limitations?.map((item, index) => <p className="cmp-note" key={index}>{item}</p>)}
+    {intel.sources?.length ? <section><h4>Sources</h4>{intel.sources.map((item, index) => { const url = sourceUrl(typeof item.url === 'string' ? item.url : null); const named = [item.title, item.name, item.label].find((value): value is string => typeof value === 'string' && Boolean(value.trim())); const title = named || String(item.evidence_id ?? 'Evidence source'); return <p key={index}>{url ? <a href={url} target="_blank" rel="noreferrer">{title}</a> : title}</p> })}</section> : null}
+    {(intel.timelines?.claims?.length || intel.timelines?.conflicts?.length) && <details><summary>Timeline claims and conflicts</summary>{[...(intel.timelines.claims ?? []), ...(intel.timelines.conflicts ?? [])].map((item, index) => <p key={index}>{show(item)}</p>)}</details>}
+  </details>
 }
 
 /** Shared account detail for the Opportunities and Companies account routes. */
@@ -426,6 +466,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
         {nextStep && <p>{nextStep}</p>}
         {(!group?.group_kind || group.group_kind === 'resolved_identity') ? <AccountContacts project={accountContactProject}/> : <p className="cmp-note">Select a project to see its supported business contact.</p>}
       </section>
+      <CommercialAnalysis group={group} />
       <section aria-label="Linked pursuits" className="cmp-block">
         <h3>Linked pursuits</h3>
         {!pursuits.loaded ? <p role="status">Checking your pursuits…</p> : pursuits.error ? <p>Pursuits are unavailable: {pursuits.error}</p> : <>

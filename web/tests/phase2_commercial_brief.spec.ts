@@ -63,7 +63,7 @@ async function signIn(page: Page) {
   await expect(page.getByRole('heading', { name: 'Sign in to GridLens', exact: true })).toBeVisible()
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toBeVisible()
 }
 
 test('source-backed disposable account brief survives responsive navigation and remains read-only', async ({ page }, testInfo) => {

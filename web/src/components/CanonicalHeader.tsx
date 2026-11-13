@@ -29,8 +29,8 @@ export function CanonicalHeader({ activeDestination = 'opportunities', onNavigat
   return (
     <header className="canonical-header">
       <a className="canonical-header__brand" href={homeHref}
-        aria-label="GridLens — Power demand and project activity">
-        <span className="canonical-header__brand-art" aria-hidden="true" />
+        aria-label="GridLens — Real projects. Real power.">
+        <span className="canonical-header__brand-lockup"><span className="canonical-header__brand-art" aria-hidden="true" /><span className="canonical-header__tagline">Real projects. Real power.</span></span>
       </a>
       <nav className="canonical-header__nav" aria-label="Primary navigation">
         {destinations.map(({ id, label }) => (

@@ -67,7 +67,7 @@ test('account-first list filters and pages the entire server cohort before openi
   await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.cfr-kpis')).toHaveCount(0)
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
@@ -275,7 +275,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
     associated_account: { company_identity_id: 'group-synthetic-1', name: 'Example Energy', support_status: 'current' },
   } }))
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('1 account')
   await page.locator('.customer-group').getByRole('button', { name: /Example Energy/ }).click()
   const account = page.getByRole('region', { name: 'Company Example Energy' })
