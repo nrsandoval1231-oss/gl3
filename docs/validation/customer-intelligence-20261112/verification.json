@@ -1,0 +1,77 @@
+{
+  "recorded_at": "2026-11-13T00:49:22.034926+00:00",
+  "disposition": "commercial_acceptance_withheld",
+  "backend_source": "1de298af047f09a32e9a0349f41410a55bc1791e",
+  "affected_backend_matrix": {
+    "passed": 251,
+    "failed": 0,
+    "warnings": 3,
+    "seconds": 654.02,
+    "exit_code": 0,
+    "log_sha256": "5d7696b00b15853c5fd5cbb822a55eaccf2ca5cafd42c027d25049826bf119e2",
+    "execution": "coordinator; independently inspected by Astra",
+    "scope": "affected contract, commissioning, phase, projection, unchanged scale/query gates, customer results and complete power-need-brief module; not full suite"
+  },
+  "independent_backend_checks": {
+    "passed": 95,
+    "seconds": 1.01,
+    "scope": "pure extraction/scoping"
+  },
+  "historical_full_backend_ci": {
+    "run_id": 43332605737,
+    "source": "4b6d0f92ad3d2475c9a783fe7b6bdd649ca0c74a",
+    "passed": 5516,
+    "failed": 3,
+    "skipped": 1,
+    "disposition": "failed; two query regressions repaired; brief-refresh cause unproven"
+  },
+  "historical_ui_ci": {
+    "run_id": 43337471997,
+    "source": "2aea1aa08a11e1d20ad6dbacbd141c4ef0e0e345",
+    "browser_passed": 330,
+    "browser_failed": 6,
+    "browser_flaky": 1,
+    "disposition": "failed; strict contact/rendering repair pending"
+  },
+  "current_full_ci": "GitHub PR checks and PR199 body are authoritative; no pending run is a pass",
+  "commercial_coverage": {
+    "runtime_scoped_capacity_claims": 0,
+    "runtime_scoped_timeline_claims": 0,
+    "identity_contact_salesperson_end_to_end": "not_evaluated"
+  },
+  "production_deployed": false,
+  "repaired_full_backend_ci": {
+    "run_id": 43337420044,
+    "source": "1de298af047f09a32e9a0349f41410a55bc1791e",
+    "passed": 5534,
+    "failed": 1,
+    "skipped": 1,
+    "warnings": 22,
+    "seconds": 683.01,
+    "disposition": "failed; only whole-card/detail equality assertion; compact/detail contract test repair pending; earlier query-budget and brief-refresh failures passed"
+  },
+  "test_only_followup": {
+    "commit": "aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd",
+    "application_source_unchanged_from": "1de298af047f09a32e9a0349f41410a55bc1791e",
+    "requested_matrix_passed": 13,
+    "matrix_seconds": 47.02,
+    "final_revised_route_case_passed": 1,
+    "final_route_seconds": 6.93,
+    "independent_test_contract_review": "accepted by Astra; not fullCI acceptance"
+  },
+  "final_ui": {
+    "source": "7c85c32e",
+    "equivalent_ui_branch": "c0063c7f27dffeb591697a039a481edd1044b77e",
+    "independent_focused_browser_passed": 25,
+    "independent_seconds": 59.1,
+    "independent_extra_metadata_case_passed": 1,
+    "local_generic_tests_executed": 338,
+    "local_generic_failed": null,
+    "failure": "real auth; confirmed403 Origin check failed because local trusted origin missing",
+    "corrected_configuration_isolated_auth_passed": 1,
+    "security_source_changed": false,
+    "typecheck": "passed",
+    "local_generic_failure_artifacts": 1,
+    "local_generic_aggregate_summary": "not retained; no pass/flaky totals or full-run duration inferred"
+  }
+}

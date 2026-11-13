@@ -2,7 +2,7 @@
 
 Current implementation and evaluation are draft, undeployed work over main `bf75d327`. See the [audit/contract](../docs/engineering/customer-commercial-intelligence-20261112.md), [commissioning model](../docs/engineering/commissioning-model-20261112.md), [retained fact publication](../docs/engineering/customer-facts-persistence-20261112.md), and [real-source evaluation](../eval/customer-commercial-v1/README.md).
 
-PR195 contains the audit. PR196 contains backend extension and commissioning scenarios; source `4b6d0f92` passed 178 changed tests and independent Astra's 52-case safety recheck. These are bounded source checks, not a complete gate or commercial acceptance. Full CI, UI integration and performance receipts own their exact final statuses.
+PR195 contains the audit; PR196 backend/commissioning source `1de298af` passed251 affected tests and independent Astra's95 pure/scoping cases. PR198 contains UI; main-base PR199 retains real-source evaluation and integration evidence. The [delivery checkpoint](../docs/validation/customer-intelligence-20261112/DELIVERY.md) records historical failures, source-specific review and measured performance costs. GitHub PR checks/body own final CI status; pending runs are not passes. These bounded checks do not establish commercial acceptance.
 
 **Release/merge blocker:** the 20 real organizations produce zero project-scoped capacity/timeline predictions under the runtime guard; final raw capacity precision/recall is 41.18%/21.875%. Current contact acquisition/verification and salesperson usefulness remain unproven. All20 commissioning abstentions reflect missing test-plan inputs, not positive model efficacy. Do not claim completion, production readiness, new live coverage or sustained operation.
 
