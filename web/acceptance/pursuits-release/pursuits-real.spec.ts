@@ -123,12 +123,13 @@ test('real account-first pursuit journey persists through navigation, reload, an
 
   const start = await signIn(page)
   await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'All customers' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0)
   await expect(page.locator('.project-results-count')).toContainText(/\d+ accounts?/)
+  // Keep the historical metric key for result consumers; it now measures the first all-customer render.
   interactionTimes.loginToFirstShortlistReadyMs = Date.now() - start
   recordInteraction('loginToFirstShortlistReadyMs', interactionTimes.loginToFirstShortlistReadyMs)
-  await capture(page, testInfo, 'default-shortlist')
+  await capture(page, testInfo, 'default-customers')
 
   const searchStarted = Date.now()
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
@@ -387,7 +388,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
     repeated_read_only_iterations: 10,
     persistedJourneyElapsedMs,
     journeyPlusBenchmarkElapsedMs: elapsed,
-    coldScope: 'first full shortlist render after authenticated session in a fresh browser context; server/PostgreSQL cache state unknown',
+    coldScope: 'first full all-customer render after authenticated session in a fresh browser context; server/PostgreSQL cache state unknown',
     warmScope: '10 read-only account and Companies interaction repeats in the same browser context and backend process',
     interaction_samples: interactions,
     initial_interaction_ms: interactionTimes,

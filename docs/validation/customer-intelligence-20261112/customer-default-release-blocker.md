@@ -1,4 +1,6 @@
-# Customer default policy: unresolved release blocker
+# Customer default policy: resolved in the candidate
+
+**Owner decision, November 13:** the user explicitly approved updating the default-policy tests so Customers opens with all canonical companies. Permission is no longer pending. Implemented by `2336b02a` (server canonical scope) and `2467dafb` (default UI, route continuity and approved policy tests). Local verification passed259 backend cases,34 focused browser cases, typecheck/build and actual retained-source UI smoke. Full candidate CI remains a separate gate. See the [actual before/after receipt](default-native-ui-20261113-final/README.md) and [independent review](default-customers-20261113-review.md). The original diagnosis below remains historical. Shortlist eligibility, need-scoped Pursuits, filtering and safety assertions must remain intact.
 
 The retained-source runtime evaluation traversed native ingestion, enrichment, canonical project-scoped identity links and saved-browse publication, then called both customer endpoints. It created no reference company/project IDs and used no external provider.
 

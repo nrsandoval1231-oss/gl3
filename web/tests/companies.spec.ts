@@ -64,7 +64,7 @@ test('directory shows only supplied fields, searches, and omits unsupported colu
   await expect(table).not.toContainText('Total MW')
   await expect(table).not.toContainText(/\b0 MW\b/)
   await expect(panel).toContainText('Total MW and linked pursuits are not part of the company list')
-  await expect(page.getByRole('link', { name: 'Back to Opportunities' })).toHaveAttribute('href', /shortlist=1/)
+  await expect(page.getByRole('link', { name: 'Back to Opportunities' })).toHaveAttribute('href', '/?view=workspace')
   await panel.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('cedar')
   await expect(table.getByRole('row')).toHaveCount(2)
   await expect(panel.getByRole('status')).toContainText('1 operator/customer group matching search')
