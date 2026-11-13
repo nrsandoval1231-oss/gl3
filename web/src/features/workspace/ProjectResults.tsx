@@ -3,7 +3,7 @@ import { browseUpdatingNotice, client, OpportunityBrowsePendingError, Opportunit
 import { clearProjectBrowseCache, invalidateProjectBrowseCache, projectBrowseCacheKey, projectBrowseCacheVersion, readProjectBrowseCache, writeProjectBrowseCache, type ProjectBrowseRoute } from '../../state/projectBrowseCache'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from './opportunityExport'
-import { bestProjectContactRoutes, CompanyView, generalCompanyContactRoutes, safeContactSourceUrl, selectAccountContactProject, verifiedContactPeople } from '../companies/CompanyView'
+import { bestProjectContactRoutes, CompanyView, generalCompanyContactRoutes, safeContactSourceUrl, selectAccountContactProject, verifiedContactPeople, VerifiedContactPeople } from '../companies/CompanyView'
 
 type Props = { selectedNeedId?: string; accountContextStatus?: 'valid' | 'pending' | 'unavailable'; onNeed: (need: { id: string }, context?: { accountId: string; projectId?: string }) => void; onBrowseChange?: () => void }
 function commercialIntel(group: OpportunityGroup): CommercialCustomerIntelligence | null { return group.commercial_intelligence ?? null }
@@ -14,18 +14,24 @@ function CustomerIntelSummary({ group }: { group: OpportunityGroup }) {
   const intel = commercialIntel(group)
   const totals = intel?.capacity?.totals?.filter(item => item.value_mw != null && item.status !== 'unknown') ?? []
   const scenario = intel?.commissioning
+  const capacityDetail = intel?.capacity as CommercialCustomerIntelligence['capacity'] & { conflict_count?: number } | undefined
+  const timelineDetail = intel?.timelines as CommercialCustomerIntelligence['timelines'] & { conflict_count?: number } | undefined
   const construction = intelLabel(intel?.timelines?.construction_start)
   const energization = intelLabel(intel?.timelines?.expected_energization)
   const capacity = totals.map(item => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; return `${capacityPrefix(detail.qualifier,item.status)}${item.value_mw} MW ${capacityBasis(item.basis ?? 'capacity')}${detail.complete === false ? ' · partial coverage' : ''}` }).join(' · ')
   const capacityCoverage = intel?.capacity?.coverage ? `${String(intel.capacity.coverage.projects_with_capacity ?? 0)} of ${String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity` : ''
-  const scenarioText = scenario && [scenario.low_mw, scenario.base_mw, scenario.high_mw].some(value => value != null)
-    ? `Engineering scenario · ${scenario.low_mw ?? scenario.base_mw ?? '—'}–${scenario.high_mw ?? scenario.base_mw ?? '—'} MW`
-    : ''
+  const capacityConflictCount = capacityDetail?.conflict_count ?? intel?.capacity?.conflicts?.length ?? 0
+  const timelineConflictCount = timelineDetail?.conflict_count ?? intel?.timelines?.conflicts?.length ?? 0
+  const scenarioText = scenario && scenario.low_mw != null && scenario.high_mw != null
+    ? `Engineering scenario · ${scenario.low_mw}–${scenario.high_mw} MW${scenario.base_mw != null ? ` · base ${scenario.base_mw} MW` : ''}`
+    : scenario?.base_mw != null ? `${scenario.base_mw} MW base engineering scenario`
+      : scenario?.low_mw != null ? `Low scenario bound · ${scenario.low_mw} MW`
+        : scenario?.high_mw != null ? `High scenario bound · ${scenario.high_mw} MW` : ''
   const development = (intel?.recent_developments ?? []).map(intelLabel).find(Boolean)
   const nextAction = intelLabel(intel?.recommended_next_action)
   return <div className="premium-intelligence-summary" aria-label="Commercial intelligence">
-    <span><strong>Build capacity</strong>{capacity || 'Not available from supported evidence'}{capacityCoverage && <small>{capacityCoverage}</small>}</span>
-    <span><strong>Timing</strong><small><b>Construction start</b> · {construction || 'Not established'}</small><small><b>Expected energization</b> · {energization || 'Not established'}</small></span>
+    <span><strong>Build capacity</strong>{capacity || 'Not available from supported evidence'}{capacityCoverage && <small>{capacityCoverage}</small>}{(capacityConflictCount > 0 || intel?.capacity.status === 'conflict') && <small role="status">Conflicting capacity claims require review.</small>}</span>
+    <span><strong>Timing</strong><small><b>Construction start</b> · {construction || 'Not established'}</small><small><b>Expected energization</b> · {energization || 'Not established'}</small>{timelineConflictCount > 0 && <small role="status">Conflicting timeline claims require review.</small>}</span>
     <span><strong>Commissioning</strong>{scenarioText || 'Insufficient data for an engineering scenario'}</span>
     {development && <span className="premium-intelligence-development"><strong>Recent development</strong>{development}</span>}
     {nextAction && <span className="premium-intelligence-action"><strong>Next action</strong>{nextAction}</span>}
@@ -369,7 +375,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
         <span className="customer-group-count">{displayedGroup.project_count} {displayedGroup.project_count === 1 ? 'project' : 'projects'}</span>
         <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
-      <div className="customer-group-featured"><CustomerIntelSummary group={displayedGroup}/>{displayedGroup.featured_project && <><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.commercial_brief ? <CommercialBriefSummary project={displayedGroup.featured_project}/> : <>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/></>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></>}</div>
+      <div className="customer-group-featured"><CustomerIntelSummary group={displayedGroup}/>{displayedGroup.featured_project && <><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.commercial_brief ? <CommercialBriefSummary project={displayedGroup.featured_project} contactProject={accountContactProject}/> : <>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/></>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></>}</div>
       {canUseChildren && childPageCurrent && expanded[group.id] && <div className="customer-group-projects">
         {childNotices[group.id] && <p role="status" className="project-results-notice">{childNotices[group.id]}</p>}
         {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}
@@ -392,7 +398,7 @@ function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { proj
   return <article className="project-card" aria-current={selectedNeedId && project.needs.some(need => need.id === selectedNeedId) ? 'true' : undefined}>
     <div className="project-card-top"><span>{project.asset_type?.replaceAll('_', ' ') ?? 'Project'}</span>{project.sector && <span>{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>
     {nested ? <h3>{displayName}</h3> : <h2>{displayName}</h2>}{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
-    {project.commercial_brief ? <CommercialBriefSummary project={project}/> : <>
+    {project.commercial_brief ? <CommercialBriefSummary project={project} contactProject={project}/> : <>
       {assessment?.why_now && <p className="project-next">{assessment.why_now}</p>}
       {assessment?.next_step && <p>{assessment.next_step}</p>}
     </>}
@@ -407,14 +413,14 @@ function FeaturedContact({ project, contactProject }: { project: ProjectResult; 
   const contacts = bestProjectContactRoutes(contactProject.contact)
   const general = generalCompanyContactRoutes(contactProject.contact, contacts)
   const people = verifiedContactPeople(contactProject)
-  if (!contacts.length && !general.length) return <div className="customer-group-contact" aria-label="Best contact"><strong>Best contact</strong>{people.length ? <>{people.map((person, index) => <span key={`${person.person_identity_id ?? person.name}:${index}`}><strong>{person.name}</strong>{person.title && ` · ${person.title}`}{person.role && ` · ${person.role}`}<small>Verified {person.responsibility?.replace('Verified ', '').toLowerCase()} · Professional contact details unavailable.</small>{safeContactSourceUrl(person.source_url) && <a href={safeContactSourceUrl(person.source_url)!} target="_blank" rel="noreferrer">Contact source</a>}</span>)}<small>Research a permitted business route before outreach.</small></> : <small>No verified business contact is currently available. Contact research is needed.</small>}</div>
+  if (!contacts.length && !general.length) return <div className="customer-group-contact" aria-label="Best contact"><strong>Best contact</strong><VerifiedContactPeople people={people}/></div>
   const best = contacts[0]?.contact ?? general[0].contact
   const companyLine = best.route_kind === 'company_route'
   const contactSource = safeContactSourceUrl(best.source_url)
   return <div className="customer-group-contact">{contactProject.project_id !== project.project_id && <small>Contact associated with {contactProject.name}</small>}<strong>{best.name ?? best.company ?? 'Business contact'}</strong>{best.title && <span> · {best.title}</span>}{best.responsibility && <small>{best.responsibility}. Authority needs confirmation.</small>}{companyLine && <span> · General company route</span>}{contacts.length > 0 && <span>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</span>}{general.length > 0 && <span>General company route · {general.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</span>}{contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}</div>
 }
 
-function CommercialBriefSummary({ project }: { project: ProjectResult }) {
+function CommercialBriefSummary({ project, contactProject = project }: { project: ProjectResult; contactProject?: ProjectResult | null }) {
   const brief = project.commercial_brief
   if (!brief) return null
   const representativeNeeds = project.needs.filter(need => need.id === project.representative_need_id)
@@ -422,6 +428,7 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
   const contactCandidate = brief.best_contact ?? representativeNeedBrief?.best_contact ?? null
   const contactHref = contactCandidate?.href ? safeBriefHref(contactCandidate.kind, contactCandidate.href) : null
   const best = contactHref ? contactCandidate : null
+  const verifiedPeople = verifiedContactPeople(contactProject)
   const powerLimitations = meaningfulPowerLimitations(brief.power_need.limitations)
   const hasDocumentedAmount = brief.power_need.amount_class !== 'unknown' && Boolean(brief.power_need.value)
   const hasUsefulUnknownScope = !hasDocumentedAmount && Boolean(brief.power_need.scope?.trim()) && powerLimitations.length > 0
@@ -440,7 +447,7 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p></div>
     {showPowerNeed && <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{hasDocumentedAmount && <small>{humanizeBriefStatus(brief.power_need.amount_class)}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>}
-    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div>}
+    {best ? <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div> : verifiedPeople.length ? <VerifiedContactPeople people={verifiedPeople}/> : <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong><small>No verified business contact is currently available. Contact research is needed.</small></div>}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
     <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>

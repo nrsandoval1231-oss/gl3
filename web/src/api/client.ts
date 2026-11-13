@@ -102,13 +102,15 @@ function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sect
 }
 export type CommercialCustomerIntelligence = {
   version: string
-  capacity: { status: string; totals: Array<{ basis: string; value_mw: string | null; status: string; qualifier?: string; complete?: boolean; claim_ids?: string[] }>; coverage?: Record<string, unknown>; claims?: Array<Record<string, unknown>>; conflicts?: unknown[] }
-  timelines: { construction_start?: { label: string; precision?: string; event_type?: string } | null; expected_energization?: { label: string; precision?: string; event_type?: string } | null; claims?: Array<Record<string, unknown>>; conflicts?: unknown[] }
+  capacity: { status: string; totals: Array<{ basis: string; value_mw: string | null; status: string; qualifier?: string; complete?: boolean; claim_ids?: string[] }>; coverage?: Record<string, unknown>; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
+  timelines: { construction_start?: { label: string; precision?: string; event_type?: string } | null; expected_energization?: { label: string; precision?: string; event_type?: string } | null; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
   commissioning?: { status: string; version?: string; base_mw?: string | null; low_mw?: string | null; high_mw?: string | null; assumptions?: string[]; limitations?: string[]; [key: string]: unknown }
   recent_developments: Array<Record<string, unknown>>
-  priority: { potential: number; confidence: number; score: number; components: Record<string, unknown>; version: string }
+  priority: { potential: number; confidence: number; score: number; components?: Record<string, unknown>; version: string }
   recommended_next_action: string
-  sources: Array<Record<string, unknown>>
+  source_count?: number
+  details_available?: boolean
+  sources?: Array<Record<string, unknown>>
   limitations: string[]
 }
 export type OpportunityGroup = { commercial_intelligence?: CommercialCustomerIntelligence; pursued_eligible_need_count?: number; matched_need_id?: string | null; matched_project_id?: string | null; eligible_need_count?: number; featured_project?: ProjectResult | null; account_contact_project?: ProjectResult | null; relevant_project_count?: number; total_known_project_count?: number; id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
