@@ -4,7 +4,7 @@ Repository `main` is at `5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d`. The Alembic 
 
 ## Merged to main since the November 2 release receipt
 
-PR numbers and the #188 merge commit come from the 2026-11-13 audit's reading of git history (#183/#186 also from `AGENTS.md`); this edit session had no shell to re-run `git log`. A merge is a source fact, not a deployment fact.
+PR numbers and the #188 merge commit come from the 2026-11-13 audit's reading of git history (#183/#186 also from `AGENTS.md`); a later review re-checked them against `git log` (origin/main is `5ee2f30`; the local `main` ref lags at `5d93bea`). A merge is a source fact, not a deployment fact.
 
 - PR #183 owner-managed Commercial Pursuits and four-section navigation (schema 0050); PR #186 source-backed shortlist. See [commercial pursuits](../docs/engineering/commercial-pursuits-20261106.md) and [shortlist](../docs/engineering/evidence-led-shortlist-20261106.md).
 - PR #188 (merged 2026-11-10, commit `5d93bea`) Phase 2 autonomous commercial research. See [contracts and acceptance](../docs/engineering/autonomous-commercial-research-20261108.md); the running checkpoint is archived in [Phase 2 history](archive/PHASE2-20261108/README.md).
@@ -22,4 +22,4 @@ Awaiting a new owner request. The [November 8 Phase 2 authority](archive/PHASE2-
 
 ## Documentation audit, 2026-11-13
 
-An audit of maintained documentation found stale schema heads, Phase 2 authority framed as current, a retired source-enablement route documented as live, and an overclaimed flat-card default. Corrections are on branch `claude/sweet-dijkstra-kxyssa`, committed on that branch in lane-by-lane commits and pending independent review; there is no PR. Proposed edits to `AGENTS.md` and `CLAUDE.md` are recorded in `experience/proposed-improvements.md` for owner review. Run `uv run --project backend python scripts/check_docs.py` after any further documentation edit.
+An audit of maintained documentation found stale schema heads, Phase 2 authority framed as current, a retired source-enablement route documented as live, and an overclaimed flat-card default. Corrections to docs, backend, deploy, CI and web code are on branch `claude/sweet-dijkstra-kxyssa`, committed on that branch in lane-by-lane commits and pending independent review; there is no PR. Proposed edits to `AGENTS.md` and `CLAUDE.md` are recorded in `experience/proposed-improvements.md` for owner review. Run `uv run --project backend python scripts/check_docs.py` after any further documentation edit.

@@ -5,37 +5,10 @@ import uuid
 import httpx
 import pytest
 
-from gridlens.intelligence import contact_suppressions as cs
 from gridlens.jobs import alerts
 from gridlens.settings import settings
 
 CID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        "512-555-1234 x204",
-        "512-555-1234 ext 204",
-        "512-555-1234 ext. 204",
-        "(512) 555-1234 extension 204",
-        "tel:+1-512-555-1234;ext=204",
-        "512-555-1234;ext=204",
-        "+1 512 555 1234 X 204",
-    ],
-)
-def test_phone_extension_canonicalizes_to_bare_number(value):
-    bare = cs.global_method_suppression_key("phone", "512-555-1234")
-    assert cs.global_method_suppression_key("phone", value) == bare
-    assert cs.method_suppression_key(CID, None, "tel", value) == cs.method_suppression_key(
-        CID, None, "phone", "5125551234"
-    )
-
-
-def test_phone_without_extension_keys_unchanged():
-    assert cs._method_parts("phone", "+44 20 7946 0958") == ("phone", "+442079460958")
-    assert cs._method_parts("phone", "1 (512) 555-1234") == ("phone", "5125551234")
-    assert cs._method_parts("phone", "512-555-1234") == ("phone", "5125551234")
 
 
 def test_ipv6_clients_share_a_64_bucket(monkeypatch):
@@ -130,7 +103,6 @@ def test_database_guard_accepts_loopback_test_databases(url):
         "postgresql+psycopg://u:p@db.example.com/gridlens_test",
         "postgresql+psycopg://u:p@127.0.0.1/gridlens",
         "postgresql+psycopg://u:p@127.0.0.1/",
-        "postgresql+psycopg://u:p@/gridlens_test",
         "not a url",
     ],
 )

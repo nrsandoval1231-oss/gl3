@@ -26,15 +26,10 @@ def test_all_web_response_locations_inherit_always_on_security_headers():
             headers[match[1]] = match[2].strip('"')
         depth += line.count("{") - line.count("}")
     csp = headers["Content-Security-Policy"]
-    for directive in (
-        "default-src 'self'",
-        "img-src 'self' data:",
-        "frame-ancestors 'none'",
-        "base-uri 'none'",
-        "form-action 'self'",
-    ):
-        assert directive in csp
-    assert "unsafe-inline" not in csp and "unsafe-eval" not in csp
+    assert csp == (
+        "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; "
+        "base-uri 'none'; form-action 'self'"
+    )
     assert headers["X-Frame-Options"] == "DENY"
     assert headers["X-Content-Type-Options"] == "nosniff"
     assert headers["Referrer-Policy"] == "strict-origin-when-cross-origin"

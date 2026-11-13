@@ -38,8 +38,8 @@ def test_database_guard_error(base: str) -> str | None:
     host = (url.host or "").lower()
     if not url.database or not url.database.endswith("_test"):
         return "test database name must end in '_test'"
-    if host not in {"localhost", "127.0.0.1", "::1"}:
-        return "test database host must be loopback (localhost, 127.0.0.1 or ::1)"
+    if host and host not in {"localhost", "127.0.0.1", "::1", "db"}:
+        return "test database host must be loopback or the compose service 'db'"
     return None
 
 

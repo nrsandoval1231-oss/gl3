@@ -30,7 +30,7 @@ For the optional containerized local stack, see [`setup_compose.py`](scripts/set
 
 `uv run --project backend python scripts/check_docs.py` verifies local links in the maintained documentation graph. `scripts/check.ps1` is the full local gate: locked backend sync, dependency audit, Ruff lint and format checks, mypy, migration checks, pytest, npm audit, TypeScript check, web build, and Playwright browser regression.
 
-The full gate requires process environment variables `DATABASE_URL`, `TEST_DATABASE_URL`, `APP_PASSWORD_HASH`, and `SESSION_SECRET`; the test URL must end in a separate disposable `_test` database. The PowerShell script does not parse `.env`. From a PowerShell window with the generated ignored `.env`, load only these four values into the current process without displaying them:
+The full gate requires process environment variables `DATABASE_URL`, `TEST_DATABASE_URL`, `APP_PASSWORD_HASH`, and `SESSION_SECRET`; both URLs must name a disposable `_test` database on a loopback host (`check.ps1` refuses to run otherwise). The PowerShell script does not parse `.env`. From a PowerShell window with the generated ignored `.env`, load only these four values into the current process without displaying them:
 
 ```powershell
 foreach ($line in Get-Content .env) {

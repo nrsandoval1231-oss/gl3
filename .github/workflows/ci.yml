@@ -192,8 +192,6 @@ jobs:
             echo "${app_password}"
             echo "EOF"
           } >> "$GITHUB_ENV"
-      - name: Maintained documentation links
-        run: uv run --project backend python scripts/check_docs.py
       - run: uv run ruff check src tests
         working-directory: backend
       - run: uv run ruff format --check src tests
@@ -465,6 +463,20 @@ jobs:
       - run: npm run typecheck --prefix web
       - run: npm run build --prefix web
 
+  docs-links:
+    # Always runs: documentation can change in any push, including web-only ones.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          python-version: "3.11"
+      - name: Maintained documentation links
+        run: uv run --project backend python scripts/check_docs.py
+
   docker-build:
     # Build-only (no push, no registry login) so Dockerfile breakage is caught
     # before deployment. Each image builds only when its inputs were classified.
@@ -479,6 +491,12 @@ jobs:
       - name: Build backend image
         if: needs.changes.outputs.backend == 'true'
         run: docker build --pull --file deploy/Dockerfile.backend --tag gridlens-backend:ci .
+      - name: Smoke-start backend image as its non-root user
+        if: needs.changes.outputs.backend == 'true'
+        run: >
+          docker run --rm --entrypoint "" -e DATABASE_URL=postgresql+psycopg://x:x@127.0.0.1:1/x_test
+          -e SESSION_SECRET=0123456789abcdef0123456789abcdef -e APP_PASSWORD_HASH=dummy
+          gridlens-backend:ci uv run python -c "import os, gridlens.api.app; assert os.getuid() != 0"
       - name: Build web image
         if: needs.changes.outputs.web == 'true'
         run: docker build --pull --file deploy/Dockerfile.web --tag gridlens-web:ci .
