@@ -11,6 +11,7 @@ type Sort = Exclude<ProjectResultsSort, 'updated'>
 type CacheEntry = { page: ProjectResultsPage; savedAt: number }
 const cache = new Map<string, CacheEntry>()
 const CACHE_TTL = 60_000
+const MAX_TIMER_DELAY_MS = 2_147_483_647
 let cacheGeneration = 0
 if (typeof window !== 'undefined') window.addEventListener('gl3-clear-continuity', () => { cacheGeneration += 1; cache.clear() })
 const EMPTY_PROJECTS: ProjectResult[] = []
@@ -175,10 +176,16 @@ export function CanonicalOpportunityResults({ selectedNeedId, onNeed, onBrowseCh
     if (!page?.valid_until) return
     const expires = Date.parse(page.valid_until)
     if (!Number.isFinite(expires)) return
-    const delay = expires - Date.now()
-    if (delay <= 0) { setPage(null); setRetryKey(value => value + 1); return }
-    const timer = setTimeout(() => { cache.delete(cacheKey(search, sector, offset, sort, shortlist)); setPage(null); setRetryKey(value => value + 1) }, delay)
-    return () => clearTimeout(timer)
+    if (expires <= Date.now()) { setPage(null); setRetryKey(value => value + 1); return }
+    const expire = () => { cache.delete(cacheKey(search, sector, offset, sort, shortlist)); setPage(null); setRetryKey(value => value + 1) }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const scheduleExpiryCheck = () => {
+      const remaining = expires - Date.now()
+      if (remaining <= 0) { expire(); return }
+      timer = setTimeout(scheduleExpiryCheck, Math.min(remaining, MAX_TIMER_DELAY_MS))
+    }
+    scheduleExpiryCheck()
+    return () => { if (timer !== undefined) clearTimeout(timer) }
   }, [page?.valid_until, search, sector, offset, sort, shortlist])
 
   filtersRef.current = { region, stage, priority }
