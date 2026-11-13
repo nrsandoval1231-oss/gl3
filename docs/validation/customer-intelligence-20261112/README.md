@@ -11,3 +11,5 @@ The [delivery checkpoint](DELIVERY.md) records PRs, evaluation results, independ
 ## Fresh read-performance repair evidence
 
 [Source-pinned repair measurements](performance/read-repair/README.md) compare backend `1de298af` with `bf75d327`: sampled service SQL counts return to baseline and card payloads shrink versus the earlier candidate. Latency remains above baseline under shared live test/PostgreSQL load; the unchanged service harness and separate actual API-setup supplement retain their distinct limits. No latency regression pass or production-readiness claim follows.
+
+Dated dependency boundary: the later [Soup Sieve security correction](../security-soupsieve-20261113/README.md) changes the runtime lock to 4.0/Python 3.11.5+. Existing performance manifests and receipts remain byte-exact historical measurements with 2.10; they are not a final updated-runtime performance pass.

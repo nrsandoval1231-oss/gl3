@@ -12,6 +12,8 @@ November 13, 2026. **Draft, undeployed, commercially blocked.** This is a review
 
 | Real-customer evaluation and full-stack integration evidence | [199](https://github.com/nrsandoval1231-oss/gl3/pull/199) | Main-base integration; exact final receipt commits are listed below |
 
+| Independently reviewable selector security patch | [200](https://github.com/nrsandoval1231-oss/gl3/pull/200) | `46171d684fc6a64d87767ce5c5ed2a07f4b0fcfa`; integrated dependency correction |
+
 The originally planned aggregation and commissioning PRs share one evidence contract and were combined. Evaluation, performance receipts and independent review remain separately reviewable. All branches preserve audited main `bf75d32746d28ac44effcb65989d53fdeaa765e4`. PR189 was inspected and selectively reconciled; its conflicting draft was not merged. External PR197's contact-query/JIT work was inspected and attributed in the [read performance reconciliation](../../engineering/customer-commercial-read-performance-20261113.md).
 
 ## Architecture and model
@@ -70,3 +72,11 @@ Main-base `d9eb314a` CI [43340194178](https://github.com/nrsandoval1231-oss/gl3/
 Test-only UI commits `81a6b9ab` then `e25fd1c7` control lookup/list response order, preserve session-expiry assertions and wait for the exact held list request to finish/fail plus renderer advancement before private-data negatives. The first implementation’s protocol-handoff-only completion proof was strengthened after independent review; it is not mislabeled as full proof. Final typecheck, one changed-case check and the entire 34-case Pursuits module pass (46.2 seconds). [Final implementation receipt](reviews/ui-pursuits-e25fd1c7-receipt.md) distinguishes those runs. `8da9ac87` changes only three obsolete persisted-Pursuits heading expectations to the requested Customers label. Application source remains byte-identical to the earlier reviewed backend `1de298af` / web `7c85c32e` freezes. The final main-base CI run is authoritative in PR199; no pending run is accepted as a pass.
 
 Independent [final test-only Astra review](reviews/astra-final-test-e25fd1c7.md) accepts these bounded corrections. An exact archived `e25fd1c7` test passed five independent repetitions in 14.3 seconds with zero retries and isolated mocked API routes; application-source comparisons are empty. This does not accept pending full CI or commercial/performance readiness.
+
+## Security audit correction after the application freeze
+
+Final application/test head `f6d6f563` passed the complete browser job (generic regression, real authentication, customer rollup, persisted Pursuits and Phase2 journeys), web and brand checks in [43343788599](https://github.com/nrsandoval1231-oss/gl3/actions/runs/43343788599). Its backend job stopped before tests when the unchanged dependency audit surfaced **CVE-2026-126190 / GHSA-mmhr-3c5m-f64f** in Soup Sieve 2.10. The run failed overall; earlier zero-vulnerability receipts do not override this later result.
+
+Separate draft [PR200](https://github.com/nrsandoval1231-oss/gl3/pull/200), exact `46171d68`, pins fixed Soup Sieve 4.0 and aligns Python minimum 3.11.5 while retaining `<3.12`. No other package, application source, schema or audit exception changes. [Security evidence](../security-soupsieve-20261113/README.md) retains failed/patched audit data and 271 adapter/ingestion test passes; the patched audit reports 55 dependencies with zero known vulnerabilities. [Independent Astra review](reviews/astra-soupsieve-46171d68.md) accepts the bounded correction after checking dependency hashes, Python compatibility and 62 literal selectors.
+
+This dependency correction is integrated for a new full CI run. Deployed interpreter and runtime remain unverified, and no production action occurred. Earlier performance receipts used Soup Sieve 2.10 and remain historical; unchanged application-source hashes do not turn them into a final 4.0 runtime-performance pass. Commercial coverage, current contacts, sales validation and performance acceptance remain blocked even if the final technical gates pass. The final PR199 checks/body record the later integrated gate disposition.

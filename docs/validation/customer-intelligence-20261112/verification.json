@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-11-13T01:15:55.043622+00:00",
+  "recorded_at": "2026-11-13T01:34:02.024972+00:00",
   "disposition": "commercial_acceptance_withheld",
   "backend_source": "1de298af047f09a32e9a0349f41410a55bc1791e",
   "affected_backend_matrix": {
@@ -122,5 +122,27 @@
     "independent_seconds": 14.3,
     "independent_retries": 0,
     "independent_disposition": "bounded test corrections accepted by Astra; fullCI and commercial/performance separate"
+  },
+  "security_gate_correction": {
+    "failed_integration_head": "f6d6f563050f1fd5bc42235c1231cf2cb9e890c7",
+    "failed_run_id": 43343788599,
+    "browser": "success",
+    "web": "success",
+    "brand_assets": "success",
+    "backend": "failed dependency audit before tests",
+    "advisory": "CVE-2026-126190 / GHSA-mmhr-3c5m-f64f",
+    "vulnerable_locked_version": "soupsieve 2.10",
+    "fixed_locked_version": "soupsieve 4.0",
+    "python_minimum": "3.11.5",
+    "patch_pr": 200,
+    "patch_commit": "46171d684fc6a64d87767ce5c5ed2a07f4b0fcfa",
+    "targeted_passed": 271,
+    "targeted_seconds": 62.27,
+    "audited_dependencies": 55,
+    "known_vulnerabilities_after_patch": 0,
+    "independent_disposition": "bounded correction accepted by Astra; 62 selectors compiled; package hashes/Python metadata checked",
+    "production_runtime": "unverified and undeployed",
+    "performance": "historical 2.10 measurements are not relabeled as 4.0 acceptance",
+    "final_integrated_ci": "pending; PR199 checks/body authoritative"
   }
 }
