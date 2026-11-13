@@ -3,25 +3,41 @@
 Registry enablement and the database operator switch are separate controls.
 Effective collection requires both to be enabled. Routine registry reconciliation
 updates the registry flag and source definition but never resets the operator
-switch. An operator can explicitly change that switch with the authenticated,
-same-origin endpoint:
+switch.
 
-```http
-POST /api/sources/{source_id}/enabled
-Content-Type: application/json
+> Updated 2026-11-13. The former `POST /api/sources/{source_id}/enabled` HTTP
+> endpoint is retired: it is not registered, it is listed in
+> `RETIRED_OPERATOR_ROUTES` in `backend/tests/unit/test_autonomous_api_surface.py`,
+> and `test_retired_source_enablement_and_refresh_routes_return_not_found`
+> (`backend/tests/integration/test_source_scheduling.py`) expects 404. No
+> authenticated browser/API route changes source enablement.
 
-{"enabled": false}
-```
+The supported controls are:
 
-Use `{"enabled": true}` to explicitly re-enable a source that is still enabled
-in the registry. The endpoint reads and synchronizes that source's current
+- **Registry flag** (declarative): edit `enabled` for the source in
+  `config/sources/registry.v1.json`, then apply it with
+  `uv run --project backend python -m gridlens.jobs.runtime reconcile`
+  (the worker also reconciles on its cycle). The same command group offers
+  read-only `status` and an authorized one-attempt `check --source <id>`; see
+  [runtime recovery](runtime-recovery.md). Sources named in the registry's
+  regional policy (`REGIONAL_DISABLED_SOURCE_IDS`) cannot be enabled.
+- **Operator switch** (database): changed only by the Python function
+  `gridlens.jobs.worker.set_source_enabled(source_id, enabled)`. It has no HTTP
+  route and no command-line wrapper in the repository; in-repo callers are the
+  integration tests. Using it against retained data is an operational mutation
+  that needs separate owner authorization.
+
+`set_source_enabled` reads and synchronizes that source's current
 registry definition while holding its transition lock, even for a no-op request.
+It raises `ValueError` if the source is absent from the registry, has not yet been
+reconciled, or is enabled against regional policy. Passing `True` re-enables a
+source that is still enabled in the registry.
 An operator transition closes the current schedule epoch and records its known
 effective UTC time in the same transaction. If registry/configuration drift was
 not observed earlier, its prior interval becomes unknown rather than being
 backdated to the operator request. Seven-day
 freshness remains `UNKNOWN` until the uncertain interval leaves the window. If
-the registry disables a source, the operator endpoint cannot override it.
+the registry disables a source, the operator switch cannot override it.
 
 ### Disable behavior
 

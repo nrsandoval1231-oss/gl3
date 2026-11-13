@@ -1,6 +1,8 @@
-# Current owner request — autonomous commercial research Phase 2
+# Owner request record — historical Phase 2 authority (merged as PR188, 2026-11-10)
 
-November 8 authority: implement scheduled research and grounded commercial briefs on the existing canonical account foundation, verify with disposable PostgreSQL and disabled/mock providers, independently review, and publish ONE draft PR. No merge, deployment, paid-provider calls, source activation, mutations of retained operational or production data or credential changes. Preserve the existing UI brand/navigation and owner-managed need-scoped Commercial Pursuits. [Contracts and acceptance](../docs/engineering/autonomous-commercial-research-20261108.md) and [checkpoint](CURRENT_STATE.md) govern current work.
+No new owner request is recorded here as of 2026-11-13; see the [current checkpoint](CURRENT_STATE.md). Merge authorization for PR #188 and later PRs is not documented in the repository and needs owner confirmation. The November 8 text below is historical, not continuing authority.
+
+November 8 authority (historical): implement scheduled research and grounded commercial briefs on the existing canonical account foundation, verify with disposable PostgreSQL and disabled/mock providers, independently review, and publish ONE draft PR. No merge, deployment, paid-provider calls, source activation, mutations of retained operational or production data or credential changes. Preserve the existing UI brand/navigation and owner-managed need-scoped Commercial Pursuits. [Contracts and acceptance](../docs/engineering/autonomous-commercial-research-20261108.md) record that work; [checkpoint](CURRENT_STATE.md) holds current state.
 
 ## Historical November 3 ingestion strategy request
 

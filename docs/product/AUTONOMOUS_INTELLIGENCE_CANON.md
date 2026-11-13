@@ -1,8 +1,8 @@
 # GridLens — Autonomous Power Demand Intelligence Canon
 
-## Current execution scope — Phase 2, November 8, 2026
+## Historical Phase 2 execution authority — November 8, 2026 (merged as PR188, 2026-11-10)
 
-The owner authorizes scheduled autonomous commercial research on the existing account-first foundation, through one tested, independently reviewed draft PR. Cards show source-backed Why now, useful scoped Power need, permitted Best contact and one justified Next action; evidence stays on demand. Shared canonical-company research must preserve distinct projects and needs. Existing owner-managed need-scoped Commercial Pursuits is the only manual execution workspace; research never creates its stages, tasks or activity. Existing Jev authority is unchanged. No merge, deployment, production writes, credential changes, paid-provider calls or source activation is authorized. [Current contracts and acceptance](../engineering/autonomous-commercial-research-20261108.md) distinguish disabled/mock validation from live operation; older release permissions below are historical.
+Historical: this scope was the authority for the Phase 2 draft PR, merged as PR #188 on 2026-11-10; it is not a standing permission, and merge authorization for PR #188 and later PRs is not documented in the repository (owner confirmation needed). The product rules below remain in force. The owner authorized scheduled autonomous commercial research on the existing account-first foundation, through one tested, independently reviewed draft PR. Cards show source-backed Why now, useful scoped Power need, permitted Best contact and one justified Next action; evidence stays on demand. Shared canonical-company research must preserve distinct projects and needs. Existing owner-managed need-scoped Commercial Pursuits is the only manual execution workspace; research never creates its stages, tasks or activity. Existing Jev authority is unchanged. No merge, deployment, production writes, credential changes, paid-provider calls or source activation is authorized. [Current contracts and acceptance](../engineering/autonomous-commercial-research-20261108.md) distinguish disabled/mock validation from live operation; older release permissions below are historical.
 
 ## Account-first foundation — accepted Slice 1, November 7, 2026
 
@@ -16,13 +16,13 @@ Need-scoped Pursuits retain IDs, stages, tasks and confirmed activity, presented
 
 
 **Status:** Sole active product authority · owner-aligned 2026-10-30
-**Authority:** This document controls product identity, operating boundaries, evidence policy, vertical sequence, and target autonomy. The [PRD](PRD.md) supplies compatible, detailed requirements; the [Results Canon](PROJECT_FIRST_RESULTS_CANON.md) supplies compatible presentation requirements; the [Vertical Lifecycle Strategy](VERTICAL_LIFECYCLE_STRATEGY.md) supplies compatible lifecycle doctrine. In a conflict, this canon prevails. The [October 29 UI canon](../design/UI_CANON.md) and approved screenshot control presentation.
+**Authority:** This document controls product identity, operating boundaries, evidence policy, vertical sequence, and target autonomy. The [PRD](PRD.md) supplies compatible, detailed requirements; the [Results Canon](PROJECT_FIRST_RESULTS_CANON.md) supplies compatible presentation requirements; the [Vertical Lifecycle Strategy](VERTICAL_LIFECYCLE_STRATEGY.md) supplies compatible lifecycle doctrine. In a conflict, this canon prevails. The [UI canon](../design/UI_CANON.md) and the approved October 29 screenshot control brand identity (header, palette, typography) only; layout follows the November 7 account-first amendment.
 
 ## Delivery state
 
-- **CURRENT:** Hosted application and released UI state are recorded in [.agent/CURRENT_STATE.md](../../.agent/CURRENT_STATE.md) and dated release receipts. This canon does not claim that the target engine below is shipped.
+- **CURRENT:** Repository source state (as of 2026-11-13: `main` includes the account-first foundation, owner-managed Pursuits and Phase 2 autonomous commercial research, schema head 0056) is in [.agent/CURRENT_STATE.md](../../.agent/CURRENT_STATE.md). Deployment and retained schema are unverified; the last dated deployment evidence is the [November 2 receipt](../validation/production-release-20261102.md). This canon does not claim that the target engine below is shipped.
 - **TARGET:** The autonomous evidence-driven intelligence platform specified here.
-- **NEXT:** Complete and verify the bounded O&G demand slice; integrate the demand KPI from supported records. Broader layers remain later target work.
+- **NEXT:** Awaiting a new owner request. Open target work, unchanged: separately scoped freshness/source-cycle observation, wider engineering/buyer evidence, deduplicated portfolio aggregation, and the bounded O&G demand slice with its demand KPI from supported records. Broader layers remain later target work.
 - **DEFERRED:** Additional vertical lenses, Athena integration, autonomous model/policy promotion, paid-provider activation, and any production/deployment changes without separate authorization.
 
 ## Product truth
@@ -31,7 +31,7 @@ Need-scoped Pursuits retain IDs, stages, tasks and confirmed activity, presented
 The target output is an evidence-linked demand record centered on amount and amount class, equipment/activity, entity scope, lifecycle/timing, and uncertainty. Commercial context is subordinate to identified demand. The target six-layer engine is not shipped.
 
 ## Non-negotiable user experience
-- No call logging, manual fact drafting, operator statuses, manual qualification, routine correction forms, human workflow updates, or administrative pursuit logging in ordinary user-facing product flows.
+- No call logging, manual fact drafting, operator statuses, manual qualification, routine correction forms, human workflow updates, or administrative pursuit logging in ordinary user-facing product flows. The one exception is the owner-authorized (2026-11-06) owner-managed, need-scoped Pursuits workspace (stages, follow-up tasks, user-confirmed activity), the only place manual execution state is recorded; see [commercial pursuits](../engineering/commercial-pursuits-20261106.md). Research never creates its stages, tasks or activity.
 - Do not reintroduce these routine workflows under new names, tabs, dialogs, or routes. Preserve exceptional correction, suppression and privacy controls through audited internal operations/services. They must not become a prerequisite to discovery, enrichment, qualification or daily use.
 - Target primary result: an evidence-linked demand record, with entity/project/equipment scope, demand amount and class, timing/lifecycle, source provenance, and explicit uncertainty. Commercial entities and contacts add context where supported.
 - A demand record does not require a plausible residual gap, utility constraint, buyer, or qualification tier. Supply context may be shown when sourced, but no supply shortage is asserted by default.

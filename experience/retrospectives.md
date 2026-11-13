@@ -4,7 +4,7 @@
 **Shipped:** four-section nav; Opportunities cards; owner-managed Pursuits (backend migration 0050 + frontend); Companies directory and Reports with honest metrics; detail panel restyle; canon docs amended.
 
 **Not done / known limitations**
-- Production is at 0049; migration 0050 is not applied anywhere.
+- At the time (2026-11-06) production was at 0049 and migration 0050 was unapplied. Since then PR #183 merged to `main`; current production schema is unverified (last dated receipt: Nov 2, schema 0049).
 - No confidence data exists, so the reference design's Confidence is omitted.
 - Companies directory has no Total MW or linked-pursuit columns (groups endpoint lacks them). Group counts include unresolved/same-name groups, so they are labelled "operator/customer groups".
 - Browser Back/Forward into a panel can refetch need detail behind the hidden Opportunities page.
