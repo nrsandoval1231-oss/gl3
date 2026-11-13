@@ -8,7 +8,7 @@ November 13, 2026. **Draft, undeployed, commercially blocked.** This is a review
 | --- | --- | --- |
 | Architecture audit and canonical contract | [195](https://github.com/nrsandoval1231-oss/gl3/pull/195) | `8d445e63bc9b2311f0c0edf6c66a3f6b992433c3` |
 | Aggregation, fact resolution, scenarios, priority and performance repair | [196](https://github.com/nrsandoval1231-oss/gl3/pull/196) | Application `1de298af047f09a32e9a0349f41410a55bc1791e`; test-only follow-up `aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd` |
-| Customer workspace and material UI review repairs | [198](https://github.com/nrsandoval1231-oss/gl3/pull/198) | UI `c0063c7f27dffeb591697a039a481edd1044b77e` (equivalent acceptance fixes `8db88747` + `7c85c32e`); backend-test reconciliation `ee20e8aad3944f63caf3aa83b74da4a224a40e40`; integration `5f9a271c` |
+| Customer workspace and material UI review repairs | [198](https://github.com/nrsandoval1231-oss/gl3/pull/198) | UI `c0063c7f27dffeb591697a039a481edd1044b77e` (equivalent acceptance fixes `8db88747` + `7c85c32e`); test-only follow-ups `8da9ac87` and `e25fd1c7519aad0009b6b8f10fd1389d57cc956f`; integration `bfe091ef` |
 
 | Real-customer evaluation and full-stack integration evidence | [199](https://github.com/nrsandoval1231-oss/gl3/pull/199) | Main-base integration; exact final receipt commits are listed below |
 
@@ -31,9 +31,11 @@ The [20-organization evaluation](../../../eval/customer-commercial-v1/README.md)
 - Runtime-scoped capacity/timeline output: **zero published claims**, zero recall; precision and published provenance completeness are undefined, not perfect.
 - All 20 commissioning cases abstain because source excerpts lack test-plan inputs. This validates refusal behavior only.
 
+The [scope-gap diagnostic](../../../eval/customer-commercial-v1/scope-gap-diagnostic.md) finds all 24 raw candidates fail the first exact named-subject gate under supplied fixture project labels. It includes legitimate possessive/anaphoric clauses and a necessary refusal of another campus’s capacity; runtime canonical identities were not exercised, so this does not assert production overall has zero facts.
+
 Source-supported facts exist. The zero scoped output is an extraction/project-attribution coverage gap, not evidence that public information is unavailable. Weakening project-scope guards to improve recall would risk cross-project false facts. Runtime source authority also lacks the evaluator's independently supplied official-domain classification.
 
-Canonical identity, project association, duplicate rate, double-counting, current contact acquisition, commercial ranking and salesperson usefulness remain explicitly not evaluated end to end. Six historical functional leaders in source excerpts are not six verified current buyers. This checkpoint does not satisfy those acceptance criteria. Safe expansion needs source-bound project context and authority resolution, independently reviewed extraction improvements, actual identity/contact journeys and salesperson acceptance against the retained reference cohort.
+Canonical identity, project association, duplicate rate, double-counting, current contact acquisition, commercial ranking and salesperson usefulness remain explicitly not evaluated end to end. Six historical functional leaders in source excerpts are not six verified current buyers. This checkpoint does not satisfy those acceptance criteria. Safe expansion needs source-bound project context and authority resolution, independently reviewed extraction improvements, actual identity/contact journeys and salesperson acceptance against the retained reference cohort. The new typed customer change projection covers capacity and timing; utility agreements, ownership changes and commissioning milestones still need verified upstream facts and dedicated end-to-end acceptance. Verified-name publication was improved, but new current-contact acquisition coverage was not established.
 
 ## Verification and performance
 
@@ -56,3 +58,15 @@ The repaired backend full CI [43337420044](https://github.com/nrsandoval1231-oss
 No production deployment, source activation, credential change or retained operational data mutation was performed. All SQL fixtures and benchmarks target disposable loopback databases. Rollback is a code revert; because Python source participates in browse-policy identity, use the existing generation rebuild/recovery mechanisms after either promotion or rollback. Evidence receipts remain immutable and the database schema stays at 0056.
 
 Do not merge failing/unresolved drafts, activate providers or deploy based on these receipts. Production readiness remains **withheld** until commercial coverage and contact/sales acceptance, final CI, independent review and performance concerns are resolved, followed by explicit deployment authorization.
+
+## Completed backend release gate
+
+Exact backend head `aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd` passed full CI [43339762823](https://github.com/nrsandoval1231-oss/gl3/actions/runs/43339762823): **5,535 passed, one skipped, 22 warnings in 643.19 seconds**. Backend lint/types, fresh migration upgrade/drift, dependency audits, web checks and real-backend browser journeys passed; brand assets were correctly skipped for that source slice. This closes the earlier backend test failures. Final main-base UI integration CI remains a separate gate. Passing this run does not resolve source coverage, current contacts, sales acceptance or performance limitations.
+
+## Final UI test gate corrections
+
+Main-base `d9eb314a` CI [43340194178](https://github.com/nrsandoval1231-oss/gl3/actions/runs/43340194178) passed **5,545 backend tests, one skipped, 22 warnings in 467.38 seconds**, plus web and brand gates. Its generic browser result was **337 passed, one failed**: the existing background 401 case expected a transient card before an immediate valid 401 removed it. This historical run remains failed overall.
+
+Test-only UI commits `81a6b9ab` then `e25fd1c7` control lookup/list response order, preserve session-expiry assertions and wait for the exact held list request to finish/fail plus renderer advancement before private-data negatives. The first implementation’s protocol-handoff-only completion proof was strengthened after independent review; it is not mislabeled as full proof. Final typecheck, one changed-case check and the entire 34-case Pursuits module pass (46.2 seconds). [Final implementation receipt](reviews/ui-pursuits-e25fd1c7-receipt.md) distinguishes those runs. `8da9ac87` changes only three obsolete persisted-Pursuits heading expectations to the requested Customers label. Application source remains byte-identical to the earlier reviewed backend `1de298af` / web `7c85c32e` freezes. The final main-base CI run is authoritative in PR199; no pending run is accepted as a pass.
+
+Independent [final test-only Astra review](reviews/astra-final-test-e25fd1c7.md) accepts these bounded corrections. An exact archived `e25fd1c7` test passed five independent repetitions in 14.3 seconds with zero retries and isolated mocked API routes; application-source comparisons are empty. This does not accept pending full CI or commercial/performance readiness.

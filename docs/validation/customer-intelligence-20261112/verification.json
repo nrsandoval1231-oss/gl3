@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-11-13T00:49:22.034926+00:00",
+  "recorded_at": "2026-11-13T01:15:55.043622+00:00",
   "disposition": "commercial_acceptance_withheld",
   "backend_source": "1de298af047f09a32e9a0349f41410a55bc1791e",
   "affected_backend_matrix": {
@@ -73,5 +73,54 @@
     "typecheck": "passed",
     "local_generic_failure_artifacts": 1,
     "local_generic_aggregate_summary": "not retained; no pass/flaky totals or full-run duration inferred"
+  },
+  "completed_backend_ci": {
+    "run_id": 43339762823,
+    "commit": "aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd",
+    "passed": 5535,
+    "failed": 0,
+    "skipped": 1,
+    "warnings": 22,
+    "seconds": 643.19,
+    "jobs": {
+      "backend": "success",
+      "web": "success",
+      "browser": "success",
+      "brand_assets": "skipped"
+    },
+    "scope": "backend slice; final main-base UI integration remains separate"
+  },
+  "prior_main_base_ci": {
+    "run_id": 43340194178,
+    "head": "d9eb314ad8420ee23d7c7de9d658c4ea307c6a76",
+    "backend": {
+      "passed": 5545,
+      "skipped": 1,
+      "warnings": 22,
+      "seconds": 467.38,
+      "status": "success"
+    },
+    "web": "success",
+    "brand_assets": "success",
+    "browser": {
+      "passed": 337,
+      "failed": 1,
+      "failure": "preexisting background401 transient-render race; test-only deterministic correction e25fd1c7"
+    },
+    "overall": "failed"
+  },
+  "final_test_only_corrections": {
+    "pursuits_heading_commit": "8da9ac87aa37960781420dada8e338631528dbb1",
+    "response_barrier_commit": "e25fd1c7519aad0009b6b8f10fd1389d57cc956f",
+    "full_pursuits_module_passed": 34,
+    "seconds": 46.2,
+    "changed_case_passed": 1,
+    "typecheck": "passed",
+    "application_source_changed": false,
+    "final_main_base_ci": "pending; PR199 checks/body authoritative",
+    "independent_repetitions_passed": 5,
+    "independent_seconds": 14.3,
+    "independent_retries": 0,
+    "independent_disposition": "bounded test corrections accepted by Astra; fullCI and commercial/performance separate"
   }
 }
