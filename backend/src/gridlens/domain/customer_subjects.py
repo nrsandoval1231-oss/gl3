@@ -456,7 +456,11 @@ def claim_has_owned_predicate(
             claim.get("event_type") == "operational_target"
             and re.match(r"^\s*the\s+deal\b", predicate, re.I)
             and re.search(
-                r"\bto\s+support\s+a\s+new\s+(?:facility|data\s+center)\b", predicate, re.I
+                r"\bto\s+support\s+a\s+new\s+"
+                r"(?:(?:state\s+of\s+the\s+art|state-of-the-art)\s+)?"
+                r"(?:facility|data\s+center)\b",
+                predicate,
+                re.I,
             )
             and re.search(r"\bexpected\s+to\s+be\s+operational\s+by\b", predicate, re.I)
         )
