@@ -378,7 +378,11 @@ def _facets(session, generation, sector, canonical_only=False):
     source = "browse_rows b"
     if canonical_only:
         shortlist_state = assignment_context(session, generation, False)
-        ctes = _ctes(where, shortlist_state["data"])
+        ctes = _ctes(
+            where,
+            shortlist_state["data"],
+            include_commercial_projects=False,
+        )
         params.update(
             {
                 key: shortlist_state[key]
@@ -467,7 +471,7 @@ def assignment_context(session, generation, shortlist: bool = False) -> dict[str
     }
 
 
-def _ctes(where: str, shortlist_data=None) -> str:
+def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) -> str:
     asset_expr = _ASSET_B
     if shortlist_data and shortlist_data["duplicate_project_map"]:
         duplicate_cases = " ".join(
@@ -478,6 +482,22 @@ def _ctes(where: str, shortlist_data=None) -> str:
         asset_expr = f"CASE {duplicate_cases} ELSE ({_ASSET_B}) END"
     customer_roles = ",".join(f"'{role}'" for role in CUSTOMER_ROLE_ORDER)
     owner_roles = ",".join(f"'{role}'" for role in OWNER_ROLES)
+    commercial_projects_aggregate = (
+        """
+        , jsonb_agg(DISTINCT jsonb_build_object(
+          'project_id', ar.project_id, 'company_id', a.company_id,
+          'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb),
+          'priority', ar.compact->'customer_priority',
+          'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)
+        )) AS commercial_projects
+    """
+        if include_commercial_projects
+        else ""
+    )
+    commercial_projects_field = ", gnc.commercial_projects" if include_commercial_projects else ""
+    commercial_projects_group_by = (
+        ", gnc.commercial_projects" if include_commercial_projects else ""
+    )
     # Both relations use the same cohort predicate, so the asset self-join
     # cannot add rows beyond those already in matched.
     return (
@@ -729,13 +749,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(CASE WHEN ar.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
           AND ar.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
           THEN least(100, (ar.compact #>> '{customer_priority,score}')::integer)
-          ELSE NULL END) AS commercial_score,
-        jsonb_agg(DISTINCT jsonb_build_object(
-          'project_id', ar.project_id, 'company_id', a.company_id,
-          'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb),
-          'priority', ar.compact->'customer_priority',
-          'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)
-        )) AS commercial_projects
+        ELSE NULL END) AS commercial_score%%COMMERCIAL_PROJECTS_AGGREGATE%%
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -752,7 +766,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count,
         gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,
-        gnc.has_contact_actions, gnc.commercial_score, gnc.commercial_projects,
+        gnc.has_contact_actions, gnc.commercial_score%%COMMERCIAL_PROJECTS_FIELD%%,
         count(*) FILTER (
           WHERE asset_key IN (SELECT asset_key FROM eligible_assets)
         )::integer AS relevant_project_count,
@@ -760,14 +774,17 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(updated_at) AS updated_at
       FROM assigned JOIN grouped_need_counts gnc USING (group_key)
       GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,
-               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score,
-               gnc.commercial_projects
+               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score
+               %%COMMERCIAL_PROJECTS_GROUP_BY%%
     )
     """.replace("%%ASSET%%", asset_expr)
         .replace("%%WHERE%%", where)
         .replace("%%CUSTOMER_ROLE_ORDER%%", customer_roles)
         .replace("%%CUSTOMER_ROLES%%", customer_roles)
         .replace("%%OWNER_ROLES%%", owner_roles)
+        .replace("%%COMMERCIAL_PROJECTS_AGGREGATE%%", commercial_projects_aggregate)
+        .replace("%%COMMERCIAL_PROJECTS_FIELD%%", commercial_projects_field)
+        .replace("%%COMMERCIAL_PROJECTS_GROUP_BY%%", commercial_projects_group_by)
     )
 
 
@@ -1089,36 +1106,48 @@ def groups(
         }
     )
     params.update(shortlist_state["asset_params"])
-    sql = _ctes(where, shortlist_state["data"])
+    sql = _ctes(where, shortlist_state["data"], include_commercial_projects=False)
+    page_query = (
+        sql
+        + ", page_rows AS MATERIALIZED (SELECT g.*, count(*) OVER() AS total, "
+        + "count(*) FILTER (WHERE g.group_kind='resolved_identity') "
+        + "OVER() AS account_total, "
+        + "coalesce(sum(g.project_count) OVER(),0) AS project_total, "
+        + "(SELECT count(DISTINCT ar.canonical_need_id) "
+        + "FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key "
+        + "WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE "
+        + selected_totals
+        + (
+            " AND g2.group_kind='resolved_identity' AND g2.relevant_project_count>0"
+            if shortlist
+            else ""
+        )
+        + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
+        + ")) AS need_total FROM grouped g WHERE "
+        + selected
+        + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
+        + (
+            " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
+            if shortlist
+            else ""
+        )
+        + f" ORDER BY {order} LIMIT :limit OFFSET :offset), "
+        + "page_commercial_projects AS ("
+        + "SELECT p.group_key, jsonb_agg(DISTINCT jsonb_build_object("
+        + "'project_id', ar.project_id, 'company_id', a.company_id, "
+        + "'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb), "
+        + "'priority', ar.compact->'customer_priority', "
+        + "'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)"
+        + ")) AS commercial_projects FROM page_rows p "
+        + "JOIN assigned a ON a.group_key=p.group_key "
+        + "JOIN all_rows ar ON ar.asset_key=a.asset_key GROUP BY p.group_key) "
+        + "SELECT p.*, cp.commercial_projects FROM page_rows p "
+        + "LEFT JOIN page_commercial_projects cp USING (group_key) "
+        + f"ORDER BY {order}"
+    )
     rows = (
         session.execute(
-            text(
-                sql
-                + " SELECT g.*, count(*) OVER() AS total, "
-                + "count(*) FILTER (WHERE g.group_kind='resolved_identity') "
-                + "OVER() AS account_total, "
-                + "coalesce(sum(g.project_count) OVER(),0) AS project_total, "
-                + "(SELECT count(DISTINCT ar.canonical_need_id) "
-                + "FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key "
-                + "WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE "
-                + selected_totals
-                + (
-                    " AND g2.group_kind='resolved_identity' AND g2.relevant_project_count>0"
-                    if shortlist
-                    else ""
-                )
-                + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
-                + ")) AS need_total FROM grouped g WHERE "
-                + selected
-                + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
-                + (
-                    " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
-                    if shortlist
-                    else ""
-                )
-                + " "
-                + f"ORDER BY {order} LIMIT :limit OFFSET :offset"
-            ),
+            text(page_query),
             {**params, "limit": limit, "offset": min(offset, generation.row_count)},
         )
         .mappings()
@@ -1200,7 +1229,7 @@ def groups(
         featured_rows = (
             session.execute(
                 text(
-                    _ctes(where, shortlist_state["data"])
+                    _ctes(where, shortlist_state["data"], include_commercial_projects=False)
                     + """
                 SELECT DISTINCT ON (a.group_key) a.group_key, ar.project_id AS anchor_project_id,
                        a.asset_key, a.company_id, a.group_kind,

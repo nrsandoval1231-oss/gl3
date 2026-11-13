@@ -1,0 +1,26 @@
+{
+  "database": "gl3_mission_rollup_scale_payload_20261113_test",
+  "profiles": {
+    "false": {
+      "explain_execution_ms": 2363.159,
+      "groups_call_ms": 9078.437,
+      "page_groups": 25,
+      "query_sha256": "80f3a61de67d432e7ecf8fd9a8ae4c646c6e0ba0d143fceb66dd0b6c5069d004",
+      "receipt": "/workspace/gl3-page-payload-opt-20261113/docs/validation/customer-intelligence-20261112/final-performance/profile-20261113/before_canonical_only_false.json",
+      "sql_statements": 57,
+      "total_groups": 38319
+    },
+    "true": {
+      "explain_execution_ms": 1874.422,
+      "groups_call_ms": 4560.514,
+      "page_groups": 25,
+      "query_sha256": "7e9535c183766af677e0f1c2aef0e047c1172e69d09fb0bcf8215d5bbe283296",
+      "receipt": "/workspace/gl3-page-payload-opt-20261113/docs/validation/customer-intelligence-20261112/final-performance/profile-20261113/before_canonical_only_true.json",
+      "sql_statements": 57,
+      "total_groups": 316
+    }
+  },
+  "seed_manifest_sha256": "b625e0594b9527f310ab4f29ba8c5a4a9eeb4eba71f43b0641298ab1b4978d21",
+  "source_head": "2336b02ab5f12d88a87ca8b00968050ece047089",
+  "source_manifest_sha256": "8c2e667d62c1d4dc3f7d9f7f2f2c5114f37d76d42075f4402d898b6725e995bb"
+}
