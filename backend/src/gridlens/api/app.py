@@ -728,6 +728,7 @@ def _validate_browse_query(request: Request) -> None:
             "stage",
             "priority",
             "shortlist",
+            "canonical_only",
         }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
@@ -738,7 +739,17 @@ def _validate_browse_query(request: Request) -> None:
         and bool(request.url.path.split("/")[4])
         and request.url.path.split("/")[5] == "open"
     ):
-        allowed = {"search", "sector", "sort", "limit", "region", "stage", "priority", "shortlist"}
+        allowed = {
+            "search",
+            "sector",
+            "sort",
+            "limit",
+            "region",
+            "stage",
+            "priority",
+            "shortlist",
+            "canonical_only",
+        }
         search = request.query_params.get("search")
         if search is not None and len(search) > 250:
             raise HTTPException(422, "search must be at most 250 characters")
@@ -763,6 +774,7 @@ def _validate_browse_query(request: Request) -> None:
                 "stage",
                 "priority",
                 "shortlist",
+                "canonical_only",
             }
             search = request.query_params.get("search")
             if search is not None and len(search) > 250:
@@ -2248,6 +2260,7 @@ def customer_opportunity_groups(
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
     shortlist: bool = False,
+    canonical_only: bool = False,
 ):
     from gridlens.intelligence.customer_results import groups
 
@@ -2265,6 +2278,7 @@ def customer_opportunity_groups(
             stage=stage,
             priority=priority,
             shortlist=shortlist,
+            canonical_only=canonical_only,
         )
 
         _bounded_opportunity_payload(
@@ -2297,6 +2311,7 @@ def customer_group_projects(
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
     shortlist: bool = False,
+    canonical_only: bool = False,
 ):
     from gridlens.intelligence.customer_results import group_projects
 
@@ -2316,6 +2331,7 @@ def customer_group_projects(
             stage=stage,
             priority=priority,
             shortlist=shortlist,
+            canonical_only=canonical_only,
         )
         _bounded_opportunity_payload(payload["items"])
         return payload
@@ -2335,6 +2351,7 @@ def customer_group_open(
     stage: str | None = None,
     priority: Literal["ranked", "unranked"] | None = None,
     shortlist: bool = False,
+    canonical_only: bool = False,
 ):
     from gridlens.intelligence.customer_results import group_open
 
@@ -2353,6 +2370,7 @@ def customer_group_open(
             stage=stage,
             priority=priority,
             shortlist=shortlist,
+            canonical_only=canonical_only,
             selected_generation=generation,
         )
         _bounded_opportunity_payload(

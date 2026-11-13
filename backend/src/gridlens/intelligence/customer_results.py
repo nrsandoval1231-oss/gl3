@@ -36,6 +36,7 @@ def _cohort(
     priority: str | None = None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
     route: str | None = None,
 ):
     generation = selected_generation or current_generation(session, allow_stale=True, route=route)
@@ -77,6 +78,8 @@ def _cohort(
             ).encode()
         ).hexdigest(),
     ]
+    if canonical_only:
+        payload.append("canonical-only-v1")
     token = "p1_" + hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     return generation, term, token
 
@@ -369,19 +372,42 @@ def _group_filter(*, term, region, stage, priority, alias="g", session=None, gen
     return " AND ".join(clauses), params
 
 
-def _facets(session, generation, sector):
+def _facets(session, generation, sector, canonical_only=False):
     where, params = _query_parts(generation, "", sector)
+    ctes = ""
+    source = "browse_rows b"
+    if canonical_only:
+        shortlist_state = assignment_context(session, generation, False)
+        ctes = _ctes(where, shortlist_state["data"])
+        params.update(
+            {
+                key: shortlist_state[key]
+                for key in (
+                    "eligible_need_ids",
+                    "priority_map",
+                    "shortlist_enabled",
+                    "pursued_need_ids",
+                    "need_alias_map",
+                )
+            }
+        )
+        params.update(shortlist_state["asset_params"])
+        source = (
+            "all_rows b JOIN assigned a ON a.asset_key=b.asset_key "
+            "JOIN grouped g ON g.group_key=a.group_key"
+        )
+        where = "g.group_kind='resolved_identity'"
     row = (
         session.execute(
             text(
-                "SELECT coalesce(array_agg(DISTINCT nullif(b.compact->>'location','') "
+                ctes + "SELECT coalesce(array_agg(DISTINCT nullif(b.compact->>'location','') "
                 "ORDER BY nullif(b.compact->>'location','')) FILTER "
                 "(WHERE nullif(b.compact->>'location','') IS NOT NULL), ARRAY[]::text[]) regions, "
                 "coalesce(array_agg(DISTINCT nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','') ORDER BY nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','')) FILTER (WHERE nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','') IS NOT NULL), ARRAY[]::text[]) stages "
-                "FROM browse_rows b WHERE " + where
+                "FROM " + source + " WHERE " + where
             ),
             params,
         )
@@ -991,6 +1017,7 @@ def groups(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
@@ -1008,6 +1035,7 @@ def groups(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="groups",
     )
     _validate_token(token, cohort, offset)
@@ -1079,8 +1107,10 @@ def groups(
                     if shortlist
                     else ""
                 )
+                + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
                 + ")) AS need_total FROM grouped g WHERE "
                 + selected
+                + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
                 + (
                     " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
                     if shortlist
@@ -1123,9 +1153,11 @@ def groups(
                         if shortlist
                         else ""
                     )
+                    + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
                     + ")) AS needs "
                     + "FROM grouped g WHERE "
                     + selected
+                    + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
                     + (
                         " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
                         if shortlist
@@ -1304,7 +1336,7 @@ def groups(
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
-        "facets": _facets(session, generation, sector),
+        "facets": _facets(session, generation, sector, canonical_only),
         **_snapshot_metadata(generation),
     }
 
@@ -1520,6 +1552,7 @@ def group_metadata(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     """Resolve one group against the entire filtered cohort without paging headers."""
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -1534,6 +1567,7 @@ def group_metadata(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
     )
     where, params = _query_parts(generation, "", sector)
     shortlist_state = assignment_context(session, generation, shortlist)
@@ -1575,6 +1609,7 @@ def group_metadata(
                     if shortlist
                     else ""
                 )
+                + (" AND group_kind='resolved_identity'" if canonical_only else "")
             ),
             {**params, "id": group_id, "generation": generation.id, **selected_params},
         )
@@ -1623,6 +1658,7 @@ def group_projects(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
@@ -1640,6 +1676,7 @@ def group_projects(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="group_projects",
     )
     if parent_token is None:
@@ -1698,6 +1735,7 @@ def group_projects(
                  count(*) OVER() AS total
           FROM assigned a
           WHERE 'cg_' || md5(a.group_key) = :id AND {selected}
+            {"AND a.group_kind='resolved_identity'" if canonical_only else ""}
           ORDER BY {child_order}, a.asset_key
           LIMIT :limit OFFSET :offset
         """
@@ -1718,6 +1756,7 @@ def group_projects(
                 + "SELECT count(*) FROM assigned a "
                 + "WHERE 'cg_' || md5(a.group_key) = :id AND "
                 + selected
+                + (" AND a.group_kind='resolved_identity'" if canonical_only else "")
             ),
             {**params, "id": group_id},
         ).scalar_one()
@@ -1806,6 +1845,7 @@ def group_open(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     """Load a group header and its first project page in one cohort pass."""
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -1824,6 +1864,7 @@ def group_open(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="group_open",
     )
     _disable_jit_for_search(session, term)
@@ -1883,6 +1924,7 @@ def group_open(
                  count(*) OVER() AS child_total
           FROM grouped g JOIN assigned a ON a.group_key = g.group_key
           WHERE 'cg_' || md5(g.group_key) = :id AND {selected}
+            {"AND g.group_kind='resolved_identity'" if canonical_only else ""}
             {
                     "AND g.group_kind='resolved_identity' AND g.relevant_project_count>0"
                     if shortlist
