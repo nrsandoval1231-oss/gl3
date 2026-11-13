@@ -82,7 +82,7 @@ _DIRECT_TIMELINE_PREDICATE = re.compile(
     r"(?:on|in|for)|ready\s+for\s+service\s+|"
     r"(?:is|was|will\s+be)\s+(?:(?:expected|scheduled|planned|targeted)\s+)?"
     r"(?:ready\s+for\s+service|operational\s+(?:by|in))|"
-    r"(?:expected|scheduled|planned|targeted)\s+to\s+be\s+"
+    r"(?:(?:is|was|will\s+be)\s+)?(?:expected|scheduled|planned|targeted)\s+to\s+be\s+"
     r"(?:energized\s+in|operational\s+(?:by|in)))",
     re.I,
 )
