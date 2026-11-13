@@ -19,4 +19,10 @@ RUN uv sync --locked --no-dev
 # runs from the uv environment and does not need this vulnerable bootstrap copy.
 RUN python -m pip uninstall -y setuptools
 ENV UV_NO_SYNC=1
+# Run unprivileged. Application code and the virtualenv stay root-owned and
+# read-only to the runtime user; only the home directory (uv cache) is writable,
+# plus the system temp directory used by document-fetch adapters.
+RUN useradd --system --create-home --home-dir /home/app --uid 10001 --user-group app
+ENV HOME=/home/app UV_CACHE_DIR=/home/app/.cache/uv
+USER app
 CMD ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]

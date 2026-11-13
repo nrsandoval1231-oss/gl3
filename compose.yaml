@@ -22,6 +22,9 @@ services:
     env_file: .env.compose
     environment:
       DATABASE_URL: ${COMPOSE_DATABASE_URL:?set COMPOSE_DATABASE_URL in .env.compose}
+      TYPESAFE_API_KEY: ""
+      OPENAI_API_KEY: ""
+      FIRECRAWL_API_KEY: ""
     command: ["uv", "run", "alembic", "upgrade", "head"]
     depends_on:
       db:

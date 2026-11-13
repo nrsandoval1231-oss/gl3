@@ -13,9 +13,14 @@ case "${1:-}" in
     set -a; . ./.env.prod; set +a
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
     object_ref="s3://${SPACES_BUCKET}/backups/gridlens-${stamp}.dump"
-    docker run --rm postgres:18.6 pg_dump --format=custom --no-owner "${BACKUP_DATABASE_URL}" \
-      | docker run --rm -i \
-          -e AWS_ACCESS_KEY_ID="${SPACES_KEY}" -e AWS_SECRET_ACCESS_KEY="${SPACES_SECRET}" \
+    # Secrets are passed to containers by variable name (`-e NAME`), never as
+    # argv values, so they do not appear in `ps` or `docker inspect` command lines.
+    # pg_dump reads the connection string from the container environment.
+    BACKUP_DATABASE_URL="${BACKUP_DATABASE_URL}" \
+      docker run --rm -e BACKUP_DATABASE_URL postgres:18.6 \
+        sh -c 'exec pg_dump --format=custom --no-owner "$BACKUP_DATABASE_URL"' \
+      | AWS_ACCESS_KEY_ID="${SPACES_KEY}" AWS_SECRET_ACCESS_KEY="${SPACES_SECRET}" \
+        docker run --rm -i -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
           amazon/aws-cli:2.27.50 s3 cp - "${object_ref}" \
           --endpoint-url "https://${SPACES_REGION}.digitaloceanspaces.com"
     receipt_tmp="/opt/gridlens/operational-receipt.json.tmp"

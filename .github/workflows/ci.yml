@@ -26,6 +26,8 @@ jobs:
           fetch-depth: 0
       - name: Classify changed paths
         id: filter
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           full() { { echo "full=true"; echo "backend=true"; echo "web=true"; echo "brand=true"; } >> "$GITHUB_OUTPUT"; }
@@ -58,7 +60,7 @@ jobs:
           fi
           has() { printf '%s\n' "${files}" | grep -q "$1"; }
           backend=false; web=false; brand=false; fullrun=false
-          if has '^uv\.lock$' || has '^package-lock\.json$' || has '^\.github/workflows/' || has '^config/' || has '^backend/migrations/'; then
+          if has '^backend/uv\.lock$' || has '^web/package-lock\.json$' || has '^\.github/workflows/' || has '^config/' || has '^backend/migrations/' || has '^deploy/' || has '^compose\.yaml$'; then
             fullrun=true
           fi
           if has '^backend/'; then
@@ -190,6 +192,8 @@ jobs:
             echo "${app_password}"
             echo "EOF"
           } >> "$GITHUB_ENV"
+      - name: Maintained documentation links
+        run: uv run --project backend python scripts/check_docs.py
       - run: uv run ruff check src tests
         working-directory: backend
       - run: uv run ruff format --check src tests
@@ -461,6 +465,24 @@ jobs:
       - run: npm run typecheck --prefix web
       - run: npm run build --prefix web
 
+  docker-build:
+    # Build-only (no push, no registry login) so Dockerfile breakage is caught
+    # before deployment. Each image builds only when its inputs were classified.
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true'
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build backend image
+        if: needs.changes.outputs.backend == 'true'
+        run: docker build --pull --file deploy/Dockerfile.backend --tag gridlens-backend:ci .
+      - name: Build web image
+        if: needs.changes.outputs.web == 'true'
+        run: docker build --pull --file deploy/Dockerfile.web --tag gridlens-web:ci .
+
   brand-assets:
     if: needs.changes.outputs.brand == 'true'
     needs: changes
@@ -474,7 +496,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv venv .venv-brand
-      - run: uv pip install --python .venv-brand/bin/python -r tools/brand/requirements.txt
+      - run: uv pip install --python .venv-brand/bin/python --require-hashes -r tools/brand/requirements.txt
       - name: Validate brand sources, outputs, references and contrast
         run: .venv-brand/bin/python tools/brand/validate.py
       # Passing structural checks is not owner visual acceptance. The manifest

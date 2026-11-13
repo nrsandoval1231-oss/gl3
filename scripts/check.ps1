@@ -6,7 +6,8 @@
 #   - Node.js 22
 #   - PostgreSQL 18.6, the image in compose.yaml
 #   - DATABASE_URL and TEST_DATABASE_URL pointing at separate databases.
-#     TEST_DATABASE_URL must name a disposable database ending in _test.
+#     Both must use a loopback host and a disposable database name ending in
+#     _test; the script refuses to run migrations or tests otherwise.
 #   - APP_PASSWORD_HASH and SESSION_SECRET set for the API process.
 #
 # The script does not start Postgres, generate secrets, or upload logs.
@@ -35,6 +36,30 @@ foreach ($name in @("DATABASE_URL", "TEST_DATABASE_URL", "APP_PASSWORD_HASH", "S
     }
 }
 
+# Migrations and the pytest fixtures create and drop schema. Refuse anything that
+# is not a loopback, disposable database so retained/production data is never touched.
+function Assert-DisposableLoopbackDatabase {
+    param([Parameter(Mandatory = $true)][string]$Name)
+    $value = (Get-Item "Env:$Name").Value
+    try {
+        $uri = [System.Uri]($value -replace '^[A-Za-z0-9+_.-]+://', 'postgresql://')
+        $dbHost = $uri.Host
+        $database = $uri.AbsolutePath.TrimStart('/')
+    }
+    catch {
+        throw "$Name is not a parseable database URL"
+    }
+    if (@("localhost", "127.0.0.1", "::1", "[::1]") -notcontains $dbHost) {
+        throw "$Name must point at a loopback host (localhost, 127.0.0.1 or ::1), not '$dbHost'"
+    }
+    if ($database -notmatch '_test$') {
+        throw "$Name must name a disposable database ending in _test"
+    }
+}
+foreach ($name in @("DATABASE_URL", "TEST_DATABASE_URL")) {
+    Assert-DisposableLoopbackDatabase $name
+}
+
 Push-Location (Join-Path $Root "backend")
 try {
     Invoke-Native "uv sync" { uv sync --locked --extra dev }
@@ -47,6 +72,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "pip-audit failed with exit code $LASTEXITCODE" }
         $audit | Out-File -Encoding utf8 .artifacts/backend-dependency-audit.json
     }
+    Invoke-Native "documentation links" { uv run python (Join-Path $Root "scripts/check_docs.py") }
     Invoke-Native "ruff" { uv run ruff check src tests }
     Invoke-Native "ruff format check" { uv run ruff format --check src tests }
     Invoke-Native "mypy" { uv run mypy src }
