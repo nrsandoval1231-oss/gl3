@@ -1,0 +1,22 @@
+{
+  "source_id": "microsoft",
+  "url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/",
+  "title": "Made in Wisconsin: The world’s most powerful AI datacenter - Microsoft On the Issues",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": "2025-09-18T14:00:11+00:00",
+  "modified_date_metadata": null,
+  "excerpts": [
+    "[Skip to content](https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/#content)",
+    "We are on track to complete construction and bring this AI datacenter online in early 2026, fulfilling our initial $3.3 billion investment pledge. We’ve already begun hiring full-time employees to support its operation.",
+    "But what does that mean for the average Wisconsinite? It means new jobs, new skills, and new opportunities — right here at home. From union construction roles to long-term careers in operations and IT, this facility is creating pathways for Wisconsinites to be part of the future of technology. It means students at Gateway Technical College can train for high-demand roles through Wisconsin’s first Datacenter Academy. It means local companies — from manufacturers to startups — can partner with Microsoft engineers to turn AI ideas into real solutions.",
+    "More than 90 percent of the facility will rely on a state-of-the-art closed-loop liquid cooling system, filled during construction and recirculated continuously. The remaining portion of the facility will use outside air for cooling, switching to water only on the hottest days, minimizing environmental impact and maximizing operational efficiency. The result is a technological milestone — a datacenter with enough fiber cable to circle the Earth four times, yet its annual water use is modest, requiring roughly the amount of water a typical restaurant uses annually or what an 18-hole golf course consumes weekly in peak summer.",
+    "We appreciate that energy prices are increasing across the country and have worked hard to ensure our datacenter will not drive-up costs for our neighbors. That’s why we’re pre-paying for the energy and electrical infrastructure that we’ll use — ensuring prices remain stable and protecting consumers from future cost increases because of our datacenter. We will match every kilowatt hour we consume that comes from a fossil fuel source one for one with carbon-free energy we put back onto the grid. This includes a new 250 MW solar project in Portage County that is under construction to support this commitment. And our partnership with WE Energies ensures we will continually explore and add energy transmission, generation, and usage — under transparent tariffs that support grid reliability.",
+    "This facility is a catalyst for economic opportunity. At its peak, we have employed more than 3,000 construction workers during daily peak activity, including electricians, plumbers and pipefitters, carpenters, structural iron and steel workers, concrete workers, and Earth movers. Once our first datacenter is fully operational, we will employ around 500 full-time employees, with that number growing to around 800 once the second datacenter is complete.",
+    "We’ve also sponsored and helped to open the nation’s first [manufacturing-focused AI Co-Innovation Lab](https://news.microsoft.com/source/2025/06/25/microsoft-wisconsin-economic-development-corporation-university-of-wisconsin-milwaukee-and-titletowntech-officially-open-ai-co-innovation-lab-to-accelerate-manufacturing-innovation/?msockid=2658041765a36c7e2596125964356d26) on the campus of the University of Wisconsin-Milwaukee. It results from a partnership with UW-Milwaukee, WEDC, Gateway Technical College, and TitletownTech (a partnership between Microsoft and the Green Bay Packers). The lab has already helped 23 Wisconsin companies — including Regal Rexnord, Renaissant, and BW Converting — turn AI ideas into real solutions.  A few of these companies are headquartered right in Racine County, like Wiscon Products, a family-owned precision machining company founded in 1945."
+  ]
+}
+

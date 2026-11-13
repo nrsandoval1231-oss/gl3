@@ -1,0 +1,20 @@
+{
+  "source_id": "dominion",
+  "url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+  "title": "Coastal Virginia Offshore Wind | Dominion Energy",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "When fully constructed in 2026, the Coastal Virginia Offshore Wind commercial project will deliver clean, renewable energy to the grid, avoid millions of tons of carbon dioxide emissions annually, and help us achieve our goal of Net Zero carbon and methane emissions by 2050.",
+    "The 2.6-gigawatt project will provide zero-carbon energy to as many as 660,000 customers at peak output.",
+    "[Learn more about the project ![arrow](https://cdn-dominionenergy-prd-001.azureedge.net/assets/images/arrowcta.svg?v=20261014141154)](https://coastalvawind.com/about/the-project)",
+    "We are committed to building a sustainable energy future, with a [plan to achieve net-zero carbon dioxide and methane emissions](https://www.dominionenergy.com/about/our-company/net-zero) across our 13 states by 2050. When fully constructed in 2026, the CVOW project will deliver up to 9.5 million megawatt-hours per year of clean, renewable energy to the grid, powering up to 660,000 Virginia homes. Providing this power with wind energy will avoid as much as 5 million tons of carbon dioxide emissions annually — the equivalent of planting more than 80 million trees.",
+    "[Read more about the economic impact of the CVOW project ![arrow](https://cdn-dominionenergy-prd-001.azureedge.net/assets/images/arrowcta.svg?v=20261014141154)](https://coastalvawind.com/resources/docs/offshore-wind-economic-impact-report.pdf)"
+  ]
+}
+

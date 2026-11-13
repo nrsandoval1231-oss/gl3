@@ -1,0 +1,13 @@
+{
+  "source_id": "dominion_project_supplement",
+  "url": "https://coastalvawind.com/",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "excerpts": [
+    "Construction on Coastal Virginia Offshore Wind (CVOW), the largest offshore wind project in the United States, is progressing on schedule. Onshore construction for transmission infrastructure began in late 2023, and offshore construction commenced in early 2024.",
+    "#### 2027 expected completion",
+    "CVOW is a 2.6-gigawatt project. Its 176 offshore wind turbines will generate enough carbon-free, renewable energy to power up to 660,000 homes. Harnessing the power of the wind means this project has expected fuel savings of $3 billion for customers during the project's first decade of operations.",
+    "“The fact that we have a regulated project, and the fact that the Clean Economy Act set those targets, gave us the confidence to go to the vendors and say this is what we need on this schedule,” said Bob Blue, Dominion Energy's chair, president and chief executive officer."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "source_id": "compass_supplement",
+  "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "excerpts": [
+    "- _Project will be one of the largest hyperscale data center developments in the southeast and Compass’ first campus in the region_\n- _At full fit-out, the campus will represent a $10 billion investment and create thousands of direct and indirect jobs_",
+    "Mississippi Development Authority is providing assistance for site preparation. MDA also will certify Compass Datacenters as a data center operator, which will provide the company with 10-year state income and franchise tax exemptions, as well as a sales and use tax exemption on construction materials, equipment and software and hardware replacements. The city of Meridian, Lauderdale County and electrical utility provider Mississippi Power Company also are assisting with the project. Mississippi Power will supply approximately 500 megawatts of power to the facility.",
+    "_“Compass Datacenters’ multi-billion investment in Meridian marks yet another monumental economic development win for Mississippi, and it is the result of many factors that position our state as a hub for these high-tech projects. Speed to market, the availability of a shovel-ready site in Meridian I-20/59 Industrial Park and the capabilities of Mississippi Power were key to Compass Datacenters choosing Lauderdale County. The economic development team in Mississippi is second to none, and we are excited to continue bringing great job opportunities to the citizens of our great state.” –_ **Mississippi Development Authority Executive Director Bill Cork**",
+    "_“We are looking forward to building our next campus in Meridian. We appreciate the time and effort Mississippi Development Authority, East Mississippi Business Development Corporation and Mississippi Power have invested with us to bring this project to fruition and look forward to bringing good-paying jobs and economic benefits to the region for decades to come.” –_ **AJ Byers, President and Chief Development Officer, Compass Datacenters**"
+  ]
+}

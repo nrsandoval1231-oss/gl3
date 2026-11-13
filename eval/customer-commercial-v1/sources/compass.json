@@ -1,0 +1,20 @@
+{
+  "source_id": "compass",
+  "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+  "title": "Compass Project Generates $10B Investment in Lauderdale County",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-11T21:25:09.275Z",
+  "publication_date_metadata": null,
+  "modified_date_metadata": "2025-04-28T16:05:20+00:00",
+  "excerpts": [
+    "_Jackson, Miss. (Jan. 9, 2025) –_ Dallas-based Compass Datacenters, a multinational data center developer, is locating its next hyperscale data center campus in Meridian. The campus will consist of eight data centers that will be constructed over an eight-year period.",
+    "Mississippi Development Authority is providing assistance for site preparation. MDA also will certify Compass Datacenters as a data center operator, which will provide the company with 10-year state income and franchise tax exemptions, as well as a sales and use tax exemption on construction materials, equipment and software and hardware replacements. The city of Meridian, Lauderdale County and electrical utility provider Mississippi Power Company also are assisting with the project. Mississippi Power will supply approximately 500 megawatts of power to the facility.",
+    "_“We are looking forward to building our next campus in Meridian. We appreciate the time and effort Mississippi Development Authority, East Mississippi Business Development Corporation and Mississippi Power have invested with us to bring this project to fruition and look forward to bringing good-paying jobs and economic benefits to the region for decades to come.” –_ **AJ Byers, President and Chief Development Officer, Compass Datacenters**",
+    "_“Since meeting the Compass Datacenter folks in February 2024, it has been one exciting experience. First, we need to thank Mississippi Power for bringing Compass to us. Mississippi Power’s investment in a substation for the I-20/59 Industrial Park, along with Lauderdale County’s ability to work with the Mississippi Legislature for a $4 million site grant, an additional MDA site grant and the city of Meridian’s water/sewer investment years ago, truly made this site a speed to market option for Compass. Thank you Compass Datacenters for selecting Meridian, Lauderdale County for your Mississippi campus.” –_ **East Mississippi Business Development Corporation President Bill Hannah**",
+    "Compass Datacenters does data centers differently. The company develops and operates sustainable Class A, Community-First campuses guided by a 100-year neighbor philosophy that invests in the workforce, infrastructure, and well-being of every community it calls home. Backed by the institutional strength of Ontario Teachers’ Pension Plan, Brookfield Infrastructure and KKR, Compass delivers high-quality facilities at speed for the cloud and hyperscale customers driving today’s economy. By combining industrialized, prefabricated design with advanced hybrid cooling that uses no water during operations, responsible energy use, and zero-waste construction, Compass takes a more sustainable approach to digital infrastructure supporting the company’s built-to-last vision. The result is move-in ready capacity that scales efficiently and responsibly. Data Centers Done Differently."
+  ]
+}
+

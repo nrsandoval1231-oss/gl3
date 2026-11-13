@@ -1,0 +1,1937 @@
+{
+  "schema_version": "gridlens-commercial-reference-v1",
+  "observation_date": "2026-11-12",
+  "labeling_status": "independent_research_candidate_pending_astra_reference_review",
+  "selection": "Purposive 20-organization public-source stress cohort: 17 data-center developers/operators, 3 generation infrastructure owners. Not a representative production coverage sample.",
+  "global_rules": {
+    "identity": "Labels identify source-supported organizations only; no invented canonical UUIDs. Runtime binding must use existing identity machinery.",
+    "temporal_scope": "Facts are source-as-of historical assertions, not independently verified current operation or employment.",
+    "commissioning": "All20 abstain absent documented test blocks, load fractions and concurrency; equipment/generation/nameplate MW alone insufficient.",
+    "contacts": "Source-supported named functional leaders are historical at publication; current employment/decision authority and professional methods unverified unless separately evidenced. No emails fabricated.",
+    "missingness": "capacity[] empty means not stated in bounded source except DigitalRealty partial retrieval; do not score missingness as extraction error.",
+    "date_precision": "Approximate/quarter/year values never become invented exact days.",
+    "source_date": "null remains unknown/conflicting; metadata modified dates not publication dates."
+  },
+  "records": [
+    {
+      "id": "vantage-frontier",
+      "company": "Vantage Data Centers",
+      "project": "Frontier",
+      "location": "Shackelford County, Texas",
+      "sources": [
+        [
+          "vantage",
+          "2025-08-19"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "1400",
+          "type": "campus_development_capacity",
+          "qualifier": "reported_gpu_compute_capacity",
+          "scope": "10-building campus",
+          "includes": [
+            "all-buildings"
+          ],
+          "evidence_source_ids": [
+            "vantage"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "building_delivery_target",
+          "value": "2026-H2",
+          "precision": "half_year",
+          "scope": "first building",
+          "evidence_source_ids": [
+            "vantage"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:1"
+        }
+      ],
+      "construction_status": "begun_by_publication",
+      "contacts": [
+        {
+          "name": "Dana Adams",
+          "role": "President of North America",
+          "relevance": "regional infrastructure leadership",
+          "evidence_source_ids": [
+            "vantage"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "Do not use 1400MW as rental demand.",
+        "Delivery target is not first energization.",
+        "Construction begun does not establish exact start."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "vantage",
+          "source_url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+          "publication_date": "2025-08-19",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/vantage.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "aligned-conesville",
+      "company": "Aligned Data Centers",
+      "project": "Conesville Industrial Park campus",
+      "location": "Coshocton County, Ohio",
+      "sources": [
+        [
+          "aligned",
+          "2025-07-24"
+        ]
+      ],
+      "capacity": [],
+      "timeline": [
+        {
+          "kind": "initial_capacity_delivery_target",
+          "value": "mid 2026",
+          "precision": "approximate",
+          "scope": "first data center",
+          "evidence_source_ids": [
+            "aligned"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:1"
+        }
+      ],
+      "construction_status": "planned",
+      "contacts": [],
+      "checks": [
+        "197 acres is not MW.",
+        "No MW in bounded source; capacity source_missing.",
+        "Mid 2026 is not exact June 1 and delivery is not energization."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "aligned",
+          "source_url": "https://aligneddc.com/press-release/aligned-data-centers-expands-in-ohio-with-new-mega-scale-ai-campus/",
+          "publication_date": "2025-07-24",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/aligned.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "source_missing",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "databank-red-oak",
+      "company": "DataBank",
+      "project": "Red Oak Campus",
+      "location": "Red Oak, Texas",
+      "sources": [
+        [
+          "databank",
+          "2024-09-10"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "480",
+          "type": "it_load",
+          "qualifier": "up_to",
+          "scope": "8-building campus",
+          "includes": [
+            "phase-1",
+            "phase-2"
+          ],
+          "evidence_source_ids": [
+            "databank"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "240",
+          "type": "it_load",
+          "qualifier": "up_to",
+          "scope": "phase-1",
+          "included_in": "8-building campus",
+          "evidence_source_ids": [
+            "databank"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        },
+        {
+          "value_mw": "400",
+          "type": "utility_service_capacity",
+          "qualifier": "substation_rating",
+          "scope": "phase-1",
+          "evidence_source_ids": [
+            "databank"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "ready_for_service_target",
+          "value": "2026-Q2",
+          "precision": "quarter",
+          "scope": "initial phase",
+          "evidence_source_ids": [
+            "databank"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        }
+      ],
+      "construction_status": "begun_by_publication",
+      "contacts": [],
+      "checks": [
+        "480+240 is double counting.",
+        "400MW substation is not 400MW IT.",
+        "792MW portfolio includes other sites; do not assign to Red Oak.",
+        "RFS is not verified energization."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "databank",
+          "source_url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+          "publication_date": "2024-09-10",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/databank.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "cyrusone-bosque",
+      "company": "CyrusOne",
+      "project": "New CyrusOne facility adjacent to Thad Hill Energy Center",
+      "location": "Bosque County, Texas",
+      "sources": [
+        [
+          "cyrusone",
+          "2025-07-30"
+        ],
+        [
+          "cyrusone_supplement",
+          "2025-07-30"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "190",
+          "type": "utility_service_capacity",
+          "qualifier": "contracted_power_agreement",
+          "scope": "new Bosque facility",
+          "evidence_source_ids": [
+            "cyrusone",
+            "cyrusone_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "400",
+          "type": "utility_service_capacity",
+          "qualifier": "up_to_potential",
+          "scope": "Bosque data center delivery capability",
+          "exclude_from_committed_total": true,
+          "evidence_source_ids": [
+            "cyrusone",
+            "cyrusone_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "regional_capability:bosque"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "operational_target",
+          "value": "2026-Q4",
+          "precision": "quarter",
+          "scope": "new facility",
+          "evidence_source_ids": [
+            "cyrusone",
+            "cyrusone_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site",
+          "qualifier": "at_or_before"
+        }
+      ],
+      "construction_status": "under_construction_at_publication",
+      "contacts": [
+        {
+          "name": "John Hatem",
+          "role": "Chief Operating Officer",
+          "relevance": "owner operations leadership",
+          "evidence_source_ids": [
+            "cyrusone",
+            "cyrusone_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "Calpine is energy partner, not CyrusOne alias.",
+        "Do not attribute Calpine 27000MW fleet or ERCOT9000MW to customer build.",
+        "190MW agreement is not IT load.",
+        "400MW capability is not additive committed phase capacity.",
+        "DFW10 alias is not established in retained excerpts."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "cyrusone",
+          "source_url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+          "publication_date": "2025-07-30",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/cyrusone.json"
+        },
+        {
+          "source_id": "cyrusone_supplement",
+          "source_url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+          "publication_date": "2025-07-30",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/cyrusone_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "qts-hillsboro",
+      "company": "QTS Realty Trust",
+      "project": "Hillsboro campus",
+      "location": "Hillsboro, Oregon",
+      "sources": [
+        [
+          "qts",
+          "2020-02-18"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "250",
+          "type": "campus_development_capacity",
+          "qualifier": "more_than_gross_power",
+          "scope": "5-building campus",
+          "includes": [
+            "initial-building"
+          ],
+          "evidence_source_ids": [
+            "qts"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "27",
+          "type": "campus_development_capacity",
+          "qualifier": "gross_power",
+          "scope": "initial-building",
+          "included_in": "5-building campus",
+          "evidence_source_ids": [
+            "qts"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:1"
+        },
+        {
+          "value_mw": "4.5",
+          "type": "unclassified_capacity",
+          "qualifier": "approximately_leased_capacity_basis_unspecified",
+          "scope": "first phase",
+          "exclude_from_committed_total": true,
+          "evidence_source_ids": [
+            "qts"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "first_phase_commissioning_target",
+          "value": "mid-2020",
+          "precision": "approximate",
+          "scope": "first phase",
+          "evidence_source_ids": [
+            "qts"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        },
+        {
+          "kind": "capacity_availability_target",
+          "value": "2020-H2",
+          "precision": "half_year",
+          "scope": "additional power",
+          "evidence_source_ids": [
+            "qts"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "additional_capacity"
+        }
+      ],
+      "construction_status": "development_commenced_at_publication",
+      "contacts": [],
+      "checks": [
+        "Historical2020 source cannot prove current opportunity.",
+        "250 is lower bound, not exact.",
+        "Do not add included27MW building to campus.",
+        "Leased4.5MW does not prove total installed IT capacity."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "qts",
+          "source_url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+          "publication_date": "2020-02-18",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/qts.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "switch-the-rock",
+      "company": "Switch",
+      "project": "The Rock",
+      "location": "Round Rock, Texas",
+      "sources": [
+        [
+          "switch",
+          "2021-06-02"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "185",
+          "type": "campus_development_capacity",
+          "qualifier": "multi_site_ecosystem_total",
+          "scope": "Texas ecosystem including Data Foundry Austin/Houston",
+          "exclude_from_project_total": true,
+          "evidence_source_ids": [
+            "switch"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "regional_ecosystem:texas"
+        },
+        {
+          "value_mw": "60",
+          "type": "campus_development_capacity",
+          "qualifier": "acquired_properties_capable_of_delivering_not_verified_existing_output",
+          "scope": "Data Foundry Austin/Houston",
+          "included_in": "Texas ecosystem",
+          "exclude_from_project_total": true,
+          "evidence_source_ids": [
+            "switch"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "regional_sites:austin_houston"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "site_preparation_and_permitting_target",
+          "value": "summer 2021",
+          "precision": "season",
+          "scope": "The Rock",
+          "evidence_source_ids": [
+            "switch"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "site_preparation_planned",
+      "contacts": [],
+      "checks": [
+        "185MW spans multiple physical sites; TheRock MW unknown.",
+        "Do not subtract60 to manufacture125MW unsupported site figure.",
+        "Site preparation/permitting is not verified construction start.",
+        "Historical source must trigger freshness limitation."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "switch",
+          "source_url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/",
+          "publication_date": "2021-06-02",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/switch.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "meta-richland",
+      "company": "Meta",
+      "project": "Richland Parish Data Center / Hyperion",
+      "location": "Richland Parish, Louisiana",
+      "sources": [
+        [
+          "meta",
+          null
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "5000",
+          "type": "campus_development_capacity",
+          "qualifier": "compute_capacity_headline",
+          "scope": "Richland Parish",
+          "evidence_source_ids": [
+            "meta"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "2000",
+          "type": "campus_development_capacity",
+          "qualifier": "over_compute_capacity_lower_section",
+          "scope": "Richland Parish",
+          "coexists_with": "headline_5000",
+          "evidence_source_ids": [
+            "meta"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "announcement",
+          "value": "2024-12",
+          "precision": "month",
+          "scope": "campus",
+          "evidence_source_ids": [
+            "meta"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "construction_referenced_no_start_date",
+      "contacts": [],
+      "checks": [
+        "Same primary page has5GW and over2GW; retain both assertions as different precision; chronology of the two statements is unknown, not additive.",
+        "The over2GW lower bound is mathematically compatible with5GW; do not falsely flag an arithmetic contradiction or add them.",
+        "December2024 announcement is not construction start.",
+        "Modified date2026-07-15 is not publication date."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "meta",
+          "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/meta.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "google-fort-wayne",
+      "company": "Google",
+      "project": "Fort Wayne data center",
+      "location": "Fort Wayne, Indiana",
+      "sources": [
+        [
+          "google",
+          null
+        ],
+        [
+          "google_supplement",
+          null
+        ]
+      ],
+      "capacity": [],
+      "timeline": [],
+      "construction_status": "operational_in_observed_page_without_event_date",
+      "contacts": [],
+      "checks": [
+        "$2B investment is not MW.",
+        "MichiganCity and MorganCounty are distinct sites not phases of FortWayne.",
+        "Current operational statement gives no first energization date."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "google",
+          "source_url": "https://datacenters.google/locations/indiana/",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/google.json"
+        },
+        {
+          "source_id": "google_supplement",
+          "source_url": "https://datacenters.google/locations/indiana/",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/google_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "source_missing",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "aws-madison",
+      "company": "Amazon Web Services",
+      "project": "Madison County data center complexes",
+      "location": "Madison County, Mississippi",
+      "sources": [
+        [
+          "amazon",
+          "2024-01-25"
+        ],
+        [
+          "amazon_supplement",
+          "2024-01-25"
+        ]
+      ],
+      "capacity": [],
+      "timeline": [],
+      "construction_status": "planned_at_publication",
+      "contacts": [
+        {
+          "name": "Roger Wehner",
+          "role": "AWS director of economic development",
+          "relevance": "development leadership",
+          "evidence_source_ids": [
+            "amazon",
+            "amazon_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "AWS acronym is explicitly source-supported alias.",
+        "Two industrial parks require distinct sites if separately resolved; do not manufacture one physical campus.",
+        "$10B not electrical capacity.",
+        "AES Delta wind farm is separate owner/project and not data center demand."
+      ],
+      "aliases": [
+        "AWS"
+      ],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "amazon",
+          "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+          "publication_date": "2024-01-25",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/amazon.json"
+        },
+        {
+          "source_id": "amazon_supplement",
+          "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+          "publication_date": "2024-01-25",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/amazon_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "source_missing",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "microsoft-fairwater",
+      "company": "Microsoft",
+      "project": "Fairwater Mount Pleasant",
+      "location": "Mount Pleasant, Wisconsin",
+      "sources": [
+        [
+          "microsoft",
+          "2025-09-18"
+        ]
+      ],
+      "capacity": [],
+      "timeline": [
+        {
+          "kind": "construction_completion_and_online_target",
+          "value": "early 2026",
+          "precision": "approximate",
+          "scope": "first data center",
+          "evidence_source_ids": [
+            "microsoft"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "final_phases_at_publication",
+      "contacts": [],
+      "checks": [
+        "Nearby250MW PortageCounty solar generation is not Fairwater demand.",
+        "Similar second facility is distinct project, not known equal MW.",
+        "Early2026 must remain approximate."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "microsoft",
+          "source_url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/",
+          "publication_date": "2025-09-18",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/microsoft.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "source_missing",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "stack-svy01",
+      "company": "STACK Infrastructure",
+      "project": "SVY01 campus expansion",
+      "location": "San Jose, California",
+      "sources": [
+        [
+          "stack",
+          "2024-03-26"
+        ],
+        [
+          "stack_supplement",
+          "2024-03-26"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "100",
+          "type": "campus_development_capacity",
+          "qualifier": "total_after_expansion",
+          "scope": "campus",
+          "includes": [
+            "expansion"
+          ],
+          "evidence_source_ids": [
+            "stack",
+            "stack_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "60",
+          "type": "campus_development_capacity",
+          "qualifier": "additional_critical_capacity",
+          "scope": "expansion",
+          "included_in": "campus",
+          "evidence_source_ids": [
+            "stack",
+            "stack_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "expansion"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "groundbreaking_announced",
+          "value": "2024-03-26",
+          "precision": "day",
+          "scope": "expansion",
+          "status": "announcement_date_actual_event_date_unknown",
+          "evidence_source_ids": [
+            "stack",
+            "stack_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "expansion"
+        }
+      ],
+      "construction_status": "groundbreaking_announced",
+      "contacts": [
+        {
+          "name": "Matt VanderZanden",
+          "role": "Chief Operating Officer, STACK Americas",
+          "relevance": "owner operations leadership",
+          "evidence_source_ids": [
+            "stack",
+            "stack_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "Do not sum100+60MW.",
+        "4GW built/under development is portfolio context not SVY01.",
+        "Groundbreaking announcement day is source-reported milestone, not independent site observation."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "stack",
+          "source_url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+          "publication_date": "2024-03-26",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/stack.json"
+        },
+        {
+          "source_id": "stack_supplement",
+          "source_url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+          "publication_date": "2024-03-26",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/stack_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "applied-ellendale",
+      "company": "Applied Digital Corporation",
+      "project": "Ellendale campus",
+      "location": "Ellendale, North Dakota",
+      "sources": [
+        [
+          "applied",
+          "2025-06-02"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "400",
+          "type": "it_load",
+          "qualifier": "campus_design",
+          "scope": "campus",
+          "includes": [
+            "building-1",
+            "building-2",
+            "building-3"
+          ],
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "100",
+          "type": "it_load",
+          "qualifier": "leased",
+          "scope": "building-1",
+          "included_in": "campus",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:1"
+        },
+        {
+          "value_mw": "150",
+          "type": "it_load",
+          "qualifier": "leased",
+          "scope": "building-2",
+          "included_in": "campus",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:2"
+        },
+        {
+          "value_mw": "150",
+          "type": "it_load",
+          "qualifier": "option_not_committed",
+          "scope": "building-3",
+          "included_in": "campus",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:3"
+        },
+        {
+          "value_mw": "1000",
+          "type": "utility_service_capacity",
+          "qualifier": "1plus_under_load_study",
+          "scope": "future_expansion",
+          "exclude_from_committed_total": true,
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "future_expansion"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "ready_for_service_target",
+          "value": "2025-Q4",
+          "precision": "quarter",
+          "scope": "building-1",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:1"
+        },
+        {
+          "kind": "ready_for_service_target",
+          "value": "middle of 2026",
+          "precision": "approximate",
+          "scope": "building-2",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:2"
+        },
+        {
+          "kind": "ready_for_service_target",
+          "value": "2027",
+          "precision": "year",
+          "scope": "optional-building-3",
+          "evidence_source_ids": [
+            "applied"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building:3"
+        }
+      ],
+      "construction_status": "building_2_under_construction_building_3_planned",
+      "contacts": [],
+      "checks": [
+        "250MW leases are subset of400MW design, not additional.",
+        "150MW option is not committed customer requirement.",
+        "1GW study not secured service or campus IT.",
+        "CoreWeave is tenant not alias/parent."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "applied",
+          "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+          "publication_date": "2025-06-02",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/applied.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "crusoe-abilene",
+      "company": "Crusoe",
+      "project": "Abilene AI data center at Lancium Clean Campus",
+      "location": "Abilene, Texas",
+      "sources": [
+        [
+          "crusoe",
+          null
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "1200",
+          "type": "campus_development_capacity",
+          "qualifier": "total_power_capacity",
+          "scope": "8-building campus",
+          "includes": [
+            "initial-phase",
+            "phase-2"
+          ],
+          "evidence_source_ids": [
+            "crusoe"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "200",
+          "type": "campus_development_capacity",
+          "qualifier": "more_than",
+          "scope": "initial-phase",
+          "included_in": "8-building campus",
+          "evidence_source_ids": [
+            "crusoe"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "actual_construction_start",
+          "value": "2024-06",
+          "precision": "month",
+          "scope": "initial-phase",
+          "evidence_source_ids": [
+            "crusoe"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        },
+        {
+          "kind": "expected_first_energization",
+          "value": "2025-H1",
+          "precision": "half_year",
+          "scope": "initial-phase",
+          "evidence_source_ids": [
+            "crusoe"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        },
+        {
+          "kind": "construction_completion_target",
+          "value": "mid-2026",
+          "precision": "approximate",
+          "scope": "phase-2",
+          "evidence_source_ids": [
+            "crusoe"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:2"
+        }
+      ],
+      "construction_status": "phase_2_begun_in_2025_dateline",
+      "contacts": [],
+      "checks": [
+        "Page containsMarch18 2025 dateline andAug18 2026 display date; publication_date unresolved.",
+        "200plus phase included in1200; do not doublecount.",
+        "Lancium land/power partner not Crusoe alias.",
+        "Old target is not verified actual energization."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "crusoe",
+          "source_url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/crusoe.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "covered",
+        "first_energization": "covered_target",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "compass-meridian",
+      "company": "Compass Datacenters",
+      "project": "Meridian campus",
+      "location": "Meridian, Lauderdale County, Mississippi",
+      "sources": [
+        [
+          "compass",
+          "2025-01-09"
+        ],
+        [
+          "compass_markets",
+          null
+        ],
+        [
+          "compass_supplement",
+          "2025-01-09"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "500",
+          "type": "utility_service_capacity",
+          "qualifier": "approximately_power_supply",
+          "scope": "Meridian",
+          "evidence_source_ids": [
+            "compass",
+            "compass_markets",
+            "compass_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "320",
+          "type": "campus_development_capacity",
+          "qualifier": "site_capacity_basis_not_explicit_IT",
+          "scope": "Meridian",
+          "evidence_source_ids": [
+            "compass",
+            "compass_markets",
+            "compass_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "groundbreaking",
+          "value": "2025",
+          "precision": "year",
+          "scope": "Meridian",
+          "evidence_source_ids": [
+            "compass",
+            "compass_markets",
+            "compass_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "groundbreaking_2025_current_markets_page",
+      "contacts": [
+        {
+          "name": "AJ Byers",
+          "role": "President and Chief Development Officer",
+          "relevance": "owner development leadership",
+          "evidence_source_ids": [
+            "compass",
+            "compass_markets",
+            "compass_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "500MW utility and320MW campus remain separate types; not820MW.",
+        "Eight-year build duration does not establish exact full operation date.",
+        "Markets page lists multiple different campuses; only Meridian scope here."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "compass",
+          "source_url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+          "publication_date": "2025-01-09",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/compass.json"
+        },
+        {
+          "source_id": "compass_markets",
+          "source_url": "https://www.compassdatacenters.com/data-center-markets/",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/compass_markets.json"
+        },
+        {
+          "source_id": "compass_supplement",
+          "source_url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+          "publication_date": "2025-01-09",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/compass_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "edgecore-mesa",
+      "company": "EdgeCore Digital Infrastructure",
+      "project": "Mesa / metro Phoenix campuses",
+      "location": "Mesa, Arizona",
+      "sources": [
+        [
+          "edgecore_press",
+          "2025-05-20"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "450",
+          "type": "campus_development_capacity",
+          "qualifier": "more_than",
+          "scope": "Mesa development",
+          "includes": [
+            "first-campus",
+            "expansion"
+          ],
+          "evidence_source_ids": [
+            "edgecore_press"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "value_mw": "206",
+          "type": "campus_development_capacity",
+          "qualifier": "constructed_and_commissioned",
+          "scope": "first-campus",
+          "included_in": "Mesa development",
+          "evidence_source_ids": [
+            "edgecore_press"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "first_campus"
+        },
+        {
+          "value_mw": "250",
+          "type": "campus_development_capacity",
+          "qualifier": "more_than_expansion",
+          "scope": "expansion",
+          "included_in": "Mesa development",
+          "evidence_source_ids": [
+            "edgecore_press"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "expansion"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "power_delivery_on_completion_target",
+          "value": "2025",
+          "precision": "year",
+          "scope": "one building_under_construction",
+          "evidence_source_ids": [
+            "edgecore_press"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building_unspecified"
+        },
+        {
+          "kind": "power_delivery_on_completion_target",
+          "value": "2026",
+          "precision": "year",
+          "scope": "second building_under_construction",
+          "evidence_source_ids": [
+            "edgecore_press"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "building_unspecified"
+        }
+      ],
+      "construction_status": "two_buildings_under_construction_at_publication",
+      "contacts": [],
+      "checks": [
+        "450plus lower bound not exact450 or456.",
+        "Commissioned capacity is not commissioning test demand.",
+        "Cannot assign year to PH02vsPH03 without exact source mapping.",
+        "SRP available power does not prove rental need.",
+        "206MW construct and commission is a reported quotation alongside two buildings still under construction, not independent present-operating verification."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "edgecore_press",
+          "source_url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/",
+          "publication_date": "2025-05-20",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/edgecore_press.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "digital-realty-lagos",
+      "company": "Digital Realty",
+      "project": "Lagos data center",
+      "location": "Lagos, Nigeria",
+      "sources": [
+        [
+          "digitalrealty",
+          "2025-08-22"
+        ]
+      ],
+      "capacity": [],
+      "timeline": [],
+      "construction_status": "unknown_partial_retrieval",
+      "contacts": [],
+      "checks": [
+        "Body retrieval returned website shell; mark retrieval_partial rather than source_absent for MW/dates.",
+        "Retained title supports new data center in Lagos; truncated metadata does not establish opening, third facility, or exact event date."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "digitalrealty",
+          "source_url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos",
+          "publication_date": "2025-08-22",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/digitalrealty.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "retrieval_partial",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "equinix-jh2",
+      "company": "Equinix",
+      "project": "JH2",
+      "location": "Johor, Malaysia",
+      "sources": [
+        [
+          "equinix",
+          null
+        ]
+      ],
+      "capacity": [],
+      "timeline": [
+        {
+          "kind": "launch_target",
+          "value": "2027-Q3",
+          "precision": "quarter",
+          "scope": "JH2",
+          "evidence_source_ids": [
+            "equinix"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "topped_out_by_publication_exact_event_day_unknown",
+      "contacts": [],
+      "checks": [
+        "2225 cabinets cannot convert to MW without engineering evidence.",
+        "Page headerNov10 and datelineNov11 differ; retain publication conflict.",
+        "Launch not energization.",
+        "Media contacts excluded from commercial decision-maker coverage."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "equinix",
+          "source_url": "https://newsroom.equinix.com/2025-11-10-Equinix-Tops-Out-Its-Second-Data-Center-in-Johor",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/equinix.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "source_missing",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      },
+      "source_date_conflicts": [
+        "Page header 2025-11-10 versus dateline 2025-11-11; neither establishes actual topping-out day."
+      ]
+    },
+    {
+      "id": "fervo-cape-station",
+      "company": "Fervo Energy",
+      "project": "Cape Station",
+      "location": "Beaver County, Utah",
+      "sources": [
+        [
+          "fervo",
+          "2026-09-24"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "100",
+          "type": "generation_capacity",
+          "qualifier": "approximately",
+          "scope": "phase-1",
+          "includes": [
+            "geoblock-1",
+            "geoblock-2",
+            "geoblock-3"
+          ],
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:1"
+        },
+        {
+          "value_mw": "33",
+          "type": "generation_capacity",
+          "qualifier": "per_geoblock_three_units",
+          "scope": "one geoblock",
+          "included_in": "phase-1",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "component:geoblock"
+        },
+        {
+          "value_mw": "400",
+          "type": "generation_capacity",
+          "qualifier": "additional_phase",
+          "scope": "phase-2",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:2"
+        },
+        {
+          "value_mw": "900",
+          "type": "contracted_offtake",
+          "qualifier": "approximately_contracted_offtake_not_physical_capacity",
+          "scope": "offtake",
+          "exclude_from_committed_total": true,
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "contracted_offtake"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "first_power_achieved_by",
+          "value": "2026-09-24",
+          "precision": "day",
+          "scope": "first GeoBlock",
+          "verification": "source_reported",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "component:geoblock:1",
+          "qualifier": "at_or_before"
+        },
+        {
+          "kind": "contractual_commercial_operations_target",
+          "value": "2026-10-01",
+          "precision": "day",
+          "scope": "first GeoBlock",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "component:geoblock:1",
+          "qualifier": "at_or_before"
+        },
+        {
+          "kind": "contractual_commercial_operations_target",
+          "value": "2027-01-01",
+          "precision": "day",
+          "scope": "remaining GeoBlocks",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "component:geoblocks:2_3",
+          "qualifier": "at_or_before"
+        },
+        {
+          "kind": "commercial_operations_target",
+          "value": "2028",
+          "precision": "year",
+          "scope": "phase-2",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "phase:2"
+        }
+      ],
+      "construction_status": "phase_2_under_construction_at_publication",
+      "contacts": [
+        {
+          "name": "Jack Norbeck",
+          "role": "Chief Technology Officer and Co-Founder",
+          "relevance": "engineering leadership",
+          "evidence_source_ids": [
+            "fervo"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review"
+        }
+      ],
+      "checks": [
+        "Phase1approx100 and3x33 not inconsistent exact arithmetic proof.",
+        "Generation500MW is not load bank/rental demand.",
+        "900MW contracted offtake not additive physical plant capacity.",
+        "First power and contractual COD are distinct.",
+        "No test load/concurrency =>commissioning insufficient_data.",
+        "First power achieved by announcement; contractual COD dates are by-deadlines, not verified actual events."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "fervo",
+          "source_url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/",
+          "publication_date": "2026-09-24",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/fervo.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "source_missing_or_only_status",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "current_verification_missing"
+      }
+    },
+    {
+      "id": "dominion-cvow",
+      "company": "Dominion Energy",
+      "project": "Coastal Virginia Offshore Wind commercial project",
+      "location": "Offshore Virginia Beach, Virginia",
+      "sources": [
+        [
+          "dominion",
+          null
+        ],
+        [
+          "dominion_project_supplement",
+          null
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "2600",
+          "type": "generation_capacity",
+          "qualifier": "commercial_project",
+          "scope": "commercial wind farm",
+          "evidence_source_ids": [
+            "dominion",
+            "dominion_project_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "actual_construction_start",
+          "value": "late 2023",
+          "precision": "approximate",
+          "scope": "onshore transmission",
+          "evidence_source_ids": [
+            "dominion",
+            "dominion_project_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "onshore_transmission"
+        },
+        {
+          "kind": "actual_construction_start",
+          "value": "early 2024",
+          "precision": "approximate",
+          "scope": "offshore",
+          "evidence_source_ids": [
+            "dominion",
+            "dominion_project_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "offshore"
+        },
+        {
+          "kind": "full_construction_completion_target",
+          "value": "2026",
+          "precision": "year",
+          "scope": "commercial project",
+          "conflict_with": "project_homepage_2027",
+          "evidence_source_ids": [
+            "dominion",
+            "dominion_project_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        },
+        {
+          "kind": "full_construction_completion_target",
+          "value": "2027",
+          "precision": "year",
+          "scope": "commercial project",
+          "conflict_with": "company_page_2026",
+          "evidence_source_ids": [
+            "dominion",
+            "dominion_project_supplement"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "site"
+        }
+      ],
+      "construction_status": "under_construction_observed_pages",
+      "contacts": [],
+      "checks": [
+        "2026vs2027 conflict or stale source revision: no silent exact-date selection.",
+        "Pilot two turbines separate scope from2600MW commercial project.",
+        "9.5million MWh/year is energy not MW demand."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "dominion",
+          "source_url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/dominion.json"
+        },
+        {
+          "source_id": "dominion_project_supplement",
+          "source_url": "https://coastalvawind.com/",
+          "publication_date": null,
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/dominion_project_supplement.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "covered",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    },
+    {
+      "id": "terrapower-kemmerer",
+      "company": "TerraPower",
+      "project": "Kemmerer Unit 1 / Natrium",
+      "location": "Kemmerer, Wyoming",
+      "sources": [
+        [
+          "terrapower",
+          "2026-04-23"
+        ]
+      ],
+      "capacity": [
+        {
+          "value_mw": "345",
+          "type": "generation_capacity",
+          "qualifier": "reactor_base_output",
+          "scope": "reactor",
+          "evidence_source_ids": [
+            "terrapower"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "component:reactor"
+        },
+        {
+          "value_mw": "500",
+          "type": "generation_capacity",
+          "qualifier": "storage_boosted_peak_output",
+          "scope": "same integrated plant",
+          "not_additive_to": "345MW reactor",
+          "evidence_source_ids": [
+            "terrapower"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "storage_boosted_peak_output"
+        }
+      ],
+      "timeline": [
+        {
+          "kind": "actual_construction_start",
+          "value": "2024-06",
+          "precision": "month",
+          "scope": "non_nuclear_support_facilities",
+          "evidence_source_ids": [
+            "terrapower"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "non_nuclear_support"
+        },
+        {
+          "kind": "actual_construction_start",
+          "value": "2026-04-23",
+          "precision": "day",
+          "scope": "nuclear_plant",
+          "verification": "source_reported",
+          "evidence_source_ids": [
+            "terrapower"
+          ],
+          "verification_status": "source_supported_reference_label_pending_independent_review",
+          "evaluation_scope": "nuclear_plant"
+        }
+      ],
+      "construction_status": "nuclear_construction_started_after_permit",
+      "contacts": [],
+      "checks": [
+        "345MW base and500MW boosted not845MW.",
+        "June2024 nonnuclear sitework is not nuclear construction start.",
+        "No operation date in bounded article; do not infer2030 from memory.",
+        "Bechtel EPC partner not customer alias; Meta8plant agreement separate scope."
+      ],
+      "aliases": [],
+      "parent_relationships": [],
+      "commissioning_expected": {
+        "status": "insufficient_data",
+        "reason": "No source-supported commissioning test load/concurrency envelope."
+      },
+      "contact_current_verification": "unverified_current_employment",
+      "current_runtime_binding": "not_attempted",
+      "capacity_total_expected": "typed_nonoverlapping_only; no_universal_combined_total",
+      "provenance": [
+        {
+          "source_id": "terrapower",
+          "source_url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+          "publication_date": "2026-04-23",
+          "observation_date": "2026-11-12",
+          "extraction_method": "independent_manual_reference_label_from_retained_markdown",
+          "excerpts_file": "sources/terrapower.json"
+        }
+      ],
+      "missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "construction_start": "covered",
+        "first_energization": "source_missing_do_not_convert_operational_milestones",
+        "commissioning": "input_evidence_insufficient",
+        "contacts": "source_named_relevant_contact_missing"
+      }
+    }
+  ]
+}

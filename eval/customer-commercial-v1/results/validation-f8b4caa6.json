@@ -1,0 +1,26 @@
+{
+  "source_commit": "f8b4caa6f66f3a61e303f0820841db8a40c2d1c9",
+  "reference_sha256": "243dce0a8dac5592ead63103deb4688d2d613168107f998d4f49d96993df9177",
+  "runner_sha256": "69c9efb266a98e15d7f68b57cf4ce0e3416df07425182dcb814be06722745238",
+  "result_sha256": "21990559032880a48391dc76e030c5b94bb63241caa735407c0d9b0f1195a90d",
+  "checks": [
+    {
+      "command": "uv run --project backend pytest backend/tests/unit/test_customer_commercial_evaluation.py -q",
+      "result": "9 passed in 2.51s"
+    },
+    {
+      "command": "uv run --project backend ruff check scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "All checks passed"
+    },
+    {
+      "command": "uv run --project backend ruff format scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "1 file reformatted, 1 file left unchanged; subsequent lint and tests passed"
+    },
+    {
+      "command": "uv run --project backend python scripts/evaluate_customer_commercial.py --output eval/customer-commercial-v1/results/scoped-candidate-20261112.json",
+      "result": "exit 0; source manifest stable before/after; commercial scoped recall0%"
+    }
+  ],
+  "acceptance": "not accepted: publication coverage blocker; reference exact-hash review attestation pending",
+  "full_repository_ci": "not run by this lane"
+}

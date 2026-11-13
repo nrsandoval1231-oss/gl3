@@ -1,0 +1,15 @@
+{
+  "source_id": "stack_supplement",
+  "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "excerpts": [
+    "# STACK Infrastructure Breaks Ground on Expansion of 100MW Campus in Heart of Silicon Valley",
+    "[Linkedin](https://www.linkedin.com/shareArticle?mini=true&url=https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/) [Twitter](https://twitter.com/share?url=https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/)",
+    "**Denver, COLORADO** — March 26, 2024 — [STACK Infrastructure](https://www.stackinfra.com/) (“STACK”), the digital infrastructure partner to the world’s most innovative companies and a leading global developer and operator of data centers, today announced a groundbreaking and expansion of its 100MW campus in San Jose, SVY01. The 60MW data center expansion will provide critical capacity and scale to one of the largest and most desired data center markets in the world. Working alongside the City of San Jose, the expansion will also extend regional benefits through added local investment and employment opportunities.",
+    "“This expansion stands as an example of STACK’s dedication to building lasting local partnerships and stimulating overall community growth,” said Matt VanderZanden, Chief Operating Officer, STACK Americas. “Delivering responsible scale to our clients while positively impacting the region is paramount to our mission of contributing to a broad based, sustainable economic future.”",
+    "The expansion includes two data centers, an advanced manufacturing facility, and a parking structure, bringing the total campus to 100MW across 19 acres. Supporting a variety of cooling solutions, the campus meets the growing demand for cloud and high-density workloads. STACK is also actively collaborating with PG&E to develop new power infrastructure in the area, promoting a more reliable, safe, and scalable grid for both public and private use.",
+    "STACK’s comprehensive portfolio of data center solutions now includes 4.0+GW built or under development, with an additional 2.5+GW of planned and potential development across the Americas, EMEA, and APAC, featuring multi-hundred-megawatt campus developments across 23 major data center markets, including:"
+  ]
+}

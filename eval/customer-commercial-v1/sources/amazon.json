@@ -1,0 +1,30 @@
+{
+  "source_id": "amazon",
+  "url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+  "title": "AWS plans to invest $10 billion in Mississippi",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-11T18:54:22.312Z",
+  "publication_date_metadata": "2024-01-25T20:45:06.530Z",
+  "modified_date_metadata": "2024-01-25T20:45:06.530Z",
+  "excerpts": [
+    "Published:January 25, 2024",
+    "“Since 2011, AWS has invested [more than $108 billion in its infrastructure](https://assets.aboutamazon.com/58/65/29ea168a4839979aa779700ba42c/aws-us-eis-2023.pdf) across the U.S. to support customers of all kinds, and across all industries, in their digital transformation,” said Roger Wehner, AWS director of economic development. “Building on this, we are excited to expand our operations into Mississippi through this planned $10 billion investment, which will tap into the burgeoning tech sector across the state to create new, well-paying jobs and boost the state’s Gross Domestic Product each year. We look forward to delivering new workforce development opportunities and educational programs that support the next generation of talent across the Magnolia State.”",
+    "\n  - We Build it Better, a set of industry-designed curricular experiences and resources that engage middle school and older students in a work-like STEAM environment stocked with industry-grade tools\n  - We Will Build it Better, a career awareness program for elementary classrooms to engage students in a work-like STEAM environment, complete with an array of industry-grade hand tools and technology\n- Support for Mississippi community colleges, technical schools, universities, and workforce development organizations to design, develop, and grow training programs and work-based learning opportunities that prepare job seekers for high-demand career pathways in the growing field of data center construction and operations, as well as the broadband expansion industry. This includes awareness programs such as:",
+    "Communities where Amazon wind and solar farms are located experienced more than $12 billion in additional investment from 2014 through 2022.",
+    "Today’s announcement expands on Amazon’s existing footprint in the state. For example, Amazon is the largest corporate purchaser of renewable energy in Mississippi. We recently expanded our renewable energy footprint in Mississippi with the state’s [first utility-scale wind farm](https://www.aboutamazon.com/news/sustainability/amazons-solar-and-wind-projects-support-communities-throughout-the-southeastern-us), located in Tunica County. The Delta wind project will include 41 wind turbines powered by winds from the Mississippi Delta, and will be a dual-use operation, where the agricultural land will continue to be used for farming rice, soybeans, corn, and wheat under and around the turbines. According to developer and owner-operator AES, the project is expected to bring tens of millions of dollars in consistent tax revenue to the county and school district and is expected to create nearly 300 jobs during peak construction. Other investments in the area include:",
+    "- $2.3 billion invested in Mississippi since 2010, including infrastructure and compensation to our employees\n- $2 billion added into state GDP based on Amazon investments\n- 7,500 full- and part-time jobs created in Mississippi (as of January 2023)\n- 9,000 indirect jobs supported on top of our direct hires in Mississippi (based on Input-Output methodology developed by the U.S. Bureau of Economic Analysis)\n- 1,000+ independent sellers—most of which are small and medium-sized businesses—in Mississippi, selling in Amazon's store",
+    "1. [Black Friday and Cyber Monday 2026: a first look at Amazon’s best deals](https://www.aboutamazon.com/news/retail/amazon-black-friday-cyber-monday-deals-2026?utm_medium=trending_module)\n2. [Amazon announces partnership with Uber Eats offering Prime members $0 delivery](https://www.aboutamazon.com/news/retail/prime-uber-eats-free-delivery?utm_medium=trending_module)\n3. [When is Amazon's Black Friday 2026 event? Here’s everything you need to know](https://www.aboutamazon.com/news/retail/when-is-amazon-black-friday-faq?utm_medium=trending_module)\n4. [Ring announces Ring Robotics, ushering in a new era of security](https://www.aboutamazon.com/news/devices/ring-drone-cam-rover-cam-security-robot?utm_medium=trending_module)",
+    "Nov. 9, 2026",
+    "Nov. 9, 2026",
+    "Oct. 27, 2026",
+    "Oct. 8, 2026",
+    "Oct. 5, 2026",
+    "Sept. 28, 2026",
+    "Sept. 22, 2026",
+    "Sept. 17, 2026"
+  ]
+}
+

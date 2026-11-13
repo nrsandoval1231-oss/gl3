@@ -1,0 +1,18 @@
+{
+  "source_id": "google",
+  "url": "https://datacenters.google/locations/indiana/",
+  "title": "Indiana - Google Data Center Location",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-11T09:24:35.260Z",
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "Google is building a $2B data center in Northeast Indiana",
+    "Google’s commitment to local communities extends far beyond our data centers. We’re helping power Indiana’s digital future, working to create pathways for local talent and drive long-term growth. From our operational data center in Fort Wayne to our sites currently in development in Michigan City and Morgan County, we’re not just building infrastructure—we’re building relationships, strengthening communities, and shaping a smarter, more connected future together.",
+    "Google breaks ground on Fort Wayne data center location."
+  ]
+}
+

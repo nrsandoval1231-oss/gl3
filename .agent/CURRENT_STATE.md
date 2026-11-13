@@ -1,3 +1,15 @@
+# Commercial customer intelligence — current checkpoint, November 13, 2026
+
+Current implementation and evaluation are draft, undeployed work over main `bf75d327`. See the [audit/contract](../docs/engineering/customer-commercial-intelligence-20261112.md), [commissioning model](../docs/engineering/commissioning-model-20261112.md), [retained fact publication](../docs/engineering/customer-facts-persistence-20261112.md), and [real-source evaluation](../eval/customer-commercial-v1/README.md).
+
+PR195 contains the audit. PR196 contains backend extension and commissioning scenarios; source `4b6d0f92` passed 178 changed tests and independent Astra's 52-case safety recheck. These are bounded source checks, not a complete gate or commercial acceptance. Full CI, UI integration and performance receipts own their exact final statuses.
+
+**Release/merge blocker:** the 20 real organizations produce zero project-scoped capacity/timeline predictions under the runtime guard; final raw capacity precision/recall is 41.18%/21.875%. Current contact acquisition/verification and salesperson usefulness remain unproven. All20 commissioning abstentions reflect missing test-plan inputs, not positive model efficacy. Do not claim completion, production readiness, new live coverage or sustained operation.
+
+Phase 2 research PR188 actually merged on November10. Main also includes ingestion schemas0052–0056, indexed matching race repair PR193 and sign-in PR194. The older Phase2 narrative below is retained as dated evidence; its branch/scope/status statements are not today's checkout or authorization. No production writes, paid runtime-provider calls, source activation or credential changes have occurred in this mission; tests use fresh disposable local databases.
+
+---
+
 # Autonomous commercial research Phase 2 — November 8, 2026
 
 Current branch: `feat/autonomous-commercial-research`, base `bc433650ce4706dddfb5b30d78a502e3b528f54e` (PR187 merged). The current owner authorizes full implementation, local tests, independent review and ONE draft PR. No merge, deployment, mutations of retained operational or production data, paid-provider execution, source activation or credential changes. PR187's prior merge permission is historical and does not apply to Phase 2.

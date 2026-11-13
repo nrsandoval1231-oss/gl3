@@ -1,0 +1,23 @@
+{
+  "source_id": "edgecore_press",
+  "url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/",
+  "title": "EdgeCore Digital Infrastructure Announces Expansion of Its Metro Phoenix Data Center Market to Over 450 MW | EdgeCore",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "# EdgeCore Digital Infrastructure Announces Expansion of Its Metro Phoenix Data Center Market to Over 450 MW",
+    "## EdgeCore Digital Infrastructure Announces Expansion of Its Metro Phoenix Data Center Market to Over 450 MW",
+    "May 20, 2025",
+    "[EdgeCore Digital Infrastructure](https://edgecore.com/), a wholesale data center developer, owner and operator, announced the acquisition of an additional 43.87 acres of land in [Mesa, Arizona](https://edgecore.com/locations/phoenix-data-center) and expanded data center capacity designed to deliver 450 MW+ to its hyperscale customers. This new parcel of land more than doubles the buildable acreage EdgeCore controls in Mesa.",
+    "\"Today's expansion announcement of EdgeCore's operations in Mesa, Arizona is an exciting milestone in our company's evolution,\" said Lee Kestler, CEO, EdgeCore Digital Infrastructure. \"Since establishing our first Mesa campus in April 2023, we have worked quickly to construct and commission 206 MW at the site. This new tranche of land enables us to deliver another 250+ MW of data center space in Mesa to fulfill our hyperscale customers' urgent need for AI and cloud-ready capacity.\"",
+    "Affordable power via Salt River Project (SRP) is already available at EdgeCore's first Mesa campus for its operational data center and is slated for delivery to the two buildings currently under construction upon their completion in 2025 and 2026.",
+    "Due to these sustainable building and operational initiatives, EdgeCore's first data center in Mesa (PH01) received Green Globes for Existing Buildings certification in 2023, and the second (PH02) and third (PH03) data centers currently under construction have been awarded Designed to Earn ENERGY STAR certifications.",
+    "EdgeCore Digital Infrastructure serves the world’s largest cloud and internet companies with both ready-for-occupancy and build-to-suit data center campuses that are designed for density. Privately held and backed by committed equity, EdgeCore enables hyperscale customer requirements by proactively investing in regions that provide the land and power necessary to support and scale AI and cloud technology. While working thoughtfully with the communities in which we do business, our data center campuses are built at scale to meet key performance specifications, safety metrics and sustainability objectives. EdgeCore has data center campuses in six North American markets with plans to expand into new regions in 2026 and beyond."
+  ]
+}
+

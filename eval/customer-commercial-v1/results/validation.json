@@ -1,0 +1,38 @@
+{
+  "source_commit": "2aea1aa08a11e1d20ad6dbacbd141c4ef0e0e345",
+  "backend_reference_commit": "1de298af047f09a32e9a0349f41410a55bc1791e",
+  "backend_module_equivalence": "All four measured source module hashes match the referenced repair commit and remained stable before/after capture.",
+  "reference_revision": "r2-cyrusone-operational-deadline",
+  "reference_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+  "runner_version": "customer-commercial-evaluation-v1.1",
+  "runner_sha256": "642b05aea50a1414ba546984e3a92d7a189c59897554ecde7ed803407842521b",
+  "result_file": "results/scoped-candidate-1de298af-reference-r2.json",
+  "result_sha256": "42445efbd6b3fd4e8c5ec0b80ad00e62ff8bf8ce73c5269c07eae433ab811040",
+  "source_manifest": {
+    "backend/src/gridlens/domain/commissioning.py": "8b9fcb6a1f344906a2d60c4d9122aa838476604cb53169ac2fd77442ffebd689",
+    "backend/src/gridlens/domain/customer_intelligence.py": "9ba7ce4edb9cbc13eb39f17b55885952f39d254a9e385296aab84f02306d214c",
+    "backend/src/gridlens/domain/project_research.py": "de25a51f9ab169f7d6d6446a792dc9799513a478bc6bc9d0ff1d813a172a2c3b",
+    "backend/src/gridlens/intelligence/customer_intelligence.py": "031b78f726e905f0f97a71581bae03c47ef00038407c0c87cb70b5192608700c"
+  },
+  "checks": [
+    {
+      "command": "uv run --project backend pytest backend/tests/unit/test_customer_commercial_evaluation.py -q",
+      "result": "10 passed in 1.29s"
+    },
+    {
+      "command": "uv run --project backend python scripts/evaluate_customer_commercial.py --output eval/customer-commercial-v1/results/scoped-candidate-1de298af-reference-r2.json",
+      "result": "exit 0; stable production source manifest and exact repair-commit module equivalence; raw capacity 7 TP /17 predictions /32 reference assertions; raw timeline 1 TP /7 predictions /30 reference assertions"
+    }
+  ],
+  "acceptance": "commercial publication coverage blocked; bounded reference-label review is not runtime/sales acceptance",
+  "full_repository_ci": "not run by this lane",
+  "reference_review": {
+    "reviewer": "/root/astra_acceptance",
+    "scope": "approved bounded label/scorer correction only",
+    "reference_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+    "review_file": "reference-review.md",
+    "review_file_sha256": "e7c4260d6effcd78da53868cdc2a06f345b110e7dfd92300ea7dbec8b3677718",
+    "independent_controls": "10 passed in 0.61s",
+    "runtime_commercial_acceptance": false
+  }
+}
