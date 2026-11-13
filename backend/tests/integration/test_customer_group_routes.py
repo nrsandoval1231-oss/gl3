@@ -77,7 +77,80 @@ def test_customer_group_routes_validate_queries_and_cohort_tokens(saved_db, monk
     )
     assert opened.status_code == 200, opened.text
     opened_payload = opened.json()
-    assert opened_payload["group"] == parent_payload["items"][0]
+    card = parent_payload["items"][0]
+    detail = opened_payload["group"]
+    # All established group fields still match. Commercial intelligence now uses
+    # compact cards and full evidence on open, with the same displayed facts.
+    assert {key: value for key, value in detail.items() if key != "commercial_intelligence"} == {
+        key: value for key, value in card.items() if key != "commercial_intelligence"
+    }
+    card_intel = card["commercial_intelligence"]
+    detail_intel = detail["commercial_intelligence"]
+    for key in (
+        "version",
+        "as_of",
+        "canonical_company_identity_ids",
+        "recommended_next_action",
+        "limitations",
+    ):
+        assert card_intel[key] == detail_intel[key]
+    for key in ("status", "total_mw", "coverage"):
+        assert card_intel["capacity"][key] == detail_intel["capacity"][key]
+    displayed_total_fields = {"basis", "value_mw", "status", "qualifier", "complete"}
+    assert card_intel["capacity"]["totals"] == [
+        {key: value for key, value in total.items() if key in displayed_total_fields}
+        for total in detail_intel["capacity"]["totals"]
+    ]
+    for key in ("construction_start", "expected_energization"):
+        card_date, detail_date = card_intel["timelines"][key], detail_intel["timelines"][key]
+        if detail_date is None:
+            assert card_date is None
+        else:
+            assert card_date == {
+                key: value for key, value in detail_date.items() if key not in {"quote", "source"}
+            }
+            assert card_date.get("qualifier") == detail_date.get("qualifier")
+            assert "quote" not in card_date and "source" not in card_date
+            assert "quote" in detail_date and "source" in detail_date
+    assert card_intel["priority"] == {
+        key: value
+        for key, value in detail_intel["priority"].items()
+        if key in {"version", "potential", "confidence", "score", "ranking_method"}
+    }
+    assert card_intel["commissioning"] == {
+        key: value
+        for key, value in detail_intel["commissioning"].items()
+        if key
+        in {
+            "status",
+            "low_mw",
+            "base_mw",
+            "high_mw",
+            "confidence",
+            "version",
+            "calculation_version",
+            "demand_class",
+            "verified_customer_demand",
+            "limitations",
+        }
+    }
+    assert card_intel["recent_developments"] == [
+        {key: value for key, value in development.items() if key not in {"before", "after"}}
+        for development in detail_intel["recent_developments"]
+    ]
+    # Detail retains evidence/inputs; cards expose measured counts and a route
+    # to detail rather than repeating raw claims, source bodies or engineering plans.
+    assert card_intel["details_available"] is True
+    assert card_intel["source_count"] == len(detail_intel["sources"])
+    assert isinstance(detail_intel["sources"], list) and "sources" not in card_intel
+    for section in ("capacity", "timelines"):
+        assert isinstance(detail_intel[section]["claims"], list)
+        assert isinstance(detail_intel[section]["conflicts"], list)
+        assert card_intel[section]["conflict_count"] == len(detail_intel[section]["conflicts"])
+        assert "claims" not in card_intel[section] and "conflicts" not in card_intel[section]
+    for field in ("input_evidence", "assumptions", "stage_demands", "projects"):
+        assert isinstance(detail_intel["commissioning"][field], list)
+        assert field not in card_intel["commissioning"]
     assert opened_payload["projects"]["items"]
     child_cohort = opened_payload["projects"]["cohort_token"]
     assert opened_payload["parent_cohort_token"] == child_cohort.split(".group.")[0]
