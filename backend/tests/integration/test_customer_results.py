@@ -926,9 +926,7 @@ def test_customer_shortlist_is_bound_into_account_cohort(saved_db, monkeypatch):
             str(row["need_id"]),
         )
     )
-    assert any(
-        row["project_id"] in conflicting_project_ids for row in eligible_candidates
-    )
+    assert any(row["project_id"] in conflicting_project_ids for row in eligible_candidates)
     eligible_candidates = [
         row for row in eligible_candidates if row["project_id"] not in conflicting_project_ids
     ]
