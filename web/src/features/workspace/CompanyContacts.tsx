@@ -111,6 +111,10 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
 export function PublishedCompanyRoles({ companyId }: { companyId: string }) {
   const [result, setResult] = useState<Contacts | null>(null)
   useEffect(() => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
+      setResult(null)
+      return
+    }
     const controller = new AbortController()
     setResult(null)
     client.companyContacts(companyId, controller.signal).then(value => {

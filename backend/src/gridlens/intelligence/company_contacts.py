@@ -207,6 +207,13 @@ def _published_company_roles(
     latest_hashes_by_url: dict[str, set[str]] = {}
     for source in sources:
         latest_hashes_by_url.setdefault(source.url, set()).add(source.content_hash)
+    source_project_ids = {source.project_id for source in sources}
+    source_projects = {
+        project.id: project
+        for project in session.scalars(
+            select(Project).where(Project.id.in_(source_project_ids))
+        ).all()
+    }
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.buying_chain_extraction import (
         Extracted,
@@ -225,8 +232,9 @@ def _published_company_roles(
         if source.project_match_reason != "Exact actor-name company-domain roster; roles only.":
             continue
         project_id = str(source.project_id)
+        source_project = source_projects.get(source.project_id)
         view = views.get(project_id)
-        if view is None:
+        if view is None or source_project is None:
             continue
         anchors = [
             candidate
@@ -295,7 +303,7 @@ def _published_company_roles(
         for parsed in extract_people(
             document,
             [seed],
-            None,
+            source_project,
             project_scoped=False,
             today=now.date(),
             verified_official_roster=True,

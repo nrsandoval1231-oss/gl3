@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
+const companyId = '123e4567-e89b-12d3-a456-426614174000'
 const project = {
   id: 'project-red-oak',
   project_id: 'project-red-oak',
   project_ids: ['project-red-oak'],
-  customer_identity_id: 'company-databank',
+  customer_identity_id: companyId,
   name: 'Red Oak Campus',
   company: 'DataBank',
   location: 'Red Oak, TX',
@@ -33,19 +34,19 @@ test('company page labels methodless roster roles as company-only', async ({ pag
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
     if (url.pathname === '/api/opportunities/groups') return route.fulfill({ json: {
-      items: [{ id: 'cg_databank', name: 'DataBank', role: 'customer', group_kind: 'resolved_identity', company_identity_id: 'company-databank', project_count: 1, total_known_project_count: 1, relevant_project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] }],
+      items: [{ id: 'cg_databank', name: 'DataBank', role: 'customer', group_kind: 'resolved_identity', company_identity_id: companyId, project_count: 1, total_known_project_count: 1, relevant_project_count: 1, need_count: 1, priority_score: null, sectors: ['data_centers'] }],
       total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'groups-v1', generation: 'gen-v1',
     } })
     if (url.pathname === '/api/opportunities/projects') return route.fulfill({ json: { items: [project], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'projects-v1', generation: 'gen-v1' } })
     if (url.pathname === '/api/opportunities/groups/cg_databank/open') return route.fulfill({ json: {
-      group: { id: 'cg_databank', name: 'DataBank', role: 'customer', group_kind: 'resolved_identity', company_identity_id: 'company-databank', project_count: 1, total_known_project_count: 1, relevant_project_count: 1, need_count: 1, sectors: ['data_centers'], featured_project: project },
+      group: { id: 'cg_databank', name: 'DataBank', role: 'customer', group_kind: 'resolved_identity', company_identity_id: companyId, project_count: 1, total_known_project_count: 1, relevant_project_count: 1, need_count: 1, sectors: ['data_centers'], featured_project: project },
       parent_cohort_token: 'groups-v1', generation: 'gen-v1', valid_until: '2099-01-01T00:00:00Z',
       projects: { items: [project], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'projects-v1', generation: 'gen-v1', valid_until: '2099-01-01T00:00:00Z' },
     } })
-    if (url.pathname === '/api/customer-accounts/company-databank/contacts') return route.fulfill({ json: {
-      company_id: 'company-databank', research_required: true, imported_unverified: [], contacts: [],
+    if (url.pathname === `/api/customer-accounts/${companyId}/contacts`) return route.fulfill({ json: {
+      company_id: companyId, research_required: true, imported_unverified: [], contacts: [],
       published_company_roles: [{
-        company_identity_id: 'company-databank', name: 'Joe Minarik', title: 'Chief Operating Officer',
+        company_identity_id: companyId, name: 'Joe Minarik', title: 'Chief Operating Officer',
         role: 'owner_construction', responsibility: 'Published company role; project involvement unverified',
         person_project_relationship: 'UNKNOWN',
         source_url: 'https://www.databank.com/about-databank/leadership-team/', source_title: 'Leadership Team - DataBank',

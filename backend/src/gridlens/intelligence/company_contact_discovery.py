@@ -36,9 +36,9 @@ from gridlens.intelligence.buying_chain import (
 )
 from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
-    native_company_roster_capture,
     extract_company_contacts,
     extract_people,
+    native_company_roster_capture,
 )
 from gridlens.intelligence.company_contact_attribution import (
     document_claims_operator_identity,

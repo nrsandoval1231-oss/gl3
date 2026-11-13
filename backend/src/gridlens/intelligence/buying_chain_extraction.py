@@ -1266,11 +1266,7 @@ def extract_people(
             if official and roster:
                 title = roster.group("title").strip()
                 category = _role_category(title, org.category, company_only_role=company_only_role)
-                if (
-                    category
-                    and _published_roster_title(title)
-                    and not _AMBIGUOUS.search(sentence)
-                ):
+                if category and _published_roster_title(title) and not _AMBIGUOUS.search(sentence):
                     role_key = (org.organization, roster.group("name"), title)
                     if company_only_role and role_key in seen_company_roster_roles:
                         continue

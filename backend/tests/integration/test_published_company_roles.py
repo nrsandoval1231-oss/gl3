@@ -528,21 +528,27 @@ def test_newer_company_roster_snapshot_withdraws_across_projects_and_old_replay(
         second_link.company_identity_id = company_id
         session.flush()
         assert second_company_id != company_id
-        assert _discover_anchor(
-            session,
-            first_project,
-            company_id,
-            {roster.url: roster},
-            NOW,
-        )["status"] == "complete"
-        with evaluate_at(NOW + timedelta(days=1)):
-            assert _discover_anchor(
+        assert (
+            _discover_anchor(
                 session,
-                second_project,
+                first_project,
                 company_id,
-                {withdrawn.url: withdrawn},
-                NOW + timedelta(days=1),
-            )["status"] == "complete"
+                {roster.url: roster},
+                NOW,
+            )["status"]
+            == "complete"
+        )
+        with evaluate_at(NOW + timedelta(days=1)):
+            assert (
+                _discover_anchor(
+                    session,
+                    second_project,
+                    company_id,
+                    {withdrawn.url: withdrawn},
+                    NOW + timedelta(days=1),
+                )["status"]
+                == "complete"
+            )
             assert "Joe Minarik" not in {
                 item.name for item in company_contacts(session, company_id).published_company_roles
             }
