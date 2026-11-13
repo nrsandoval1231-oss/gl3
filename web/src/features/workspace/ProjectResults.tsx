@@ -413,7 +413,7 @@ function FeaturedContact({ project, contactProject }: { project: ProjectResult; 
   const contacts = bestProjectContactRoutes(contactProject.contact)
   const general = generalCompanyContactRoutes(contactProject.contact, contacts)
   const people = verifiedContactPeople(contactProject)
-  if (!contacts.length && !general.length) return <div className="customer-group-contact" aria-label="Best contact"><strong>Best contact</strong><VerifiedContactPeople people={people}/></div>
+  if (!contacts.length && !general.length) return people.length ? <VerifiedContactPeople people={people}/> : null
   const best = contacts[0]?.contact ?? general[0].contact
   const companyLine = best.route_kind === 'company_route'
   const contactSource = safeContactSourceUrl(best.source_url)
@@ -425,7 +425,7 @@ function CommercialBriefSummary({ project, contactProject = project }: { project
   if (!brief) return null
   const representativeNeeds = project.needs.filter(need => need.id === project.representative_need_id)
   const representativeNeedBrief = representativeNeeds.length === 1 ? representativeNeeds[0].commercial_brief : null
-  const contactCandidate = brief.best_contact ?? representativeNeedBrief?.best_contact ?? null
+  const contactCandidate = contactProject ? brief.best_contact ?? representativeNeedBrief?.best_contact ?? null : null
   const contactHref = contactCandidate?.href ? safeBriefHref(contactCandidate.kind, contactCandidate.href) : null
   const best = contactHref ? contactCandidate : null
   const verifiedPeople = verifiedContactPeople(contactProject)
@@ -447,7 +447,7 @@ function CommercialBriefSummary({ project, contactProject = project }: { project
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p></div>
     {showPowerNeed && <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{hasDocumentedAmount && <small>{humanizeBriefStatus(brief.power_need.amount_class)}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>}
-    {best ? <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div> : verifiedPeople.length ? <VerifiedContactPeople people={verifiedPeople}/> : <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong><small>No verified business contact is currently available. Contact research is needed.</small></div>}
+    {contactProject && (best ? <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div> : verifiedPeople.length ? <VerifiedContactPeople people={verifiedPeople}/> : null)}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
     <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>

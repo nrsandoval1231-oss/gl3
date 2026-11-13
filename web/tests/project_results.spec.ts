@@ -285,7 +285,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
   await row.getByText('Sources', { exact: true }).click()
   await expect(row.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://example.test/source')
   await expect(row.getByRole('link', { name: 'Call direct' })).toHaveCount(0)
-  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No current business contact route is available.')
+  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No verified business contact is currently available. Contact research is needed.')
   await row.getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
   await expect(detail.getByRole('heading', { name: 'Example Compressor Station', exact: true })).toBeVisible()
