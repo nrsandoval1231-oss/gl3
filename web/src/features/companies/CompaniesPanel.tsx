@@ -142,7 +142,7 @@ export function CompaniesPanel({ onNeed }: { onNeed: (needId: string) => void })
       {!error && !loading && items.length === 0 && <p className="cmp-empty">{query ? 'No groups match this search.' : 'No operator/customer groups are available in the current results.'}</p>}
       {!error && page && <footer className="cmp-paging"><span>Showing {items.length ? page.offset + 1 : 0}–{page.offset + items.length} of {page.total}</span><button type="button" disabled={loading || page.offset === 0} onClick={() => setOffset(Math.max(0, page.offset - PAGE))}>Previous</button><button type="button" disabled={loading || page.offset + items.length >= page.total} onClick={() => setOffset(page.offset + PAGE)}>Next</button></footer>}
       <p className="cmp-note">Total MW and linked pursuits are not part of the company list, so they are not shown here. Open a company to see project power as reported and its linked pursuits.</p>
-      <p className="cmp-links"><a href="/?view=workspace&shortlist=1">Back to Opportunities</a></p>
+      <p className="cmp-links"><a href="/?view=workspace">Back to Opportunities</a></p>
     </div>
   </div>
 }

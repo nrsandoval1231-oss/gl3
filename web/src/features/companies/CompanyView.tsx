@@ -303,14 +303,14 @@ function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
 }
 
 /** Shared account detail for the Opportunities and Companies account routes. */
-export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, shortlist = false, search = '', sector = 'all', region = '', stage = '', priority = '', sort = 'priority', matchedProjectId, matchedNeedId, accountContextStatus = 'valid' }: { groupId: string; summary?: OpportunityGroup; onBack: () => void; onNeed: (needId: string, projectId?: string) => void; backLabel?: string; shortlist?: boolean; search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; sort?: CustomerRollupSort; matchedProjectId?: string | null; matchedNeedId?: string | null; accountContextStatus?: 'valid' | 'pending' | 'unavailable' }) {
+export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, shortlist = false, canonicalOnly = false, search = '', sector = 'all', region = '', stage = '', priority = '', sort = 'priority', matchedProjectId, matchedNeedId, accountContextStatus = 'valid' }: { groupId: string; summary?: OpportunityGroup; onBack: () => void; onNeed: (needId: string, projectId?: string) => void; backLabel?: string; shortlist?: boolean; canonicalOnly?: boolean; search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; sort?: CustomerRollupSort; matchedProjectId?: string | null; matchedNeedId?: string | null; accountContextStatus?: 'valid' | 'pending' | 'unavailable' }) {
   const [detail, setDetail] = useState<DetailState | null>(null)
   const [retry, setRetry] = useState(0)
   const openAbort = useRef<AbortController | null>(null)
   const moreAbort = useRef<AbortController | null>(null)
   const expiredSnapshot = useRef<string | null>(null)
   const pursuits = usePursuitStore()
-  const pageFilterKey = JSON.stringify({ shortlist, search, sector, region, stage, priority, sort })
+  const pageFilterKey = JSON.stringify({ shortlist, canonicalOnly, search, sector, region, stage, priority, sort })
   useEffect(() => {
     const clearSessionData = () => {
       openAbort.current?.abort()
@@ -329,7 +329,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
     setDetail(null)
     const openWithRetry = async () => {
       for (let attempt = 0; ; attempt++) {
-        try { return await client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist }, controller.signal) }
+        try { return await client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist, canonical_only: canonicalOnly }, controller.signal) }
         catch (cause) {
           if (!(cause instanceof OpportunityBrowsePendingError) || attempt >= MAX_PENDING_RETRIES) throw cause
           await waitForRetry(controller.signal, cause.retryAfterMs)
@@ -349,7 +349,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
         } else {
           while (next.projects.length < targetCount && !controller.signal.aborted) {
             try {
-              const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: next.projects.length, cohort_token: next.cohort, parent_cohort_token: next.parent, sort, shortlist }, controller.signal))
+              const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: next.projects.length, cohort_token: next.cohort, parent_cohort_token: next.parent, sort, shortlist, canonical_only: canonicalOnly }, controller.signal))
               if (page.total !== intent.total || page.cohort_token !== intent.cohort || !page.items.length) {
                 next = { ...initial, notice: 'The account project list changed. Showing the first page; load more projects to continue.' }
                 writeAccountProjectPageIntent(null)
@@ -367,7 +367,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
               if (cause instanceof OpportunityCohortChangedError) {
                 writeAccountProjectPageIntent(null)
                 try {
-                  const fresh = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist }, controller.signal))
+                  const fresh = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist, canonical_only: canonicalOnly }, controller.signal))
                   if (controller.signal.aborted) return
                   next = { ...fromOpen(groupId, fresh), notice: 'The account project list changed. Showing the current first page; load more projects to continue.' }
                 } catch {
@@ -474,7 +474,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
     const targetOffset = current.projects.length
     setDetail({ ...current, more: 'loading' })
     try {
-      const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: targetOffset, cohort_token: current.cohort, parent_cohort_token: current.parent, sort, shortlist }, controller.signal))
+      const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: targetOffset, cohort_token: current.cohort, parent_cohort_token: current.parent, sort, shortlist, canonical_only: canonicalOnly }, controller.signal))
       if (controller.signal.aborted) return
       const projects = appendDistinct(current.projects, page.items)
       const next = { ...current, projects, total: page.total, cohort: page.cohort_token, validUntil: earliestValidUntil(current.validUntil, page.valid_until), more: 'idle' as const }
@@ -484,12 +484,12 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
       if (controller.signal.aborted) return
       if (cause instanceof OpportunityCohortChangedError) {
         try {
-          const fresh = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist }, controller.signal))
+          const fresh = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.openOpportunityGroup(groupId, { search, sector, region, stage, priority, limit: 25, sort, shortlist, canonical_only: canonicalOnly }, controller.signal))
           if (controller.signal.aborted) return
           const freshState = fromOpen(groupId, fresh)
           if (targetOffset >= freshState.total) { setDetail({ ...freshState, notice: 'The project list changed and has been refreshed.' }); return }
           if (targetOffset > 25) { setDetail({ ...freshState, notice: 'The project list changed. It has been refreshed; continue from the refreshed list.' }); return }
-          const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: targetOffset, cohort_token: freshState.cohort, parent_cohort_token: freshState.parent, sort, shortlist }, controller.signal))
+          const page = await projectsWithRetry(controller.signal, MAX_PENDING_RETRIES, () => client.groupProjects(groupId, { search, sector, region, stage, priority, limit: 25, offset: targetOffset, cohort_token: freshState.cohort, parent_cohort_token: freshState.parent, sort, shortlist, canonical_only: canonicalOnly }, controller.signal))
           if (controller.signal.aborted) return
           const projects = appendDistinct(freshState.projects, page.items)
           const refreshed = { ...freshState, projects, total: page.total, cohort: page.cohort_token, validUntil: earliestValidUntil(freshState.validUntil, page.valid_until), more: 'idle' as const, notice: 'The project list changed and has been refreshed.' }

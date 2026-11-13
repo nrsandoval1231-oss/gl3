@@ -39,6 +39,7 @@ function CustomerIntelSummary({ group, showNextAction = true }: { group: Opportu
   </div>
 }
 const MAX_PENDING_RETRIES = 3
+const MAX_BROWSER_TIMEOUT_MS = 2_147_483_647
 const PENDING_EXHAUSTED_MESSAGE = 'Accounts are still being prepared. Please try again shortly.'
 const SEARCH_DEBOUNCE_MS = 300
 const projectSpecificMatch = (group: OpportunityGroup, query: string) => {
@@ -47,7 +48,12 @@ const projectSpecificMatch = (group: OpportunityGroup, query: string) => {
   const accountWords = new Set(words(group.name))
   return words(query).some(word => !accountWords.has(word))
 }
-const browseKey = (route: ProjectBrowseRoute) => projectBrowseCacheKey({ ...route, shortlist: route.shortlist ?? new URLSearchParams(location.search).get('shortlist') !== '0' })
+const browseKey = (route: ProjectBrowseRoute) => {
+  const params = new URLSearchParams(location.search)
+  const canonicalOnly = params.get('customerScope') === 'canonical' || (params.get('groupBrowse') !== '1' && params.get('projectBrowse') !== '1')
+  const defaultShortlist = !canonicalOnly && (params.get('groupBrowse') === '1' || params.get('projectBrowse') === '1')
+  return projectBrowseCacheKey({ ...route, shortlist: route.shortlist ?? (params.has('shortlist') ? params.get('shortlist') === '1' : defaultShortlist), canonicalOnly: route.canonicalOnly ?? canonicalOnly })
+}
 function waitForRetry(delayMs: number, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) return Promise.resolve(false)
   return new Promise(resolve => {
@@ -69,7 +75,7 @@ function browsePageIsValid(page: { valid_until?: string } | null): boolean {
 }
 
 export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid', onNeed, onBrowseChange }: Props) {
-  const readRoute = () => { const route = new URLSearchParams(location.search); const rawOffset = Number(route.get('offset') ?? 0); const rawSort = route.get('sort'); return { search: route.get('q') ?? '', sector: (route.get('sector') === 'oil_gas' || route.get('sector') === 'data_centers' ? route.get('sector') : 'all') as 'all' | 'oil_gas' | 'data_centers', offset: Number.isSafeInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0, region: route.get('region') ?? '', stage: route.get('stage') ?? '', priority: (route.get('priority') === 'ranked' || route.get('priority') === 'unranked' ? route.get('priority') : '') as CustomerRollupFilters['priority'], sort: (rawSort === 'priority_asc' || rawSort === 'company' || rawSort === 'updated' ? rawSort : 'priority') as CustomerRollupSort, shortlist: route.get('shortlist') !== '0', accountId: route.get('account') ?? '' } }
+  const readRoute = () => { const route = new URLSearchParams(location.search); const rawOffset = Number(route.get('offset') ?? 0); const rawSort = route.get('sort'); const canonicalOnly = route.get('customerScope') === 'canonical' || (route.get('groupBrowse') !== '1' && route.get('projectBrowse') !== '1'); const shortlist = route.has('shortlist') ? route.get('shortlist') === '1' : !canonicalOnly && (route.get('groupBrowse') === '1' || route.get('projectBrowse') === '1'); return { search: route.get('q') ?? '', sector: (route.get('sector') === 'oil_gas' || route.get('sector') === 'data_centers' ? route.get('sector') : 'all') as 'all' | 'oil_gas' | 'data_centers', offset: Number.isSafeInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0, region: route.get('region') ?? '', stage: route.get('stage') ?? '', priority: (route.get('priority') === 'ranked' || route.get('priority') === 'unranked' ? route.get('priority') : '') as CustomerRollupFilters['priority'], sort: (rawSort === 'priority_asc' || rawSort === 'company' || rawSort === 'updated' ? rawSort : 'priority') as CustomerRollupSort, shortlist, canonicalOnly, accountId: route.get('account') ?? '' } }
   const [initialRoute] = useState(readRoute)
   const [initialCache] = useState(() => initialRoute.shortlist ? readProjectBrowseCache(initialRoute) : null)
   const [search, setSearch] = useState(initialRoute.search)
@@ -80,6 +86,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
   const [priority, setPriority] = useState<CustomerRollupFilters['priority']>(initialRoute.priority)
   const [sort, setSort] = useState<CustomerRollupSort>(initialRoute.sort)
   const [shortlist, setShortlist] = useState(initialRoute.shortlist)
+  const [canonicalOnly, setCanonicalOnly] = useState(initialRoute.canonicalOnly)
   const [accountId, setAccountId] = useState(initialRoute.accountId)
   const [page, setPage] = useState<OpportunityGroupsPage | null>(initialCache?.page ?? null)
   const [pageKey, setPageKey] = useState(browseKey(initialRoute))
@@ -115,7 +122,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     return () => window.removeEventListener('gl3-clear-continuity', onSessionCleared)
   }, [])
   useEffect(() => {
-    const onPop = () => { parentReloadNotice.current = false; const route = readRoute(); setSearch(route.search); setSearchDraft(route.search); setSector(route.sector); setOffset(route.offset); setRegion(route.region); setStage(route.stage); setPriority(route.priority); setSort(route.sort); setShortlist(route.shortlist); setAccountId(route.accountId) }
+    const onPop = () => { parentReloadNotice.current = false; const route = readRoute(); setSearch(route.search); setSearchDraft(route.search); setSector(route.sector); setOffset(route.offset); setRegion(route.region); setStage(route.stage); setPriority(route.priority); setSort(route.sort); setShortlist(route.shortlist); setCanonicalOnly(route.canonicalOnly); setAccountId(route.accountId) }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -133,11 +140,11 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       if (selectedNeedId) browseChangeRef.current?.()
       setSearch(searchDraft); setOffset(0); updateUrl(searchDraft, sector)
     }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
+    return () => { if (timer !== undefined) clearTimeout(timer) }
   }, [searchDraft, search, sector, selectedNeedId])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const route = { search, sector, offset, region, stage, priority, sort, shortlist }
+    const route = { search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }
     const key = browseKey(route)
     const cached = readProjectBrowseCache(route)
     if (pageKey !== key) {
@@ -152,7 +159,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const loadGroups = async () => {
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
         try {
-          const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort, region, stage, priority, shortlist }, controller.signal)
+          const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort, region, stage, priority, shortlist, canonical_only: canonicalOnly }, controller.signal)
           if (controller.signal.aborted) return
           const previousCohort = pageKey === key ? page?.cohort_token : cached?.page.cohort_token
           const cohortChanged = Boolean(previousCohort && previousCohort !== value.cohort_token)
@@ -195,25 +202,25 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     }
     void loadGroups()
     return () => controller.abort()
-  }, [search, sector, offset, region, stage, priority, sort, shortlist, retryKey])
+  }, [search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly, retryKey])
   useEffect(() => {
-    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist })) return
-    const route = { search, sector, offset, region, stage, priority, sort, shortlist }
+    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })) return
+    const route = { search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }
     const version = projectBrowseCacheVersion()
     const save = () => writeProjectBrowseCache(browseKey(route), { savedAt: fetchedAt.current || Date.now(), page, expanded, children, childOffsets, groupParentTokens, openedGroups, scrollY: window.scrollY }, version)
     save()
     window.addEventListener('scroll', save, { passive: true })
     return () => { save(); window.removeEventListener('scroll', save) }
-  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, expanded, children, childOffsets, groupParentTokens, openedGroups])
+  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly, expanded, children, childOffsets, groupParentTokens, openedGroups])
   useEffect(() => {
-    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist }) || pendingScrollRestore.current == null) return
+    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }) || pendingScrollRestore.current == null) return
     const scrollY = pendingScrollRestore.current; pendingScrollRestore.current = null
     const frame = requestAnimationFrame(() => window.scrollTo(0, scrollY))
     return () => cancelAnimationFrame(frame)
-  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist])
+  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly])
   const updateUrl = (nextSearch: string, nextSector: string, nextOffset = 0, cohort?: string, nextRegion = region, nextStage = stage, nextPriority = priority, nextSort = sort, nextShortlist = shortlist) => {
     if (new URLSearchParams(location.search).has('panel')) return
-    const next = new URLSearchParams({ view: 'workspace' }); if (new URLSearchParams(location.search).get('groupBrowse') === '1') next.set('groupBrowse', '1'); next.set('shortlist', nextShortlist ? '1' : '0'); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort); if (nextRegion) next.set('region', nextRegion); if (nextStage) next.set('stage', nextStage); if (nextPriority) next.set('priority', nextPriority); if (nextSort !== 'priority') next.set('sort', nextSort)
+    const next = new URLSearchParams({ view: 'workspace' }); if (new URLSearchParams(location.search).get('groupBrowse') === '1') next.set('groupBrowse', '1'); if (canonicalOnly) next.set('customerScope', 'canonical'); next.set('shortlist', nextShortlist ? '1' : '0'); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort); if (nextRegion) next.set('region', nextRegion); if (nextStage) next.set('stage', nextStage); if (nextPriority) next.set('priority', nextPriority); if (nextSort !== 'priority') next.set('sort', nextSort)
     history.replaceState(history.state, '', `/?${next}`)
   }
   useEffect(() => {
@@ -227,7 +234,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     if (changed) history.replaceState(history.state, '', `/?${params}`)
   }, [])
   const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); if (s !== sector) window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: s })); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
-  const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort, shortlist })
+  const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })
   const currentPage = pageKey === requestedKey && browsePageIsValid(page) ? page : null
   const previousPage = pageKey !== requestedKey && browsePageIsValid(page) ? page : null
   const searchDraftChanged = searchDraft !== search
@@ -244,13 +251,17 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const validUntil = Date.parse(currentPage.valid_until)
     if (!Number.isFinite(validUntil)) return
     const expire = () => {
-      invalidateProjectBrowseCache({ search, sector, offset, region, stage, priority, sort })
+      invalidateProjectBrowseCache({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })
       setPage(null); setExpanded({}); setChildren({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}); setLoading(true); setNotice('Refreshing expired results…'); setRetryKey(value => value + 1)
     }
-    const delay = validUntil - Date.now()
-    if (delay <= 0) { expire(); return }
-    const timer = setTimeout(expire, delay)
-    return () => clearTimeout(timer)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const scheduleExpirationCheck = () => {
+      const remaining = validUntil - Date.now()
+      if (remaining <= 0) { expire(); return }
+      timer = setTimeout(scheduleExpirationCheck, Math.min(remaining, MAX_BROWSER_TIMEOUT_MS))
+    }
+    scheduleExpirationCheck()
+    return () => { if (timer !== undefined) clearTimeout(timer) }
   }, [currentPage?.valid_until, pageKey, search, sector, offset, region, stage, priority, sort])
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = []
@@ -267,7 +278,14 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       if (!childPage || childPage.valid_until === undefined) continue
       const validUntil = Date.parse(childPage.valid_until)
       if (!Number.isFinite(validUntil) || validUntil <= Date.now()) expiredNow.push(groupId)
-      else timers.push(setTimeout(() => expireGroups([groupId]), validUntil - Date.now()))
+      else {
+        const scheduleGroupExpiryCheck = () => {
+          const remaining = validUntil - Date.now()
+          if (remaining <= 0) { expireGroups([groupId]); return }
+          timers.push(setTimeout(scheduleGroupExpiryCheck, Math.min(remaining, MAX_BROWSER_TIMEOUT_MS)))
+        }
+        scheduleGroupExpiryCheck()
+      }
     }
     if (expiredNow.length) expireGroups(expiredNow)
     return () => timers.forEach(clearTimeout)
@@ -280,20 +298,21 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const requestPriority = priority
     const requestSort = sort
     const requestShortlist = shortlist
+    const requestCanonicalOnly = canonicalOnly
     const requestPage = page
     const requestOffset = offset
     setChildLoading(current => ({ ...current, [group.id]: true })); setChildErrors(current => ({ ...current, [group.id]: '' })); setChildNotices(current => ({ ...current, [group.id]: '' }))
     childRequests.current.get(group.id)?.abort()
     const controller = new AbortController(); childRequests.current.set(group.id, controller)
     const epoch = childEpoch.current
-    const requestIsCurrent = () => !controller.signal.aborted && epoch === childEpoch.current && requestSearch === search && requestSector === sector && requestOffset === offset && requestRegion === region && requestStage === stage && requestPriority === priority && requestSort === sort && requestShortlist === shortlist
+    const requestIsCurrent = () => !controller.signal.aborted && epoch === childEpoch.current && requestSearch === search && requestSector === sector && requestOffset === offset && requestRegion === region && requestStage === stage && requestPriority === priority && requestSort === sort && requestShortlist === shortlist && requestCanonicalOnly === canonicalOnly
     const openFreshGroup = async (firstRetryDelayMs = 0) => {
       let retryDelayMs = firstRetryDelayMs
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
         if (retryDelayMs > 0 && !(await waitForRetry(retryDelayMs, controller.signal))) return
         if (!requestIsCurrent()) return
         try {
-          const opened = await client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort, region, stage, priority, shortlist }, controller.signal)
+          const opened = await client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort, region, stage, priority, shortlist, canonical_only: requestCanonicalOnly }, controller.signal)
           if (!requestIsCurrent()) return
           if (opened.group.id !== group.id) throw new Error('The refreshed operator/customer group did not match the requested group.')
           setOpenedGroups(current => ({ ...current, [group.id]: opened.group }))
@@ -334,7 +353,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       else if (wasPagination) setNotice('Project results changed. Reloaded this operator/customer group.')
       void openFreshGroup(retryDelayMs)
     }
-    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort, region, stage, priority, shortlist }, controller.signal).then(value => {
+    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort, region, stage, priority, shortlist, canonical_only: requestCanonicalOnly }, controller.signal).then(value => {
       if (!requestIsCurrent()) return
       setChildren(current => ({ ...current, [group.id]: value })); setChildOffsets(current => ({ ...current, [group.id]: childOffset })); setChildLoading(current => ({ ...current, [group.id]: false }))
     }).catch((e: Error) => {
@@ -350,15 +369,15 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       }
     })
   }
-  const openAccount = (id: string, matchedProjectId?: string | null, matchedNeedId?: string | null) => { const params = new URLSearchParams(location.search); params.set('view', 'workspace'); params.set('groupBrowse', '1'); params.set('account', id); if (matchedProjectId) params.set('project', matchedProjectId); else params.delete('project'); if (matchedNeedId) params.set('matchedNeed', matchedNeedId); else params.delete('matchedNeed'); params.delete('need'); params.delete('section'); history.pushState({ ...history.state, accountOpened: true }, '', `/?${params}`); setAccountId(id); window.scrollTo(0, 0) }
+  const openAccount = (id: string, matchedProjectId?: string | null, matchedNeedId?: string | null) => { const params = new URLSearchParams(location.search); params.set('view', 'workspace'); params.set('groupBrowse', '1'); if (canonicalOnly) params.set('customerScope', 'canonical'); params.set('account', id); if (matchedProjectId) params.set('project', matchedProjectId); else params.delete('project'); if (matchedNeedId) params.set('matchedNeed', matchedNeedId); else params.delete('matchedNeed'); params.delete('need'); params.delete('section'); history.pushState({ ...history.state, accountOpened: true }, '', `/?${params}`); setAccountId(id); window.scrollTo(0, 0) }
   const closeAccount = () => { if (history.state?.accountOpened) { history.back(); return } const params = new URLSearchParams(location.search); params.delete('account'); history.pushState(history.state, '', `/?${params}`); setAccountId('') }
-  if (accountId) { const params = new URLSearchParams(location.search); const selectedAccount = currentPage?.items.find(group => group.id === accountId); return <CompanyView groupId={accountId} summary={selectedAccount} onBack={closeAccount} onNeed={(id, projectId) => onNeed({ id }, { accountId, projectId })} backLabel="Back to accounts" shortlist={shortlist} search={search} sector={sector} region={region} stage={stage} priority={priority} sort={sort} matchedProjectId={params.get('project')} matchedNeedId={params.get('matchedNeed')} accountContextStatus={params.has('need') ? accountContextStatus : 'valid'} /> }
+  if (accountId) { const params = new URLSearchParams(location.search); const selectedAccount = currentPage?.items.find(group => group.id === accountId); return <CompanyView groupId={accountId} summary={selectedAccount} onBack={closeAccount} onNeed={(id, projectId) => onNeed({ id }, { accountId, projectId })} backLabel="Back to accounts" shortlist={shortlist} canonicalOnly={canonicalOnly} search={search} sector={sector} region={region} stage={stage} priority={priority} sort={sort} matchedProjectId={params.get('project')} matchedNeedId={params.get('matchedNeed')} accountContextStatus={params.has('need') ? accountContextStatus : 'valid'} /> }
   return <section className="project-results" aria-label="Project opportunities" aria-busy={busy}>
     <header className="project-results-header"><div className="project-results-title"><h1>Customers</h1><button type="button" aria-label="Refresh customer accounts" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
       <label><span className="project-search-label">Search accounts and projects</span><input aria-label="Search accounts and projects" placeholder="Account, project or location" value={searchDraft} onChange={e => { setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
     </header>
     <nav className="project-sector-tabs" aria-label="Project type">{([['all','All'],['oil_gas','Oil & Gas'],['data_centers','Data Centers']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={sector === value} onClick={() => setFilter(searchDraft, value, '', '', priority)}>{label}</button>)}</nav>
-    <nav className="project-sector-tabs" aria-label="Opportunity scope"><button type="button" aria-pressed={shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(true); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, true) }}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(false); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, false) }}>All Projects</button></nav>
+    <nav className="project-sector-tabs" aria-label="Opportunity scope"><button type="button" aria-pressed={shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(true); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, true) }}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(false); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, false) }}>All customers</button></nav>
     <button type="button" disabled={!currentPage || busy || error !== '' || !groups.some(group => group.featured_project)} onClick={() => downloadProjectPage(groups.flatMap(group => group.featured_project ? [{ ...group.featured_project, company: group.name }] : []), undefined, 'Current account page — featured project per account')}>Export featured projects on this page</button>
     <details className="customer-rollup-controls"><summary>More filters and sorting</summary><div>
       <label>Region<select aria-label="Region" value={region} onChange={event => setFilter(searchDraft, sector, event.target.value)}><option value="">All regions</option>{region && !((currentPage ?? previousPage)?.facets?.regions ?? []).includes(region) && <option value={region}>{region}</option>}{((currentPage ?? previousPage)?.facets?.regions ?? []).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
