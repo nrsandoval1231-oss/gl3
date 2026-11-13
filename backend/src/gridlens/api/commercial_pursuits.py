@@ -739,14 +739,29 @@ def log_activity(pursuit_id: UUID, body: ActivityIn, response: Response):
         row = _get(session, pursuit_id, lock=True)
 
         def existing() -> bool:
-            return body.client_id is not None and bool(
-                session.scalar(
-                    select(PursuitActivity.id).where(
-                        PursuitActivity.pursuit_id == row.id,
-                        PursuitActivity.client_id == body.client_id,
-                    )
+            """True for an exact retry; reuse of the key with different content is a 409."""
+            if body.client_id is None:
+                return False
+            prior = session.scalar(
+                select(PursuitActivity).where(
+                    PursuitActivity.pursuit_id == row.id,
+                    PursuitActivity.client_id == body.client_id,
                 )
             )
+            if prior is None:
+                return False
+            # occurred_at is server-assigned when omitted, so it can only be compared if sent.
+            when = body.occurred_at
+            if when is not None and when.tzinfo is None:
+                when = when.replace(tzinfo=UTC)
+            if (
+                prior.kind != body.kind
+                or prior.summary != body.summary.strip()
+                or (prior.detail or None) != ((body.detail or "").strip() or None)
+                or (when is not None and prior.occurred_at != when)
+            ):
+                raise HTTPException(409, "Activity idempotency key was already used")
+            return True
 
         if existing():
             response.status_code = 200

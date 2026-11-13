@@ -41,6 +41,7 @@ from gridlens.intelligence.grounded_candidates import validate_grounded_candidat
 from gridlens.intelligence.intelligence_jobs import (
     _provider_error_quarantine_details,
     provider_caps,
+    release_undispatched_call,
 )
 from gridlens.intelligence.ocr_public_pages import (
     PageApprovalRequired,
@@ -1101,6 +1102,7 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
                 enabled=_preflight_ready(preflight_cost),
             )
         if dispatch.status != "SENT_OUTCOME_UNKNOWN" or dispatch.blocked_reason:
+            release_undispatched_call(count_call_id, fence_token, dispatch)
             return _finish_without_call(
                 job_id,
                 worker_id,
@@ -1247,6 +1249,7 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
             enabled=_ocr_configuration_ready(OCR_FOLLOWON_TASK)[0] and _caps_ready(response_cost),
         )
     if dispatch.status != "SENT_OUTCOME_UNKNOWN" or dispatch.blocked_reason:
+        release_undispatched_call(call_id, reservation.fence_token or fence_token, dispatch)
         return _finish_without_call(
             job_id,
             worker_id,
@@ -1531,6 +1534,7 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
                 session, count_call_id, fence_token=fence_token, enabled=dispatch_ok
             )
         if dispatched.status != "SENT_OUTCOME_UNKNOWN" or dispatched.blocked_reason:
+            release_undispatched_call(count_call_id, fence_token, dispatched)
             return _finish_without_call(
                 job_id,
                 worker_id,
@@ -1737,6 +1741,9 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
             enabled=dispatch_ok,
         )
     if dispatched.status != "SENT_OUTCOME_UNKNOWN" or dispatched.blocked_reason:
+        release_undispatched_call(
+            call_id, response_reservation.fence_token or fence_token, dispatched
+        )
         return _finish_without_call(
             job_id,
             worker_id,

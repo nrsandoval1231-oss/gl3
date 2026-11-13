@@ -399,6 +399,9 @@ class LedgerEquipmentProposer:
         with SessionLocal() as session:
             dispatched = mark_dispatched(session, call_id, fence_token=fence, enabled=allowed)
         if dispatched.status != "SENT_OUTCOME_UNKNOWN" or dispatched.blocked_reason:
+            from gridlens.intelligence.intelligence_jobs import release_undispatched_call
+
+            release_undispatched_call(call_id, fence, dispatched)
             return self._blocked(
                 why or dispatched.blocked_reason or "PROPOSER_NOT_DISPATCHED", label, pages_sent
             )

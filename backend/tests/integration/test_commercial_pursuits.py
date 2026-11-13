@@ -566,6 +566,36 @@ def test_activity_requires_confirmation_and_is_idempotent(pursuit_env):
     assert client.get(f"/api/commercial-pursuits/{pursuit['id']}").json()["stage"] == "New"
 
 
+def test_activity_client_id_reuse_with_different_content_conflicts(pursuit_env):
+    """Only an exact retry replays; changed content under the same key is a 409."""
+    client = TestClient(app)
+    first_pursuit = client.post(
+        "/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}
+    ).json()
+    url = f"/api/commercial-pursuits/{first_pursuit['id']}/activity"
+    payload = {
+        "kind": "call",
+        "summary": "Spoke with buyer",
+        "detail": "Asked about timing",
+        "occurred_at": "2026-11-01T15:00:00Z",
+        "confirmed": True,
+        "client_id": str(uuid4()),
+    }
+    assert client.post(url, json=payload).status_code == 201
+    assert client.post(url, json=payload).status_code == 200
+    for change in (
+        {"kind": "email"},
+        {"summary": "Spoke with someone else"},
+        {"detail": "Different detail"},
+        {"occurred_at": "2026-11-02T15:00:00Z"},
+    ):
+        conflict = client.post(url, json={**payload, **change})
+        assert conflict.status_code == 409, change
+        assert conflict.json()["detail"] == "Activity idempotency key was already used"
+    detail = client.get(f"/api/commercial-pursuits/{first_pursuit['id']}").json()
+    assert len([a for a in detail["activity"] if a["kind"] in {"call", "email"}]) == 1
+
+
 def test_activity_summary_is_trimmed_and_blank_rejected(pursuit_env):
     client = TestClient(app)
     pursuit = client.post("/api/commercial-pursuits", json={"need_id": _need(pursuit_env)}).json()

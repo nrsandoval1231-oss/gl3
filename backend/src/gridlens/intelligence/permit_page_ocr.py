@@ -47,6 +47,7 @@ from gridlens.integrations.logical_calls import (
     mark_dispatched,
     reserve_call,
 )
+from gridlens.intelligence.intelligence_jobs import release_undispatched_call
 from gridlens.intelligence.ocr_public_pages import (
     PageApprovalRequired,
     approved_source_pages,
@@ -370,6 +371,7 @@ class StagePdfOcr:
                     enabled=_preflight_ready(preflight_cost),  # policy re-checked at dispatch
                 )
             if sent.status != "SENT_OUTCOME_UNKNOWN" or sent.blocked_reason:
+                release_undispatched_call(count_res.call_id, fence, sent)
                 return self._stop("blocked", sent.blocked_reason or "PREFLIGHT_NOT_DISPATCHED")
             try:
                 key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
@@ -439,6 +441,7 @@ class StagePdfOcr:
                 enabled=_ocr_response_ready(model, detail, response_cost),
             )
         if sent.status != "SENT_OUTCOME_UNKNOWN" or sent.blocked_reason:
+            release_undispatched_call(res.call_id, fence, sent)
             return self._stop("blocked", sent.blocked_reason or "OCR_NOT_DISPATCHED")
         response: dict[str, Any] = {}
         try:

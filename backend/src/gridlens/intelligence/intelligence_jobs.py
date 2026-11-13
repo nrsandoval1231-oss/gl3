@@ -1475,6 +1475,23 @@ def _caps() -> dict[str, dict[str, int | Decimal]]:
     return result
 
 
+_NO_RELEASE_STATUSES = frozenset(
+    {"SENT_OUTCOME_UNKNOWN", "COMPLETED", "FAILED", "CANCELLED", "RECONCILED"}
+)
+
+
+def release_undispatched_call(call_id: UUID, fence_token: int, dispatched: Any) -> None:
+    """Cancel a reservation whose dispatch was refused so its budget is released.
+
+    Never touches a call that may have been sent (SENT_OUTCOME_UNKNOWN) or is terminal;
+    cancel_call re-checks the fence and billing quarantine itself.
+    """
+    if dispatched.status in _NO_RELEASE_STATUSES:
+        return
+    with SessionLocal() as session:
+        cancel_call(session, call_id, fence_token=fence_token)
+
+
 def provider_caps(
     provider: str, base: dict[str, dict[str, Any]] | None = None
 ) -> dict[str, dict[str, Any]]:
@@ -2667,9 +2684,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             enabled=dispatch_enabled,
         )
     if dispatched.status != "SENT_OUTCOME_UNKNOWN" or dispatched.blocked_reason is not None:
-        if dispatched.blocked_reason == "INTELLIGENCE_DISABLED":
-            with SessionLocal() as session:
-                cancel_call(session, call_id, fence_token=fence_token)
+        release_undispatched_call(call_id, fence_token, dispatched)
         with SessionLocal.begin() as session:
             job = assert_fence(session, job_id, worker_id, fence_token)
             checkpoint = json.loads(job.checkpoint or "{}")
