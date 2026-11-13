@@ -60,6 +60,9 @@ def main() -> None:
             with SessionLocal() as session:
                 session.execute(text("SET TRANSACTION READ ONLY"))
                 session.execute(text("SET LOCAL statement_timeout = '15s'"))
+                # Match the request path, which disables JIT transaction-locally
+                # for these large CTEs. Keep setup outside the timed interval.
+                session.execute(text("SET LOCAL jit = off"))
                 statements[0] = 0
                 started = perf_counter()
                 result = groups(session, limit=limit)
@@ -75,6 +78,7 @@ def main() -> None:
     receipt = {
         "source_manifest_sha256": digest.hexdigest(), "corpus": corpus,
         "samples_per_page_size": args.samples, "page_sizes": results,
+        "postgres_context": "read-only transaction, 15s statement timeout, SET LOCAL jit = off",
         "measurement": "Direct read-only SQL/service calls; excludes network, authentication and UI",
         "limitations": ["Synthetic source corpus; local PostgreSQL; finite sample; no production SLA"],
     }

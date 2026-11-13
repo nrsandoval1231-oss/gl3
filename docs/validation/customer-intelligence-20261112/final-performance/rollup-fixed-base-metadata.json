@@ -1,0 +1,45 @@
+{
+  "lane": "rollup-fixed",
+  "side": "base",
+  "started_at": "2026-11-13T03:06:05.762691+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "base",
+      "source_commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+      "source_manifest_sha256_before": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "database": "gl3_mission_rollup_scale_base_test",
+      "commands": [
+        {
+          "label": "rollup-measure-fixed-base",
+          "started_at": "2026-11-13T03:06:05.999068+00:00",
+          "finished_at": "2026-11-13T03:07:37.765794+00:00",
+          "wall_seconds": 91.767,
+          "exit_code": 0,
+          "log_file": "rollup-measure-fixed-base.log",
+          "log_sha256": "7ae7755e3b5eeaff060f04f524b9ef65230f57dd37e788f45265f3e9b1a00dda"
+        },
+        {
+          "label": "rollup-body-fixed-base",
+          "started_at": "2026-11-13T03:07:37.768366+00:00",
+          "finished_at": "2026-11-13T03:07:51.766874+00:00",
+          "wall_seconds": 13.999,
+          "exit_code": 0,
+          "log_file": "rollup-body-fixed-base.log",
+          "log_sha256": "8cc1c70c402b7ea777abc534a37086d716c5b8127bef817ebf0777a810bf6e25"
+        }
+      ],
+      "measure_harness_sha256": "cc8f734723483d668dfd18c1e3703541caa853044ab0b79cc4c0945534ba8dd3",
+      "measure_context": "SET LOCAL jit = off; read-only transaction",
+      "source_manifest_sha256_after": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "limitations": [
+    "Synthetic, disposable local fixtures only.",
+    "No external or paid provider execution.",
+    "Timings are single-run diagnostics, not a production SLA."
+  ],
+  "updated_at": "2026-11-13T03:07:51.796330+00:00",
+  "finished_at": "2026-11-13T03:07:51.796750+00:00"
+}

@@ -1,0 +1,25 @@
+{
+  "page_sizes": {
+    "1": {
+      "json_utf8_bytes": 7180,
+      "returned_groups": 1,
+      "account_total": 38319
+    },
+    "25": {
+      "json_utf8_bytes": 57128,
+      "returned_groups": 25,
+      "account_total": 38319
+    },
+    "50": {
+      "json_utf8_bytes": 109378,
+      "returned_groups": 50,
+      "account_total": 38319
+    }
+  },
+  "provider_ledger_rows": {
+    "logical_calls": 0,
+    "logical_call_budgets": 0,
+    "logical_call_settlements": 0
+  },
+  "encoding": "Compact JSON UTF-8, default=str; excludes HTTP headers, compression and transport"
+}

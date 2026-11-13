@@ -1,0 +1,291 @@
+{
+  "baseline": {
+    "commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+    "source_manifest_sha256": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+    "source_unchanged": true,
+    "ingestion": {
+      "a_all_new": {
+        "wall_seconds": 34.262,
+        "records_per_second": 8.756,
+        "sql_statements": 27067,
+        "commits": 5,
+        "new": 300,
+        "changed": 0,
+        "unchanged": 0
+      },
+      "b_all_unchanged": {
+        "wall_seconds": 2.985,
+        "records_per_second": 100.509,
+        "sql_statements": 3927,
+        "commits": 5,
+        "new": 0,
+        "changed": 0,
+        "unchanged": 300
+      },
+      "c_5%_changed": {
+        "wall_seconds": 3.943,
+        "records_per_second": 76.077,
+        "sql_statements": 4887,
+        "commits": 5,
+        "new": 0,
+        "changed": 15,
+        "unchanged": 285
+      }
+    },
+    "rollup_commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+    "rollup_source_manifest_sha256": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+    "rollup_source_unchanged": true,
+    "rollup": {
+      "corpus": {
+        "projects": 40000,
+        "needs": 48,
+        "evidence": 48
+      },
+      "pages": {
+        "1": {
+          "p50_ms": 2475.6545,
+          "p95_ms": 6980.769,
+          "sql_statements": [
+            55,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 5475,
+          "returned_groups": 1
+        },
+        "25": {
+          "p50_ms": 2436.7255,
+          "p95_ms": 2691.34,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 15760,
+          "returned_groups": 25
+        },
+        "50": {
+          "p50_ms": 3554.4224999999997,
+          "p95_ms": 4542.372,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 26360,
+          "returned_groups": 50
+        }
+      },
+      "provider_ledger_rows": {
+        "logical_calls": 0,
+        "logical_call_budgets": 0,
+        "logical_call_settlements": 0
+      }
+    }
+  },
+  "candidate": {
+    "commit": "7f11ef12f5136c07d8cd4e99839a53cdd59d3f92",
+    "source_manifest_sha256": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+    "source_unchanged": true,
+    "ingestion": {
+      "a_all_new": {
+        "wall_seconds": 43.259,
+        "records_per_second": 6.935,
+        "sql_statements": 28267,
+        "commits": 5,
+        "new": 300,
+        "changed": 0,
+        "unchanged": 0
+      },
+      "b_all_unchanged": {
+        "wall_seconds": 4.18,
+        "records_per_second": 71.777,
+        "sql_statements": 3927,
+        "commits": 5,
+        "new": 0,
+        "changed": 0,
+        "unchanged": 300
+      },
+      "c_5%_changed": {
+        "wall_seconds": 5.372,
+        "records_per_second": 55.846,
+        "sql_statements": 4947,
+        "commits": 5,
+        "new": 0,
+        "changed": 15,
+        "unchanged": 285
+      }
+    },
+    "rollup_commit": "7f11ef12f5136c07d8cd4e99839a53cdd59d3f92",
+    "rollup_source_manifest_sha256": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+    "rollup_source_unchanged": true,
+    "rollup": {
+      "corpus": {
+        "projects": 40000,
+        "needs": 48,
+        "evidence": 48
+      },
+      "pages": {
+        "1": {
+          "p50_ms": 3041.067,
+          "p95_ms": 8368.6,
+          "sql_statements": [
+            55,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 7180,
+          "returned_groups": 1
+        },
+        "25": {
+          "p50_ms": 3252.992,
+          "p95_ms": 10450.355,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 57128,
+          "returned_groups": 25
+        },
+        "50": {
+          "p50_ms": 3142.169,
+          "p95_ms": 7217.224,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "account_total": [
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319,
+            38319
+          ],
+          "json_utf8_bytes": 109378,
+          "returned_groups": 50
+        }
+      },
+      "provider_ledger_rows": {
+        "logical_calls": 0,
+        "logical_call_budgets": 0,
+        "logical_call_settlements": 0
+      }
+    }
+  },
+  "comparison": {
+    "each_source_fingerprint_stable_during_measurement": true,
+    "candidate_source_manifest_differs_from_baseline": true,
+    "candidate_rollup_page25_latency_ratio_to_baseline": 1.3349850034400674,
+    "candidate_rollup_page25_payload_ratio_to_baseline": 3.6248730964467004,
+    "candidate_rollup_page_sql_counts_constant_at_25_50": true
+  }
+}

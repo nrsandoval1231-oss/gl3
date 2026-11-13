@@ -1,0 +1,55 @@
+        # A contact-only revision must not split the canonical company account.
+        # Carry an identity only across the same project/entity and an identical
+        # supporting relationship quote on the same source URL.
+        for previous in buying_chain_baseline["candidates"]:
+            prior = session.get(BuyingChainClaim, previous["id"])
+            if prior is None or prior.entity_key != new_claim.entity_key:
+                continue
+            for link in session.scalars(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id == prior.id,
+                    BuyingChainIdentityLink.state == "current",
+                )
+            ):
+                identity_field = f"{link.entity_type}_identity_id"
+                if str(previous.get(identity_field)) != str(getattr(link, identity_field)):
+                    continue
+                old_support = [
+                    e
+                    for e in previous["evidence"]
+                    if e.get("current_support") and str(e["id"]) == str(link.source_evidence_id)
+                ]
+                replacement = next(
+                    (
+                        c
+                        for c in citations
+                        if any(
+                            c["url"] == e["url"]
+                            and c["quote"] == e["quote"]
+                            and c["supports"] == e["supports"]
+                            for e in old_support
+                        )
+                    ),
+                    None,
+                )
+                if replacement is None:
+                    continue
+                replacement_source = session.get(
+                    BuyingChainEvidence, UUID(replacement["evidence_id"])
+                )
+                if replacement_source is None:
+                    continue
+                session.add(
+                    BuyingChainIdentityLink(
+                        claim_id=new_claim.id,
+                        entity_type=link.entity_type,
+                        company_identity_id=link.company_identity_id,
+                        person_identity_id=link.person_identity_id,
+                        basis=link.basis,
+                        reason="Unchanged source-cited relationship across contact revision.",
+                        reviewed_by=link.reviewed_by,
+                        source_evidence_id=replacement_source.id,
+                        source_version_hash=replacement_source.content_hash,
+                        state="current",
+                    )
+                )

@@ -1,0 +1,43 @@
+{
+  "lane": "ingestion",
+  "side": "candidate",
+  "started_at": "2026-11-13T06:43:30.487173+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "candidate",
+      "source_commit": "7f11ef12f5136c07d8cd4e99839a53cdd59d3f92",
+      "source_manifest_sha256_before": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+      "database": "gl3_mission_ingest_candidate_test",
+      "commands": [
+        {
+          "label": "ingestion-candidate",
+          "started_at": "2026-11-13T06:43:30.671063+00:00",
+          "finished_at": "2026-11-13T06:44:42.289173+00:00",
+          "wall_seconds": 71.618,
+          "exit_code": 0,
+          "log_file": "ingestion-candidate.log",
+          "log_sha256": "0199e48dd10d1f5a1cff90663c9a5bd69977b7c19d909896a34292f33e2d679a"
+        }
+      ],
+      "harness_sha256": "41c1985768c4554d79ffa3b96b1113c2f38b7223e9731d8b19cc3631a552ba48",
+      "source_manifest_sha256_after": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "python_version": "3.11.16",
+  "runtime_dependencies": {
+    "sqlalchemy": "2.0.41",
+    "beautifulsoup4": "4.13.4",
+    "soupsieve": "4.0",
+    "psycopg": "3.2.9"
+  },
+  "limitations": [
+    "Synthetic, disposable local fixtures only.",
+    "No external or paid provider execution.",
+    "Both checkouts use the current shared uv environment; runtime dependency versions are recorded.",
+    "Timings are single-run diagnostics, not a production SLA."
+  ],
+  "updated_at": "2026-11-13T06:44:42.302699+00:00",
+  "finished_at": "2026-11-13T06:44:42.303026+00:00"
+}
