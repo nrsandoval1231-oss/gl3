@@ -222,6 +222,15 @@ def _run_on_database(database_url: URL, name: str) -> dict[str, Any]:
                 offset=0,
                 shortlist=True,
             )
+            canonical_customer_group_page = groups(
+                session,
+                sector="data_centers",
+                sort="priority",
+                limit=25,
+                offset=0,
+                shortlist=False,
+                canonical_only=True,
+            )
             ui_group = next(
                 iter(shortlist_group_page["items"] or ordinary_group_page["items"]),
                 None,
@@ -236,6 +245,22 @@ def _run_on_database(database_url: URL, name: str) -> dict[str, Any]:
                     shortlist=bool(shortlist_group_page["items"]),
                 )
                 if ui_group
+                else None
+            )
+            canonical_ui_group = next(
+                iter(canonical_customer_group_page["items"]), None
+            )
+            canonical_group_open = (
+                group_open(
+                    session,
+                    canonical_ui_group["id"],
+                    sector="data_centers",
+                    sort="priority",
+                    limit=25,
+                    shortlist=False,
+                    canonical_only=True,
+                )
+                if canonical_ui_group
                 else None
             )
             fact_packages = [
@@ -398,10 +423,31 @@ def _run_on_database(database_url: URL, name: str) -> dict[str, Any]:
                             {
                                 "ordinary_groups": ordinary_group_page,
                                 "shortlist_groups": shortlist_group_page,
+                                "canonical_customer_groups": canonical_customer_group_page,
                                 "opened_group": opened_group,
+                                "canonical_group_open": canonical_group_open,
                             }
                         ),
                         "sector": "data_centers",
+                        "canonical_customer_groups": {
+                            "total": canonical_customer_group_page["total"],
+                            "items": [
+                                {
+                                    "id": item["id"],
+                                    "name": item["name"],
+                                    "role": item["role"],
+                                    "group_kind": item["group_kind"],
+                                    "identity_count": item["identity_count"],
+                                    "project_count": item["project_count"],
+                                    "relevant_project_count": item[
+                                        "relevant_project_count"
+                                    ],
+                                    "eligible_need_count": item["eligible_need_count"],
+                                    "priority_score": item["priority_score"],
+                                }
+                                for item in canonical_customer_group_page["items"]
+                            ],
+                        },
                         "ordinary_groups": {
                             "total": ordinary_group_page["total"],
                             "items": [
