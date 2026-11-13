@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, and_, exists, or_, select, union
+from sqlalchemy import String, and_, exists, literal, or_, select, union
 from sqlalchemy.dialects.postgresql import insert
 
 from gridlens.persistence.models import (
@@ -36,7 +36,6 @@ CONTRACT = "customer-facts-v1"
 MAX_SOURCE_CHARACTERS = 200_000
 MAX_PROJECT_SOURCES = 128
 _OWNER_ROLES = ("owner_developer", "owner_energy", "owner_construction", "asset_operator")
-_OWNER_POSSESSIVE = re.compile(r"(?:^|\s)(?:[A-Z][\w&.’'-]*(?:\s+[A-Z][\w&.’'-]*){0,4})[’']s\s+")
 
 
 def _digest(value: Any) -> str:
@@ -45,32 +44,71 @@ def _digest(value: Any) -> str:
     ).hexdigest()
 
 
-def _query(project_ids):
+def _query(project_ids, *, preloaded_project: Project | None = None):
     # Resolve observation IDs through existing indexed joins before inspecting JSON
     # admission metadata. Avoid scanning the entire interpretation corpus per batch.
     linked = union(
         select(PowerNeed.project_id.label("project_id"), NeedObservation.observation_id)
         .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
         .where(PowerNeed.project_id.in_(project_ids)),
-        select(Project.id.label("project_id"), Observation.id.label("observation_id"))
-        .join(
-            Observation,
-            and_(
-                Project.source_id == Observation.source_id,
-                Project.external_id == Observation.external_id,
-            ),
-        )
-        .where(Project.id.in_(project_ids)),
+        (
+            select(
+                literal(preloaded_project.id).label("project_id"),
+                Observation.id.label("observation_id"),
+            ).where(
+                Observation.source_id == preloaded_project.source_id,
+                Observation.external_id == preloaded_project.external_id,
+            )
+            if preloaded_project is not None
+            else select(Project.id.label("project_id"), Observation.id.label("observation_id"))
+            .join(
+                Observation,
+                and_(
+                    Project.source_id == Observation.source_id,
+                    Project.external_id == Observation.external_id,
+                ),
+            )
+            .where(Project.id.in_(project_ids))
+        ),
     ).subquery()
     targeted = exists(
         select(NeedObservation.need_id)
         .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
         .where(
             NeedObservation.observation_id == Observation.id,
-            PowerNeed.project_id == Project.id,
+            PowerNeed.project_id
+            == (preloaded_project.id if preloaded_project is not None else Project.id),
             Interpretation.assessment["target_need_id"].astext == PowerNeed.id.cast(String),
         )
     )
+    if preloaded_project is not None:
+        if preloaded_project.region_status != "ELIGIBLE":
+            return None
+        return (
+            select(Observation, Evidence, Interpretation, Source)
+            .select_from(linked)
+            .join(Observation, Observation.id == linked.c.observation_id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .join(Source, Source.id == Observation.source_id)
+            .where(
+                linked.c.project_id == preloaded_project.id,
+                Interpretation.status == "accepted",
+                Interpretation.content_hash == Observation.content_hash,
+                Interpretation.assessment["project_identity_key"].astext
+                == preloaded_project.identity_key,
+                Interpretation.assessment["decision"].astext == "accepted",
+                Interpretation.assessment["semantic_hash"].astext == Observation.content_hash,
+                Interpretation.assessment["evidence_hash"].astext == Evidence.content_hash,
+                or_(
+                    Interpretation.assessment["admission_status"].astext
+                    != "project_research_supplement",
+                    Interpretation.assessment["admission_status"].astext.is_(None),
+                    targeted,
+                ),
+            )
+            .order_by(Evidence.id)
+        )
     return (
         select(Project, Observation, Evidence, Interpretation, Source)
         .select_from(Project)
@@ -314,7 +352,9 @@ def extract_commissioning_plan(
     return admitted
 
 
-def _verified_project_owner_names(session, project_ids) -> dict[str, list[str]]:
+def _verified_project_owner_names(
+    session, project_ids, *, preloaded_project: Project | None = None
+) -> dict[str, list[str]]:
     """Batch current source-bound owner/operator context for a project cohort."""
     from uuid import UUID
 
@@ -324,21 +364,40 @@ def _verified_project_owner_names(session, project_ids) -> dict[str, list[str]]:
     result: dict[str, set[str]] = {key: set() for key in project_keys}
     if not project_keys:
         return {}
-    rows = session.execute(
-        select(CompanyProjectMembership, Project, Evidence, Observation, Interpretation, Source)
-        .join(Project, Project.id == CompanyProjectMembership.project_id)
-        .join(Evidence, Evidence.id == CompanyProjectMembership.source_evidence_id)
-        .join(Observation, Observation.id == Evidence.observation_id)
-        .join(Interpretation, Interpretation.observation_id == Observation.id)
-        .join(Source, Source.id == Observation.source_id)
-        .where(
-            CompanyProjectMembership.project_id.in_([UUID(key) for key in project_keys]),
-            CompanyProjectMembership.role.in_(_OWNER_ROLES),
-            CompanyProjectMembership.state == "current",
+    if preloaded_project is not None:
+        rows = session.execute(
+            select(CompanyProjectMembership, Evidence, Observation, Interpretation, Source)
+            .join(Evidence, Evidence.id == CompanyProjectMembership.source_evidence_id)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .join(Source, Source.id == Observation.source_id)
+            .where(
+                CompanyProjectMembership.project_id == preloaded_project.id,
+                CompanyProjectMembership.role.in_(_OWNER_ROLES),
+                CompanyProjectMembership.state == "current",
+            )
+            .order_by(CompanyProjectMembership.organization_name)
         )
-        .order_by(CompanyProjectMembership.organization_name)
-    )
-    for membership, project, evidence, observation, interpretation, source in rows:
+        owner_rows = (
+            (membership, preloaded_project, evidence, observation, interpretation, source)
+            for membership, evidence, observation, interpretation, source in rows
+        )
+    else:
+        owner_rows = session.execute(
+            select(CompanyProjectMembership, Project, Evidence, Observation, Interpretation, Source)
+            .join(Project, Project.id == CompanyProjectMembership.project_id)
+            .join(Evidence, Evidence.id == CompanyProjectMembership.source_evidence_id)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .join(Source, Source.id == Observation.source_id)
+            .where(
+                CompanyProjectMembership.project_id.in_([UUID(key) for key in project_keys]),
+                CompanyProjectMembership.role.in_(_OWNER_ROLES),
+                CompanyProjectMembership.state == "current",
+            )
+            .order_by(CompanyProjectMembership.organization_name)
+        )
+    for membership, project, evidence, observation, interpretation, source in owner_rows:
         if (
             membership.source_id != source.id
             or membership.source_version_hash != evidence.content_hash
@@ -440,12 +499,7 @@ def _payload(
     if (
         not trusted_owners
         and callable(owner_name_loader)
-        and any(
-            _OWNER_POSSESSIVE.search(str(claim.get("quote") or ""))
-            for key in ("capacity_claims", "timeline_claims")
-            for claim in payload.get(key, [])
-            if isinstance(claim, dict)
-        )
+        and any(payload.get(key) for key in ("capacity_claims", "timeline_claims"))
     ):
         trusted_owners = owner_name_loader()
     payload = scope_customer_facts(
@@ -548,7 +602,9 @@ def persist_customer_facts(
     return session.scalar(select(EvidencePackage).where(EvidencePackage.package_key == package_key))
 
 
-def project_customer_facts(session, project_ids, *, generation) -> dict[str, list[dict]]:
+def project_customer_facts(
+    session, project_ids, *, generation, preloaded_project: Project | None = None
+) -> dict[str, list[dict]]:
     """One batched read. Explicit ``generation=None`` is build-only current extraction.
 
     Supplying a generation reads only that generation's frozen source-bound facts;
@@ -559,6 +615,8 @@ def project_customer_facts(session, project_ids, *, generation) -> dict[str, lis
     result: dict[str, list[dict]] = {str(value): [] for value in ids}
     if not ids:
         return result
+    if preloaded_project is not None and ids != [preloaded_project.id]:
+        raise ValueError("preloaded_project is only valid for its matching singleton project")
     seen: dict[str, set[str]] = defaultdict(set)
     if generation is not None:
         generation_id = getattr(generation, "id", generation)
@@ -578,8 +636,24 @@ def project_customer_facts(session, project_ids, *, generation) -> dict[str, lis
                         result[str(project_id)].append(payload)
         return result
     source_counts: dict[str, int] = defaultdict(int)
-    trusted_owners = _verified_project_owner_names(session, ids)
-    for row in session.execute(_query(ids)).yield_per(64):
+    owner_names_by_project: dict[str, list[str]] | None = None
+
+    def owner_name_loader(project_id: str):
+        def load() -> list[str]:
+            nonlocal owner_names_by_project
+            if owner_names_by_project is None:
+                owner_names_by_project = _verified_project_owner_names(
+                    session, ids, preloaded_project=preloaded_project
+                )
+            return owner_names_by_project[project_id]
+
+        return load
+
+    query = _query(ids, preloaded_project=preloaded_project)
+    if query is None:
+        return result
+    for query_row in session.execute(query).yield_per(64):
+        row = (preloaded_project, *query_row) if preloaded_project is not None else query_row
         project_id = str(row[0].id)
         source_counts[project_id] += 1
         if source_counts[project_id] > MAX_PROJECT_SOURCES:
@@ -587,7 +661,7 @@ def project_customer_facts(session, project_ids, *, generation) -> dict[str, lis
                 _overflow(project_id, "Current sources exceed the complete project bound.")
             ]
             continue
-        payload = _payload(*row, trusted_owner_names=trusted_owners[project_id])
+        payload = _payload(*row, owner_name_loader=owner_name_loader(project_id))
         if payload is not None:
             project_id = str(row[0].id)
             key = _digest(payload)

@@ -43,12 +43,16 @@ MATERIAL_FIELDS = (
 _CUSTOMER_EVIDENCE = "_customer_fact_evidence"
 
 
-def _customer_material_state(session: Session, project_id: UUID, *, now: datetime) -> dict:
+def _customer_material_state(
+    session: Session, project_id: UUID, *, now: datetime, project: Project | None = None
+) -> dict:
     """Current admitted facts, with source metadata kept outside semantic comparisons."""
     from gridlens.domain.customer_intelligence import resolve_customer_intelligence
     from gridlens.intelligence.customer_intelligence import project_customer_facts
 
-    facts = project_customer_facts(session, [project_id], generation=None)[str(project_id)]
+    facts = project_customer_facts(
+        session, [project_id], generation=None, preloaded_project=project
+    )[str(project_id)]
     resolved = resolve_customer_intelligence(
         [{"project_id": str(project_id), "facts": facts}], as_of=now.date()
     )
@@ -216,7 +220,9 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
             row["conflicts"] = conflicts
         power_rows.append(row)
     return {
-        **_customer_material_state(session, project_id, now=now or datetime.now(UTC)),
+        **_customer_material_state(
+            session, project_id, now=now or datetime.now(UTC), project=project
+        ),
         "phase": lifecycle.current_state if lifecycle else None,
         "utility_timing": sorted(
             {
