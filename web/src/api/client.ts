@@ -103,10 +103,10 @@ function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sect
 export type CommercialCustomerIntelligence = {
   version: string
   capacity: { status: string; totals: Array<{ basis: string; value_mw: string | null; status: string; qualifier?: string; complete?: boolean; claim_ids?: string[] }>; coverage?: Record<string, unknown>; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
-  timelines: { construction_start?: { label: string; precision?: string; event_type?: string } | null; expected_energization?: { label: string; precision?: string; event_type?: string } | null; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
+  timelines: { construction_start?: { label: string; precision?: string; event_type?: string } | null; expected_energization?: { label: string; precision?: string; event_type?: string } | null; reported_target?: { event_type: string; label: string }; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
   commissioning?: { status: string; version?: string; base_mw?: string | null; low_mw?: string | null; high_mw?: string | null; assumptions?: string[]; limitations?: string[]; [key: string]: unknown }
   recent_developments: Array<Record<string, unknown>>
-  priority: { potential: number; confidence: number; score: number; components?: Record<string, unknown>; version: string }
+  priority: { potential: number; confidence: number; score: number; components?: Record<string, unknown>; version: string; priority_basis?: { timing?: { kind: string; event_type?: string; label?: string } } }
   recommended_next_action: string
   source_count?: number
   details_available?: boolean

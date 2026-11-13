@@ -10,6 +10,14 @@ const assetTypeLabel = (value: string) => value === 'data_center' ? 'Data center
 const MAX_PENDING_RETRIES = 3
 const MAX_TIMER_DELAY_MS = 2_147_483_647
 
+export function reportedCommercialTarget(intel?: CommercialCustomerIntelligence | null) {
+  const timing = intel?.priority?.priority_basis?.timing
+  const target = intel?.timelines?.reported_target ?? (timing?.kind === 'reported_timing_proxy' ? timing : null)
+  const labels: Record<string, string> = { operational_target: 'Operational target', full_operational_target: 'Full operational target', ready_for_service: 'Ready-for-service target' }
+  const label = target?.event_type ? labels[target.event_type] : undefined
+  return label && typeof target?.label === 'string' && target.label.trim() && target.label.length <= 200 ? { label, value: target.label } : null
+}
+
 function waitForRetry(signal: AbortSignal, delayMs: number) {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
@@ -246,6 +254,7 @@ function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
   const asRows = (value: unknown): Record<string, unknown>[] => Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object' && !Array.isArray(item))) : []
   const claims = asRows(intel.capacity.claims)
   const timelineClaims = asRows(intel.timelines?.claims)
+  const reportedTarget = reportedCommercialTarget(intel)
   const capacityConflicts = asRows(intel.capacity.conflicts)
   const timelineConflicts = asRows(intel.timelines?.conflicts)
   const claimById = new Map(claims.map(claim => [String(claim.fact_id ?? ''), claim]))
@@ -279,7 +288,7 @@ function CommercialAnalysis({ group }: { group: OpportunityGroup | null }) {
   return <details className="cmp-commercial-analysis"><summary>Commercial analysis</summary>
     <div className="cmp-commercial-grid">
       <section><h4>Build capacity</h4>{totals.length ? totals.map((item, index) => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; const basis = ({ campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' } as Record<string,string>)[item.basis] ?? item.basis.replaceAll('_',' '); const qualifier = detail.qualifier === 'up_to' || item.status === 'upper_bound' ? 'Up to ' : detail.qualifier === 'approximate' ? 'Approximately ' : detail.qualifier === 'more_than' ? 'More than ' : detail.qualifier === 'at_least' || item.status === 'lower_bound' ? 'At least ' : ''; return <p key={index}>{qualifier}{item.value_mw} MW · {basis}{detail.complete === false ? ' · partial coverage' : ''}</p> }) : <p>{commercialCapacityUnavailableMessage(intel.capacity.status)}</p>}{intel.capacity.coverage && <small>{String(intel.capacity.coverage.projects_with_capacity ?? 0)} of {String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity</small>}{asRows((intel.capacity as CommercialCustomerIntelligence['capacity'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting capacity claims require review.</p>}</section>
-      <section><h4>Timing</h4>{show(intel.timelines?.construction_start) && <p>Construction start · {show(intel.timelines?.construction_start)}</p>}{show(intel.timelines?.expected_energization) && <p>Expected energization · {show(intel.timelines?.expected_energization)}</p>}{!show(intel.timelines?.construction_start) && !show(intel.timelines?.expected_energization) && <p>No supported timeline is available.</p>}{asRows((intel.timelines as CommercialCustomerIntelligence['timelines'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting timeline claims require review.</p>}</section>
+      <section><h4>Timing</h4>{show(intel.timelines?.construction_start) && <p>Construction start · {show(intel.timelines?.construction_start)}</p>}{show(intel.timelines?.expected_energization) && <p>Expected energization · {show(intel.timelines?.expected_energization)}</p>}{reportedTarget && <p>{reportedTarget.label} · {reportedTarget.value} · source-reported; energization unverified</p>}{!show(intel.timelines?.construction_start) && !show(intel.timelines?.expected_energization) && !reportedTarget && <p>{timelineClaims.length ? 'Construction and energization dates are not established; reported milestones are available below.' : 'No supported timeline is available.'}</p>}{asRows((intel.timelines as CommercialCustomerIntelligence['timelines'] & { conflict_count?: number }).conflicts).length > 0 && <p role="status">Conflicting timeline claims require review.</p>}</section>
       <section><h4>Commissioning scenario</h4>{scenarioText() ? <p>{scenarioText()}</p> : <p>Insufficient data for an engineering scenario.</p>}{commissioning?.limitations?.map((item, index) => <small key={index}>{item}</small>)}</section>
       <section><h4>Recent developments</h4>{intel.recent_developments?.length ? intel.recent_developments.map((item, index) => <p key={index}>{show(item)}</p>) : <p>No material recent development is available.</p>}</section>
     </div>
