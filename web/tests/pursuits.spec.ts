@@ -28,7 +28,7 @@ const emptyProjects = { items: [project], total: 1, count_unit: 'projects', limi
 const summary = (p: Pursuit) => { const { tasks, activity, ...rest } = p; return { ...rest, next_task: tasks.find(t => !t.completed_at) ?? null } }
 
 type Log = { method: string; path: string; search: string; body: any }
-async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; failTaskOnce?: boolean; unauthorizedStage?: boolean; unauthorizedNeed?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorizedAfterHold?: boolean; listUnauthorized?: boolean; holdList?: Promise<void>; holdLookup?: Promise<void>; lookupUnauthorized?: boolean; listFails?: boolean } = {}) {
+async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number; failTask?: boolean; failTaskOnce?: boolean; unauthorizedStage?: boolean; unauthorizedNeed?: boolean; listUnauthorizedAfterWrite?: boolean; listUnauthorizedAfterHold?: boolean; listUnauthorized?: boolean; holdList?: Promise<void>; onListHeld?: () => void; onListResolved?: () => void; holdLookup?: Promise<void>; onLookupHeld?: () => void; lookupUnauthorized?: boolean; listFails?: boolean } = {}) {
   const store = new Map(seed.map(p => [p.id, p]))
   const log: Log[] = []
   let activityFailures = hooks.failActivity ?? 0
@@ -53,10 +53,11 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
     if (path === '/api/opportunities/projects') return route.fulfill({ json: emptyProjects })
     if (path === '/api/commercial-pursuits' && method === 'GET') {
       const lookup = url.searchParams.has('need_id')
+      if (lookup && hooks.holdLookup) { hooks.onLookupHeld?.(); await hooks.holdLookup }
       if (lookup && hooks.lookupUnauthorized) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
-      if (lookup && hooks.holdLookup) await hooks.holdLookup
       if (!lookup && hooks.holdList && !heldListOnce) {
         heldListOnce = true
+        hooks.onListHeld?.()
         await hooks.holdList
         if (hooks.listUnauthorizedAfterHold) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
       }
@@ -66,7 +67,9 @@ async function setup(page: Page, seed: Pursuit[], hooks: { failActivity?: number
       if (url.searchParams.get('needs_attention') === 'true') items = items.filter(p => p.attention.length)
       if (url.searchParams.get('active_only') === 'true') items = items.filter(p => !['Won', 'Lost'].includes(p.stage))
       if (url.searchParams.get('need_id')) items = items.filter(p => p.need_id === url.searchParams.get('need_id'))
-      return route.fulfill({ json: { items: items.map(summary), counts: counts() } })
+      await route.fulfill({ json: { items: items.map(summary), counts: counts() } })
+      if (!lookup) hooks.onListResolved?.()
+      return
     }
     if (path === '/api/commercial-pursuits' && method === 'POST') {
       await new Promise(resolve => setTimeout(resolve, 150))
@@ -529,17 +532,25 @@ test('a held Add-to-Pursuit lookup resolving after the session ended does not sh
 })
 
 test('a background 401 on the lookup expires the session and removes opportunity data', async ({ page }) => {
-  let release!: () => void
-  const held = new Promise<void>(resolve => { release = resolve })
-  await setup(page, [pursuit('p1', 'need-1')], { holdList: held, lookupUnauthorized: true })
+  let releaseLookup!: () => void, releaseList!: () => void, lookupHeld!: () => void, listHeld!: () => void, listResolved!: () => void
+  const heldLookup = new Promise<void>(resolve => { releaseLookup = resolve })
+  const heldList = new Promise<void>(resolve => { releaseList = resolve })
+  const lookupStarted = new Promise<void>(resolve => { lookupHeld = resolve })
+  const listStarted = new Promise<void>(resolve => { listHeld = resolve })
+  const staleListResolved = new Promise<void>(resolve => { listResolved = resolve })
+  await setup(page, [pursuit('p1', 'need-1')], { holdList: heldList, onListHeld: listHeld, onListResolved: listResolved, holdLookup: heldLookup, onLookupHeld: lookupHeld, lookupUnauthorized: true })
   const events = await countSessionEvents(page)
   await page.goto('/?view=workspace&projectBrowse=1&need=need-1')
+  await Promise.all([lookupStarted, listStarted])
   await expect(page.getByRole('button', { name: 'View Details' })).toBeVisible()
+  releaseLookup()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await expect.poll(async () => (await events()).auth).toBeGreaterThan(0)
-  release()
-  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 300)))
+  releaseList()
+  await staleListResolved
   await expect(page.locator('.cod-panel').getByRole('button', { name: 'Add to Pursuit' })).toHaveCount(0)
+  await expect(page.locator('.pu-card')).toHaveCount(0)
+  for (const text of ['Synthetic Campus P1', 'Alex Test Contact', 'alex@example.test', '+1 206 555 0184']) await expect(page.getByText(text)).toHaveCount(0)
   await expect(page).toHaveURL(/need=need-1/)
 })
 
