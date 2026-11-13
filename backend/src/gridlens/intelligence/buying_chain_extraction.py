@@ -18,7 +18,7 @@ from gridlens.domain.buying_chain import (
     person_project_relationship,
 )
 from gridlens.domain.pursuit_research import fingerprint
-from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, validate_public_url
 from gridlens.ingestion.adapters.retained_permits import (
     GEORGIA,
     chicago_contacts,
@@ -870,8 +870,112 @@ def _official_profile(doc: PublicDocument, organization: str) -> bool:
     )
 
 
-def _role_category(title: str, organization_category: str) -> str | None:
+def native_company_roster_capture(
+    doc: PublicDocument,
+    organization: str,
+    *,
+    native_company_source_urls: list[str],
+) -> bool:
+    """Admit a same-publisher company-roster capture for the current project actor.
+
+    This only scopes retained company role evidence to the actual project source
+    publisher; it establishes no legal issuer, global alias, or project assignment.
+    """
+    try:
+        url = validate_public_url(doc.url)
+    except ValueError:
+        return False
+    parts = urlsplit(url)
+    host = (parts.hostname or "").casefold().removeprefix("www.")
+    labels = host.split(".")
+    actor_host = re.sub(r"[^a-z0-9]", "", organization.casefold())
+    title = doc.title
+    actor_title = re.search(rf"(?<![\w]){re.escape(organization.strip())}(?![\w])", title, re.I)
+    path_parts = [part.casefold() for part in parts.path.strip("/").split("/") if part]
+    roster_path = any(
+        re.search(r"(?:leadership|team|management|people)", part) for part in path_parts
+    )
+    historical = re.search(r"(?:archive|former|retired|previous|past|/20\d\d/)", doc.url, re.I)
+    native_hosts = set()
+    for source_url in native_company_source_urls:
+        try:
+            native_host = urlsplit(validate_public_url(source_url)).hostname or ""
+        except (TypeError, ValueError):
+            continue
+        native_hosts.add(native_host.casefold().removeprefix("www."))
+    return bool(
+        parts.scheme == "https"
+        and len(labels) == 2
+        and labels[1] in {"com", "org", "net"}
+        and re.sub(r"[^a-z0-9]", "", labels[0]) == actor_host
+        and actor_title
+        and roster_path
+        and native_hosts
+        and host in native_hosts
+        and not historical
+    )
+
+
+def exact_native_company_roster_page(
+    doc: PublicDocument,
+    organization: str,
+    *,
+    native_company_source_urls: list[str],
+) -> bool:
+    """Require a same-publisher page with an explicitly current leadership section."""
+    return native_company_roster_capture(
+        doc,
+        organization,
+        native_company_source_urls=native_company_source_urls,
+    ) and any(
+        len(match.group(1)) == 1 and _leadership_heading(line)
+        for line in doc.text.splitlines()
+        if (match := re.match(r"^\s*(#{1,6})\s+", line))
+    )
+
+
+def _leadership_heading(line: str) -> bool:
+    match = re.match(r"^\s*#{1,6}\s+(.+?)\s*#*\s*$", line)
+    heading = match.group(1).strip().casefold() if match else ""
+    if re.search(
+        r"\b(?:former|past|previous|retired|board|trustee|sponsor|investor|contractor|consultant|advisory)\b",
+        heading,
+    ):
+        return False
+    return bool(
+        re.fullmatch(
+            r"(?:our\s+)?(?:leadership(?:\s+team)?|management(?:\s+team)?|"
+            r"executive\s+team|senior\s+leadership|leaders)",
+            heading,
+        )
+    )
+
+
+def _in_leadership_section(lines: list[str], index: int) -> bool:
+    # The retained DataBank source uses a top-level current-roster heading.
+    # Keep this contract finite: nested sections are out of scope and cannot
+    # re-enable people underneath former, contractor, or unrelated headings.
+    active = False
+    for line in lines[: index + 1]:
+        match = re.match(r"^\s*(#{1,6})\s+", line)
+        if not match:
+            continue
+        if len(match.group(1)) == 1:
+            active = _leadership_heading(line)
+        else:
+            active = False
+    return active
+
+
+def _role_category(
+    title: str, organization_category: str, *, company_only_role: bool = False
+) -> str | None:
     lower = title.casefold()
+    if company_only_role and re.search(
+        r"\b(?:board|trustee|sponsor|investor relations|private equity|contractor|consultant)\b",
+        lower,
+    ):
+        return None
     if any(
         term in lower
         for term in (
@@ -893,6 +997,14 @@ def _role_category(title: str, organization_category: str) -> str | None:
                 Category.EPC,
                 Category.COMMISSIONING,
             }
+            else Category.OWNER_CONSTRUCTION.value
+        )
+    if company_only_role and "development" in lower:
+        return Category.OWNER.value
+    if company_only_role and ("engineering" in lower or "technology" in lower):
+        return (
+            Category.OWNER_ENERGY.value
+            if any(term in lower for term in ("power", "energy", "electrical"))
             else Category.OWNER_CONSTRUCTION.value
         )
     if any(term in lower for term in ("procurement", "purchasing", "supply chain")):
@@ -922,7 +1034,7 @@ def _role_category(title: str, organization_category: str) -> str | None:
     if lower in {"coo", "chief operating officer"} and organization_category in {
         Category.OWNER,
         Category.OPERATOR,
-    }:
+    } | ({Category.OWNER_CONSTRUCTION} if company_only_role else set()):
         return Category.OWNER_CONSTRUCTION.value
     if organization_category in {
         Category.ELECTRICAL,
@@ -1103,17 +1215,38 @@ def extract_people(
     project_scoped: bool,
     today: date,
     verified_official_roster: bool = False,
+    company_only_role: bool = False,
 ) -> list[Extracted]:
     found = []
     # Text nodes are often split around heading tags. Join only adjacent lines;
     # the exact original source remains the citation (no generated quote).
     lines = doc.text.splitlines()
-    adjacent_roster = [
-        f"{name}\n{title}"
-        for name, title in zip(lines, lines[1:], strict=False)
-        if verified_official_roster and re.fullmatch(_NAME, name)
-    ]
-    for sentence in [*_sentences(doc.text), *adjacent_roster]:
+    adjacent_roster = []
+    seen_company_roster_roles: set[tuple[str, str, str]] = set()
+    if verified_official_roster and company_only_role:
+        for index, line in enumerate(lines):
+            name_line = re.sub(r"^\s{0,3}#{1,6}\s*", "", line).strip()
+            if not re.fullmatch(_NAME, name_line):
+                continue
+            if company_only_role and not _in_leadership_section(lines, index):
+                continue
+            title_index = index + 1
+            while title_index < len(lines) and not lines[title_index].strip():
+                title_index += 1
+            if title_index >= len(lines) or title_index - index > 3:
+                continue
+            title_line = lines[title_index].strip()
+            if not _published_roster_title(title_line):
+                continue
+            adjacent_roster.append("\n".join(lines[index : title_index + 1]).strip())
+    elif verified_official_roster:
+        adjacent_roster = [
+            f"{name}\n{title}"
+            for name, title in zip(lines, lines[1:], strict=False)
+            if re.fullmatch(_NAME, name)
+        ]
+    sentences = adjacent_roster if company_only_role else [*_sentences(doc.text), *adjacent_roster]
+    for sentence in sentences:
         for org in organizations:
             if org.person_name is not None:
                 continue  # Permit-listed people cannot lend citations to another person.
@@ -1124,15 +1257,28 @@ def extract_people(
                 and 0 <= (today - doc.observed_at.date()).days <= 365
                 and (doc.published_at is None or current_role(doc.published_at, today))
             )
-            roster = re.fullmatch(
-                rf"(?P<name>{_NAME})(?:,\s*|\n)(?P<title>[^;\n]{{3,80}})",
-                sentence,
+            roster_pattern = (
+                rf"(?:#{{1,6}}\s*)?(?P<name>{_NAME})(?:,\s*|\n+)(?P<title>[^;\n]{{3,80}})"
+                if company_only_role
+                else rf"(?P<name>{_NAME})(?:,\s*|\n)(?P<title>[^;\n]{{3,80}})"
             )
+            roster = re.fullmatch(roster_pattern, sentence)
             if official and roster:
                 title = roster.group("title").strip()
-                category = _role_category(title, org.category)
-                if category and _published_roster_title(title) and not _AMBIGUOUS.search(sentence):
-                    contacts = _public_contacts(doc, roster.group("name"))
+                category = _role_category(title, org.category, company_only_role=company_only_role)
+                if (
+                    category
+                    and _published_roster_title(title)
+                    and not _AMBIGUOUS.search(sentence)
+                ):
+                    role_key = (org.organization, roster.group("name"), title)
+                    if company_only_role and role_key in seen_company_roster_roles:
+                        continue
+                    if company_only_role:
+                        seen_company_roster_roles.add(role_key)
+                    contacts = (
+                        [] if company_only_role else _public_contacts(doc, roster.group("name"))
+                    )
                     found.append(
                         Extracted(
                             org.organization,
@@ -1141,11 +1287,17 @@ def extract_people(
                             title,
                             org.organization_relationship,
                             "CURRENT",
-                            "ROLE_SUPPORTED"
+                            "UNKNOWN"
+                            if company_only_role
+                            else "ROLE_SUPPORTED"
                             if org.organization_relationship == "DIRECT"
                             else "UNKNOWN",
                             "Medium",
-                            "Current roster; project assignment and buying authority are UNKNOWN.",
+                            "Published company role observed; project involvement and buying "
+                            "authority are UNKNOWN."
+                            if company_only_role
+                            else "Current roster; project assignment and buying authority "
+                            "are UNKNOWN.",
                             [
                                 *org.citations,
                                 _citation(doc, sentence, "organization_person_role"),
@@ -1154,6 +1306,8 @@ def extract_people(
                             contacts,
                         )
                     )
+                continue
+            if company_only_role:
                 continue
             if not org_name or org_name not in normalized_sentence:
                 continue
@@ -1188,17 +1342,25 @@ def extract_people(
                 and not re.search(r"\b(?:not|no|without|never|unassigned)\b", sentence, re.I)
             )
 
-            relation = person_project_relationship(
-                organization_direct=org.organization_relationship == "DIRECT",
-                current_role=fresh,
-                relevant_role=True,
-                direct_assignment=assignment,
-                ambiguous=ambiguous,
+            relation = (
+                "UNKNOWN"
+                if company_only_role
+                else person_project_relationship(
+                    organization_direct=org.organization_relationship == "DIRECT",
+                    current_role=fresh,
+                    relevant_role=True,
+                    direct_assignment=assignment,
+                    ambiguous=ambiguous,
+                )
             )
             citations = [*org.citations, _citation(doc, sentence, "organization_person_role")]
             if assignment:
                 citations.append(_citation(doc, sentence, "person_project_assignment"))
-            contacts = _public_contacts(doc, match.group("name")) if fresh and not ambiguous else []
+            contacts = (
+                _public_contacts(doc, match.group("name"))
+                if fresh and not ambiguous and not company_only_role
+                else []
+            )
             citations.extend(_citation(doc, c["quote"], "public_contact") for c in contacts)
             found.append(
                 Extracted(
@@ -1214,7 +1376,11 @@ def extract_people(
                     else "Medium"
                     if relation == "ROLE_SUPPORTED"
                     else "Low",
-                    "Explicit current project assignment; purchasing authority remains unverified."
+                    "Published company role observed; project involvement and buying "
+                    "authority are UNKNOWN."
+                    if company_only_role
+                    else "Explicit current project assignment; purchasing authority remains "
+                    "unverified."
                     if relation == "DIRECT"
                     else "Current role; project assignment and buying authority are UNKNOWN."
                     if relation == "ROLE_SUPPORTED"

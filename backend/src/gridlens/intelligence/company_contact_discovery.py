@@ -36,6 +36,7 @@ from gridlens.intelligence.buying_chain import (
 )
 from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
+    native_company_roster_capture,
     extract_company_contacts,
     extract_people,
 )
@@ -85,6 +86,7 @@ CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
 POLICY_VERSION = "company-contact-discovery-v13-adaptive"
 NATIVE_RRC_DIRECTORY_POLICY = "rrc-p5-directory-v1"
+NATIVE_COMPANY_ROLE_SOURCE_REASON = "Exact actor-name company-domain roster; roles only."
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -2044,13 +2046,36 @@ def _discover_anchor(
             else "Paid discovery is not enabled for this contact job",
         }
     org = old.organization
+    current_actor_candidates = [
+        candidate
+        for candidate in view.get("candidates", [])
+        if not candidate.get("person_name")
+        and not candidate.get("stale")
+        and not candidate.get("correction_stale")
+        and not candidate.get("retracted")
+        and not candidate.get("suppressed")
+        and candidate.get("organization_relationship") == "DIRECT"
+        and str(candidate.get("company_identity_id")) == str(company_id)
+    ]
+    native_company_source_urls = [
+        str(citation.get("url"))
+        for candidate in current_actor_candidates
+        for citation in candidate.get("evidence", [])
+        if citation.get("supports") == "project_organization"
+        and citation.get("current_support")
+        and citation.get("url")
+    ]
     documents = []
+    role_only_documents = []
     for doc in fetched.values():
-        if not _self_identified_company_site(doc, org) or not document_matches_company_identity(
+        if _self_identified_company_site(doc, org) and document_matches_company_identity(
             session, doc, company_id=company_id, organization=org
         ):
-            continue
-        documents.append(doc)
+            documents.append(doc)
+        elif native_company_roster_capture(
+            doc, org, native_company_source_urls=native_company_source_urls
+        ):
+            role_only_documents.append(doc)
     identity = session.get(CompanyIdentity, company_id)
     registry_method = (
         _rrc_public_method(registry_doc, operator_number, org)
@@ -2071,7 +2096,7 @@ def _discover_anchor(
             and candidate_method.get("source_url") == candidate_doc.url
         ):
             directory_doc, directory_method = candidate_doc, candidate_method
-    if not documents and not registry_method and not directory_method:
+    if not documents and not role_only_documents and not registry_method and not directory_method:
         return {"status": "unresolved", "reason": "official_identity_unverified"}
     contacts = []
     # JSON columns return mutable nested objects; copy each row so rebinding an
@@ -2079,19 +2104,41 @@ def _discover_anchor(
     citations = [dict(item) for item in old.citations]
     evidence_ids = []
     sources_by_url: dict[str, BuyingChainEvidence] = {}
-    for doc in documents:
+    for doc in [*documents, *role_only_documents]:
         source = _store_document(
             session,
             project,
             doc,
-            "Self-identified official organization contact page.",
-            seen_at=now,
+            NATIVE_COMPANY_ROLE_SOURCE_REASON
+            if doc in role_only_documents
+            else "Self-identified official organization contact page.",
+            seen_at=doc.observed_at if doc in role_only_documents else now,
         )
         evidence_ids.append(str(source.id))
         sources_by_url[doc.url] = source
     named_count, named_method_keys = _store_named_professionals(
         session, project, company_id, old, documents, sources_by_url, now
     )
+    # Company roster roles stay in a separate company-scoped read projection.
+    # Do not persist them as project BuyingChainClaims: a general roster does
+    # not establish project responsibility, project freshness, or assignment.
+    from gridlens.intelligence.buying_chain_extraction import extract_people
+
+    role_count = sum(
+        len(
+            extract_people(
+                doc,
+                [Extracted(org, old.category, organization_relationship="DIRECT")],
+                project,
+                project_scoped=False,
+                today=now.date(),
+                verified_official_roster=True,
+                company_only_role=True,
+            )
+        )
+        for doc in role_only_documents
+    )
+    named_count += role_count
     generic_method_blocklist = named_method_keys | _person_card_method_keys(documents)
     for doc in documents:
         source = sources_by_url[doc.url]
@@ -2366,7 +2413,9 @@ def _discover_anchor(
             if generic_method_keys
             else "person_card_methods_not_promoted"
         ),
-        "source_class": "official_company_site" if documents else "public_registry",
+        "source_class": "official_company_site"
+        if documents or role_only_documents
+        else "public_registry",
     }
 
 
