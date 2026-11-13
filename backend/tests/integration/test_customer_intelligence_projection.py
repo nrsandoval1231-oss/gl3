@@ -70,7 +70,27 @@ def test_customer_intelligence_is_account_wide_and_ranked_before_pagination(save
         assert intelligence["version"] == "customer-intelligence-v1"
         assert intelligence["capacity"]["status"] in {"unknown", "insufficient_data"}
         detail = group_metadata(session, account["id"])
-        assert detail["commercial_intelligence"] == intelligence
+        detail_intelligence = detail["commercial_intelligence"]
+        assert detail_intelligence["version"] == intelligence["version"]
+        assert (
+            detail_intelligence["canonical_company_identity_ids"]
+            == intelligence["canonical_company_identity_ids"]
+        )
+        assert detail_intelligence["capacity"]["total_mw"] == intelligence["capacity"]["total_mw"]
+        assert detail_intelligence["capacity"]["coverage"] == intelligence["capacity"]["coverage"]
+        for key in ("score", "confidence"):
+            assert detail_intelligence["priority"][key] == intelligence["priority"][key]
+        assert "sources" in detail_intelligence and "sources" not in intelligence
+        for section in ("capacity", "timelines"):
+            assert intelligence[section]["conflict_count"] == len(
+                detail_intelligence[section]["conflicts"]
+            )
+        assert (
+            intelligence["commissioning"]["limitations"]
+            == detail_intelligence["commissioning"]["limitations"]
+        )
+        assert intelligence["details_available"] is True
+        assert intelligence["source_count"] == len(detail_intelligence["sources"])
 
 
 def test_customer_development_carries_evidence_and_hides_contact_tokens(saved_db):
@@ -118,6 +138,14 @@ def test_customer_development_carries_evidence_and_hides_contact_tokens(saved_db
         assert summary["recent_developments"][0]["summary"] == "Build capacity revised"
         assert summary["recent_developments"][0]["evidence_id"] == str(evidence.id)
         assert "secret@example.invalid" not in str(summary)
+        detail = group_metadata(session, groups(session)["items"][0]["id"])
+        development = detail["commercial_intelligence"]["recent_developments"][0]
+        assert development["before"] == {"value": "50"}
+        assert development["after"]["value"] == "100"
+        assert development["evidence_id"] == str(evidence.id)
+        assert "secret@example.invalid" not in str(development)
+        assert "before" not in summary["recent_developments"][0]
+        assert "after" not in summary["recent_developments"][0]
 
 
 def test_updating_snapshot_withholds_potentially_withdrawn_commercial_facts(saved_db):
@@ -162,11 +190,16 @@ def test_updating_snapshot_withholds_potentially_withdrawn_commercial_facts(save
     with saved_db() as session:
         generation = current_generation(session)
         current = groups(session, selected_generation=generation)
-        assert current["items"][0]["commercial_intelligence"]["capacity"]["claims"]
+        group_id = current["items"][0]["id"]
+        assert group_metadata(session, group_id, selected_generation=generation)[
+            "commercial_intelligence"
+        ]["capacity"]["claims"]
         generation.serving_stale = True
         stale = groups(session, selected_generation=generation)
         summary = stale["items"][0]["commercial_intelligence"]
-        assert not summary["capacity"]["claims"]
+        assert summary["capacity"]["total_mw"] is None
+        stale_detail = group_metadata(session, group_id, selected_generation=generation)
+        assert not stale_detail["commercial_intelligence"]["capacity"]["claims"]
         assert any("refresh" in reason.lower() for reason in summary["limitations"])
 
 
@@ -232,3 +265,41 @@ def test_named_professional_without_methods_uses_existing_account_scope_and_guar
     monkeypatch.setattr(project_contact_actions, "filter_project_contact_records", lambda *_: [])
     with saved_db() as session:
         assert groups(session)["items"][0]["account_contact_project"] is None
+
+
+def test_large_customer_card_is_compact_but_detail_retains_all_project_analysis(saved_db):
+    import json
+
+    from test_saved_browse import seed
+
+    seed(saved_db, count=62, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        generation = current_generation(session)
+        company = CompanyIdentity(id=uuid4())
+        session.add(company)
+        session.flush()
+        for row in session.scalars(
+            select(BrowseRow).where(BrowseRow.generation_id == generation.id)
+        ):
+            row.compact = {**row.compact, "project_metadata": {"sector": "data_centers"}}
+            session.add(
+                BrowseCustomerMembership(
+                    generation_id=generation.id,
+                    company_identity_id=company.id,
+                    project_id=row.project_id,
+                    organization_name="Large Customer",
+                    role="owner_developer",
+                )
+            )
+    with saved_db() as session:
+        page = groups(session)
+        assert page["total"] == 1 and page["items"][0]["project_count"] == 62
+        assert len(json.dumps(page).encode()) < 20_000
+        card = page["items"][0]["commercial_intelligence"]
+        detail = group_metadata(session, page["items"][0]["id"])["commercial_intelligence"]
+        assert card["capacity"]["coverage"]["projects_total"] == 62
+        assert len(detail["commissioning"]["projects"]) == 62
+        assert "projects" not in card["commissioning"]
+        assert card["commissioning"]["status"] == detail["commissioning"]["status"]
+        assert card["commissioning"]["base_mw"] == detail["commissioning"]["base_mw"]

@@ -609,7 +609,6 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         apply_priority_context,
         resolve_customer_intelligence,
     )
-    from gridlens.persistence.models import ChangeEvent
 
     generation = session.get(BrowseGeneration, generation_id)
     if generation is None:
@@ -658,18 +657,60 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         from gridlens.intelligence.customer_intelligence import project_customer_facts
 
         customer_facts_by_project = project_customer_facts(session, project_ids, generation=None)
-        material_change_projects = set(
-            session.scalars(
-                select(ChangeEvent.project_id)
-                .where(
-                    ChangeEvent.project_id.in_(project_ids),
-                    ChangeEvent.material.is_(True),
-                    ChangeEvent.created_at <= generation.valid_from,
-                    ChangeEvent.created_at >= generation.valid_from - timedelta(days=90),
-                )
-                .distinct()
+        # Freeze bounded recent events in the same existing context read used by
+        # priority. Requests never scan ChangeEvent or rebuild this source cohort.
+        recent_changes = (
+            session.execute(
+                text("""
+            SELECT * FROM (
+                SELECT project_id,id,field_name,source_date,created_at,evidence_id,
+                       buying_chain_evidence_id,observation_id,content_hash,prior_state,new_state,
+                       row_number() OVER (
+                         PARTITION BY project_id,(field_name IN ('capacity','build_timing'))
+                         ORDER BY created_at DESC,id DESC
+                       ) AS position
+                FROM change_events
+                WHERE project_id=ANY(CAST(:project_ids AS uuid[])) AND material
+                  AND created_at<=:as_of AND created_at>=:since
+            ) recent WHERE position=1 OR
+                (field_name IN ('capacity','build_timing') AND position<=3)
+            ORDER BY created_at DESC,id DESC
+        """),
+                {
+                    "project_ids": list(project_ids),
+                    "as_of": generation.valid_from,
+                    "since": generation.valid_from - timedelta(days=90),
+                },
             )
+            .mappings()
+            .all()
         )
+        material_change_projects = {row["project_id"] for row in recent_changes}
+        customer_developments: dict[str, list[dict]] = {}
+        for change in recent_changes:
+            if change["field_name"] not in {"capacity", "build_timing"}:
+                continue
+            customer_developments.setdefault(str(change["project_id"]), []).append(
+                {
+                    "id": str(change["id"]),
+                    "project_id": str(change["project_id"]),
+                    "summary": "Build capacity revised"
+                    if change["field_name"] == "capacity"
+                    else "Construction or energization schedule revised",
+                    "source_date": change["source_date"].isoformat()
+                    if change["source_date"]
+                    else None,
+                    "observed_at": change["created_at"].isoformat(),
+                    "evidence_id": str(change["evidence_id"]) if change["evidence_id"] else None,
+                    "buying_chain_evidence_id": str(change["buying_chain_evidence_id"])
+                    if change["buying_chain_evidence_id"]
+                    else None,
+                    "observation_id": str(change["observation_id"]),
+                    "content_hash": change["content_hash"],
+                    "before": change["prior_state"],
+                    "after": change["new_state"],
+                }
+            )
         official_rrc_by_project = verified_rrc_metadata(session, project_ids)
         chains = buying_chain_views(session, project_ids)
         actions_by_project: dict[str, list[dict]] = {}
@@ -737,6 +778,9 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                 }
             )
             compact["customer_facts"] = customer_facts_by_project.get(
+                str(summary["project_id"]), []
+            )
+            compact["customer_developments"] = customer_developments.get(
                 str(summary["project_id"]), []
             )
             compact["customer_priority"] = resolve_customer_intelligence(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -693,7 +693,13 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(CASE WHEN ar.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
           AND ar.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
           THEN least(100, (ar.compact #>> '{customer_priority,score}')::integer)
-          ELSE NULL END) AS commercial_score
+          ELSE NULL END) AS commercial_score,
+        jsonb_agg(DISTINCT jsonb_build_object(
+          'project_id', ar.project_id, 'company_id', a.company_id,
+          'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb),
+          'priority', ar.compact->'customer_priority',
+          'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)
+        )) AS commercial_projects
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -710,7 +716,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count,
         gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,
-        gnc.has_contact_actions, gnc.commercial_score,
+        gnc.has_contact_actions, gnc.commercial_score, gnc.commercial_projects,
         count(*) FILTER (
           WHERE asset_key IN (SELECT asset_key FROM eligible_assets)
         )::integer AS relevant_project_count,
@@ -718,7 +724,8 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(updated_at) AS updated_at
       FROM assigned JOIN grouped_need_counts gnc USING (group_key)
       GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,
-               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score
+               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score,
+               gnc.commercial_projects
     )
     """.replace("%%ASSET%%", asset_expr)
         .replace("%%WHERE%%", where)
@@ -789,13 +796,19 @@ def _account_contact_projects(
             text(
                 sql
                 + """
+              , contact_assigned AS MATERIALIZED (
+                SELECT * FROM assigned
+                WHERE group_key = ANY(CAST(:contact_group_keys AS text[]))
+                  AND group_kind='resolved_identity' AND company_id IS NOT NULL
+              )
               SELECT a.group_key, a.asset_key, a.company_id, a.group_kind,
                      a.priority_score, b.project_id, b.updated_at, b.compact,
-                     ARRAY(SELECT ar2.project_id FROM all_rows ar2
-                           WHERE ar2.asset_key=a.asset_key GROUP BY ar2.project_id
-                           ORDER BY ar2.project_id) AS asset_project_ids
-              FROM assigned a
+                     ap.project_ids AS asset_project_ids
+              FROM contact_assigned a
               JOIN all_rows ar ON ar.asset_key=a.asset_key
+              JOIN (SELECT asset_key,
+                           array_agg(DISTINCT project_id ORDER BY project_id) AS project_ids
+                    FROM all_rows GROUP BY asset_key) ap ON ap.asset_key=a.asset_key
               JOIN browse_rows b ON b.generation_id=:generation
                 AND b.project_id=ar.project_id AND b.need_id=ar.need_id
               WHERE a.group_key = ANY(CAST(:contact_group_keys AS text[]))
@@ -1267,10 +1280,8 @@ def groups(
     intelligence = _commercial_by_groups(
         session,
         generation=generation,
-        where=where,
-        params=params,
-        shortlist_data=shortlist_state["data"],
-        group_keys=[row["group_key"] for row in rows],
+        group_rows=rows,
+        compact=True,
     )
     for item, row in zip(items, rows, strict=True):
         item["commercial_intelligence"] = intelligence.get(row["group_key"])
@@ -1288,14 +1299,13 @@ def groups(
     }
 
 
-def _commercial_by_groups(session, *, generation, where, params, shortlist_data, group_keys):
-    """One frozen fact read for every physical project in the requested accounts.
+def _commercial_by_groups(session, *, generation, group_rows, compact=False):
+    """Consume facts already selected by the canonical grouped query.
 
-    No source/research IO occurs here. The generation's existing policy and
-    identity fences apply, then the existing history privacy projector runs at
-    publication time so later suppressions cannot leak through copied quotes.
+    Frozen project facts/developments share the existing cohort query. Only
+    nonempty intelligence needs the batched current history privacy guard.
     """
-    if not group_keys:
+    if not group_rows:
         return {}
     from gridlens.domain.customer_intelligence import resolve_customer_intelligence
     from gridlens.intelligence.saved_history_privacy import (
@@ -1303,75 +1313,27 @@ def _commercial_by_groups(session, *, generation, where, params, shortlist_data,
         project_saved_history_privacy,
     )
 
-    rows = (
-        session.execute(
-            text(
-                _ctes(where, shortlist_data)
-                + """
-        SELECT DISTINCT a.group_key, a.group_kind, a.company_id, ar.project_id,
-               ar.compact->'customer_facts' AS facts,
-               ar.compact->'customer_priority' AS priority
-        FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
-        WHERE a.group_key = ANY(CAST(:commercial_groups AS text[]))
-        ORDER BY a.group_key, ar.project_id
-    """
-            ),
-            {**params, "commercial_groups": group_keys},
-        )
-        .mappings()
-        .all()
-    )
     updating = _refresh_state(generation) == "updating"
     by_group = {}
-    for row in rows:
-        by_group.setdefault(row["group_key"], []).append(row)
-    project_ids = sorted({str(row["project_id"]) for row in rows})
-    developments = {}
-    if project_ids:
-        changes = (
-            session.execute(
-                text("""
-            SELECT * FROM (
-                SELECT id, project_id, field_name, source_date, created_at, evidence_id,
-                       prior_state, new_state,
-                       row_number() OVER (PARTITION BY project_id
-                         ORDER BY created_at DESC, id DESC) AS position
-                FROM change_events
-                WHERE project_id = ANY(CAST(:commercial_project_ids AS uuid[]))
-                  AND field_name IN ('capacity', 'build_timing') AND material
-                  AND created_at <= :commercial_as_of AND created_at >= :commercial_since
-            ) recent WHERE position <= 3
-            ORDER BY created_at DESC, id DESC
-        """),
-                {
-                    "commercial_project_ids": project_ids,
-                    "commercial_as_of": generation.built_at,
-                    "commercial_since": generation.built_at - timedelta(days=90),
-                },
-            )
-            .mappings()
-            .all()
-        )
-        for change in changes:
-            developments.setdefault(str(change["project_id"]), []).append(
-                {
-                    "id": str(change["id"]),
-                    "project_id": str(change["project_id"]),
-                    "summary": "Build capacity revised"
-                    if change["field_name"] == "capacity"
-                    else "Construction or energization schedule revised",
-                    "source_date": change["source_date"].isoformat()
-                    if change["source_date"]
-                    else None,
-                    "observed_at": change["created_at"].isoformat(),
-                    "evidence_id": str(change["evidence_id"]) if change["evidence_id"] else None,
-                    "before": change["prior_state"],
-                    "after": change["new_state"],
-                }
-            )
+    for group_row in group_rows:
+        key = group_row["group_key"]
+        if key in by_group:
+            continue
+        by_group[key] = [
+            {**member, "group_kind": group_row["group_kind"]}
+            for member in group_row.get("commercial_projects", [])
+            if isinstance(member, dict) and member.get("project_id")
+        ]
+    developments = {
+        str(row["project_id"]): row.get("developments", [])
+        for members in by_group.values()
+        for row in members
+    }
     cards = []
     keys = []
     for key, members in by_group.items():
+        if not members:
+            continue
         resolved = all(row["group_kind"] == "resolved_identity" for row in members)
         projects = (
             [
@@ -1387,11 +1349,25 @@ def _commercial_by_groups(session, *, generation, where, params, shortlist_data,
             else []
         )
         summary = resolve_customer_intelligence(projects, as_of=generation.built_at.date())
-        summary["recent_developments"] = (
-            [event for row in members for event in developments.get(str(row["project_id"]), [])][:3]
+        frozen_events = (
+            {
+                event["id"]: event
+                for row in members
+                for event in developments.get(str(row["project_id"]), [])
+                if isinstance(event, dict) and event.get("id")
+            }
             if resolved
-            else []
+            else {}
         )
+        summary["recent_developments"] = sorted(
+            frozen_events.values(),
+            key=lambda event: (
+                event.get("observed_at") or "",
+                int(event["id"]) if str(event["id"]).isdigit() else 0,
+                str(event["id"]),
+            ),
+            reverse=True,
+        )[:3]
         if summary["recent_developments"]:
             summary["recommended_next_action"] = (
                 "Review the revised capacity or schedule evidence and confirm the "
@@ -1431,11 +1407,82 @@ def _commercial_by_groups(session, *, generation, where, params, shortlist_data,
             }
         )
         keys.append(key)
-    projected = project_saved_history_privacy(session, {"versions": cards})["versions"]
-    return {
+    needs_privacy = any(
+        row.get("developments")
+        or any(
+            isinstance(package, dict)
+            and any(
+                package.get(field)
+                for field in ("capacity_claims", "timeline_claims", "commissioning_inputs")
+            )
+            for package in row.get("facts", [])
+            if isinstance(row.get("facts"), list)
+        )
+        for members in by_group.values()
+        for row in members
+    )
+    projected = (
+        project_saved_history_privacy(session, {"versions": cards})["versions"]
+        if needs_privacy
+        else cards
+    )
+    result = {
         key: _redact_all_contact_tokens(item["saved_card"]["commercial_intelligence"])
         for key, item in zip(keys, projected, strict=True)
     }
+    return {key: _compact_commercial(value) for key, value in result.items()} if compact else result
+
+
+def _compact_commercial(value: dict) -> dict:
+    """Keep five-second card facts; source quotes and analysis belong in detail."""
+    result = dict(value)
+    result["source_count"] = len(value.get("sources", []))
+    result["details_available"] = True
+    result.pop("sources", None)
+    allowed = {
+        "capacity": {"status", "total_mw", "totals", "coverage"},
+        "timelines": {"construction_start", "expected_energization"},
+        "commissioning": {
+            "status",
+            "low_mw",
+            "base_mw",
+            "high_mw",
+            "confidence",
+            "version",
+            "calculation_version",
+            "demand_class",
+            "verified_customer_demand",
+            "limitations",
+        },
+    }
+    for field, permitted in allowed.items():
+        section = {key: item for key, item in (value.get(field) or {}).items() if key in permitted}
+        if field == "capacity":
+            section["totals"] = [
+                {k: v for k, v in row.items() if k != "claim_ids"}
+                for row in section.get("totals", [])
+            ]
+        if field == "timelines":
+            for key in ("construction_start", "expected_energization"):
+                if isinstance(section.get(key), dict):
+                    section[key] = {
+                        k: v for k, v in section[key].items() if k not in {"quote", "source"}
+                    }
+        if field in {"capacity", "timelines"}:
+            section["conflict_count"] = len((value.get(field) or {}).get("conflicts", []))
+        result[field] = section
+    if isinstance(value.get("priority"), dict):
+        result["priority"] = {
+            key: item
+            for key, item in value["priority"].items()
+            if key in {"version", "potential", "confidence", "score", "ranking_method"}
+        }
+    result.pop("scope", None)
+    result["recent_developments"] = [
+        {k: v for k, v in event.items() if k not in {"before", "after"}}
+        for event in value.get("recent_developments", [])
+    ]
+    return result
 
 
 def group_metadata(
@@ -1497,7 +1544,7 @@ def group_metadata(
                 SELECT group_key, name, role, group_kind, identity_count, project_count,
                        relevant_project_count, eligible_need_count,
                        pursued_eligible_need_count, need_count,
-                       priority_score, sectors
+                       priority_score, sectors, commercial_projects
                 FROM grouped g WHERE 'cg_' || md5(group_key) = :id AND """
                 + selected
                 + (
@@ -1532,10 +1579,7 @@ def group_metadata(
     result["commercial_intelligence"] = _commercial_by_groups(
         session,
         generation=generation,
-        where=where,
-        params=params,
-        shortlist_data=shortlist_state["data"],
-        group_keys=[row["group_key"]],
+        group_rows=[row],
     ).get(row["group_key"])
     return result
 
@@ -1804,7 +1848,7 @@ def group_open(
                  g.project_count, g.relevant_project_count, g.eligible_need_count,
                  g.pursued_eligible_need_count,
                  g.need_count, g.has_contact_actions,
-                 g.priority_score, g.sectors,
+                 g.priority_score, g.sectors, g.commercial_projects,
                  a.anchor_project_id, a.asset_key, a.company_id, a.group_name,
                  ARRAY(SELECT ar2.project_id FROM all_rows ar2
                        WHERE ar2.asset_key=a.asset_key GROUP BY ar2.project_id
@@ -1978,10 +2022,7 @@ def group_open(
     group["commercial_intelligence"] = _commercial_by_groups(
         session,
         generation=generation,
-        where=where,
-        params=params,
-        shortlist_data=shortlist_state["data"],
-        group_keys=[first["group_key"]],
+        group_rows=[first],
     ).get(first["group_key"])
     if shortlist:
         group["featured_project"] = featured_project

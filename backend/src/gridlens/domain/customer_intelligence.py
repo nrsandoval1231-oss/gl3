@@ -420,6 +420,27 @@ def _scope_at(clause: str, position: int, project_id: str) -> tuple[str, str | N
     )
 
 
+def _capacity_phase_scope_supported(clause: str, match: re.Match, *, campus_total: bool) -> bool:
+    """Refuse phase qualifiers that the prefix-only scope resolver cannot bind.
+
+    A supported prefix is retained as partial phase capacity. Postfix or unknown
+    phase references cannot silently become site capacity. The existing explicit
+    across-all total grammar is the only exception for recognized postfix phases.
+    """
+    markers = list(re.finditer(r"\bphases?\b", clause, re.I))
+    recognized = list(_PHASE.finditer(clause)) + list(
+        re.finditer(r"\b(initial|first|second|third|fourth)\s+phase\b", clause, re.I)
+    )
+    if any(
+        not any(
+            phase.start() <= marker.start() and marker.end() <= phase.end() for phase in recognized
+        )
+        for marker in markers
+    ):
+        return False
+    return campus_total or all(marker.end() <= match.start() for marker in markers)
+
+
 def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
     """Extract only explicitly typed, bounded source clauses; no engineering inference.
 
@@ -461,9 +482,13 @@ def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
                     continue
                 scope, phase_id = _scope_at(clause, match.start(), project_id)
                 includes = []
-                if re.search(r"for\s+a\s+total\s+of", match[0], re.I) and re.search(
-                    r"across\s+all", match[0], re.I
-                ):
+                campus_total = bool(
+                    re.search(r"for\s+a\s+total\s+of", match[0], re.I)
+                    and re.search(r"across\s+all", match[0], re.I)
+                )
+                if not _capacity_phase_scope_supported(clause, match, campus_total=campus_total):
+                    continue
+                if campus_total:
                     scope, phase_id = f"{project_id}:site", None
                     includes = sorted(
                         {
