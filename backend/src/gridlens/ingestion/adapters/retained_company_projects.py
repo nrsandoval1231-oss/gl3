@@ -1051,10 +1051,10 @@ def _named_project_action_candidates(sections: list[str]) -> list[SiteCandidate]
                     if len(object_matches) != 1:
                         continue
                     physical_object = object_matches[0]
-                    object_end = (
-                        physical_object.end()
-                        + re.match(r"\s+space\b", sentence[physical_object.end() :], re.I).end()
-                    )
+                    space_match = re.match(r"\s+space\b", sentence[physical_object.end() :], re.I)
+                    if space_match is None:
+                        continue
+                    object_end = physical_object.end() + space_match.end()
                     subject_span = (physical_object.start(), object_end)
                     site_span = (site_relation.start(), location.end())
                     if not activity_is_bound_to_project(
@@ -1399,14 +1399,16 @@ def _explicit_called_campus_alias(
     project_span = spans.get("project")
     location_span = spans.get("location")
     activity_span = spans.get("activity")
-    selected_spans = (project_span, location_span, activity_span)
-    if any(
-        not isinstance(span, list)
-        or len(span) != 2
-        or not all(isinstance(value, int) for value in span)
-        for span in selected_spans
-    ):
-        return None
+    selected_spans: list[tuple[int, int]] = []
+    for span in (project_span, location_span, activity_span):
+        if (
+            not isinstance(span, list)
+            or len(span) != 2
+            or not isinstance(span[0], int)
+            or not isinstance(span[1], int)
+        ):
+            return None
+        selected_spans.append((span[0], span[1]))
     quote = candidate.project_quote
     if not isinstance(quote, str):
         return None
@@ -1424,7 +1426,8 @@ def _explicit_called_campus_alias(
     aliases: dict[str, tuple[int, int, str]] = {}
     for paragraph_start, paragraph_end in _paragraph_ranges(section):
         if not all(
-            paragraph_start <= span[0] < span[1] <= paragraph_end for span in selected_spans
+            paragraph_start <= span_start < span_end <= paragraph_end
+            for span_start, span_end in selected_spans
         ):
             continue
         paragraph = section[paragraph_start:paragraph_end]
