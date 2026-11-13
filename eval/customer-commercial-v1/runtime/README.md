@@ -23,23 +23,24 @@ its Austin/Houston ecosystem quantities were not attached to that site.
 
 ## Latest native runtime receipt
 
-See [native-runtime-replay-source-coverage-final-20261113.json](native-runtime-replay-source-coverage-final-20261113.json)
-for the latest complete output. It was created in a fresh loopback PostgreSQL database
+See [native-runtime-replay-source-role-final-20261113.json](native-runtime-replay-source-role-final-20261113.json)
+for the latest complete output. The earlier [source-coverage receipt](native-runtime-replay-source-coverage-final-20261113.json) is preserved as a historical capture. It was created in a fresh loopback PostgreSQL database
 ending in `_test`, which the runner dropped after completion. The run produced:
 
 - 4 admitted source records created 4 Projects and 4 accepted
   Evidence/Interpretation pairs. Three PowerNeeds were created, all with
   `required_mw: null`. Aligned's Conesville project is held outside the
   eligible-region policy and creates no PowerNeed.
-- 3 saved browse rows and 2 account queue API cards, with 2 current
+- 3 saved browse rows and 3 account queue API cards, with 3 current
   project-scoped company identity links.
-- The legacy ordinary customer group query returned 3 rows: canonical CyrusOne
-  and DataBank, plus an unresolved `Fifth Prime data center campus` project
-  group. The explicit shortlist query returned 0 rows. The primary
-  `groups(shortlist=False, canonical_only=True)` query returned 2 canonical
-  customer groups, CyrusOne and DataBank, and canonical detail opened CyrusOne.
-  Thus 4 admitted projects do not mean 4 canonical customer cards. These counts
-  show endpoint behavior, not customer usefulness.
+- The ordinary and primary
+  `groups(shortlist=False, canonical_only=True)` queries each returned 3
+  project-scoped customer groups: CyrusOne, DataBank, and Switch. A retained
+  source-bound developer claim now links Switch to the admitted Round Rock
+  project. These links do not establish global company identity, cross-project
+  grouping, or legal ownership. The explicit shortlist query returned 0 rows,
+  and the canonical detail API opened CyrusOne. These counts show endpoint
+  behavior, not customer usefulness.
 - A DataBank project-scoped `owner_developer` claim for the 2024 Red Oak
   announcement and a CyrusOne `project_customer` claim for the 2025 Bosque
   County service agreement. These are source-reported roles, not verified legal
@@ -48,13 +49,13 @@ ending in `_test`, which the runner dropped after completion. The run produced:
   480 MW site IT load. These remain separately scoped evidence claims and do
   not populate required demand. Portfolio roll-up and double-count accuracy
   were not evaluated.
-- The `Fifth Prime data center campus` group has no canonical company identity
-  in this capture.
-- The Switch Round Rock project is admitted and has a PowerNeed with unknown
-  MW, but the retained text produced no source-backed capacity or timeline
-  claims for it in this runtime. The source's separate Austin/Houston and
-  ecosystem figures remain unassigned.
-- Both cards are WATCH signals. The API returns no verified contact evidence;
+- The Switch Round Rock project is linked to a project-scoped company identity
+  through source-derived developer involvement. This is a source-reported role,
+  not verified legal ownership or a globally reconciled company identity. The
+  project has a PowerNeed with unknown MW; the retained text produced no
+  source-backed capacity or timeline claims for it in this runtime. The
+  source's separate Austin/Houston and ecosystem figures remain unassigned.
+- All three cards are WATCH signals. The API returns no verified contact evidence;
   contact state is `unavailable_unverified`.
 - CyrusOne's opened project detail includes a source-reported operational
   target: expected operation by Q4 2026, at quarter precision, from its July
@@ -69,7 +70,7 @@ withdrawal removes the published account membership. These are finite offline
 source-path controls, not production coverage.
 
 The separately scored 20-project source-text replay is in
-[source-text-scope-replay-source-coverage-final-20261113.json](source-text-scope-replay-source-coverage-final-20261113.json).
+[source-text-scope-replay-source-role-final-20261113.json](source-text-scope-replay-source-role-final-20261113.json). The earlier [source-coverage replay](source-text-scope-replay-source-coverage-final-20261113.json) remains available as a historical receipt.
 It verified 29 retained artifacts against 27 distinct source captures in the
 reference bundle; 2 artifacts were not assigned to those source captures. With
 reference project/location used only as disclosed oracle scope context, it
@@ -94,11 +95,10 @@ and oracle-scoped scores are detailed in
 Identity accuracy is not measured because reference IDs were never seeded.
 Project-scoped company identities do not establish global company grouping or
 cross-project deduplication. Capacity roll-up/double-counting, ranking
-usefulness, and salesperson usefulness are not measured. The canonical customer
-groups and detail demonstrate saved-generation/API plumbing; the empty
-shortlist indicates no needs meet its current eligibility rules. The ordinary
-group count includes one unresolved project-name group and is not a count of
-verified customer identities.
+usefulness, and salesperson usefulness are not measured. The three canonical customer groups and detail demonstrate
+saved-generation/API plumbing; the empty shortlist indicates no needs meet its
+current eligibility rules. The three identities are project-scoped and do not
+measure global identity resolution or cross-project grouping.
 Contact availability is unknown because this run acquired no current contact
 evidence.
 

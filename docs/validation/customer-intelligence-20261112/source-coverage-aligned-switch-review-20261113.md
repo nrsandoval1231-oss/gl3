@@ -57,3 +57,30 @@ Independent verification at the final adapter hash:
 - The new saved controls use the supported quote-defined actor/land-purchase positive frame before introducing their adverse variation. Existing tests were not rewritten to accommodate the parser. The builder additionally reported a 52-test focused suite and targeted Ruff checks passing; the reviewer did not independently rerun that broader selection or the regional database integration.
 
 This accepts the source-bound coverage repair for further integration review. It does not approve merging, deployment, source activation, retained operational writes, regional eligibility expansion, customer-card publication, or claims that the historical announcements establish current commercial demand.
+
+## Planned-developer producer addendum
+
+The additional Switch producer has no confirmed material blocker at the following reviewed hashes:
+
+| File | SHA-256 |
+| --- | --- |
+| `backend/src/gridlens/intelligence/retained_project_organizations.py` | `16d791bc5735fd24a3db82edf77727a38943c69575337cbc8579a3a26aaba5c1` |
+| `backend/tests/unit/test_retained_native_planned_developer.py` | `9d6e8e6973310849bc862a6a0e6da6a62f28ef2934fdf388b6c1430c1b90e788` |
+| `backend/tests/integration/test_retained_switch_planned_developer.py` | `c10e811ad4a33a80f6af13803cddbf4190c8bf9163976587dba735954eb9c871` |
+| `backend/src/gridlens/ingestion/adapters/retained_company_projects.py` | `ece4be5b9b1f1e214b98834af2ec000dc2fea6acf072636b1511bcc8fb19dd62` |
+
+The last adapter hash includes two additional conservative guards inspected during this review: a missing `space` match returns no candidate, and selected spans are validated and normalized before comparison. The activity helper remains at the earlier accepted hash.
+
+The producer runs only after the existing retained source/document/observation/evidence/interpretation/project agreement and native reparse checks. It requires a publisher-host link naming the actor, a source-defined actor alias, and the same actor's explicit planned construction immediately following the selected campus announcement and preceding its native literal alias. The ordinary `Extracted` result records a source-reported planned developer; it creates no global company identity and explicitly does not establish legal ownership, completed construction, current status or purchasing authority. Citation quotes are verbatim. Historical publication dates remain historical.
+
+Independent verification used dummy settings and an unreachable loopback database URL, without database/network access:
+
+- The new producer unit tests and unchanged retained-organization unit suite passed **23 tests**.
+- The source coverage, activity-binding and publication-date suite passed **33 tests** against the adapter hash above.
+- The original positive and **17 additional negative controls** passed. These deny stale document/interpretation/evidence versions; wrong observation, project, location, aliases or source contract; malformed alias spans; foreign, negated, on-behalf-of and different-legal-form actors; cancellation; and a foreign campus reusing the native alias. The last seven exercise native candidate admission plus the producer boundary; the others exercise the public extraction entry point.
+
+The new database integration was inspected, not independently rerun. It checks project-scoped identity creation, stable claim/company IDs on repeated enrichment, and removal of the candidate after cancellation. Its current assertions do **not** query saved BrowseRows or customer groups, so this is claim/identity replay coverage rather than proof of customer-card visibility. The builder reports the integration passing. This addendum accepts the bounded producer implementation for integration; it does not establish broader commercial readiness or authorize operational actions.
+
+Formatter follow-up: the final adapter hash is `44075d0339dc49ad894f96e8aadeb8ae4a6a6190a009393c0b2c5eb511f87256`. Independent diff inspection confirms the same two reviewed guards, with only line wrapping changed since `ece4be5b…`; bounded acceptance carries forward without another test run. Producer and both test hashes above remain unchanged.
+
+Saved-projection follow-up: integration test hash `92ded813020e740e3041c6fa9571c56b08721bb0344f85b60bfac25d4de058e0` adds a published browse rebuild, a canonical Switch group, membership linking the actual project to its current project-scoped company UUID, and the project in that group's detail results. It also checks that generated Needs have no inferred MW. After cancellation and another published rebuild, Switch is absent from canonical groups. These assertions close the earlier saved-projection coverage gap; the builder reports the focused integration passing. This reviewer inspected the added assertions without rerunning the database test. This is an actual retained-source backend projection check, not a browser screenshot or production-state claim.
