@@ -20,7 +20,6 @@ from gridlens.ingestion.adapters.retained_company_projects import (
     retained_records,
 )
 from gridlens.intelligence.retained_project_organizations import (
-    _corroborated_native_build_claim,
     extract_retained_project_organizations,
 )
 
@@ -134,13 +133,15 @@ def extract(values):
     )
 
 
-@pytest.fixture
-def crusoe_case(tmp_path):
+def load_crusoe_case(tmp_path, mutate=None):
     source_path = (
         Path(__file__).resolve().parents[3] / "eval/customer-commercial-v1/sources/crusoe.json"
     )
     source_bytes = source_path.read_bytes()
     source = json.loads(source_bytes)
+    if mutate is not None:
+        mutate(source["excerpts"])
+    source_bytes = json.dumps(source, ensure_ascii=False, separators=(",", ":")).encode()
     corpus = tmp_path / "retained-crusoe"
     sources_dir = corpus / "sources"
     sources_dir.mkdir(parents=True)
@@ -156,13 +157,31 @@ def crusoe_case(tmp_path):
     ]
     (corpus / "source-hashes.json").write_text(json.dumps(manifest), encoding="utf-8")
     records, held = retained_records(corpus)
+    source_held = any("sources/crusoe.json" in item.get("source_files", []) for item in held)
+    if source_held:
+        return None
     record = next(
-        row
-        for row in records
-        if "sources/crusoe.json" in row["retained_company_project"]["source_files"]
+        (
+            row
+            for row in records
+            if "sources/crusoe.json" in row["retained_company_project"]["source_files"]
+        ),
+        None,
     )
-    assert not any("sources/crusoe.json" in item.get("source_files", []) for item in held)
-    return materialize(record)
+    return materialize(record) if record is not None else None
+
+
+@pytest.fixture
+def crusoe_case(tmp_path):
+    return load_crusoe_case(tmp_path)
+
+
+@pytest.fixture
+def crusoe_case_factory(tmp_path):
+    def build(mutate=None):
+        return load_crusoe_case(tmp_path / f"case-{uuid4().hex}", mutate)
+
+    return build
 
 
 def test_databank_reported_developer_is_bound_to_red_oak_site(cases):
@@ -196,6 +215,7 @@ def test_cyrusone_is_direct_project_customer_not_energy_center_owner(cases):
 
 def test_crusoe_developer_claim_requires_fresh_correlated_native_site_evidence(crusoe_case):
     values = crusoe_case
+    assert values is not None
     claims = extract(values)
     assert len(claims) == 1
     claim = claims[0]
@@ -213,51 +233,93 @@ def test_crusoe_developer_claim_requires_fresh_correlated_native_site_evidence(c
 
 
 @pytest.mark.parametrize(
-    ("mutation", "section_split"),
+    "mutation",
     [
-        ("built-only", False),
-        ("other-actor", False),
-        ("other-site", False),
-        ("withdrawal", False),
-        ("unchanged", True),
+        "built-only",
+        "other-actor",
+        "other-site",
+        "third-party-client",
+        "negated-announcement",
+        "hypothetical-announcement",
+        "other-actor-announcement",
+        "negated-build",
+        "contractor-only",
+        "withdrawal",
+        "detached-excerpts",
     ],
-    ids=["built-only", "different-builder", "different-site", "withdrawn", "detached-clauses"],
+    ids=[
+        "built-only",
+        "different-builder",
+        "different-site",
+        "third-party-client",
+        "negated-announcement",
+        "hypothetical-announcement",
+        "other-actor-attribution",
+        "negated-build",
+        "contractor-only",
+        "withdrawn",
+        "detached-excerpts",
+    ],
 )
-def test_crusoe_developer_claim_rejects_unlinked_or_adverse_clauses(
-    crusoe_case, mutation, section_split
-):
-    document, project, source, observation, evidence, interpretation = crusoe_case
-    context = evidence.provenance["retained_company_project"]
-    body = document.text.removeprefix(document.title + "\n")
-    adjusted = deepcopy(context)
-    if mutation == "built-only":
-        body = body.replace("announced construction has begun", "announced a project")
-    elif mutation == "other-actor":
-        body = body.replace("Designed and built by Crusoe", "Designed and built by Lancium")
-    elif mutation == "other-site":
-        body = body.replace(
-            "Designed and built by Crusoe at the Lancium Clean Campus",
-            "Designed and built by Crusoe at South Campus",
+def test_crusoe_developer_claim_rejects_unlinked_or_adverse_clauses(crusoe_case_factory, mutation):
+    def mutate(excerpts):
+        announcement = next(
+            index
+            for index, text in enumerate(excerpts)
+            if "announced construction has begun" in text
         )
-    elif mutation == "withdrawal":
-        insertion = body.index("Designed and built by Crusoe at the Lancium Clean Campus")
-        insertion = body.index(".", insertion) + 1
-        addition = " The project was later cancelled."
-        body = body[:insertion] + addition + body[insertion:]
-        for section in adjusted["section_ranges"]:
-            if section["start"] >= insertion:
-                section["start"] += len(addition)
-            if section["end"] >= insertion:
-                section["end"] += len(addition)
-    if section_split:
-        second = body.index("Crusoe began constructing")
-        third = body.index("Designed and built by Crusoe at")
-        adjusted["section_ranges"] = [
-            {"start": 0, "end": second},
-            {"start": second, "end": third},
-            {"start": third, "end": len(body)},
-        ]
-    assert _corroborated_native_build_claim(document, adjusted, body) is None
+        build = next(
+            index for index, text in enumerate(excerpts) if "Designed and built by Crusoe" in text
+        )
+        if mutation == "built-only":
+            excerpts[announcement] = excerpts[announcement].replace(
+                "announced construction has begun", "announced a project"
+            )
+        elif mutation == "other-actor":
+            excerpts[build] = excerpts[build].replace(
+                "Designed and built by Crusoe", "Designed and built by Lancium"
+            )
+        elif mutation == "other-site":
+            excerpts[build] = excerpts[build].replace(
+                "Designed and built by Crusoe at the Lancium Clean Campus",
+                "Designed and built by Crusoe at South Campus",
+            )
+        elif mutation == "third-party-client":
+            excerpts[announcement] = excerpts[announcement].replace(
+                "on the next phase of its AI data center",
+                "on the next phase of a client's AI data center",
+            )
+        elif mutation == "negated-announcement":
+            excerpts[announcement] = excerpts[announcement].replace(
+                "announced construction has begun",
+                "announced construction has not begun",
+            )
+        elif mutation == "hypothetical-announcement":
+            excerpts[announcement] = excerpts[announcement].replace(
+                "provider, announced construction has begun",
+                "provider, hypothetically announced construction has begun",
+            )
+        elif mutation == "other-actor-announcement":
+            excerpts[announcement] = excerpts[announcement].replace(
+                "provider, announced construction has begun",
+                "provider, said Another Company announced construction has begun",
+            )
+        elif mutation == "negated-build":
+            excerpts[build] = excerpts[build].replace(
+                "Designed and built by Crusoe", "Not designed and built by Crusoe"
+            )
+        elif mutation == "contractor-only":
+            excerpts[build] += " Crusoe served only as general contractor for OwnerCo."
+        elif mutation == "withdrawal":
+            excerpts[build] += " The project was later cancelled."
+        elif mutation == "detached-excerpts":
+            excerpts.insert(build, "An unrelated project paragraph.")
+
+    try:
+        values = crusoe_case_factory(mutate)
+    except StopIteration:
+        values = None
+    assert values is None or extract(values) == []
 
 
 def test_native_document_version_fence_and_capacity_revision(cases):

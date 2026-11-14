@@ -192,14 +192,22 @@ def _corroborated_native_build_claim(
     native_site_link = rf"\[{re.escape(native_name)}\]\(https://[^)\s]{{1,300}}\)"
     native_site_text = rf"(?:{native_site_link}|{re.escape(native_name)})"
     announcement = re.compile(
-        rf"{actor_link}[^.!?\n]{{0,180}}?\bannounced construction has begun\b"
-        rf"[^.!?\n]{{0,220}}?\bon the next phase of its AI data center at\s+(?:the\s+)?"
+        rf"{actor_link}(?:,\s*(?P<appositive>(?:the|a|an)\s+[^,.!?\n]{{1,100}}),)?\s*"
+        r"announced construction has begun on the next phase of its AI data center at\s+(?:the\s+)?"
         rf"{native_site_link}\s+{re.escape(location_quote)}\."
     )
+    sentence_start = r"(?:^|[.!?]\s+)"
     site_build = re.compile(
-        rf"\bDesigned and built by\s+(?P<actor>{_ORG_TOKEN})\s+at\s+(?:the\s+)?{native_site_text}"
+        rf"{sentence_start}(?P<quote>Designed and built by\s+(?P<actor>{_ORG_TOKEN})"
+        rf"\s+at\s+(?:the\s+)?{native_site_text}(?=\s*[,.;!?]))"
     )
-    adverse = re.compile(r"\b(?:cancelled|canceled|abandoned|withdrawn|terminated)\b", re.I)
+    adverse = re.compile(
+        r"\b(?:not|never|no\s+longer|cannot|can't|hypothetical(?:ly)?|possibly|allegedly|"
+        r"reported(?:ly)?|cancelled|canceled|abandoned|withdrawn|terminated|"
+        r"only\s+as\s+(?:a\s+)?(?:general\s+)?contractor|(?:general\s+)?contractor\s+for|"
+        r"contractor\s+only|client(?:'s)?|on\s+behalf\s+of)\b",
+        re.I,
+    )
 
     for index, section in enumerate(sections):
         if not isinstance(section, dict):
@@ -213,12 +221,23 @@ def _corroborated_native_build_claim(
             continue
         text = body[start:end]
         announcement_match = announcement.search(text)
-        if announcement_match is None:
+        if announcement_match is None or (
+            announcement_match.group("appositive")
+            and (
+                re.search(
+                    r"\[[^]]+\]\(|\b(?:said|says|claimed|claims|reported|reports|according|"
+                    r"not|never|hypothetical(?:ly)?|possibly|allegedly)\b",
+                    announcement_match.group("appositive"),
+                    re.I,
+                )
+                or re.search(r"\b[A-Z][a-z]+\b", announcement_match.group("appositive"))
+            )
+        ):
             continue
         actor = announcement_match.group("actor")
         actor_build = re.compile(
-            rf"\b{re.escape(actor)} began constructing the AI data center in "
-            rf"{re.escape(locality.group('city'))}\b[^.!?\n]{{0,100}}\."
+            rf"{sentence_start}(?P<quote>{re.escape(actor)} began constructing the AI data "
+            rf"center in {re.escape(locality.group('city'))}\b[^.!?\n]{{0,100}}\.)"
         )
         for build_index in (index, index + 1):
             if build_index >= len(sections):
@@ -261,8 +280,8 @@ def _corroborated_native_build_claim(
                 ),
                 citations=[
                     _citation(document, announcement_match.group(0), "organization_category"),
-                    _citation(document, actor_build_match.group(0), "project_organization"),
-                    _citation(document, site_build_match.group(0), "project_name"),
+                    _citation(document, actor_build_match.group("quote"), "project_organization"),
+                    _citation(document, site_build_match.group("quote"), "project_name"),
                 ],
             )
     return None
