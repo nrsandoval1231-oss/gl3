@@ -277,7 +277,13 @@ def _named_site_alias_binding(
     locations, or reference labels.
     """
     alias_re = _alias_pattern(aliases)
-    matches = list(re.finditer(alias_re, clause.text, re.I))
+    matches = list(
+        re.finditer(
+            rf"(?<!\w){alias_re}(?!\w)(?=$|[.,;:!?]|\s+(?:is|was|are|were|has|had|will)\b)",
+            clause.text,
+            re.I,
+        )
+    )
     if len(matches) != 1:
         return None
     match = matches[0]

@@ -99,6 +99,20 @@ def test_market_suffix_does_not_hide_a_named_competing_site():
             assert not _scope(text, aliases=["SVY01"])["capacity_claims"]
 
 
+def test_native_site_alias_does_not_match_a_longer_site_name():
+    for alias, source_site in (
+        ("SVY01", "SVY0101"),
+        ("SVY01", "SVY01B"),
+        ("SVY01", "SVY01-B"),
+        ("North Site", "North Site Annex"),
+    ):
+        text = (
+            f"Construction will expand the data center campus in Reno, {source_site}. "
+            "The 60 MW data center expansion will provide critical capacity."
+        )
+        assert not _scope(text, aliases=[alias], project_name=alias)["capacity_claims"]
+
+
 def test_expansion_anaphora_refuses_second_site_and_unrelated_intervening_clause():
     second_site = (
         "The 100 MW campus in Reno, North Site is planned adjacent to South Campus. "
