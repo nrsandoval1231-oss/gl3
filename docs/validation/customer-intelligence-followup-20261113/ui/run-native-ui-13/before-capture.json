@@ -1,0 +1,108 @@
+{
+  "mode": "before",
+  "database": "gl3_ui_followup_before_3b85b009_test",
+  "api_mocking": false,
+  "retained_native_sources": [
+    "DataBank",
+    "CyrusOne"
+  ],
+  "source_artifact_sha256": {
+    "eval/customer-commercial-v1/sources/cyrusone.json": "e19ad67c6185975f70c6a7b92e031edc133644d2f21958e399a22027612e408e",
+    "eval/customer-commercial-v1/sources/databank.json": "7588dd65e94ac93b3fc6e9bdb7e37a6a81d84e2ba37400064263b3b182bbde6b"
+  },
+  "saved_browse_generation": "88405e66-9dd5-4fd8-ac30-df026dcedde4",
+  "accounts": [
+    {
+      "name": "CyrusOne",
+      "group_kind": "resolved_identity",
+      "capacity_totals": [],
+      "power_amount_class": "unknown",
+      "permitted_contact_route_count": 0,
+      "recent_developments": [
+        {
+          "source_date": "2025-07-30",
+          "summary": "Construction or energization schedule revised"
+        }
+      ]
+    },
+    {
+      "name": "DataBank",
+      "group_kind": "resolved_identity",
+      "capacity_totals": [
+        {
+          "basis": "it_load",
+          "qualifier": "up_to",
+          "status": "upper_bound",
+          "value_mw": "480"
+        }
+      ],
+      "power_amount_class": "unknown",
+      "permitted_contact_route_count": 0,
+      "recent_developments": [
+        {
+          "source_date": "2024-09-10",
+          "summary": "Build capacity revised"
+        }
+      ]
+    }
+  ],
+  "group_responses": [
+    {
+      "status": 200,
+      "query": {
+        "sector": "all",
+        "limit": "25",
+        "offset": "0",
+        "sort": "priority",
+        "shortlist": "false",
+        "canonical_only": "true"
+      },
+      "total": 2,
+      "generation_id": "88405e66-9dd5-4fd8-ac30-df026dcedde4",
+      "items": [
+        {
+          "name": "CyrusOne",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": [
+            {
+              "summary": "Construction or energization schedule revised",
+              "source_date": "2025-07-30"
+            }
+          ]
+        },
+        {
+          "name": "DataBank",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [
+            {
+              "basis": "it_load",
+              "value_mw": "480",
+              "status": "upper_bound",
+              "qualifier": "up_to",
+              "complete": true
+            }
+          ],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": [
+            {
+              "summary": "Build capacity revised",
+              "source_date": "2024-09-10"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expanded_account_detail": null,
+  "page_errors": [],
+  "external_requests": [],
+  "screenshots": {
+    "before-customers-desktop.png": "66b9c65195a622356be1f63afaa364c3fdaad39e5c397bc15cbaa965a9c1e833",
+    "before-databank-detail-commercial-open-desktop.png": "49f263d87ec2155f7ca3736a030207b14eae5260aa30f9de527347f1ea9d30aa",
+    "before-databank-detail-desktop.png": "6f62707593d19f3639dae7e64248205b79f744957aa089d66a85003a59653bf6"
+  }
+}

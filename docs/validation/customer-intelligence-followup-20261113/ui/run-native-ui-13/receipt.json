@@ -1,4 +1,8 @@
 {
+  "capture_json_sha256": {
+    "before-capture.json": "d1b48c96886ef63b5199f1d500bb43ec32e9296331e6b2d7a8b8f7ea25d87dde",
+    "after-capture.json": "3dacc6a66df630623b2949aa654461f0440122c71626b26b0edf1390ce683382"
+  },
   "after_manifest": {
     "account_memberships": 2,
     "accounts": [
