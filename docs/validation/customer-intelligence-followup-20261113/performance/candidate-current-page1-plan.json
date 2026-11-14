@@ -1,0 +1,3141 @@
+{
+  "source_root": "C:\\Users\\nrsan\\.codex\\worktrees\\gl3-native-validation\\gl3",
+  "commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+  "source_manifest_sha256": "5e907f274167113e4557a2a18722b9720e86904aa38883106619b966fae99229",
+  "database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "route": "groups(limit=1, canonical_only=False)",
+  "query_file": "candidate-current-page1.sql",
+  "query_sha256": "4ebad706bb7460061754dfd6f5d8bdeafc6d4e4483659568066fdadbce7a3cb3",
+  "parameter_values_written": false,
+  "bind_parameter_summary": {
+    "need_alias_map": {
+      "kind": "json-object",
+      "key_count": 0,
+      "value_kinds": []
+    },
+    "generation": {
+      "kind": "synthetic-generation-id",
+      "sha256": "d28fa7da386b6b719afacd9efb12bff5dee0456849d61b66e1c7b55c3c075bc6"
+    },
+    "eligible_need_ids": {
+      "kind": "list",
+      "count": 47,
+      "sha256": "61091427c829b7d87d066148c0937fb09171d3e44e01fb322bc16771e08c1756"
+    },
+    "pursued_need_ids": {
+      "kind": "list",
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "shortlist_enabled": false,
+    "priority_map": {
+      "kind": "json-object",
+      "key_count": 47,
+      "value_kinds": [
+        "int"
+      ]
+    },
+    "limit": 1,
+    "offset": 0
+  },
+  "plan_mode": "EXPLAIN (FORMAT JSON, COSTS, VERBOSE), no ANALYZE and no query execution",
+  "fixture_and_session": {
+    "work_mem": "4MB",
+    "statement_timeout": "0",
+    "server_version": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "projects": 40000,
+    "browse_rows": 40000,
+    "needs": 48,
+    "evidence": 48,
+    "memberships": 66
+  },
+  "planner_statistics": [
+    {
+      "relname": "browse_customer_memberships",
+      "estimated_live_rows": 66,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "browse_rows",
+      "estimated_live_rows": 40000,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "company_identities",
+      "estimated_live_rows": -1,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "evidence",
+      "estimated_live_rows": 48,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "power_needs",
+      "estimated_live_rows": -1,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    },
+    {
+      "relname": "projects",
+      "estimated_live_rows": 40000,
+      "n_live_tup": 0,
+      "last_analyze": null,
+      "last_autoanalyze": null
+    }
+  ],
+  "plan": {
+    "Plan": {
+      "Node Type": "Sort",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 2619016.98,
+      "Total Cost": 2619016.99,
+      "Plan Rows": 1,
+      "Plan Width": 266,
+      "Disabled": false,
+      "Output": [
+        "p.group_key",
+        "p.name",
+        "p.role",
+        "p.group_kind",
+        "p.identity_count",
+        "p.priority_score",
+        "p.project_count",
+        "p.need_count",
+        "p.eligible_need_count",
+        "p.pursued_eligible_need_count",
+        "p.has_contact_actions",
+        "p.commercial_score",
+        "p.relevant_project_count",
+        "p.sectors",
+        "p.updated_at",
+        "p.total",
+        "p.account_total",
+        "p.project_total",
+        "p.need_total",
+        "(jsonb_agg(DISTINCT (jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb)))))",
+        "((p.commercial_score IS NOT NULL))"
+      ],
+      "Sort Key": [
+        "((p.commercial_score IS NOT NULL)) DESC",
+        "p.commercial_score DESC NULLS LAST",
+        "p.priority_score DESC NULLS LAST",
+        "p.name",
+        "p.group_key"
+      ],
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE matched",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "browse_rows",
+          "Schema": "public",
+          "Alias": "b_1",
+          "Startup Cost": 0.0,
+          "Total Cost": 14419.0,
+          "Plan Rows": 40000,
+          "Plan Width": 129,
+          "Disabled": false,
+          "Output": [
+            "CASE WHEN (((b_1.compact #>> '{project_metadata,asset_identity,kind}'::text[]) = 'us_well_api'::text) AND ((b_1.compact #>> '{project_metadata,asset_identity,identity_validated}'::text[]) = 'true'::text) AND ((b_1.compact #>> '{project_metadata,asset_identity,value}'::text[]) ~ '^[0-9]{10}([0-9]{2}){0,2}$'::text)) THEN ('api:'::text || (b_1.compact #>> '{project_metadata,asset_identity,value}'::text[])) ELSE ('project:'::text || (b_1.project_id)::text) END",
+            "b_1.project_id",
+            "b_1.need_id",
+            "COALESCE((('{}'::jsonb ->> (b_1.need_id)::text))::uuid, b_1.need_id)",
+            "(b_1.compact - '{customer_facts,customer_developments,customer_priority,contact_actions,contact_people}'::text[])",
+            "(CASE WHEN (jsonb_typeof((b_1.compact -> 'contact_actions'::text)) = 'array'::text) THEN (jsonb_array_length((b_1.compact -> 'contact_actions'::text)) > 0) ELSE false END OR CASE WHEN (jsonb_typeof((b_1.compact -> 'contact_people'::text)) = 'array'::text) THEN (jsonb_array_length((b_1.compact -> 'contact_people'::text)) > 0) ELSE false END)",
+            "CASE WHEN (((b_1.compact #>> '{customer_priority,score}'::text[]) ~ '^[0-9]{1,3}$'::text) AND ((b_1.compact #>> '{customer_priority,confidence}'::text[]) ~ '^[1-9][0-9]{0,2}$'::text)) THEN LEAST(100, ((b_1.compact #>> '{customer_priority,score}'::text[]))::integer) ELSE NULL::integer END",
+            "b_1.rank_score",
+            "b_1.updated_at"
+          ],
+          "Filter": "(b_1.generation_id = 'f637c22a-8f45-4d41-a020-c5e816e1c10a'::uuid)"
+        },
+        {
+          "Node Type": "CTE Scan",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE all_rows",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "CTE Name": "matched",
+          "Alias": "matched",
+          "Startup Cost": 0.0,
+          "Total Cost": 800.0,
+          "Plan Rows": 40000,
+          "Plan Width": 129,
+          "Disabled": false,
+          "Output": [
+            "matched.asset_key",
+            "matched.project_id",
+            "matched.need_id",
+            "matched.canonical_need_id",
+            "matched.compact",
+            "matched.has_contact_actions",
+            "matched.commercial_score",
+            "matched.rank_score",
+            "matched.updated_at"
+          ]
+        },
+        {
+          "Node Type": "Aggregate",
+          "Strategy": "Sorted",
+          "Partial Mode": "Simple",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE assets",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 7498.77,
+          "Total Cost": 9198.88,
+          "Plan Rows": 40000,
+          "Plan Width": 88,
+          "Disabled": false,
+          "Output": [
+            "a_1.asset_key",
+            "c.anchor_project_id",
+            "(count(DISTINCT a_1.canonical_need_id))::integer",
+            "(count(DISTINCT a_1.canonical_need_id) FILTER (WHERE (a_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer",
+            "(count(DISTINCT a_1.canonical_need_id) FILTER (WHERE (a_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer",
+            "max(a_1.rank_score)",
+            "max(a_1.updated_at)"
+          ],
+          "Group Key": [
+            "a_1.asset_key",
+            "c.anchor_project_id"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 7498.77,
+              "Total Cost": 7598.77,
+              "Plan Rows": 40000,
+              "Plan Width": 108,
+              "Disabled": false,
+              "Output": [
+                "a_1.asset_key",
+                "c.anchor_project_id",
+                "a_1.canonical_need_id",
+                "a_1.need_id",
+                "a_1.rank_score",
+                "a_1.updated_at"
+              ],
+              "Sort Key": [
+                "a_1.asset_key",
+                "c.anchor_project_id",
+                "a_1.canonical_need_id"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Hash Join",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Join Type": "Inner",
+                  "Startup Cost": 1206.5,
+                  "Total Cost": 2113.72,
+                  "Plan Rows": 40000,
+                  "Plan Width": 108,
+                  "Disabled": false,
+                  "Output": [
+                    "a_1.asset_key",
+                    "c.anchor_project_id",
+                    "a_1.canonical_need_id",
+                    "a_1.need_id",
+                    "a_1.rank_score",
+                    "a_1.updated_at"
+                  ],
+                  "Inner Unique": true,
+                  "Hash Cond": "(a_1.asset_key = c.asset_key)",
+                  "Plans": [
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "all_rows",
+                      "Alias": "a_1",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 800.0,
+                      "Plan Rows": 40000,
+                      "Plan Width": 76,
+                      "Disabled": false,
+                      "Output": [
+                        "a_1.asset_key",
+                        "a_1.project_id",
+                        "a_1.need_id",
+                        "a_1.canonical_need_id",
+                        "a_1.compact",
+                        "a_1.has_contact_actions",
+                        "a_1.commercial_score",
+                        "a_1.rank_score",
+                        "a_1.updated_at"
+                      ]
+                    },
+                    {
+                      "Node Type": "Hash",
+                      "Parent Relationship": "Inner",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 1204.0,
+                      "Total Cost": 1204.0,
+                      "Plan Rows": 200,
+                      "Plan Width": 64,
+                      "Disabled": false,
+                      "Output": [
+                        "c.anchor_project_id",
+                        "c.asset_key"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Subquery Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Alias": "c",
+                          "Startup Cost": 1200.0,
+                          "Total Cost": 1204.0,
+                          "Plan Rows": 200,
+                          "Plan Width": 64,
+                          "Disabled": false,
+                          "Output": [
+                            "c.anchor_project_id",
+                            "c.asset_key"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Aggregate",
+                              "Strategy": "Hashed",
+                              "Partial Mode": "Simple",
+                              "Parent Relationship": "Subquery",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 1200.0,
+                              "Total Cost": 1202.0,
+                              "Plan Rows": 200,
+                              "Plan Width": 64,
+                              "Disabled": false,
+                              "Output": [
+                                "matched_1.asset_key",
+                                "min((matched_1.project_id)::text)"
+                              ],
+                              "Group Key": [
+                                "matched_1.asset_key"
+                              ],
+                              "Planned Partitions": 0,
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "matched",
+                                  "Alias": "matched_1",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 800.0,
+                                  "Plan Rows": 40000,
+                                  "Plan Width": 48,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "matched_1.asset_key",
+                                    "matched_1.project_id",
+                                    "matched_1.need_id",
+                                    "matched_1.canonical_need_id",
+                                    "matched_1.compact",
+                                    "matched_1.has_contact_actions",
+                                    "matched_1.commercial_score",
+                                    "matched_1.rank_score",
+                                    "matched_1.updated_at"
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Unique",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE memberships",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 982.55,
+          "Total Cost": 982.57,
+          "Plan Rows": 1,
+          "Plan Width": 141,
+          "Disabled": false,
+          "Output": [
+            "membership_role_priorities.asset_key",
+            "membership_role_priorities.company_id",
+            "membership_role_priorities.rrc_operator_number",
+            "membership_role_priorities.organization_name",
+            "membership_role_priorities.role",
+            "membership_role_priorities.role_priority"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 982.55,
+              "Total Cost": 982.55,
+              "Plan Rows": 1,
+              "Plan Width": 141,
+              "Disabled": false,
+              "Output": [
+                "membership_role_priorities.asset_key",
+                "membership_role_priorities.company_id",
+                "membership_role_priorities.rrc_operator_number",
+                "membership_role_priorities.organization_name",
+                "membership_role_priorities.role",
+                "membership_role_priorities.role_priority"
+              ],
+              "Sort Key": [
+                "membership_role_priorities.asset_key",
+                "membership_role_priorities.company_id",
+                "membership_role_priorities.rrc_operator_number",
+                "membership_role_priorities.organization_name",
+                "membership_role_priorities.role",
+                "membership_role_priorities.role_priority"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Subquery Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Alias": "membership_role_priorities",
+                  "Startup Cost": 978.96,
+                  "Total Cost": 982.54,
+                  "Plan Rows": 1,
+                  "Plan Width": 141,
+                  "Disabled": false,
+                  "Output": [
+                    "membership_role_priorities.asset_key",
+                    "membership_role_priorities.company_id",
+                    "membership_role_priorities.rrc_operator_number",
+                    "membership_role_priorities.organization_name",
+                    "membership_role_priorities.role",
+                    "membership_role_priorities.role_priority"
+                  ],
+                  "Filter": "((membership_role_priorities.family_priority < 99) AND (membership_role_priorities.family_priority = membership_role_priorities.preferred_family))",
+                  "Plans": [
+                    {
+                      "Node Type": "WindowAgg",
+                      "Parent Relationship": "Subquery",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 978.96,
+                      "Total Cost": 981.74,
+                      "Plan Rows": 53,
+                      "Plan Width": 197,
+                      "Disabled": false,
+                      "Output": [
+                        "mc.asset_key",
+                        "mc.project_id",
+                        "NULL::text",
+                        "mc.company_id",
+                        "mc.rrc_operator_number",
+                        "mc.organization_name",
+                        "mc.role",
+                        "mc.role_priority",
+                        "CASE WHEN (mc.sector = 'oil_gas'::text) THEN CASE WHEN ((mc.role)::text = 'asset_operator'::text) THEN 0 WHEN ((mc.role)::text = ANY ('{owner_developer,owner_energy,owner_construction}'::text[])) THEN 1 ELSE 99 END WHEN (mc.sector = 'data_centers'::text) THEN CASE WHEN ((mc.role)::text = ANY ('{owner_developer,owner_energy,owner_construction}'::text[])) THEN 0 WHEN ((mc.role)::text = 'project_customer'::text) THEN 1 ELSE 2 END ELSE 0 END",
+                        "min(CASE WHEN (mc.sector = 'oil_gas'::text) THEN CASE WHEN ((mc.role)::text = 'asset_operator'::text) THEN 0 WHEN ((mc.role)::text = ANY ('{owner_developer,owner_energy,owner_construction}'::text[])) THEN 1 ELSE 99 END WHEN (mc.sector = 'data_centers'::text) THEN CASE WHEN ((mc.role)::text = ANY ('{owner_developer,owner_energy,owner_construction}'::text[])) THEN 0 WHEN ((mc.role)::text = 'project_customer'::text) THEN 1 ELSE 2 END ELSE 0 END) OVER w1"
+                      ],
+                      "Window": "w1 AS (PARTITION BY mc.project_id)",
+                      "Plans": [
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 978.96,
+                          "Total Cost": 979.09,
+                          "Plan Rows": 53,
+                          "Plan Width": 189,
+                          "Disabled": false,
+                          "Output": [
+                            "mc.project_id",
+                            "mc.asset_key",
+                            "mc.company_id",
+                            "mc.rrc_operator_number",
+                            "mc.organization_name",
+                            "mc.role",
+                            "mc.role_priority",
+                            "mc.sector"
+                          ],
+                          "Sort Key": [
+                            "mc.project_id"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Subquery Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Alias": "mc",
+                              "Startup Cost": 975.72,
+                              "Total Cost": 977.44,
+                              "Plan Rows": 53,
+                              "Plan Width": 189,
+                              "Disabled": false,
+                              "Output": [
+                                "mc.project_id",
+                                "mc.asset_key",
+                                "mc.company_id",
+                                "mc.rrc_operator_number",
+                                "mc.organization_name",
+                                "mc.role",
+                                "mc.role_priority",
+                                "mc.sector"
+                              ],
+                              "Plans": [
+                                {
+                                  "Node Type": "Unique",
+                                  "Parent Relationship": "Subquery",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 975.72,
+                                  "Total Cost": 976.91,
+                                  "Plan Rows": 53,
+                                  "Plan Width": 189,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "r.asset_key",
+                                    "r.project_id",
+                                    "((r.compact #>> '{project_metadata,sector}'::text[]))",
+                                    "((bcm.company_identity_id)::text)",
+                                    "ci.rrc_operator_number",
+                                    "bcm.organization_name",
+                                    "bcm.role",
+                                    "(array_position('{owner_developer,owner_energy,owner_construction,asset_operator,project_customer}'::text[], (bcm.role)::text))"
+                                  ],
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Sort",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Startup Cost": 975.72,
+                                      "Total Cost": 975.85,
+                                      "Plan Rows": 53,
+                                      "Plan Width": 189,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "r.asset_key",
+                                        "r.project_id",
+                                        "((r.compact #>> '{project_metadata,sector}'::text[]))",
+                                        "((bcm.company_identity_id)::text)",
+                                        "ci.rrc_operator_number",
+                                        "bcm.organization_name",
+                                        "bcm.role",
+                                        "(array_position('{owner_developer,owner_energy,owner_construction,asset_operator,project_customer}'::text[], (bcm.role)::text))"
+                                      ],
+                                      "Sort Key": [
+                                        "r.asset_key",
+                                        "r.project_id",
+                                        "((r.compact #>> '{project_metadata,sector}'::text[]))",
+                                        "((bcm.company_identity_id)::text)",
+                                        "ci.rrc_operator_number",
+                                        "bcm.organization_name",
+                                        "bcm.role",
+                                        "(array_position('{owner_developer,owner_energy,owner_construction,asset_operator,project_customer}'::text[], (bcm.role)::text))"
+                                      ],
+                                      "Plans": [
+                                        {
+                                          "Node Type": "Nested Loop",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "Join Type": "Left",
+                                          "Startup Cost": 4.06,
+                                          "Total Cost": 974.2,
+                                          "Plan Rows": 53,
+                                          "Plan Width": 189,
+                                          "Disabled": false,
+                                          "Output": [
+                                            "r.asset_key",
+                                            "r.project_id",
+                                            "(r.compact #>> '{project_metadata,sector}'::text[])",
+                                            "(bcm.company_identity_id)::text",
+                                            "ci.rrc_operator_number",
+                                            "bcm.organization_name",
+                                            "bcm.role",
+                                            "array_position('{owner_developer,owner_energy,owner_construction,asset_operator,project_customer}'::text[], (bcm.role)::text)"
+                                          ],
+                                          "Inner Unique": true,
+                                          "Plans": [
+                                            {
+                                              "Node Type": "Hash Join",
+                                              "Parent Relationship": "Outer",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Join Type": "Inner",
+                                              "Startup Cost": 3.9,
+                                              "Total Cost": 954.43,
+                                              "Plan Rows": 53,
+                                              "Plan Width": 141,
+                                              "Disabled": false,
+                                              "Output": [
+                                                "r.asset_key",
+                                                "r.project_id",
+                                                "r.compact",
+                                                "bcm.company_identity_id",
+                                                "bcm.organization_name",
+                                                "bcm.role"
+                                              ],
+                                              "Inner Unique": false,
+                                              "Hash Cond": "(r.project_id = bcm.project_id)",
+                                              "Plans": [
+                                                {
+                                                  "Node Type": "CTE Scan",
+                                                  "Parent Relationship": "Outer",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "CTE Name": "all_rows",
+                                                  "Alias": "r",
+                                                  "Startup Cost": 0.0,
+                                                  "Total Cost": 800.0,
+                                                  "Plan Rows": 40000,
+                                                  "Plan Width": 80,
+                                                  "Disabled": false,
+                                                  "Output": [
+                                                    "r.asset_key",
+                                                    "r.project_id",
+                                                    "r.need_id",
+                                                    "r.canonical_need_id",
+                                                    "r.compact",
+                                                    "r.has_contact_actions",
+                                                    "r.commercial_score",
+                                                    "r.rank_score",
+                                                    "r.updated_at"
+                                                  ]
+                                                },
+                                                {
+                                                  "Node Type": "Hash",
+                                                  "Parent Relationship": "Inner",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Startup Cost": 3.24,
+                                                  "Total Cost": 3.24,
+                                                  "Plan Rows": 53,
+                                                  "Plan Width": 77,
+                                                  "Disabled": false,
+                                                  "Output": [
+                                                    "bcm.company_identity_id",
+                                                    "bcm.organization_name",
+                                                    "bcm.role",
+                                                    "bcm.project_id"
+                                                  ],
+                                                  "Plans": [
+                                                    {
+                                                      "Node Type": "Seq Scan",
+                                                      "Parent Relationship": "Outer",
+                                                      "Parallel Aware": false,
+                                                      "Async Capable": false,
+                                                      "Relation Name": "browse_customer_memberships",
+                                                      "Schema": "public",
+                                                      "Alias": "bcm",
+                                                      "Startup Cost": 0.0,
+                                                      "Total Cost": 3.24,
+                                                      "Plan Rows": 53,
+                                                      "Plan Width": 77,
+                                                      "Disabled": false,
+                                                      "Output": [
+                                                        "bcm.company_identity_id",
+                                                        "bcm.organization_name",
+                                                        "bcm.role",
+                                                        "bcm.project_id"
+                                                      ],
+                                                      "Filter": "((bcm.generation_id = 'f637c22a-8f45-4d41-a020-c5e816e1c10a'::uuid) AND ((bcm.role)::text = ANY ('{owner_developer,owner_energy,owner_construction,asset_operator,project_customer}'::text[])))"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "Node Type": "Memoize",
+                                              "Parent Relationship": "Inner",
+                                              "Parallel Aware": false,
+                                              "Async Capable": false,
+                                              "Startup Cost": 0.16,
+                                              "Total Cost": 1.08,
+                                              "Plan Rows": 1,
+                                              "Plan Width": 44,
+                                              "Disabled": false,
+                                              "Output": [
+                                                "ci.rrc_operator_number",
+                                                "ci.id"
+                                              ],
+                                              "Cache Key": "bcm.company_identity_id",
+                                              "Cache Mode": "logical",
+                                              "Plans": [
+                                                {
+                                                  "Node Type": "Index Scan",
+                                                  "Parent Relationship": "Outer",
+                                                  "Parallel Aware": false,
+                                                  "Async Capable": false,
+                                                  "Scan Direction": "Forward",
+                                                  "Index Name": "company_identities_pkey",
+                                                  "Relation Name": "company_identities",
+                                                  "Schema": "public",
+                                                  "Alias": "ci",
+                                                  "Startup Cost": 0.15,
+                                                  "Total Cost": 1.07,
+                                                  "Plan Rows": 1,
+                                                  "Plan Width": 44,
+                                                  "Disabled": false,
+                                                  "Output": [
+                                                    "ci.rrc_operator_number",
+                                                    "ci.id"
+                                                  ],
+                                                  "Index Cond": "(ci.id = bcm.company_identity_id)"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Aggregate",
+          "Strategy": "Sorted",
+          "Partial Mode": "Simple",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE single_membership",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 0.03,
+          "Total Cost": 0.13,
+          "Plan Rows": 1,
+          "Plan Width": 160,
+          "Disabled": false,
+          "Output": [
+            "memberships.asset_key",
+            "min(memberships.company_id)",
+            "min((memberships.rrc_operator_number)::text)",
+            "(array_agg(memberships.organization_name ORDER BY memberships.role_priority, (lower(memberships.organization_name)), memberships.organization_name))[1]",
+            "(array_agg(memberships.role ORDER BY memberships.role_priority, (lower(memberships.organization_name)), memberships.organization_name))[1]"
+          ],
+          "Group Key": [
+            "memberships.asset_key"
+          ],
+          "Filter": "(count(DISTINCT memberships.company_id) = 1)",
+          "Plans": [
+            {
+              "Node Type": "Incremental Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 0.03,
+              "Total Cost": 0.08,
+              "Plan Rows": 2,
+              "Plan Width": 226,
+              "Disabled": false,
+              "Output": [
+                "memberships.asset_key",
+                "memberships.company_id",
+                "memberships.rrc_operator_number",
+                "memberships.organization_name",
+                "memberships.role_priority",
+                "memberships.role",
+                "(lower(memberships.organization_name))"
+              ],
+              "Sort Key": [
+                "memberships.asset_key",
+                "memberships.role_priority",
+                "(lower(memberships.organization_name))",
+                "memberships.organization_name"
+              ],
+              "Presorted Key": [
+                "memberships.asset_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "CTE Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "CTE Name": "memberships",
+                  "Alias": "memberships",
+                  "Startup Cost": 0.0,
+                  "Total Cost": 0.02,
+                  "Plan Rows": 1,
+                  "Plan Width": 226,
+                  "Disabled": false,
+                  "Output": [
+                    "memberships.asset_key",
+                    "memberships.company_id",
+                    "memberships.rrc_operator_number",
+                    "memberships.organization_name",
+                    "memberships.role_priority",
+                    "memberships.role",
+                    "lower(memberships.organization_name)"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Aggregate",
+          "Strategy": "Sorted",
+          "Partial Mode": "Simple",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE unresolved_conflicts",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 2074.0,
+          "Total Cost": 2075.03,
+          "Plan Rows": 22,
+          "Plan Width": 64,
+          "Disabled": false,
+          "Output": [
+            "memberships_1.asset_key",
+            "min((min(memberships_1.organization_name)))"
+          ],
+          "Group Key": [
+            "memberships_1.asset_key"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Merge Append",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 2074.0,
+              "Total Cost": 2074.7,
+              "Plan Rows": 22,
+              "Plan Width": 64,
+              "Disabled": false,
+              "Sort Key": [
+                "memberships_1.asset_key"
+              ],
+              "Subplans Removed": 0,
+              "Plans": [
+                {
+                  "Node Type": "Aggregate",
+                  "Strategy": "Sorted",
+                  "Partial Mode": "Simple",
+                  "Parent Relationship": "Member",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 0.0,
+                  "Total Cost": 0.04,
+                  "Plan Rows": 1,
+                  "Plan Width": 64,
+                  "Disabled": false,
+                  "Output": [
+                    "memberships_1.asset_key",
+                    "min(memberships_1.organization_name)"
+                  ],
+                  "Group Key": [
+                    "memberships_1.asset_key"
+                  ],
+                  "Filter": "(count(DISTINCT memberships_1.company_id) > 1)",
+                  "Plans": [
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "memberships",
+                      "Alias": "memberships_1",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 0.02,
+                      "Plan Rows": 1,
+                      "Plan Width": 96,
+                      "Disabled": false,
+                      "Output": [
+                        "memberships_1.asset_key",
+                        "memberships_1.company_id",
+                        "memberships_1.rrc_operator_number",
+                        "memberships_1.organization_name",
+                        "memberships_1.role",
+                        "memberships_1.role_priority"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Node Type": "Aggregate",
+                  "Strategy": "Sorted",
+                  "Partial Mode": "Simple",
+                  "Parent Relationship": "Member",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 958.21,
+                  "Total Cost": 958.23,
+                  "Plan Rows": 1,
+                  "Plan Width": 64,
+                  "Disabled": false,
+                  "Output": [
+                    "r_1.asset_key",
+                    "min(uc.organization_name)"
+                  ],
+                  "Group Key": [
+                    "r_1.asset_key"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Sort",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 958.21,
+                      "Total Cost": 958.22,
+                      "Plan Rows": 1,
+                      "Plan Width": 64,
+                      "Disabled": false,
+                      "Output": [
+                        "r_1.asset_key",
+                        "uc.organization_name"
+                      ],
+                      "Sort Key": [
+                        "r_1.asset_key"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Hash Join",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Join Type": "Inner",
+                          "Startup Cost": 8.19,
+                          "Total Cost": 958.2,
+                          "Plan Rows": 1,
+                          "Plan Width": 64,
+                          "Disabled": false,
+                          "Output": [
+                            "r_1.asset_key",
+                            "uc.organization_name"
+                          ],
+                          "Inner Unique": false,
+                          "Hash Cond": "(r_1.project_id = uc.project_id)",
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "all_rows",
+                              "Alias": "r_1",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 800.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 48,
+                              "Disabled": false,
+                              "Output": [
+                                "r_1.asset_key",
+                                "r_1.project_id",
+                                "r_1.need_id",
+                                "r_1.canonical_need_id",
+                                "r_1.compact",
+                                "r_1.has_contact_actions",
+                                "r_1.commercial_score",
+                                "r_1.rank_score",
+                                "r_1.updated_at"
+                              ]
+                            },
+                            {
+                              "Node Type": "Hash",
+                              "Parent Relationship": "Inner",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 8.18,
+                              "Total Cost": 8.18,
+                              "Plan Rows": 1,
+                              "Plan Width": 48,
+                              "Disabled": false,
+                              "Output": [
+                                "uc.organization_name",
+                                "uc.project_id"
+                              ],
+                              "Plans": [
+                                {
+                                  "Node Type": "Index Only Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Scan Direction": "Forward",
+                                  "Index Name": "browse_unresolved_customers_pkey",
+                                  "Relation Name": "browse_unresolved_customers",
+                                  "Schema": "public",
+                                  "Alias": "uc",
+                                  "Startup Cost": 0.15,
+                                  "Total Cost": 8.18,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 48,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "uc.organization_name",
+                                    "uc.project_id"
+                                  ],
+                                  "Index Cond": "((uc.generation_id = 'f637c22a-8f45-4d41-a020-c5e816e1c10a'::uuid) AND (uc.role = 'conflicting_customer'::text))"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Node Type": "Aggregate",
+                  "Strategy": "Sorted",
+                  "Partial Mode": "Simple",
+                  "Parent Relationship": "Member",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 1115.77,
+                  "Total Cost": 1116.12,
+                  "Plan Rows": 20,
+                  "Plan Width": 64,
+                  "Disabled": false,
+                  "Output": [
+                    "r_2.asset_key",
+                    "min(sm.organization_name)"
+                  ],
+                  "Group Key": [
+                    "r_2.asset_key"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Sort",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 1115.77,
+                      "Total Cost": 1115.82,
+                      "Plan Rows": 20,
+                      "Plan Width": 64,
+                      "Disabled": false,
+                      "Output": [
+                        "r_2.asset_key",
+                        "sm.organization_name"
+                      ],
+                      "Sort Key": [
+                        "r_2.asset_key"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Hash Join",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Join Type": "Inner",
+                          "Startup Cost": 0.04,
+                          "Total Cost": 1115.34,
+                          "Plan Rows": 20,
+                          "Plan Width": 64,
+                          "Disabled": false,
+                          "Output": [
+                            "r_2.asset_key",
+                            "sm.organization_name"
+                          ],
+                          "Inner Unique": false,
+                          "Hash Cond": "(r_2.asset_key = sm.asset_key)",
+                          "Join Filter": "((r_2.compact #>> '{project_metadata,oil_gas,operator_number}'::text[]) <> sm.rrc_operator_number)",
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "all_rows",
+                              "Alias": "r_2",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 1100.0,
+                              "Plan Rows": 4000,
+                              "Plan Width": 64,
+                              "Disabled": false,
+                              "Output": [
+                                "r_2.asset_key",
+                                "r_2.project_id",
+                                "r_2.need_id",
+                                "r_2.canonical_need_id",
+                                "r_2.compact",
+                                "r_2.has_contact_actions",
+                                "r_2.commercial_score",
+                                "r_2.rank_score",
+                                "r_2.updated_at"
+                              ],
+                              "Filter": "(NULLIF((r_2.compact #>> '{project_metadata,oil_gas,operator_number}'::text[]), ''::text) ~ '^[0-9]+$'::text)"
+                            },
+                            {
+                              "Node Type": "Hash",
+                              "Parent Relationship": "Inner",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 0.03,
+                              "Total Cost": 0.03,
+                              "Plan Rows": 1,
+                              "Plan Width": 96,
+                              "Disabled": false,
+                              "Output": [
+                                "sm.organization_name",
+                                "sm.asset_key",
+                                "sm.rrc_operator_number"
+                              ],
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "single_membership",
+                                  "Alias": "sm",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 0.03,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 96,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "sm.organization_name",
+                                    "sm.asset_key",
+                                    "sm.rrc_operator_number"
+                                  ],
+                                  "Filter": "((sm.rrc_operator_number IS NOT NULL) AND (lower((sm.role)::text) ~~ '%operator%'::text))"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Unique",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE same_name_asset_eligible",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 3909.58,
+          "Total Cost": 3909.59,
+          "Plan Rows": 1,
+          "Plan Width": 128,
+          "Disabled": false,
+          "Output": [
+            "r_3.asset_key",
+            "sm_1.company_id",
+            "sm_1.organization_name",
+            "sm_1.role"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 3909.58,
+              "Total Cost": 3909.58,
+              "Plan Rows": 1,
+              "Plan Width": 128,
+              "Disabled": false,
+              "Output": [
+                "r_3.asset_key",
+                "sm_1.company_id",
+                "sm_1.organization_name",
+                "sm_1.role"
+              ],
+              "Sort Key": [
+                "r_3.asset_key",
+                "sm_1.company_id",
+                "sm_1.organization_name"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Nested Loop",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Join Type": "Anti",
+                  "Startup Cost": 1800.57,
+                  "Total Cost": 3909.57,
+                  "Plan Rows": 1,
+                  "Plan Width": 128,
+                  "Disabled": false,
+                  "Output": [
+                    "r_3.asset_key",
+                    "sm_1.company_id",
+                    "sm_1.organization_name",
+                    "sm_1.role"
+                  ],
+                  "Inner Unique": false,
+                  "Join Filter": "(nr.asset_key = r_3.asset_key)",
+                  "Plans": [
+                    {
+                      "Node Type": "Hash Join",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Join Type": "Right Anti",
+                      "Startup Cost": 1800.57,
+                      "Total Cost": 2759.57,
+                      "Plan Rows": 1,
+                      "Plan Width": 128,
+                      "Disabled": false,
+                      "Output": [
+                        "r_3.asset_key",
+                        "sm_1.company_id",
+                        "sm_1.organization_name",
+                        "sm_1.role"
+                      ],
+                      "Inner Unique": false,
+                      "Hash Cond": "(nr_1.asset_key = r_3.asset_key)",
+                      "Join Filter": "((((nr_1.compact #>> '{project_metadata,sector}'::text[]) = 'data_centers'::text) AND (convert_to((nr_1.compact #>> '{project_metadata,data_center,owner_developer}'::text[]), 'UTF8'::name) = convert_to(sm_1.organization_name, 'UTF8'::name)) AND ((nr_1.compact #>> '{project_metadata,event,source}'::text[]) = 'texas-tdlr-tabs-data-centers'::text) AND CASE WHEN (jsonb_typeof((nr_1.compact #> '{project_metadata,event,evidence_refs}'::text[])) = 'array'::text) THEN (jsonb_array_length((nr_1.compact #> '{project_metadata,event,evidence_refs}'::text[])) > 0) ELSE false END) IS NOT TRUE)",
+                      "Plans": [
+                        {
+                          "Node Type": "CTE Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "CTE Name": "all_rows",
+                          "Alias": "nr_1",
+                          "Startup Cost": 0.0,
+                          "Total Cost": 800.0,
+                          "Plan Rows": 40000,
+                          "Plan Width": 64,
+                          "Disabled": false,
+                          "Output": [
+                            "nr_1.asset_key",
+                            "nr_1.project_id",
+                            "nr_1.need_id",
+                            "nr_1.canonical_need_id",
+                            "nr_1.compact",
+                            "nr_1.has_contact_actions",
+                            "nr_1.commercial_score",
+                            "nr_1.rank_score",
+                            "nr_1.updated_at"
+                          ]
+                        },
+                        {
+                          "Node Type": "Hash",
+                          "Parent Relationship": "Inner",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 1800.56,
+                          "Total Cost": 1800.56,
+                          "Plan Rows": 1,
+                          "Plan Width": 128,
+                          "Disabled": false,
+                          "Output": [
+                            "r_3.asset_key",
+                            "sm_1.company_id",
+                            "sm_1.organization_name",
+                            "sm_1.role"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Merge Join",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Anti",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 1800.56,
+                              "Plan Rows": 1,
+                              "Plan Width": 128,
+                              "Disabled": false,
+                              "Output": [
+                                "r_3.asset_key",
+                                "sm_1.company_id",
+                                "sm_1.organization_name",
+                                "sm_1.role"
+                              ],
+                              "Inner Unique": false,
+                              "Merge Cond": "(r_3.asset_key = uc_1.asset_key)",
+                              "Plans": [
+                                {
+                                  "Node Type": "Nested Loop",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Join Type": "Inner",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 1800.05,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 128,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "r_3.asset_key",
+                                    "sm_1.company_id",
+                                    "sm_1.organization_name",
+                                    "sm_1.role"
+                                  ],
+                                  "Inner Unique": false,
+                                  "Join Filter": "((r_3.asset_key = sm_1.asset_key) AND (convert_to((r_3.compact #>> '{project_metadata,data_center,owner_developer}'::text[]), 'UTF8'::name) = convert_to(sm_1.organization_name, 'UTF8'::name)))",
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "single_membership",
+                                      "Alias": "sm_1",
+                                      "Startup Cost": 0.0,
+                                      "Total Cost": 0.03,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 128,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "sm_1.asset_key",
+                                        "sm_1.company_id",
+                                        "sm_1.rrc_operator_number",
+                                        "sm_1.organization_name",
+                                        "sm_1.role"
+                                      ],
+                                      "Filter": "((NULLIF(sm_1.organization_name, ''::text) IS NOT NULL) AND ((sm_1.role)::text = 'owner_developer'::text))"
+                                    },
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Inner",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "all_rows",
+                                      "Alias": "r_3",
+                                      "Startup Cost": 0.0,
+                                      "Total Cost": 1800.0,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 64,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "r_3.asset_key",
+                                        "r_3.project_id",
+                                        "r_3.need_id",
+                                        "r_3.canonical_need_id",
+                                        "r_3.compact",
+                                        "r_3.has_contact_actions",
+                                        "r_3.commercial_score",
+                                        "r_3.rank_score",
+                                        "r_3.updated_at"
+                                      ],
+                                      "Filter": "(((r_3.compact #>> '{project_metadata,sector}'::text[]) = 'data_centers'::text) AND ((r_3.compact #>> '{project_metadata,event,source}'::text[]) = 'texas-tdlr-tabs-data-centers'::text) AND CASE WHEN (jsonb_typeof((r_3.compact #> '{project_metadata,event,evidence_refs}'::text[])) = 'array'::text) THEN (jsonb_array_length((r_3.compact #> '{project_metadata,event,evidence_refs}'::text[])) > 0) ELSE false END)"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "unresolved_conflicts",
+                                  "Alias": "uc_1",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 0.44,
+                                  "Plan Rows": 22,
+                                  "Plan Width": 32,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "uc_1.asset_key",
+                                    "uc_1.organization_name"
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Inner",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "all_rows",
+                      "Alias": "nr",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 1100.0,
+                      "Plan Rows": 4000,
+                      "Plan Width": 32,
+                      "Disabled": false,
+                      "Output": [
+                        "nr.asset_key",
+                        "nr.project_id",
+                        "nr.need_id",
+                        "nr.canonical_need_id",
+                        "nr.compact",
+                        "nr.has_contact_actions",
+                        "nr.commercial_score",
+                        "nr.rank_score",
+                        "nr.updated_at"
+                      ],
+                      "Filter": "(NULLIF((nr.compact #>> '{project_metadata,oil_gas,operator_number}'::text[]), ''::text) ~ '^[0-9]+$'::text)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE same_name_eligible",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Join Type": "Anti",
+          "Startup Cost": 0.0,
+          "Total Cost": 912.54,
+          "Plan Rows": 1,
+          "Plan Width": 128,
+          "Disabled": false,
+          "Output": [
+            "candidate.asset_key",
+            "candidate.company_id",
+            "candidate.organization_name",
+            "candidate.role"
+          ],
+          "Inner Unique": false,
+          "Join Filter": "((csm.company_id = candidate.company_id) AND (NOT (ANY ((ca.asset_key = (hashed SubPlan 9).col1) AND (csm.company_id = (hashed SubPlan 9).col2) AND ((candidate.role)::text = (hashed SubPlan 9).col3) AND (convert_to(candidate.organization_name, 'UTF8'::name) = (hashed SubPlan 9).col4)))))",
+          "Plans": [
+            {
+              "Node Type": "CTE Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "CTE Name": "same_name_asset_eligible",
+              "Alias": "candidate",
+              "Startup Cost": 0.0,
+              "Total Cost": 0.02,
+              "Plan Rows": 1,
+              "Plan Width": 128,
+              "Disabled": false,
+              "Output": [
+                "candidate.asset_key",
+                "candidate.company_id",
+                "candidate.organization_name",
+                "candidate.role"
+              ]
+            },
+            {
+              "Node Type": "Merge Join",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Join Type": "Inner",
+              "Startup Cost": 0.0,
+              "Total Cost": 903.02,
+              "Plan Rows": 200,
+              "Plan Width": 64,
+              "Disabled": false,
+              "Output": [
+                "ca.asset_key",
+                "csm.company_id"
+              ],
+              "Inner Unique": false,
+              "Merge Cond": "(ca.asset_key = csm.asset_key)",
+              "Plans": [
+                {
+                  "Node Type": "CTE Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "CTE Name": "assets",
+                  "Alias": "ca",
+                  "Startup Cost": 0.0,
+                  "Total Cost": 800.0,
+                  "Plan Rows": 40000,
+                  "Plan Width": 32,
+                  "Disabled": false,
+                  "Output": [
+                    "ca.asset_key",
+                    "ca.anchor_project_id",
+                    "ca.need_count",
+                    "ca.eligible_need_count",
+                    "ca.pursued_eligible_need_count",
+                    "ca.priority_score",
+                    "ca.updated_at"
+                  ]
+                },
+                {
+                  "Node Type": "Materialize",
+                  "Parent Relationship": "Inner",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 0.0,
+                  "Total Cost": 0.02,
+                  "Plan Rows": 1,
+                  "Plan Width": 64,
+                  "Disabled": false,
+                  "Output": [
+                    "csm.asset_key",
+                    "csm.company_id",
+                    "csm.rrc_operator_number",
+                    "csm.organization_name",
+                    "csm.role"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "single_membership",
+                      "Alias": "csm",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 0.02,
+                      "Plan Rows": 1,
+                      "Plan Width": 64,
+                      "Disabled": false,
+                      "Output": [
+                        "csm.asset_key",
+                        "csm.company_id",
+                        "csm.rrc_operator_number",
+                        "csm.organization_name",
+                        "csm.role"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "CTE Scan",
+              "Parent Relationship": "SubPlan",
+              "Subplan Name": "SubPlan 9",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "CTE Name": "same_name_asset_eligible",
+              "Alias": "eligible",
+              "Startup Cost": 0.0,
+              "Total Cost": 0.02,
+              "Plan Rows": 1,
+              "Plan Width": 128,
+              "Disabled": false,
+              "Output": [
+                "eligible.asset_key",
+                "eligible.company_id",
+                "eligible.role",
+                "convert_to(eligible.organization_name, 'UTF8'::name)"
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Hash Join",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE assigned",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Join Type": "Inner",
+          "Startup Cost": 8800.67,
+          "Total Cost": 13080.38,
+          "Plan Rows": 40000,
+          "Plan Width": 444,
+          "Disabled": false,
+          "Output": [
+            "a_2.asset_key",
+            "a_2.anchor_project_id",
+            "a_2.need_count",
+            "a_2.eligible_need_count",
+            "a_2.pursued_eligible_need_count",
+            "a_2.priority_score",
+            "a_2.updated_at",
+            "sm_2.company_id",
+            "sm_2.organization_name",
+            "sm_2.role",
+            "uc_2.organization_name",
+            "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+            "((count(DISTINCT same_name_eligible.company_id))::integer)",
+            "CASE WHEN ((((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))) IS NOT NULL) THEN (((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))) WHEN (uc_2.asset_key IS NOT NULL) THEN ('conflict:'::text || a_2.asset_key) WHEN (sm_2.rrc_operator_number IS NOT NULL) THEN ('rrc:'::text || sm_2.rrc_operator_number) WHEN (NULLIF(r_4.operator_number, ''::text) ~ '^[0-9]+$'::text) THEN ('rrc:'::text || r_4.operator_number) WHEN (sm_2.company_id IS NOT NULL) THEN ('company:'::text || sm_2.company_id) ELSE ('unresolved:'::text || a_2.asset_key) END",
+            "CASE WHEN (uc_2.asset_key IS NOT NULL) THEN ('conflict:'::text || a_2.asset_key) WHEN (sm_2.rrc_operator_number IS NOT NULL) THEN ('rrc:'::text || sm_2.rrc_operator_number) WHEN (NULLIF(r_4.operator_number, ''::text) ~ '^[0-9]+$'::text) THEN ('rrc:'::text || r_4.operator_number) WHEN (sm_2.company_id IS NOT NULL) THEN ('company:'::text || sm_2.company_id) ELSE ('unresolved:'::text || a_2.asset_key) END",
+            "CASE WHEN (uc_2.asset_key IS NOT NULL) THEN COALESCE(NULLIF(r_4.project_title, ''::text), NULLIF(r_4.browse_title, ''::text), 'Unresolved project'::text) WHEN ((((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))) IS NOT NULL) THEN sm_2.organization_name WHEN (sm_2.rrc_operator_number IS NOT NULL) THEN COALESCE(NULLIF(r_4.operator_name, ''::text), sm_2.organization_name) WHEN (NULLIF(r_4.operator_number, ''::text) ~ '^[0-9]+$'::text) THEN COALESCE(NULLIF(r_4.operator_name, ''::text), ('RRC operator '::text || r_4.operator_number)) WHEN (sm_2.company_id IS NOT NULL) THEN sm_2.organization_name ELSE COALESCE(NULLIF(r_4.project_title, ''::text), NULLIF(r_4.browse_title, ''::text), 'Unresolved project'::text) END",
+            "CASE WHEN ((((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))) IS NOT NULL) THEN 'unresolved'::text WHEN (uc_2.asset_key IS NOT NULL) THEN 'unresolved'::text WHEN (NULLIF(r_4.operator_number, ''::text) ~ '^[0-9]+$'::text) THEN 'operator'::text WHEN ((sm_2.company_id IS NOT NULL) AND (lower((sm_2.role)::text) ~~ '%operator%'::text)) THEN 'operator'::text WHEN (sm_2.company_id IS NOT NULL) THEN 'customer'::text ELSE 'unresolved'::text END",
+            "CASE WHEN ((((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))) IS NOT NULL) THEN 'same_name_unconfirmed'::text WHEN (uc_2.asset_key IS NOT NULL) THEN 'unresolved'::text WHEN ((sm_2.rrc_operator_number IS NOT NULL) OR (NULLIF(r_4.operator_number, ''::text) ~ '^[0-9]+$'::text) OR (sm_2.company_id IS NOT NULL)) THEN 'resolved_identity'::text ELSE 'unresolved'::text END",
+            "COALESCE(NULLIF(r_4.sector, ''::text), 'unknown'::text)"
+          ],
+          "Inner Unique": true,
+          "Hash Cond": "(a_2.asset_key = r_4.asset_key)",
+          "Plans": [
+            {
+              "Node Type": "Merge Join",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Join Type": "Left",
+              "Startup Cost": 0.13,
+              "Total Cost": 1172.62,
+              "Plan Rows": 40000,
+              "Plan Width": 316,
+              "Disabled": false,
+              "Output": [
+                "a_2.asset_key",
+                "a_2.anchor_project_id",
+                "a_2.need_count",
+                "a_2.eligible_need_count",
+                "a_2.pursued_eligible_need_count",
+                "a_2.priority_score",
+                "a_2.updated_at",
+                "sm_2.company_id",
+                "sm_2.organization_name",
+                "sm_2.role",
+                "sm_2.rrc_operator_number",
+                "uc_2.organization_name",
+                "uc_2.asset_key",
+                "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+                "((count(DISTINCT same_name_eligible.company_id))::integer)"
+              ],
+              "Inner Unique": false,
+              "Merge Cond": "(a_2.asset_key = e.asset_key)",
+              "Plans": [
+                {
+                  "Node Type": "Merge Join",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Join Type": "Left",
+                  "Startup Cost": 0.0,
+                  "Total Cost": 1069.46,
+                  "Plan Rows": 40000,
+                  "Plan Width": 280,
+                  "Disabled": false,
+                  "Output": [
+                    "a_2.asset_key",
+                    "a_2.anchor_project_id",
+                    "a_2.need_count",
+                    "a_2.eligible_need_count",
+                    "a_2.pursued_eligible_need_count",
+                    "a_2.priority_score",
+                    "a_2.updated_at",
+                    "sm_2.company_id",
+                    "sm_2.organization_name",
+                    "sm_2.role",
+                    "sm_2.rrc_operator_number",
+                    "uc_2.organization_name",
+                    "uc_2.asset_key"
+                  ],
+                  "Inner Unique": false,
+                  "Merge Cond": "(a_2.asset_key = uc_2.asset_key)",
+                  "Plans": [
+                    {
+                      "Node Type": "Merge Join",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Join Type": "Left",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 903.02,
+                      "Plan Rows": 40000,
+                      "Plan Width": 216,
+                      "Disabled": false,
+                      "Output": [
+                        "a_2.asset_key",
+                        "a_2.anchor_project_id",
+                        "a_2.need_count",
+                        "a_2.eligible_need_count",
+                        "a_2.pursued_eligible_need_count",
+                        "a_2.priority_score",
+                        "a_2.updated_at",
+                        "sm_2.company_id",
+                        "sm_2.organization_name",
+                        "sm_2.role",
+                        "sm_2.rrc_operator_number"
+                      ],
+                      "Inner Unique": false,
+                      "Merge Cond": "(a_2.asset_key = sm_2.asset_key)",
+                      "Plans": [
+                        {
+                          "Node Type": "CTE Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "CTE Name": "assets",
+                          "Alias": "a_2",
+                          "Startup Cost": 0.0,
+                          "Total Cost": 800.0,
+                          "Plan Rows": 40000,
+                          "Plan Width": 88,
+                          "Disabled": false,
+                          "Output": [
+                            "a_2.asset_key",
+                            "a_2.anchor_project_id",
+                            "a_2.need_count",
+                            "a_2.eligible_need_count",
+                            "a_2.pursued_eligible_need_count",
+                            "a_2.priority_score",
+                            "a_2.updated_at"
+                          ]
+                        },
+                        {
+                          "Node Type": "Materialize",
+                          "Parent Relationship": "Inner",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 0.0,
+                          "Total Cost": 0.02,
+                          "Plan Rows": 1,
+                          "Plan Width": 160,
+                          "Disabled": false,
+                          "Output": [
+                            "sm_2.asset_key",
+                            "sm_2.company_id",
+                            "sm_2.rrc_operator_number",
+                            "sm_2.organization_name",
+                            "sm_2.role"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "single_membership",
+                              "Alias": "sm_2",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 0.02,
+                              "Plan Rows": 1,
+                              "Plan Width": 160,
+                              "Disabled": false,
+                              "Output": [
+                                "sm_2.asset_key",
+                                "sm_2.company_id",
+                                "sm_2.rrc_operator_number",
+                                "sm_2.organization_name",
+                                "sm_2.role"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "Node Type": "Materialize",
+                      "Parent Relationship": "Inner",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 0.0,
+                      "Total Cost": 0.49,
+                      "Plan Rows": 22,
+                      "Plan Width": 64,
+                      "Disabled": false,
+                      "Output": [
+                        "uc_2.asset_key",
+                        "uc_2.organization_name"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "CTE Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "CTE Name": "unresolved_conflicts",
+                          "Alias": "uc_2",
+                          "Startup Cost": 0.0,
+                          "Total Cost": 0.44,
+                          "Plan Rows": 22,
+                          "Plan Width": 64,
+                          "Disabled": false,
+                          "Output": [
+                            "uc_2.asset_key",
+                            "uc_2.organization_name"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Node Type": "Materialize",
+                  "Parent Relationship": "Inner",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 0.13,
+                  "Total Cost": 0.16,
+                  "Plan Rows": 1,
+                  "Plan Width": 68,
+                  "Disabled": false,
+                  "Output": [
+                    "e.asset_key",
+                    "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+                    "((count(DISTINCT same_name_eligible.company_id))::integer)"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Unique",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 0.13,
+                      "Total Cost": 0.15,
+                      "Plan Rows": 1,
+                      "Plan Width": 68,
+                      "Disabled": false,
+                      "Output": [
+                        "e.asset_key",
+                        "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+                        "((count(DISTINCT same_name_eligible.company_id))::integer)"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 0.13,
+                          "Total Cost": 0.14,
+                          "Plan Rows": 1,
+                          "Plan Width": 68,
+                          "Disabled": false,
+                          "Output": [
+                            "e.asset_key",
+                            "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+                            "((count(DISTINCT same_name_eligible.company_id))::integer)"
+                          ],
+                          "Sort Key": [
+                            "e.asset_key",
+                            "(((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text)))",
+                            "((count(DISTINCT same_name_eligible.company_id))::integer)"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Nested Loop",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 0.03,
+                              "Total Cost": 0.12,
+                              "Plan Rows": 1,
+                              "Plan Width": 68,
+                              "Disabled": false,
+                              "Output": [
+                                "e.asset_key",
+                                "((('namebucket:'::text || (e.role)::text) || ':'::text) || encode(convert_to(e.organization_name, 'UTF8'::name), 'hex'::text))",
+                                "((count(DISTINCT same_name_eligible.company_id))::integer)"
+                              ],
+                              "Inner Unique": true,
+                              "Join Filter": "(((e.role)::text = (same_name_eligible.role)::text) AND (convert_to(e.organization_name, 'UTF8'::name) = (convert_to(same_name_eligible.organization_name, 'UTF8'::name))))",
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "same_name_eligible",
+                                  "Alias": "e",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 0.02,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 96,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "e.asset_key",
+                                    "e.company_id",
+                                    "e.organization_name",
+                                    "e.role"
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Aggregate",
+                                  "Strategy": "Sorted",
+                                  "Partial Mode": "Simple",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 0.03,
+                                  "Total Cost": 0.06,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 100,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "(convert_to(same_name_eligible.organization_name, 'UTF8'::name))",
+                                    "same_name_eligible.role",
+                                    "NULL::text",
+                                    "(count(DISTINCT same_name_eligible.company_id))::integer"
+                                  ],
+                                  "Group Key": [
+                                    "(convert_to(same_name_eligible.organization_name, 'UTF8'::name))",
+                                    "same_name_eligible.role"
+                                  ],
+                                  "Filter": "(count(DISTINCT same_name_eligible.company_id) > 1)",
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Sort",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Startup Cost": 0.03,
+                                      "Total Cost": 0.04,
+                                      "Plan Rows": 1,
+                                      "Plan Width": 96,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "(convert_to(same_name_eligible.organization_name, 'UTF8'::name))",
+                                        "same_name_eligible.role",
+                                        "same_name_eligible.company_id"
+                                      ],
+                                      "Sort Key": [
+                                        "(convert_to(same_name_eligible.organization_name, 'UTF8'::name))",
+                                        "same_name_eligible.role",
+                                        "same_name_eligible.company_id"
+                                      ],
+                                      "Plans": [
+                                        {
+                                          "Node Type": "CTE Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "CTE Name": "same_name_eligible",
+                                          "Alias": "same_name_eligible",
+                                          "Startup Cost": 0.0,
+                                          "Total Cost": 0.02,
+                                          "Plan Rows": 1,
+                                          "Plan Width": 96,
+                                          "Disabled": false,
+                                          "Output": [
+                                            "convert_to(same_name_eligible.organization_name, 'UTF8'::name)",
+                                            "same_name_eligible.role",
+                                            "same_name_eligible.company_id"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "Hash",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 8798.04,
+              "Total Cost": 8798.04,
+              "Plan Rows": 200,
+              "Plan Width": 192,
+              "Disabled": false,
+              "Output": [
+                "r_4.operator_number",
+                "r_4.project_title",
+                "r_4.browse_title",
+                "r_4.operator_name",
+                "r_4.sector",
+                "r_4.asset_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Subquery Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Alias": "r_4",
+                  "Startup Cost": 8596.04,
+                  "Total Cost": 8798.04,
+                  "Plan Rows": 200,
+                  "Plan Width": 192,
+                  "Disabled": false,
+                  "Output": [
+                    "r_4.operator_number",
+                    "r_4.project_title",
+                    "r_4.browse_title",
+                    "r_4.operator_name",
+                    "r_4.sector",
+                    "r_4.asset_key"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Unique",
+                      "Parent Relationship": "Subquery",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 8596.04,
+                      "Total Cost": 8796.04,
+                      "Plan Rows": 200,
+                      "Plan Width": 220,
+                      "Disabled": false,
+                      "Output": [
+                        "all_rows.asset_key",
+                        "((all_rows.compact #>> '{project_metadata,oil_gas,operator_number}'::text[]))",
+                        "((all_rows.compact #>> '{project_metadata,operator}'::text[]))",
+                        "((all_rows.compact #>> '{project_metadata,title}'::text[]))",
+                        "((all_rows.compact ->> 'browse_title'::text))",
+                        "((all_rows.compact #>> '{project_metadata,sector}'::text[]))",
+                        "all_rows.rank_score",
+                        "all_rows.updated_at",
+                        "all_rows.need_id"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 8596.04,
+                          "Total Cost": 8696.04,
+                          "Plan Rows": 40000,
+                          "Plan Width": 220,
+                          "Disabled": false,
+                          "Output": [
+                            "all_rows.asset_key",
+                            "((all_rows.compact #>> '{project_metadata,oil_gas,operator_number}'::text[]))",
+                            "((all_rows.compact #>> '{project_metadata,operator}'::text[]))",
+                            "((all_rows.compact #>> '{project_metadata,title}'::text[]))",
+                            "((all_rows.compact ->> 'browse_title'::text))",
+                            "((all_rows.compact #>> '{project_metadata,sector}'::text[]))",
+                            "all_rows.rank_score",
+                            "all_rows.updated_at",
+                            "all_rows.need_id"
+                          ],
+                          "Sort Key": [
+                            "all_rows.asset_key",
+                            "all_rows.rank_score DESC",
+                            "all_rows.updated_at DESC",
+                            "all_rows.need_id"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "all_rows",
+                              "Alias": "all_rows",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 1300.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 220,
+                              "Disabled": false,
+                              "Output": [
+                                "all_rows.asset_key",
+                                "(all_rows.compact #>> '{project_metadata,oil_gas,operator_number}'::text[])",
+                                "(all_rows.compact #>> '{project_metadata,operator}'::text[])",
+                                "(all_rows.compact #>> '{project_metadata,title}'::text[])",
+                                "(all_rows.compact ->> 'browse_title'::text)",
+                                "(all_rows.compact #>> '{project_metadata,sector}'::text[])",
+                                "all_rows.rank_score",
+                                "all_rows.updated_at",
+                                "all_rows.need_id"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Aggregate",
+          "Strategy": "Sorted",
+          "Partial Mode": "Simple",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE grouped",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 1710161.54,
+          "Total Cost": 1895691.52,
+          "Plan Rows": 40000,
+          "Plan Width": 201,
+          "Disabled": false,
+          "Output": [
+            "assigned.group_key",
+            "(array_agg(assigned.group_name ORDER BY assigned.group_name))[1]",
+            "(array_agg(assigned.group_role ORDER BY assigned.group_role))[1]",
+            "CASE WHEN bool_or((assigned.group_kind = 'same_name_unconfirmed'::text)) THEN 'same_name_unconfirmed'::text WHEN bool_or((assigned.group_kind = 'resolved_identity'::text)) THEN 'resolved_identity'::text ELSE 'unresolved'::text END",
+            "CASE WHEN bool_or((assigned.group_kind = 'same_name_unconfirmed'::text)) THEN max(assigned.identity_count) WHEN bool_or((assigned.group_kind = 'resolved_identity'::text)) THEN 1 ELSE NULL::integer END",
+            "max(assigned.priority_score)",
+            "(count(*))::integer",
+            "((count(DISTINCT ar_1.canonical_need_id))::integer)",
+            "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer)",
+            "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer)",
+            "(bool_or(ar_1.has_contact_actions))",
+            "(max(ar_1.commercial_score))",
+            "(count(*) FILTER (WHERE (ANY (assigned.asset_key = (hashed SubPlan 12).col1))))::integer",
+            "array_agg(DISTINCT assigned.sector ORDER BY assigned.sector)",
+            "max(assigned.updated_at)"
+          ],
+          "Group Key": [
+            "assigned.group_key",
+            "((count(DISTINCT ar_1.canonical_need_id))::integer)",
+            "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer)",
+            "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer)",
+            "(bool_or(ar_1.has_contact_actions))",
+            "(max(ar_1.commercial_score))"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Incremental Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 1710161.54,
+              "Total Cost": 1891889.76,
+              "Plan Rows": 40000,
+              "Plan Width": 225,
+              "Disabled": false,
+              "Output": [
+                "assigned.group_key",
+                "((count(DISTINCT ar_1.canonical_need_id))::integer)",
+                "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer)",
+                "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer)",
+                "(bool_or(ar_1.has_contact_actions))",
+                "(max(ar_1.commercial_score))",
+                "assigned.group_name",
+                "assigned.group_role",
+                "assigned.group_kind",
+                "assigned.identity_count",
+                "assigned.priority_score",
+                "assigned.asset_key",
+                "assigned.sector",
+                "assigned.updated_at"
+              ],
+              "Sort Key": [
+                "assigned.group_key",
+                "((count(DISTINCT ar_1.canonical_need_id))::integer)",
+                "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer)",
+                "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer)",
+                "(bool_or(ar_1.has_contact_actions))",
+                "(max(ar_1.commercial_score))",
+                "assigned.group_name"
+              ],
+              "Presorted Key": [
+                "assigned.group_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Merge Join",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Join Type": "Inner",
+                  "Startup Cost": 1709250.87,
+                  "Total Cost": 1889856.99,
+                  "Plan Rows": 40000,
+                  "Plan Width": 225,
+                  "Disabled": false,
+                  "Output": [
+                    "assigned.group_key",
+                    "((count(DISTINCT ar_1.canonical_need_id))::integer)",
+                    "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer)",
+                    "((count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer)",
+                    "(bool_or(ar_1.has_contact_actions))",
+                    "(max(ar_1.commercial_score))",
+                    "assigned.group_name",
+                    "assigned.group_role",
+                    "assigned.group_kind",
+                    "assigned.identity_count",
+                    "assigned.priority_score",
+                    "assigned.asset_key",
+                    "assigned.sector",
+                    "assigned.updated_at"
+                  ],
+                  "Inner Unique": true,
+                  "Merge Cond": "(assigned.group_key = a_3.group_key)",
+                  "Plans": [
+                    {
+                      "Node Type": "Sort",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 7823.04,
+                      "Total Cost": 7923.04,
+                      "Plan Rows": 40000,
+                      "Plan Width": 208,
+                      "Disabled": false,
+                      "Output": [
+                        "assigned.group_key",
+                        "assigned.group_name",
+                        "assigned.group_role",
+                        "assigned.group_kind",
+                        "assigned.identity_count",
+                        "assigned.priority_score",
+                        "assigned.asset_key",
+                        "assigned.sector",
+                        "assigned.updated_at"
+                      ],
+                      "Sort Key": [
+                        "assigned.group_key"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "CTE Scan",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "CTE Name": "assigned",
+                          "Alias": "assigned",
+                          "Startup Cost": 0.0,
+                          "Total Cost": 800.0,
+                          "Plan Rows": 40000,
+                          "Plan Width": 208,
+                          "Disabled": false,
+                          "Output": [
+                            "assigned.group_key",
+                            "assigned.group_name",
+                            "assigned.group_role",
+                            "assigned.group_kind",
+                            "assigned.identity_count",
+                            "assigned.priority_score",
+                            "assigned.asset_key",
+                            "assigned.sector",
+                            "assigned.updated_at"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "Node Type": "Aggregate",
+                      "Strategy": "Sorted",
+                      "Partial Mode": "Simple",
+                      "Parent Relationship": "Inner",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Startup Cost": 1701427.83,
+                      "Total Cost": 1881431.45,
+                      "Plan Rows": 200,
+                      "Plan Width": 49,
+                      "Disabled": false,
+                      "Output": [
+                        "a_3.group_key",
+                        "(count(DISTINCT ar_1.canonical_need_id))::integer",
+                        "(count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))))::integer",
+                        "(count(DISTINCT ar_1.canonical_need_id) FILTER (WHERE (ar_1.canonical_need_id = ANY ('{}'::uuid[]))))::integer",
+                        "bool_or(ar_1.has_contact_actions)",
+                        "max(ar_1.commercial_score)"
+                      ],
+                      "Group Key": [
+                        "a_3.group_key"
+                      ],
+                      "Plans": [
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 1701427.83,
+                          "Total Cost": 1721427.83,
+                          "Plan Rows": 8000000,
+                          "Plan Width": 69,
+                          "Disabled": false,
+                          "Output": [
+                            "a_3.group_key",
+                            "ar_1.canonical_need_id",
+                            "ar_1.need_id",
+                            "ar_1.has_contact_actions",
+                            "ar_1.commercial_score"
+                          ],
+                          "Sort Key": [
+                            "a_3.group_key",
+                            "ar_1.canonical_need_id"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Merge Join",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 7715.08,
+                              "Total Cost": 127915.08,
+                              "Plan Rows": 8000000,
+                              "Plan Width": 69,
+                              "Disabled": false,
+                              "Output": [
+                                "a_3.group_key",
+                                "ar_1.canonical_need_id",
+                                "ar_1.need_id",
+                                "ar_1.has_contact_actions",
+                                "ar_1.commercial_score"
+                              ],
+                              "Inner Unique": false,
+                              "Merge Cond": "(a_3.asset_key = ar_1.asset_key)",
+                              "Plans": [
+                                {
+                                  "Node Type": "Sort",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 3857.54,
+                                  "Total Cost": 3957.54,
+                                  "Plan Rows": 40000,
+                                  "Plan Width": 64,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "a_3.group_key",
+                                    "a_3.asset_key"
+                                  ],
+                                  "Sort Key": [
+                                    "a_3.asset_key"
+                                  ],
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "assigned",
+                                      "Alias": "a_3",
+                                      "Startup Cost": 0.0,
+                                      "Total Cost": 800.0,
+                                      "Plan Rows": 40000,
+                                      "Plan Width": 64,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "a_3.group_key",
+                                        "a_3.asset_key"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Sort",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 3857.54,
+                                  "Total Cost": 3957.54,
+                                  "Plan Rows": 40000,
+                                  "Plan Width": 69,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "ar_1.canonical_need_id",
+                                    "ar_1.need_id",
+                                    "ar_1.has_contact_actions",
+                                    "ar_1.commercial_score",
+                                    "ar_1.asset_key"
+                                  ],
+                                  "Sort Key": [
+                                    "ar_1.asset_key"
+                                  ],
+                                  "Plans": [
+                                    {
+                                      "Node Type": "CTE Scan",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "CTE Name": "all_rows",
+                                      "Alias": "ar_1",
+                                      "Startup Cost": 0.0,
+                                      "Total Cost": 800.0,
+                                      "Plan Rows": 40000,
+                                      "Plan Width": 69,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "ar_1.canonical_need_id",
+                                        "ar_1.need_id",
+                                        "ar_1.has_contact_actions",
+                                        "ar_1.commercial_score",
+                                        "ar_1.asset_key"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "Unique",
+              "Parent Relationship": "SubPlan",
+              "Subplan Name": "SubPlan 12",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 1001.42,
+              "Total Cost": 1001.66,
+              "Plan Rows": 42,
+              "Plan Width": 32,
+              "Disabled": false,
+              "Output": [
+                "all_rows_1.asset_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 1001.42,
+                  "Total Cost": 1001.54,
+                  "Plan Rows": 47,
+                  "Plan Width": 32,
+                  "Disabled": false,
+                  "Output": [
+                    "all_rows_1.asset_key"
+                  ],
+                  "Sort Key": [
+                    "all_rows_1.asset_key"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "all_rows",
+                      "Alias": "all_rows_1",
+                      "Startup Cost": 0.12,
+                      "Total Cost": 1000.12,
+                      "Plan Rows": 47,
+                      "Plan Width": 32,
+                      "Disabled": false,
+                      "Output": [
+                        "all_rows_1.asset_key"
+                      ],
+                      "Filter": "(all_rows_1.need_id = ANY ('{fbcd9b80-6957-4218-b257-ceef55aeaad2,af09b749-5039-4919-9964-315cf17cca36,694fb77b-b9e1-4f7e-b749-e3283e16f96f,1efbb1a4-10c5-4b77-adb3-f21b9d26bf1a,32b1f17b-0937-4625-82d8-0ccea9380079,901e10fe-8691-46d4-b06f-a8a475a2091b,b506e15c-9d2c-4f79-9f70-9246a58908ca,0a83ec14-82d1-4171-9e42-e23acb3f1e50,6d39eb2b-6785-4431-829a-11a87381b16c,8ff7a3f5-38f1-4241-af1f-2c7eb9054853,6d9b1f07-542a-4635-8a00-d10c1b7be135,04a66b19-5340-4139-b7b1-51b620f9ea45,4af429f5-ae9d-4af5-a173-dfd7211a70a1,6f18ed4d-9718-49c8-92db-363ea884a665,9a739930-4022-4ab6-bbf2-760de5fb108b,08ab5f58-642a-46ec-b9e0-de76647bde83,6696179a-5308-4fa2-8d75-e01610dec5b7,e316e6f5-19b3-4842-861c-324b2ba2606e,36c1a77a-123e-41aa-946b-6d45a72f8667,322c4466-520e-480f-880d-0b24ec75d8d4,79b5a8c7-6c7e-4633-bfc6-eadb9f578d8b,60dc0bca-e068-475c-a25d-8eb89dea2ba7,118b88f5-2239-4366-8817-fceaaa82cf8e,74004c1e-d6b7-40b6-a76f-e3925c485957,3bbc05b2-5770-4e1f-bfa8-6a1eea1f0018,7ef924a1-a035-41f4-9c14-2a62e28f0501,03fef233-4101-4715-9dac-0eb7748e9606,fee6e180-bac5-4d8b-861f-f7fc72d0b6e3,17fab52f-0c40-4e75-896c-29286c150e6b,fad6d59f-3bb1-4776-a5f4-3bf345ba509e,386e42f3-132c-4c60-b096-811af0a22375,f169f37d-b152-4642-9f58-c2659f759bf0,283c48f0-965e-4ca2-96cb-98d8d786ec8b,df61c01a-e810-499a-962a-b78cd2bb93b7,bd32dd56-e4b1-4929-ae2f-1b3b8c3ee038,5e2b0fb3-b67f-4760-81f6-25ac15a0c5c8,9b5de479-837c-4507-bbcd-4e233794529a,553293f5-0f9b-4a22-9e7c-ebc5edb913d6,664aaf4d-eff1-4f2c-a665-2ad981861c04,7c84f35d-6db5-4347-aa99-8419a17e852e,3ed4422f-8878-44e4-9311-19d7c4c1e635,93fb61f4-cda7-484c-8521-442b5ccca7e4,6676cacf-7838-40c9-8e0d-fdbf8b293805,aaf352b6-cf76-494c-ab32-87e1d3dec0a3,17de4616-fcf5-43ae-8c4e-9ff3186f03d0,9309ce1e-e4ec-49c9-84fb-d94036f1f553,7640cf05-2bfc-4b30-86da-6ec928365796}'::uuid[]))"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Limit",
+          "Parent Relationship": "InitPlan",
+          "Subplan Name": "CTE page_rows",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Startup Cost": 664573.7,
+          "Total Cost": 664573.7,
+          "Plan Rows": 1,
+          "Plan Width": 234,
+          "Disabled": false,
+          "Output": [
+            "g.group_key",
+            "g.name",
+            "g.role",
+            "g.group_kind",
+            "g.identity_count",
+            "g.priority_score",
+            "g.project_count",
+            "g.need_count",
+            "g.eligible_need_count",
+            "g.pursued_eligible_need_count",
+            "g.has_contact_actions",
+            "g.commercial_score",
+            "g.relevant_project_count",
+            "g.sectors",
+            "g.updated_at",
+            "(count(*) OVER w1)",
+            "(count(*) FILTER (WHERE (g.group_kind = 'resolved_identity'::text)) OVER w1)",
+            "(COALESCE(sum(g.project_count) OVER w1, '0'::bigint))",
+            "((InitPlan 14).col1)",
+            "((g.commercial_score IS NOT NULL))"
+          ],
+          "Plans": [
+            {
+              "Node Type": "Aggregate",
+              "Strategy": "Plain",
+              "Partial Mode": "Simple",
+              "Parent Relationship": "InitPlan",
+              "Subplan Name": "InitPlan 14",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 662773.69,
+              "Total Cost": 662773.7,
+              "Plan Rows": 1,
+              "Plan Width": 8,
+              "Disabled": false,
+              "Output": [
+                "count(DISTINCT ar_2.canonical_need_id)"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 642773.69,
+                  "Total Cost": 652773.69,
+                  "Plan Rows": 4000000,
+                  "Plan Width": 16,
+                  "Disabled": false,
+                  "Output": [
+                    "ar_2.canonical_need_id"
+                  ],
+                  "Sort Key": [
+                    "ar_2.canonical_need_id"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Merge Join",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Join Type": "Inner",
+                      "Startup Cost": 7318.31,
+                      "Total Cost": 67418.31,
+                      "Plan Rows": 4000000,
+                      "Plan Width": 16,
+                      "Disabled": false,
+                      "Output": [
+                        "ar_2.canonical_need_id"
+                      ],
+                      "Inner Unique": false,
+                      "Merge Cond": "(na.asset_key = ar_2.asset_key)",
+                      "Plans": [
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 3460.77,
+                          "Total Cost": 3510.77,
+                          "Plan Rows": 20000,
+                          "Plan Width": 32,
+                          "Disabled": false,
+                          "Output": [
+                            "na.asset_key"
+                          ],
+                          "Sort Key": [
+                            "na.asset_key"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "Hash Join",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Join Type": "Inner",
+                              "Startup Cost": 904.5,
+                              "Total Cost": 2032.0,
+                              "Plan Rows": 20000,
+                              "Plan Width": 32,
+                              "Disabled": false,
+                              "Output": [
+                                "na.asset_key"
+                              ],
+                              "Inner Unique": true,
+                              "Hash Cond": "(na.group_key = g2.group_key)",
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "assigned",
+                                  "Alias": "na",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 800.0,
+                                  "Plan Rows": 40000,
+                                  "Plan Width": 64,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "na.asset_key",
+                                    "na.anchor_project_id",
+                                    "na.need_count",
+                                    "na.eligible_need_count",
+                                    "na.pursued_eligible_need_count",
+                                    "na.priority_score",
+                                    "na.updated_at",
+                                    "na.company_id",
+                                    "na.organization_name",
+                                    "na.membership_role",
+                                    "na.unresolved_name",
+                                    "na.display_container_key",
+                                    "na.identity_count",
+                                    "na.group_key",
+                                    "na.identity_key",
+                                    "na.group_name",
+                                    "na.group_role",
+                                    "na.group_kind",
+                                    "na.sector"
+                                  ]
+                                },
+                                {
+                                  "Node Type": "Hash",
+                                  "Parent Relationship": "Inner",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "Startup Cost": 902.0,
+                                  "Total Cost": 902.0,
+                                  "Plan Rows": 200,
+                                  "Plan Width": 32,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "g2.group_key"
+                                  ],
+                                  "Plans": [
+                                    {
+                                      "Node Type": "Aggregate",
+                                      "Strategy": "Hashed",
+                                      "Partial Mode": "Simple",
+                                      "Parent Relationship": "Outer",
+                                      "Parallel Aware": false,
+                                      "Async Capable": false,
+                                      "Startup Cost": 900.0,
+                                      "Total Cost": 902.0,
+                                      "Plan Rows": 200,
+                                      "Plan Width": 32,
+                                      "Disabled": false,
+                                      "Output": [
+                                        "g2.group_key"
+                                      ],
+                                      "Group Key": [
+                                        "g2.group_key"
+                                      ],
+                                      "Planned Partitions": 0,
+                                      "Plans": [
+                                        {
+                                          "Node Type": "CTE Scan",
+                                          "Parent Relationship": "Outer",
+                                          "Parallel Aware": false,
+                                          "Async Capable": false,
+                                          "CTE Name": "grouped",
+                                          "Alias": "g2",
+                                          "Startup Cost": 0.0,
+                                          "Total Cost": 800.0,
+                                          "Plan Rows": 40000,
+                                          "Plan Width": 32,
+                                          "Disabled": false,
+                                          "Output": [
+                                            "g2.group_key"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "Node Type": "Sort",
+                          "Parent Relationship": "Inner",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Startup Cost": 3857.54,
+                          "Total Cost": 3957.54,
+                          "Plan Rows": 40000,
+                          "Plan Width": 48,
+                          "Disabled": false,
+                          "Output": [
+                            "ar_2.canonical_need_id",
+                            "ar_2.asset_key"
+                          ],
+                          "Sort Key": [
+                            "ar_2.asset_key"
+                          ],
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "all_rows",
+                              "Alias": "ar_2",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 800.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 48,
+                              "Disabled": false,
+                              "Output": [
+                                "ar_2.canonical_need_id",
+                                "ar_2.asset_key"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Node Type": "Sort",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 1800.0,
+              "Total Cost": 1900.0,
+              "Plan Rows": 40000,
+              "Plan Width": 234,
+              "Disabled": false,
+              "Output": [
+                "g.group_key",
+                "g.name",
+                "g.role",
+                "g.group_kind",
+                "g.identity_count",
+                "g.priority_score",
+                "g.project_count",
+                "g.need_count",
+                "g.eligible_need_count",
+                "g.pursued_eligible_need_count",
+                "g.has_contact_actions",
+                "g.commercial_score",
+                "g.relevant_project_count",
+                "g.sectors",
+                "g.updated_at",
+                "(count(*) OVER w1)",
+                "(count(*) FILTER (WHERE (g.group_kind = 'resolved_identity'::text)) OVER w1)",
+                "(COALESCE(sum(g.project_count) OVER w1, '0'::bigint))",
+                "((InitPlan 14).col1)",
+                "((g.commercial_score IS NOT NULL))"
+              ],
+              "Sort Key": [
+                "((g.commercial_score IS NOT NULL)) DESC",
+                "g.commercial_score DESC NULLS LAST",
+                "g.priority_score DESC NULLS LAST",
+                "g.name",
+                "g.group_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "WindowAgg",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 1599.96,
+                  "Total Cost": 1600.0,
+                  "Plan Rows": 40000,
+                  "Plan Width": 234,
+                  "Disabled": false,
+                  "Output": [
+                    "g.group_key",
+                    "g.name",
+                    "g.role",
+                    "g.group_kind",
+                    "g.identity_count",
+                    "g.priority_score",
+                    "g.project_count",
+                    "g.need_count",
+                    "g.eligible_need_count",
+                    "g.pursued_eligible_need_count",
+                    "g.has_contact_actions",
+                    "g.commercial_score",
+                    "g.relevant_project_count",
+                    "g.sectors",
+                    "g.updated_at",
+                    "count(*) OVER w1",
+                    "count(*) FILTER (WHERE (g.group_kind = 'resolved_identity'::text)) OVER w1",
+                    "COALESCE(sum(g.project_count) OVER w1, '0'::bigint)",
+                    "(InitPlan 14).col1",
+                    "(g.commercial_score IS NOT NULL)"
+                  ],
+                  "Window": "w1 AS ()",
+                  "Plans": [
+                    {
+                      "Node Type": "CTE Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "CTE Name": "grouped",
+                      "Alias": "g",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 800.0,
+                      "Plan Rows": 40000,
+                      "Plan Width": 201,
+                      "Disabled": false,
+                      "Output": [
+                        "g.group_key",
+                        "g.name",
+                        "g.role",
+                        "g.group_kind",
+                        "g.identity_count",
+                        "g.priority_score",
+                        "g.project_count",
+                        "g.need_count",
+                        "g.eligible_need_count",
+                        "g.pursued_eligible_need_count",
+                        "g.has_contact_actions",
+                        "g.commercial_score",
+                        "g.relevant_project_count",
+                        "g.sectors",
+                        "g.updated_at"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Node Type": "Nested Loop",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Join Type": "Left",
+          "Startup Cost": 13373.55,
+          "Total Cost": 13373.63,
+          "Plan Rows": 1,
+          "Plan Width": 266,
+          "Disabled": false,
+          "Output": [
+            "p.group_key",
+            "p.name",
+            "p.role",
+            "p.group_kind",
+            "p.identity_count",
+            "p.priority_score",
+            "p.project_count",
+            "p.need_count",
+            "p.eligible_need_count",
+            "p.pursued_eligible_need_count",
+            "p.has_contact_actions",
+            "p.commercial_score",
+            "p.relevant_project_count",
+            "p.sectors",
+            "p.updated_at",
+            "p.total",
+            "p.account_total",
+            "p.project_total",
+            "p.need_total",
+            "(jsonb_agg(DISTINCT (jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb)))))",
+            "(p.commercial_score IS NOT NULL)"
+          ],
+          "Inner Unique": true,
+          "Join Filter": "(p.group_key = p_1.group_key)",
+          "Plans": [
+            {
+              "Node Type": "CTE Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "CTE Name": "page_rows",
+              "Alias": "p",
+              "Startup Cost": 0.0,
+              "Total Cost": 0.02,
+              "Plan Rows": 1,
+              "Plan Width": 233,
+              "Disabled": false,
+              "Output": [
+                "p.group_key",
+                "p.name",
+                "p.role",
+                "p.group_kind",
+                "p.identity_count",
+                "p.priority_score",
+                "p.project_count",
+                "p.need_count",
+                "p.eligible_need_count",
+                "p.pursued_eligible_need_count",
+                "p.has_contact_actions",
+                "p.commercial_score",
+                "p.relevant_project_count",
+                "p.sectors",
+                "p.updated_at",
+                "p.total",
+                "p.account_total",
+                "p.project_total",
+                "p.need_total"
+              ]
+            },
+            {
+              "Node Type": "Aggregate",
+              "Strategy": "Sorted",
+              "Partial Mode": "Simple",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 13373.55,
+              "Total Cost": 13373.59,
+              "Plan Rows": 1,
+              "Plan Width": 64,
+              "Disabled": false,
+              "Output": [
+                "p_1.group_key",
+                "jsonb_agg(DISTINCT (jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb))))"
+              ],
+              "Group Key": [
+                "p_1.group_key"
+              ],
+              "Plans": [
+                {
+                  "Node Type": "Sort",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Startup Cost": 13373.55,
+                  "Total Cost": 13373.56,
+                  "Plan Rows": 1,
+                  "Plan Width": 795,
+                  "Disabled": false,
+                  "Output": [
+                    "p_1.group_key",
+                    "ar.project_id",
+                    "a.company_id",
+                    "b.compact",
+                    "(jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb)))"
+                  ],
+                  "Sort Key": [
+                    "p_1.group_key",
+                    "(jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb)))"
+                  ],
+                  "Plans": [
+                    {
+                      "Node Type": "Nested Loop",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Join Type": "Inner",
+                      "Startup Cost": 1400.03,
+                      "Total Cost": 13373.54,
+                      "Plan Rows": 1,
+                      "Plan Width": 795,
+                      "Disabled": false,
+                      "Output": [
+                        "p_1.group_key",
+                        "ar.project_id",
+                        "a.company_id",
+                        "b.compact",
+                        "jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', COALESCE((b.compact -> 'customer_facts'::text), '[]'::jsonb), 'priority', (b.compact -> 'customer_priority'::text), 'developments', COALESCE((b.compact -> 'customer_developments'::text), '[]'::jsonb))"
+                      ],
+                      "Inner Unique": false,
+                      "Join Filter": "(a.asset_key = ar.asset_key)",
+                      "Plans": [
+                        {
+                          "Node Type": "Hash Join",
+                          "Parent Relationship": "Outer",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Join Type": "Inner",
+                          "Startup Cost": 1400.0,
+                          "Total Cost": 12419.01,
+                          "Plan Rows": 1,
+                          "Plan Width": 763,
+                          "Disabled": false,
+                          "Output": [
+                            "ar.project_id",
+                            "ar.asset_key",
+                            "b.compact"
+                          ],
+                          "Inner Unique": false,
+                          "Hash Cond": "((b.project_id = ar.project_id) AND (b.need_id = ar.need_id))",
+                          "Plans": [
+                            {
+                              "Node Type": "Seq Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Relation Name": "browse_rows",
+                              "Schema": "public",
+                              "Alias": "b",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 10719.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 747,
+                              "Disabled": false,
+                              "Output": [
+                                "b.generation_id",
+                                "b.need_id",
+                                "b.project_id",
+                                "b.tier",
+                                "b.location",
+                                "b.industry",
+                                "b.activity",
+                                "b.has_timing",
+                                "b.mw_low",
+                                "b.mw_high",
+                                "b.priority_segment",
+                                "b.workflow_status",
+                                "b.signal_decision",
+                                "b.project_group",
+                                "b.single_group",
+                                "b.rank_score",
+                                "b.updated_at",
+                                "b.search_text",
+                                "b.display_title",
+                                "b.summary",
+                                "b.compact",
+                                "b.commercial_group",
+                                "b.commercial_segment",
+                                "b.commercial_geography",
+                                "b.commercial_date"
+                              ],
+                              "Filter": "(b.generation_id = 'f637c22a-8f45-4d41-a020-c5e816e1c10a'::uuid)"
+                            },
+                            {
+                              "Node Type": "Hash",
+                              "Parent Relationship": "Inner",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 800.0,
+                              "Total Cost": 800.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 64,
+                              "Disabled": false,
+                              "Output": [
+                                "ar.project_id",
+                                "ar.asset_key",
+                                "ar.need_id"
+                              ],
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "all_rows",
+                                  "Alias": "ar",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 800.0,
+                                  "Plan Rows": 40000,
+                                  "Plan Width": 64,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "ar.project_id",
+                                    "ar.asset_key",
+                                    "ar.need_id"
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "Node Type": "Hash Join",
+                          "Parent Relationship": "Inner",
+                          "Parallel Aware": false,
+                          "Async Capable": false,
+                          "Join Type": "Inner",
+                          "Startup Cost": 0.03,
+                          "Total Cost": 952.03,
+                          "Plan Rows": 200,
+                          "Plan Width": 96,
+                          "Disabled": false,
+                          "Output": [
+                            "p_1.group_key",
+                            "a.company_id",
+                            "a.asset_key"
+                          ],
+                          "Inner Unique": false,
+                          "Hash Cond": "(a.group_key = p_1.group_key)",
+                          "Plans": [
+                            {
+                              "Node Type": "CTE Scan",
+                              "Parent Relationship": "Outer",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "CTE Name": "assigned",
+                              "Alias": "a",
+                              "Startup Cost": 0.0,
+                              "Total Cost": 800.0,
+                              "Plan Rows": 40000,
+                              "Plan Width": 96,
+                              "Disabled": false,
+                              "Output": [
+                                "a.asset_key",
+                                "a.anchor_project_id",
+                                "a.need_count",
+                                "a.eligible_need_count",
+                                "a.pursued_eligible_need_count",
+                                "a.priority_score",
+                                "a.updated_at",
+                                "a.company_id",
+                                "a.organization_name",
+                                "a.membership_role",
+                                "a.unresolved_name",
+                                "a.display_container_key",
+                                "a.identity_count",
+                                "a.group_key",
+                                "a.identity_key",
+                                "a.group_name",
+                                "a.group_role",
+                                "a.group_kind",
+                                "a.sector"
+                              ]
+                            },
+                            {
+                              "Node Type": "Hash",
+                              "Parent Relationship": "Inner",
+                              "Parallel Aware": false,
+                              "Async Capable": false,
+                              "Startup Cost": 0.02,
+                              "Total Cost": 0.02,
+                              "Plan Rows": 1,
+                              "Plan Width": 32,
+                              "Disabled": false,
+                              "Output": [
+                                "p_1.group_key"
+                              ],
+                              "Plans": [
+                                {
+                                  "Node Type": "CTE Scan",
+                                  "Parent Relationship": "Outer",
+                                  "Parallel Aware": false,
+                                  "Async Capable": false,
+                                  "CTE Name": "page_rows",
+                                  "Alias": "p_1",
+                                  "Startup Cost": 0.0,
+                                  "Total Cost": 0.02,
+                                  "Plan Rows": 1,
+                                  "Plan Width": 32,
+                                  "Disabled": false,
+                                  "Output": [
+                                    "p_1.group_key"
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Planner estimates are not measured execution and do not establish the timeout cause.",
+    "Database contains only disposable synthetic fixture rows."
+  ],
+  "captured_sql": "\n    WITH matched AS (\n      SELECT CASE\n WHEN b.compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'\n  AND b.compact #>> '{project_metadata,asset_identity,identity_validated}' = 'true'\n  AND b.compact #>> '{project_metadata,asset_identity,value}' ~ '^[0-9]{10}([0-9]{2}){0,2}$'\n THEN 'api:' || (b.compact #>> '{project_metadata,asset_identity,value}')\n ELSE 'project:' || b.project_id::text END AS asset_key, b.project_id, b.need_id,\n             coalesce((CAST(%(need_alias_map)s AS jsonb)->>b.need_id::text)::uuid, b.need_id)\n               AS canonical_need_id,\n             b.compact - ARRAY['customer_facts', 'customer_developments', 'customer_priority', 'contact_actions', 'contact_people']::text[] AS compact,\n             (CASE WHEN jsonb_typeof(b.compact->'contact_actions')='array'\n                     THEN jsonb_array_length(b.compact->'contact_actions') > 0 ELSE false END\n               OR CASE WHEN jsonb_typeof(b.compact->'contact_people')='array'\n                     THEN jsonb_array_length(b.compact->'contact_people') > 0 ELSE false END)\n               AS has_contact_actions,\n             CASE WHEN b.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'\n                    AND b.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'\n                  THEN least(100, (b.compact #>> '{customer_priority,score}')::integer)\n                  ELSE NULL END AS commercial_score,\n             b.rank_score, b.updated_at\n      FROM browse_rows b WHERE b.generation_id = %(generation)s\n    ), candidate_assets AS (\n      SELECT asset_key, min(project_id::text) AS anchor_project_id\n      FROM matched GROUP BY asset_key\n    ), all_rows AS (SELECT * FROM matched), assets AS (\n      SELECT a.asset_key, c.anchor_project_id,\n             count(DISTINCT canonical_need_id)::integer AS need_count,\n             count(DISTINCT canonical_need_id) FILTER (\n               WHERE need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n             )::integer AS eligible_need_count,\n             count(DISTINCT canonical_need_id) FILTER (\n               WHERE canonical_need_id = ANY(CAST(%(pursued_need_ids)s AS uuid[]))\n             )::integer AS pursued_eligible_need_count,\n             max(CASE WHEN %(shortlist_enabled)s THEN\n               coalesce((CAST(%(priority_map)s AS jsonb)->>need_id::text)::integer, 0)\n               ELSE rank_score END)::integer AS priority_score,\n             max(updated_at) AS updated_at\n      FROM all_rows a JOIN candidate_assets c USING (asset_key)\n      GROUP BY a.asset_key, c.anchor_project_id\n    ), representatives AS (\n      SELECT DISTINCT ON (asset_key) asset_key,\n        compact #>> '{project_metadata,oil_gas,operator_number}' AS operator_number,\n        compact #>> '{project_metadata,operator}' AS operator_name,\n        compact #>> '{project_metadata,title}' AS project_title,\n        compact->>'browse_title' AS browse_title,\n        compact #>> '{project_metadata,sector}' AS sector\n      FROM all_rows ORDER BY asset_key, rank_score DESC, updated_at DESC, need_id\n    ), membership_candidates AS (\n      SELECT DISTINCT r.asset_key, r.project_id,\n             r.compact #>> '{project_metadata,sector}' AS sector,\n             bcm.company_identity_id::text AS company_id,\n             ci.rrc_operator_number, bcm.organization_name, bcm.role,\n             array_position(ARRAY['owner_developer','owner_energy','owner_construction','asset_operator','project_customer']::text[], bcm.role) AS role_priority\n      FROM all_rows r JOIN browse_customer_memberships bcm\n        ON bcm.generation_id = %(generation)s AND bcm.project_id = r.project_id\n      LEFT JOIN company_identities ci ON ci.id = bcm.company_identity_id\n      WHERE bcm.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction','asset_operator','project_customer']::text[])\n    ), membership_role_families AS (\n      SELECT mc.*,\n        CASE\n          WHEN mc.sector = 'oil_gas' THEN\n            CASE WHEN mc.role='asset_operator' THEN 0\n                 WHEN mc.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction']::text[]) THEN 1\n                 ELSE 99 END\n          WHEN mc.sector = 'data_centers' THEN\n            CASE WHEN mc.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction']::text[]) THEN 0\n                 WHEN mc.role='project_customer' THEN 1\n                 ELSE 2 END\n          ELSE 0\n        END AS family_priority\n      FROM membership_candidates mc\n    ), membership_role_priorities AS (\n      SELECT mf.*,\n             min(family_priority) OVER (PARTITION BY project_id) AS preferred_family\n      FROM membership_role_families mf\n    ), membership_project_roles AS (\n      SELECT * FROM membership_role_priorities\n      WHERE family_priority=preferred_family AND family_priority < 99\n    ), memberships AS (\n      SELECT DISTINCT asset_key, company_id, rrc_operator_number,\n             organization_name, role, role_priority\n      FROM membership_project_roles\n    ), membership_conflicts AS (\n      SELECT asset_key, min(organization_name) AS organization_name\n      FROM memberships GROUP BY asset_key HAVING count(DISTINCT company_id) > 1\n    ), single_membership AS (\n      SELECT asset_key, min(company_id) AS company_id,\n             min(rrc_operator_number) AS rrc_operator_number,\n             (array_agg(organization_name ORDER BY role_priority, lower(organization_name),\n                        organization_name))[1] AS organization_name,\n             (array_agg(role ORDER BY role_priority, lower(organization_name),\n                        organization_name))[1] AS role\n      FROM memberships GROUP BY asset_key HAVING count(DISTINCT company_id) = 1\n    ), recorded_conflicts AS (\n      SELECT r.asset_key, min(uc.organization_name) AS organization_name\n      FROM all_rows r JOIN browse_unresolved_customers uc\n        ON uc.generation_id = %(generation)s AND uc.project_id = r.project_id\n      WHERE uc.role = 'conflicting_customer'\n      GROUP BY r.asset_key\n    ), rrc_membership_conflicts AS (\n      SELECT r.asset_key, min(sm.organization_name) AS organization_name\n      FROM all_rows r JOIN single_membership sm ON sm.asset_key = r.asset_key\n      WHERE lower(sm.role) LIKE '%%operator%%'\n        AND nullif(r.compact #>> '{project_metadata,oil_gas,operator_number}', '')\n              ~ '^[0-9]+$'\n        AND sm.rrc_operator_number IS NOT NULL\n        AND r.compact #>> '{project_metadata,oil_gas,operator_number}'\n              <> sm.rrc_operator_number\n      GROUP BY r.asset_key\n    ), unresolved_conflicts AS (\n      SELECT asset_key, min(organization_name) AS organization_name\n      FROM (\n        SELECT asset_key, organization_name FROM membership_conflicts\n        UNION ALL\n        SELECT asset_key, organization_name FROM recorded_conflicts\n        UNION ALL\n        SELECT asset_key, organization_name FROM rrc_membership_conflicts\n      ) conflicts GROUP BY asset_key\n    ), same_name_asset_eligible AS (\n      SELECT DISTINCT r.asset_key, sm.company_id, sm.organization_name, sm.role\n      FROM all_rows r\n      JOIN single_membership sm ON sm.asset_key = r.asset_key\n      LEFT JOIN unresolved_conflicts uc ON uc.asset_key = r.asset_key\n      WHERE uc.asset_key IS NULL\n        AND NOT EXISTS (\n          SELECT 1 FROM all_rows nr\n          WHERE nr.asset_key = r.asset_key\n            AND nullif(nr.compact #>> '{project_metadata,oil_gas,operator_number}', '')\n                ~ '^[0-9]+$'\n        )\n        AND sm.role = 'owner_developer'\n        AND nullif(sm.organization_name, '') IS NOT NULL\n        AND r.compact #>> '{project_metadata,sector}' = 'data_centers'\n        AND convert_to(\n          r.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'\n        ) = convert_to(sm.organization_name, 'UTF8')\n        AND r.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'\n        AND CASE\n          WHEN jsonb_typeof(r.compact #> '{project_metadata,event,evidence_refs}') = 'array'\n          THEN jsonb_array_length(r.compact #> '{project_metadata,event,evidence_refs}') > 0\n          ELSE false\n        END\n        -- An asset may enter a presentation bucket only when every project\n        -- represented by that canonical asset meets the same strict rule.\n        AND NOT EXISTS (\n          SELECT 1 FROM all_rows nr\n          WHERE nr.asset_key = r.asset_key AND (\n            nr.compact #>> '{project_metadata,sector}' = 'data_centers'\n            AND convert_to(\n              nr.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'\n            ) = convert_to(sm.organization_name, 'UTF8')\n            AND nr.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'\n            AND CASE\n              WHEN jsonb_typeof(nr.compact #> '{project_metadata,event,evidence_refs}') = 'array'\n              THEN jsonb_array_length(nr.compact #> '{project_metadata,event,evidence_refs}') > 0\n              ELSE false\n            END\n          ) IS NOT TRUE\n        )\n    ), same_name_eligible AS (\n      -- Require every asset attached to this company UUID to be eligible.\n      -- This prevents a good TDLR project from pulling unsupported siblings\n      -- into the same-name display collection.\n      SELECT candidate.* FROM same_name_asset_eligible candidate\n      WHERE NOT EXISTS (\n        SELECT 1 FROM assets ca\n        JOIN single_membership csm ON csm.asset_key = ca.asset_key\n        WHERE csm.company_id = candidate.company_id\n          AND NOT EXISTS (\n            SELECT 1 FROM same_name_asset_eligible eligible\n            WHERE eligible.asset_key = ca.asset_key\n              AND eligible.company_id = csm.company_id\n              AND eligible.role = candidate.role\n              AND convert_to(eligible.organization_name, 'UTF8') =\n                  convert_to(candidate.organization_name, 'UTF8')\n          )\n      )\n    ), same_name_bucket_defs AS (\n      SELECT convert_to(organization_name, 'UTF8') AS organization_name_bytes, role,\n             min(organization_name) AS organization_name,\n             count(DISTINCT company_id)::integer AS identity_count\n      FROM same_name_eligible\n      GROUP BY convert_to(organization_name, 'UTF8'), role\n      HAVING count(DISTINCT company_id) > 1\n    ), same_name_bucket_assets AS (\n      SELECT DISTINCT e.asset_key,\n             'namebucket:' || e.role || ':' || encode(e.organization_name_bytes, 'hex')\n               AS display_key,\n             d.identity_count\n      FROM (\n        SELECT e.*, convert_to(e.organization_name, 'UTF8') AS organization_name_bytes\n        FROM same_name_eligible e\n      ) e\n      JOIN same_name_bucket_defs d\n        USING (organization_name_bytes, role)\n    ), assigned AS (\n      SELECT a.*, sm.company_id, sm.organization_name, sm.role AS membership_role,\n             uc.organization_name AS unresolved_name,\n             nb.display_key AS display_container_key, nb.identity_count,\n        CASE WHEN nb.display_key IS NOT NULL THEN nb.display_key\n             WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN 'rrc:' || sm.rrc_operator_number\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN 'rrc:' || r.operator_number\n             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id\n             ELSE 'unresolved:' || a.asset_key END AS group_key,\n        CASE WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN 'rrc:' || sm.rrc_operator_number\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN 'rrc:' || r.operator_number\n             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id\n             ELSE 'unresolved:' || a.asset_key END AS identity_key,\n        CASE WHEN uc.asset_key IS NOT NULL\n             THEN coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),\n                  'Unresolved project')\n             WHEN nb.display_key IS NOT NULL THEN sm.organization_name\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN coalesce(nullif(r.operator_name, ''), sm.organization_name)\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN coalesce(nullif(r.operator_name, ''), 'RRC operator ' || r.operator_number)\n             WHEN sm.company_id IS NOT NULL THEN sm.organization_name\n             ELSE coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),\n                    'Unresolved project') END AS group_name,\n        CASE WHEN nb.display_key IS NOT NULL THEN 'unresolved'\n             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' THEN 'operator'\n             WHEN sm.company_id IS NOT NULL AND lower(sm.role) LIKE '%%operator%%'\n             THEN 'operator' WHEN sm.company_id IS NOT NULL THEN 'customer'\n             ELSE 'unresolved' END AS group_role,\n        CASE WHEN nb.display_key IS NOT NULL THEN 'same_name_unconfirmed'\n             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'\n             WHEN sm.rrc_operator_number IS NOT NULL\n               OR nullif(r.operator_number, '') ~ '^[0-9]+$' OR sm.company_id IS NOT NULL\n               THEN 'resolved_identity'\n             ELSE 'unresolved' END AS group_kind,\n        coalesce(nullif(r.sector, ''), 'unknown') AS sector\n      FROM assets a JOIN representatives r USING (asset_key)\n      LEFT JOIN single_membership sm USING (asset_key)\n      LEFT JOIN unresolved_conflicts uc USING (asset_key)\n      LEFT JOIN same_name_bucket_assets nb USING (asset_key)\n    ), eligible_assets AS (\n      SELECT DISTINCT asset_key FROM all_rows\n      WHERE need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n    ), grouped_need_counts AS (\n      SELECT a.group_key, count(DISTINCT ar.canonical_need_id)::integer AS need_count,\n        count(DISTINCT ar.canonical_need_id) FILTER (\n          WHERE ar.need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n        )::integer AS eligible_need_count,\n        count(DISTINCT ar.canonical_need_id) FILTER (\n          WHERE ar.canonical_need_id = ANY(CAST(%(pursued_need_ids)s AS uuid[]))\n        )::integer AS pursued_eligible_need_count,\n        bool_or(ar.has_contact_actions) AS has_contact_actions,\n        max(ar.commercial_score) AS commercial_score\n      FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key\n      GROUP BY a.group_key\n    ), grouped AS (\n      SELECT group_key, (array_agg(group_name ORDER BY group_name))[1] AS name,\n        (array_agg(group_role ORDER BY group_role))[1] AS role,\n        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')\n             THEN 'same_name_unconfirmed'\n             WHEN bool_or(group_kind = 'resolved_identity') THEN 'resolved_identity'\n             ELSE 'unresolved' END AS group_kind,\n        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')\n             THEN max(identity_count)\n             WHEN bool_or(group_kind = 'resolved_identity') THEN 1\n             ELSE NULL END AS identity_count,\n        max(priority_score)::integer AS priority_score,\n        count(*)::integer AS project_count,\n        gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,\n        gnc.has_contact_actions, gnc.commercial_score,\n        count(*) FILTER (\n          WHERE asset_key IN (SELECT asset_key FROM eligible_assets)\n        )::integer AS relevant_project_count,\n        array_agg(DISTINCT sector ORDER BY sector) AS sectors,\n        max(updated_at) AS updated_at\n      FROM assigned JOIN grouped_need_counts gnc USING (group_key)\n      GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,\n               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score\n               \n    )\n    , page_rows AS MATERIALIZED (SELECT g.*, count(*) OVER() AS total, count(*) FILTER (WHERE g.group_kind='resolved_identity') OVER() AS account_total, coalesce(sum(g.project_count) OVER(),0) AS project_total, (SELECT count(DISTINCT ar.canonical_need_id) FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE TRUE)) AS need_total FROM grouped g WHERE TRUE ORDER BY (commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, priority_score DESC NULLS LAST, name, group_key LIMIT %(limit)s OFFSET %(offset)s), page_commercial_projects AS (SELECT p.group_key, jsonb_agg(DISTINCT jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', coalesce(b.compact->'customer_facts', '[]'::jsonb), 'priority', b.compact->'customer_priority', 'developments', coalesce(b.compact->'customer_developments', '[]'::jsonb))) AS commercial_projects FROM page_rows p JOIN assigned a ON a.group_key=p.group_key JOIN all_rows ar ON ar.asset_key=a.asset_key JOIN browse_rows b ON b.generation_id=%(generation)s AND b.project_id=ar.project_id AND b.need_id=ar.need_id GROUP BY p.group_key) SELECT p.*, cp.commercial_projects FROM page_rows p LEFT JOIN page_commercial_projects cp USING (group_key) ORDER BY (commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, priority_score DESC NULLS LAST, name, group_key",
+  "query_file_representation": "derived_readable_export",
+  "query_file_note": "Standalone SQL trims trailing horizontal whitespace for readability. The byte-exact captured statement is in captured_sql; query_sha256 is computed over its UTF-8 bytes without a terminal newline."
+}

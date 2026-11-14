@@ -1,0 +1,75 @@
+{
+  "lane": "rollup",
+  "side": "candidate",
+  "started_at": "2026-11-13T06:44:47.263287+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "candidate",
+      "source_commit": "7f11ef12f5136c07d8cd4e99839a53cdd59d3f92",
+      "source_manifest_sha256_before": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+      "database": "gl3_mission_rollup_scale_candidate_test",
+      "commands": [
+        {
+          "label": "rollup-migrate-candidate",
+          "started_at": "2026-11-13T06:44:47.530811+00:00",
+          "finished_at": "2026-11-13T06:44:49.825756+00:00",
+          "wall_seconds": 2.295,
+          "exit_code": 0,
+          "log_file": "rollup-migrate-candidate.log",
+          "log_sha256": "f6d6b597e92db509dfa78806e2fa8eac53a5178dca741e03ca12a2ec4ead3069"
+        },
+        {
+          "label": "rollup-seed-candidate",
+          "started_at": "2026-11-13T06:44:49.826304+00:00",
+          "finished_at": "2026-11-13T06:46:59.520430+00:00",
+          "wall_seconds": 129.694,
+          "exit_code": 0,
+          "log_file": "rollup-seed-candidate.log",
+          "log_sha256": "6f95e15f6989612fdc977cfb9eb21691aa6000f3fe51f1c69c2cadabdbc2e8be"
+        },
+        {
+          "label": "rollup-measure-candidate",
+          "started_at": "2026-11-13T06:46:59.521545+00:00",
+          "finished_at": "2026-11-13T06:48:56.299662+00:00",
+          "wall_seconds": 116.778,
+          "exit_code": 0,
+          "log_file": "rollup-measure-candidate.log",
+          "log_sha256": "8e4c683c853a17f869da202c66bf0ab1baa94563d513f7e88974a45863dbd22b"
+        },
+        {
+          "label": "rollup-body-candidate",
+          "started_at": "2026-11-13T06:48:56.302741+00:00",
+          "finished_at": "2026-11-13T06:49:12.543365+00:00",
+          "wall_seconds": 16.241,
+          "exit_code": 0,
+          "log_file": "rollup-body-candidate.log",
+          "log_sha256": "f31a0acbf8b068ad6efe7765281d7f1a781ad5c4f8f132d4606cd6643ce62147"
+        }
+      ],
+      "seeder_sha256": "badc27751e4ce13212b98e86ef2069ea71330f1340b33eae09578a96b8748d39",
+      "account_fixture_sha256": "dbe749d255b1d9aa2442c6ca7161c1a2bdaf8afaa1085a2be2923f6977b83334",
+      "scale_fixture_sha256": "c2486ea781d80bc72d150309197876656f68dd5d3c58ff2fae2dde3a51c5a1cc",
+      "measure_harness_sha256": "cc8f734723483d668dfd18c1e3703541caa853044ab0b79cc4c0945534ba8dd3",
+      "measure_context": "SET LOCAL jit = off; read-only transaction",
+      "source_manifest_sha256_after": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "python_version": "3.11.16",
+  "runtime_dependencies": {
+    "sqlalchemy": "2.0.41",
+    "beautifulsoup4": "4.13.4",
+    "soupsieve": "4.0",
+    "psycopg": "3.2.9"
+  },
+  "limitations": [
+    "Synthetic, disposable local fixtures only.",
+    "No external or paid provider execution.",
+    "Both checkouts use the current shared uv environment; runtime dependency versions are recorded.",
+    "Timings are single-run diagnostics, not a production SLA."
+  ],
+  "rollup_rows_requested": 40000,
+  "updated_at": "2026-11-13T06:49:12.565759+00:00",
+  "finished_at": "2026-11-13T06:49:12.566853+00:00"
+}

@@ -603,9 +603,108 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
     return streams
 
 
+def _recent_material_revisions(session, project_ids, *, as_of: datetime):
+    """Commercial recency requires a dated revision, not first observation.
+
+    Keep the immutable change ledger intact. Its creation time bounds this
+    snapshot, while a source event/publication date establishes recency. Filter
+    before the per-project limit so newer discoveries cannot hide a revision.
+    """
+    return (
+        session.execute(
+            text("""
+        WITH supported AS (
+            SELECT c.*,
+                   coalesce(c.source_date,e.published_at,b.published_at) AS effective_source_date,
+                   CASE WHEN c.prior_state ? 'value' THEN c.prior_state->'value'
+                        WHEN c.field_name='source_listing' THEN c.prior_state->'listed'
+                   END AS previous_value,
+                   CASE WHEN c.new_state ? 'value' THEN c.new_state->'value'
+                        WHEN c.field_name='source_listing' THEN c.new_state->'listed'
+                   END AS current_value
+            FROM change_events c
+            LEFT JOIN evidence e ON e.id=c.evidence_id
+                AND e.observation_id=c.observation_id AND e.content_hash=c.content_hash
+            LEFT JOIN buying_chain_evidence b ON b.id=c.buying_chain_evidence_id
+                AND b.project_id=c.project_id
+            WHERE c.project_id=ANY(CAST(:project_ids AS uuid[])) AND c.material
+              AND c.created_at<=:as_of AND c.created_at>=:since
+        ), revisions AS (
+            SELECT * FROM supported
+            WHERE effective_source_date BETWEEN :source_since AND :source_as_of
+              AND current_value IS NOT NULL
+              AND previous_value IS DISTINCT FROM current_value
+              AND CASE jsonb_typeof(previous_value)
+                    WHEN 'object' THEN previous_value <> '{}'::jsonb AND
+                        (NOT previous_value ? 'claims' OR
+                         (jsonb_typeof(previous_value->'claims')='array' AND
+                          previous_value->'claims' <> '[]'::jsonb))
+                    WHEN 'array' THEN previous_value <> '[]'::jsonb
+                    WHEN 'string' THEN lower(btrim(previous_value #>> '{}')) NOT IN
+                        ('', 'unknown', 'unavailable', 'unverified', 'not assessed')
+                    WHEN 'number' THEN true
+                    WHEN 'boolean' THEN true
+                    ELSE false
+                  END
+        ), ranked AS (
+            SELECT *, row_number() OVER (
+                PARTITION BY project_id,(field_name IN ('capacity','build_timing'))
+                ORDER BY effective_source_date DESC,created_at DESC,id DESC
+            ) AS position FROM revisions
+        )
+        SELECT * FROM ranked WHERE position=1 OR
+            (field_name IN ('capacity','build_timing') AND position<=3)
+        ORDER BY effective_source_date DESC,created_at DESC,id DESC
+        """),
+            {
+                "project_ids": list(project_ids),
+                "as_of": as_of,
+                "since": as_of - timedelta(days=90),
+                "source_as_of": as_of.date(),
+                "source_since": as_of.date() - timedelta(days=90),
+            },
+        )
+        .mappings()
+        .all()
+    )
+
+
+def _customer_revision_summary(change) -> str:
+    if change["field_name"] == "capacity":
+        return "Build capacity revised"
+    before = (change["prior_state"] or {}).get("value")
+    after = (change["new_state"] or {}).get("value")
+    previous = before.get("claims", []) if isinstance(before, dict) else []
+    current = after.get("claims", []) if isinstance(after, dict) else []
+    changed = [claim for claim in previous if claim not in current] + [
+        claim for claim in current if claim not in previous
+    ]
+    event_types = {claim.get("event_type") for claim in changed if isinstance(claim, dict)}
+    for supported_types, label in (
+        ({"operational_target", "full_operational_target"}, "Operational target revised"),
+        ({"ready_for_service"}, "Ready-for-service target revised"),
+        (
+            {"announced_construction_start", "actual_construction_start"},
+            "Construction schedule revised",
+        ),
+        ({"expected_first_energization", "phase_energization"}, "Energization schedule revised"),
+    ):
+        if event_types and event_types <= supported_types:
+            return label
+    return "Project schedule revised"
+
+
 def _write_rows(session, generation_id, summaries, *, check_budget=None):
     from gridlens.api import app as api
+    from gridlens.domain.customer_intelligence import (
+        apply_priority_context,
+        resolve_customer_intelligence,
+    )
 
+    generation = session.get(BrowseGeneration, generation_id)
+    if generation is None:
+        raise RuntimeError("customer facts require a bound browse generation")
+    customer_as_of = generation.valid_from.date()
     digest = hashlib.sha256()
     row_count = 0
     for start in range(0, len(summaries), 50):
@@ -646,6 +745,36 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         from gridlens.intelligence.rrc_well_research import verified_rrc_metadata
 
         project_ids = {UUID(str(item["project_id"])) for item in details}
+        from gridlens.intelligence.customer_intelligence import project_customer_facts
+
+        customer_facts_by_project = project_customer_facts(session, project_ids, generation=None)
+        # Freeze bounded recent events in the same existing context read used by
+        # priority. Requests never scan ChangeEvent or rebuild this source cohort.
+        recent_changes = _recent_material_revisions(
+            session, project_ids, as_of=generation.valid_from
+        )
+        material_change_projects = {row["project_id"] for row in recent_changes}
+        customer_developments: dict[str, list[dict]] = {}
+        for change in recent_changes:
+            if change["field_name"] not in {"capacity", "build_timing"}:
+                continue
+            customer_developments.setdefault(str(change["project_id"]), []).append(
+                {
+                    "id": str(change["id"]),
+                    "project_id": str(change["project_id"]),
+                    "summary": _customer_revision_summary(change),
+                    "source_date": change["effective_source_date"].isoformat(),
+                    "observed_at": change["created_at"].isoformat(),
+                    "evidence_id": str(change["evidence_id"]) if change["evidence_id"] else None,
+                    "buying_chain_evidence_id": str(change["buying_chain_evidence_id"])
+                    if change["buying_chain_evidence_id"]
+                    else None,
+                    "observation_id": str(change["observation_id"]),
+                    "content_hash": change["content_hash"],
+                    "before": change["prior_state"],
+                    "after": change["new_state"],
+                }
+            )
         official_rrc_by_project = verified_rrc_metadata(session, project_ids)
         chains = buying_chain_views(session, project_ids)
         actions_by_project: dict[str, list[dict]] = {}
@@ -712,8 +841,27 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                     ),
                 }
             )
+            compact["customer_facts"] = customer_facts_by_project.get(
+                str(summary["project_id"]), []
+            )
+            compact["customer_developments"] = customer_developments.get(
+                str(summary["project_id"]), []
+            )
+            compact["customer_priority"] = resolve_customer_intelligence(
+                [{"project_id": str(summary["project_id"]), "facts": compact["customer_facts"]}],
+                as_of=customer_as_of,
+            )["priority"]
             compact["contact_actions"] = actions_by_project.get(str(summary["project_id"]), [])
             compact["contact_people"] = people_by_project.get(str(summary["project_id"]), [])
+            compact["customer_priority"] = apply_priority_context(
+                compact["customer_priority"],
+                recent_material_change=UUID(str(summary["project_id"])) in material_change_projects,
+                verified_contact_available=any(
+                    person.get("responsibility")
+                    in {"Verified project responsibility", "Verified organizational responsibility"}
+                    for person in compact["contact_actions"] + compact["contact_people"]
+                ),
+            )
             preview = previews[str(summary["id"])]
             compact["commercial_preview"] = {
                 "disposition": preview.get("disposition", "WATCH"),

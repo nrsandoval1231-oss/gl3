@@ -1,0 +1,1137 @@
+{
+  "commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+  "database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "failed_variant": "pre-page jsonb_build_object projection, reconstructed from the captured first candidate query",
+  "statement_hash_sha256": "51fb9abbbf27a546bf7089eb78599ee68a2b04acc3b1ec1983f32caa06ff0543",
+  "execution": "No query execution; EXPLAIN estimates only, without ANALYZE.",
+  "root": {
+    "Node Type": "Sort",
+    "Plan Rows": 25,
+    "Plan Width": 266,
+    "Startup Cost": 2621356.83,
+    "Total Cost": 2621356.89
+  },
+  "planning_ms": null,
+  "nodes": [
+    {
+      "Node Type": "Sort",
+      "Plan Rows": 25,
+      "Plan Width": 266,
+      "Startup Cost": 2621356.83,
+      "Total Cost": 2621356.89
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "InitPlan",
+      "Relation Name": "browse_rows",
+      "Alias": "b_1",
+      "Plan Rows": 40000,
+      "Plan Width": 129,
+      "Startup Cost": 0.0,
+      "Total Cost": 15819.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "InitPlan",
+      "Alias": "matched",
+      "Plan Rows": 40000,
+      "Plan Width": 129,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 88,
+      "Startup Cost": 7498.77,
+      "Total Cost": 9198.88
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 108,
+      "Startup Cost": 7498.77,
+      "Total Cost": 7598.77
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 108,
+      "Startup Cost": 1206.5,
+      "Total Cost": 2113.72
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_1",
+      "Plan Rows": 40000,
+      "Plan Width": 76,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1204.0,
+      "Total Cost": 1204.0
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "c",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1200.0,
+      "Total Cost": 1204.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1200.0,
+      "Total Cost": 1202.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "matched_1",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 982.55,
+      "Total Cost": 982.57
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 982.55,
+      "Total Cost": 982.55
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "membership_role_priorities",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 978.96,
+      "Total Cost": 982.54
+    },
+    {
+      "Node Type": "WindowAgg",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 53,
+      "Plan Width": 197,
+      "Startup Cost": 978.96,
+      "Total Cost": 981.74
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 978.96,
+      "Total Cost": 979.09
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "mc",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 977.44
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 976.91
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 975.85
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 4.06,
+      "Total Cost": 974.2
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 141,
+      "Startup Cost": 3.9,
+      "Total Cost": 954.43
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r",
+      "Plan Rows": 40000,
+      "Plan Width": 80,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 53,
+      "Plan Width": 77,
+      "Startup Cost": 3.24,
+      "Total Cost": 3.24
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_customer_memberships",
+      "Alias": "bcm",
+      "Plan Rows": 53,
+      "Plan Width": 77,
+      "Startup Cost": 0.0,
+      "Total Cost": 3.24
+    },
+    {
+      "Node Type": "Memoize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 44,
+      "Startup Cost": 0.16,
+      "Total Cost": 1.08
+    },
+    {
+      "Node Type": "Index Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "company_identities",
+      "Alias": "ci",
+      "Plan Rows": 1,
+      "Plan Width": 44,
+      "Startup Cost": 0.15,
+      "Total Cost": 1.07
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.13
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 2,
+      "Plan Width": 226,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.08
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "memberships",
+      "Plan Rows": 1,
+      "Plan Width": 226,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 2074.0,
+      "Total Cost": 2075.03
+    },
+    {
+      "Node Type": "Merge Append",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 2074.0,
+      "Total Cost": 2074.7
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "memberships_1",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 958.21,
+      "Total Cost": 958.23
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 958.21,
+      "Total Cost": 958.22
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 8.19,
+      "Total Cost": 958.2
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_1",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 48,
+      "Startup Cost": 8.18,
+      "Total Cost": 8.18
+    },
+    {
+      "Node Type": "Index Only Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_unresolved_customers",
+      "Alias": "uc",
+      "Plan Rows": 1,
+      "Plan Width": 48,
+      "Startup Cost": 0.15,
+      "Total Cost": 8.18
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 1115.77,
+      "Total Cost": 1116.12
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 1115.77,
+      "Total Cost": 1115.82
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 0.04,
+      "Total Cost": 1115.34
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_2",
+      "Plan Rows": 4000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 1100.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 3909.58,
+      "Total Cost": 3909.59
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 3909.58,
+      "Total Cost": 3909.58
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.57,
+      "Total Cost": 3909.57
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.57,
+      "Total Cost": 2759.57
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "nr_1",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.56,
+      "Total Cost": 1800.56
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.56
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.05
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm_1",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "r_3",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "uc_1",
+      "Plan Rows": 22,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.44
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "nr",
+      "Plan Rows": 4000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 1100.0
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 912.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "candidate",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 903.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ca",
+      "Plan Rows": 40000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "csm",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "SubPlan",
+      "Alias": "eligible",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 444,
+      "Startup Cost": 8800.67,
+      "Total Cost": 13080.38
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 316,
+      "Startup Cost": 0.13,
+      "Total Cost": 1172.62
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 280,
+      "Startup Cost": 0.0,
+      "Total Cost": 1069.46
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 216,
+      "Startup Cost": 0.0,
+      "Total Cost": 903.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_2",
+      "Plan Rows": 40000,
+      "Plan Width": 88,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm_2",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.49
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "uc_2",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.44
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.16
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.15
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.14
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.12
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "e",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 100,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.06
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "same_name_eligible",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 192,
+      "Startup Cost": 8798.04,
+      "Total Cost": 8798.04
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_4",
+      "Plan Rows": 200,
+      "Plan Width": 192,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8798.04
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 200,
+      "Plan Width": 220,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8796.04
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 220,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8696.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "all_rows",
+      "Plan Rows": 40000,
+      "Plan Width": 220,
+      "Startup Cost": 0.0,
+      "Total Cost": 1300.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 201,
+      "Startup Cost": 1710161.54,
+      "Total Cost": 1895691.52
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 225,
+      "Startup Cost": 1710161.54,
+      "Total Cost": 1891889.76
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 225,
+      "Startup Cost": 1709250.87,
+      "Total Cost": 1889856.99
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 208,
+      "Startup Cost": 7823.04,
+      "Total Cost": 7923.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "assigned",
+      "Plan Rows": 40000,
+      "Plan Width": 208,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 49,
+      "Startup Cost": 1701427.83,
+      "Total Cost": 1881431.45
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 8000000,
+      "Plan Width": 69,
+      "Startup Cost": 1701427.83,
+      "Total Cost": 1721427.83
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 8000000,
+      "Plan Width": 69,
+      "Startup Cost": 7715.08,
+      "Total Cost": 127915.08
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_3",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 69,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar_1",
+      "Plan Rows": 40000,
+      "Plan Width": 69,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "SubPlan",
+      "Plan Rows": 42,
+      "Plan Width": 32,
+      "Startup Cost": 1001.42,
+      "Total Cost": 1001.66
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 47,
+      "Plan Width": 32,
+      "Startup Cost": 1001.42,
+      "Total Cost": 1001.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "all_rows_1",
+      "Plan Rows": 47,
+      "Plan Width": 32,
+      "Startup Cost": 0.12,
+      "Total Cost": 1000.12
+    },
+    {
+      "Node Type": "Limit",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 25,
+      "Plan Width": 234,
+      "Startup Cost": 665502.47,
+      "Total Cost": 665502.53
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 8,
+      "Startup Cost": 662773.69,
+      "Total Cost": 662773.7
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 4000000,
+      "Plan Width": 16,
+      "Startup Cost": 642773.69,
+      "Total Cost": 652773.69
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 4000000,
+      "Plan Width": 16,
+      "Startup Cost": 7318.31,
+      "Total Cost": 67418.31
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20000,
+      "Plan Width": 32,
+      "Startup Cost": 3460.77,
+      "Total Cost": 3510.77
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20000,
+      "Plan Width": 32,
+      "Startup Cost": 904.5,
+      "Total Cost": 2032.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "na",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 32,
+      "Startup Cost": 902.0,
+      "Total Cost": 902.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 32,
+      "Startup Cost": 900.0,
+      "Total Cost": 902.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "g2",
+      "Plan Rows": 40000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar_2",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 234,
+      "Startup Cost": 2728.77,
+      "Total Cost": 2828.77
+    },
+    {
+      "Node Type": "WindowAgg",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 234,
+      "Startup Cost": 1599.96,
+      "Total Cost": 1600.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "g",
+      "Plan Rows": 40000,
+      "Plan Width": 201,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 266,
+      "Startup Cost": 13383.5,
+      "Total Cost": 13384.07
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "p",
+      "Plan Rows": 25,
+      "Plan Width": 233,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.5
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13383.18,
+      "Total Cost": 13383.18
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "cp",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13383.18
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13382.93
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 795,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13382.25
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 795,
+      "Startup Cost": 13379.75,
+      "Total Cost": 13381.12
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 795,
+      "Startup Cost": 13378.67,
+      "Total Cost": 13379.17
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 795,
+      "Startup Cost": 12419.02,
+      "Total Cost": 13371.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a",
+      "Plan Rows": 40000,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 763,
+      "Startup Cost": 12419.01,
+      "Total Cost": 12419.01
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 763,
+      "Startup Cost": 1400.0,
+      "Total Cost": 12419.01
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_rows",
+      "Alias": "b",
+      "Plan Rows": 40000,
+      "Plan Width": 747,
+      "Startup Cost": 0.0,
+      "Total Cost": 10719.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 800.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 25,
+      "Plan Width": 32,
+      "Startup Cost": 1.08,
+      "Total Cost": 1.14
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "p_1",
+      "Plan Rows": 25,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.5
+    }
+  ],
+  "limitations": [
+    "EXPLAIN estimates do not establish actual execution cost or identify a runtime cause.",
+    "The captured SQL used the same page query with only the initial pre-page compact projection restored."
+  ],
+  "captured_sql": "\n    WITH matched AS (\n      SELECT CASE\n WHEN b.compact #>> '{project_metadata,asset_identity,kind}' = 'us_well_api'\n  AND b.compact #>> '{project_metadata,asset_identity,identity_validated}' = 'true'\n  AND b.compact #>> '{project_metadata,asset_identity,value}' ~ '^[0-9]{10}([0-9]{2}){0,2}$'\n THEN 'api:' || (b.compact #>> '{project_metadata,asset_identity,value}')\n ELSE 'project:' || b.project_id::text END AS asset_key, b.project_id, b.need_id,\n             coalesce((CAST(%(need_alias_map)s AS jsonb)->>b.need_id::text)::uuid, b.need_id)\n               AS canonical_need_id,\n             jsonb_build_object(\n  'browse_title', b.compact->'browse_title',\n  'location', b.compact->'location',\n  'project_metadata', jsonb_build_object(\n    'oil_gas', jsonb_build_object(\n      'operator_number', b.compact #> '{project_metadata,oil_gas,operator_number}'),\n    'operator', b.compact #> '{project_metadata,operator}',\n    'title', b.compact #> '{project_metadata,title}',\n    'sector', b.compact #> '{project_metadata,sector}',\n    'data_center', jsonb_build_object(\n      'owner_developer', b.compact #> '{project_metadata,data_center,owner_developer}'),\n    'event', jsonb_build_object(\n      'kind', b.compact #> '{project_metadata,event,kind}',\n      'source', b.compact #> '{project_metadata,event,source}',\n      'evidence_refs', b.compact #> '{project_metadata,event,evidence_refs}')\n  )\n) AS compact,\n             (CASE WHEN jsonb_typeof(b.compact->'contact_actions')='array'\n                     THEN jsonb_array_length(b.compact->'contact_actions') > 0 ELSE false END\n               OR CASE WHEN jsonb_typeof(b.compact->'contact_people')='array'\n                     THEN jsonb_array_length(b.compact->'contact_people') > 0 ELSE false END)\n               AS has_contact_actions,\n             CASE WHEN b.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'\n                    AND b.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'\n                  THEN least(100, (b.compact #>> '{customer_priority,score}')::integer)\n                  ELSE NULL END AS commercial_score,\n             b.rank_score, b.updated_at\n      FROM browse_rows b WHERE b.generation_id = %(generation)s\n    ), candidate_assets AS (\n      SELECT asset_key, min(project_id::text) AS anchor_project_id\n      FROM matched GROUP BY asset_key\n    ), all_rows AS (SELECT * FROM matched), assets AS (\n      SELECT a.asset_key, c.anchor_project_id,\n             count(DISTINCT canonical_need_id)::integer AS need_count,\n             count(DISTINCT canonical_need_id) FILTER (\n               WHERE need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n             )::integer AS eligible_need_count,\n             count(DISTINCT canonical_need_id) FILTER (\n               WHERE canonical_need_id = ANY(CAST(%(pursued_need_ids)s AS uuid[]))\n             )::integer AS pursued_eligible_need_count,\n             max(CASE WHEN %(shortlist_enabled)s THEN\n               coalesce((CAST(%(priority_map)s AS jsonb)->>need_id::text)::integer, 0)\n               ELSE rank_score END)::integer AS priority_score,\n             max(updated_at) AS updated_at\n      FROM all_rows a JOIN candidate_assets c USING (asset_key)\n      GROUP BY a.asset_key, c.anchor_project_id\n    ), representatives AS (\n      SELECT DISTINCT ON (asset_key) asset_key,\n        compact #>> '{project_metadata,oil_gas,operator_number}' AS operator_number,\n        compact #>> '{project_metadata,operator}' AS operator_name,\n        compact #>> '{project_metadata,title}' AS project_title,\n        compact->>'browse_title' AS browse_title,\n        compact #>> '{project_metadata,sector}' AS sector\n      FROM all_rows ORDER BY asset_key, rank_score DESC, updated_at DESC, need_id\n    ), membership_candidates AS (\n      SELECT DISTINCT r.asset_key, r.project_id,\n             r.compact #>> '{project_metadata,sector}' AS sector,\n             bcm.company_identity_id::text AS company_id,\n             ci.rrc_operator_number, bcm.organization_name, bcm.role,\n             array_position(ARRAY['owner_developer','owner_energy','owner_construction','asset_operator','project_customer']::text[], bcm.role) AS role_priority\n      FROM all_rows r JOIN browse_customer_memberships bcm\n        ON bcm.generation_id = %(generation)s AND bcm.project_id = r.project_id\n      LEFT JOIN company_identities ci ON ci.id = bcm.company_identity_id\n      WHERE bcm.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction','asset_operator','project_customer']::text[])\n    ), membership_role_families AS (\n      SELECT mc.*,\n        CASE\n          WHEN mc.sector = 'oil_gas' THEN\n            CASE WHEN mc.role='asset_operator' THEN 0\n                 WHEN mc.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction']::text[]) THEN 1\n                 ELSE 99 END\n          WHEN mc.sector = 'data_centers' THEN\n            CASE WHEN mc.role = ANY(ARRAY['owner_developer','owner_energy','owner_construction']::text[]) THEN 0\n                 WHEN mc.role='project_customer' THEN 1\n                 ELSE 2 END\n          ELSE 0\n        END AS family_priority\n      FROM membership_candidates mc\n    ), membership_role_priorities AS (\n      SELECT mf.*,\n             min(family_priority) OVER (PARTITION BY project_id) AS preferred_family\n      FROM membership_role_families mf\n    ), membership_project_roles AS (\n      SELECT * FROM membership_role_priorities\n      WHERE family_priority=preferred_family AND family_priority < 99\n    ), memberships AS (\n      SELECT DISTINCT asset_key, company_id, rrc_operator_number,\n             organization_name, role, role_priority\n      FROM membership_project_roles\n    ), membership_conflicts AS (\n      SELECT asset_key, min(organization_name) AS organization_name\n      FROM memberships GROUP BY asset_key HAVING count(DISTINCT company_id) > 1\n    ), single_membership AS (\n      SELECT asset_key, min(company_id) AS company_id,\n             min(rrc_operator_number) AS rrc_operator_number,\n             (array_agg(organization_name ORDER BY role_priority, lower(organization_name),\n                        organization_name))[1] AS organization_name,\n             (array_agg(role ORDER BY role_priority, lower(organization_name),\n                        organization_name))[1] AS role\n      FROM memberships GROUP BY asset_key HAVING count(DISTINCT company_id) = 1\n    ), recorded_conflicts AS (\n      SELECT r.asset_key, min(uc.organization_name) AS organization_name\n      FROM all_rows r JOIN browse_unresolved_customers uc\n        ON uc.generation_id = %(generation)s AND uc.project_id = r.project_id\n      WHERE uc.role = 'conflicting_customer'\n      GROUP BY r.asset_key\n    ), rrc_membership_conflicts AS (\n      SELECT r.asset_key, min(sm.organization_name) AS organization_name\n      FROM all_rows r JOIN single_membership sm ON sm.asset_key = r.asset_key\n      WHERE lower(sm.role) LIKE '%%operator%%'\n        AND nullif(r.compact #>> '{project_metadata,oil_gas,operator_number}', '')\n              ~ '^[0-9]+$'\n        AND sm.rrc_operator_number IS NOT NULL\n        AND r.compact #>> '{project_metadata,oil_gas,operator_number}'\n              <> sm.rrc_operator_number\n      GROUP BY r.asset_key\n    ), unresolved_conflicts AS (\n      SELECT asset_key, min(organization_name) AS organization_name\n      FROM (\n        SELECT asset_key, organization_name FROM membership_conflicts\n        UNION ALL\n        SELECT asset_key, organization_name FROM recorded_conflicts\n        UNION ALL\n        SELECT asset_key, organization_name FROM rrc_membership_conflicts\n      ) conflicts GROUP BY asset_key\n    ), same_name_asset_eligible AS (\n      SELECT DISTINCT r.asset_key, sm.company_id, sm.organization_name, sm.role\n      FROM all_rows r\n      JOIN single_membership sm ON sm.asset_key = r.asset_key\n      LEFT JOIN unresolved_conflicts uc ON uc.asset_key = r.asset_key\n      WHERE uc.asset_key IS NULL\n        AND NOT EXISTS (\n          SELECT 1 FROM all_rows nr\n          WHERE nr.asset_key = r.asset_key\n            AND nullif(nr.compact #>> '{project_metadata,oil_gas,operator_number}', '')\n                ~ '^[0-9]+$'\n        )\n        AND sm.role = 'owner_developer'\n        AND nullif(sm.organization_name, '') IS NOT NULL\n        AND r.compact #>> '{project_metadata,sector}' = 'data_centers'\n        AND convert_to(\n          r.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'\n        ) = convert_to(sm.organization_name, 'UTF8')\n        AND r.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'\n        AND CASE\n          WHEN jsonb_typeof(r.compact #> '{project_metadata,event,evidence_refs}') = 'array'\n          THEN jsonb_array_length(r.compact #> '{project_metadata,event,evidence_refs}') > 0\n          ELSE false\n        END\n        -- An asset may enter a presentation bucket only when every project\n        -- represented by that canonical asset meets the same strict rule.\n        AND NOT EXISTS (\n          SELECT 1 FROM all_rows nr\n          WHERE nr.asset_key = r.asset_key AND (\n            nr.compact #>> '{project_metadata,sector}' = 'data_centers'\n            AND convert_to(\n              nr.compact #>> '{project_metadata,data_center,owner_developer}', 'UTF8'\n            ) = convert_to(sm.organization_name, 'UTF8')\n            AND nr.compact #>> '{project_metadata,event,source}' = 'texas-tdlr-tabs-data-centers'\n            AND CASE\n              WHEN jsonb_typeof(nr.compact #> '{project_metadata,event,evidence_refs}') = 'array'\n              THEN jsonb_array_length(nr.compact #> '{project_metadata,event,evidence_refs}') > 0\n              ELSE false\n            END\n          ) IS NOT TRUE\n        )\n    ), same_name_eligible AS (\n      -- Require every asset attached to this company UUID to be eligible.\n      -- This prevents a good TDLR project from pulling unsupported siblings\n      -- into the same-name display collection.\n      SELECT candidate.* FROM same_name_asset_eligible candidate\n      WHERE NOT EXISTS (\n        SELECT 1 FROM assets ca\n        JOIN single_membership csm ON csm.asset_key = ca.asset_key\n        WHERE csm.company_id = candidate.company_id\n          AND NOT EXISTS (\n            SELECT 1 FROM same_name_asset_eligible eligible\n            WHERE eligible.asset_key = ca.asset_key\n              AND eligible.company_id = csm.company_id\n              AND eligible.role = candidate.role\n              AND convert_to(eligible.organization_name, 'UTF8') =\n                  convert_to(candidate.organization_name, 'UTF8')\n          )\n      )\n    ), same_name_bucket_defs AS (\n      SELECT convert_to(organization_name, 'UTF8') AS organization_name_bytes, role,\n             min(organization_name) AS organization_name,\n             count(DISTINCT company_id)::integer AS identity_count\n      FROM same_name_eligible\n      GROUP BY convert_to(organization_name, 'UTF8'), role\n      HAVING count(DISTINCT company_id) > 1\n    ), same_name_bucket_assets AS (\n      SELECT DISTINCT e.asset_key,\n             'namebucket:' || e.role || ':' || encode(e.organization_name_bytes, 'hex')\n               AS display_key,\n             d.identity_count\n      FROM (\n        SELECT e.*, convert_to(e.organization_name, 'UTF8') AS organization_name_bytes\n        FROM same_name_eligible e\n      ) e\n      JOIN same_name_bucket_defs d\n        USING (organization_name_bytes, role)\n    ), assigned AS (\n      SELECT a.*, sm.company_id, sm.organization_name, sm.role AS membership_role,\n             uc.organization_name AS unresolved_name,\n             nb.display_key AS display_container_key, nb.identity_count,\n        CASE WHEN nb.display_key IS NOT NULL THEN nb.display_key\n             WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN 'rrc:' || sm.rrc_operator_number\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN 'rrc:' || r.operator_number\n             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id\n             ELSE 'unresolved:' || a.asset_key END AS group_key,\n        CASE WHEN uc.asset_key IS NOT NULL THEN 'conflict:' || a.asset_key\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN 'rrc:' || sm.rrc_operator_number\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN 'rrc:' || r.operator_number\n             WHEN sm.company_id IS NOT NULL THEN 'company:' || sm.company_id\n             ELSE 'unresolved:' || a.asset_key END AS identity_key,\n        CASE WHEN uc.asset_key IS NOT NULL\n             THEN coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),\n                  'Unresolved project')\n             WHEN nb.display_key IS NOT NULL THEN sm.organization_name\n             WHEN sm.rrc_operator_number IS NOT NULL\n               THEN coalesce(nullif(r.operator_name, ''), sm.organization_name)\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$'\n               THEN coalesce(nullif(r.operator_name, ''), 'RRC operator ' || r.operator_number)\n             WHEN sm.company_id IS NOT NULL THEN sm.organization_name\n             ELSE coalesce(nullif(r.project_title, ''), nullif(r.browse_title, ''),\n                    'Unresolved project') END AS group_name,\n        CASE WHEN nb.display_key IS NOT NULL THEN 'unresolved'\n             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'\n             WHEN nullif(r.operator_number, '') ~ '^[0-9]+$' THEN 'operator'\n             WHEN sm.company_id IS NOT NULL AND lower(sm.role) LIKE '%%operator%%'\n             THEN 'operator' WHEN sm.company_id IS NOT NULL THEN 'customer'\n             ELSE 'unresolved' END AS group_role,\n        CASE WHEN nb.display_key IS NOT NULL THEN 'same_name_unconfirmed'\n             WHEN uc.asset_key IS NOT NULL THEN 'unresolved'\n             WHEN sm.rrc_operator_number IS NOT NULL\n               OR nullif(r.operator_number, '') ~ '^[0-9]+$' OR sm.company_id IS NOT NULL\n               THEN 'resolved_identity'\n             ELSE 'unresolved' END AS group_kind,\n        coalesce(nullif(r.sector, ''), 'unknown') AS sector\n      FROM assets a JOIN representatives r USING (asset_key)\n      LEFT JOIN single_membership sm USING (asset_key)\n      LEFT JOIN unresolved_conflicts uc USING (asset_key)\n      LEFT JOIN same_name_bucket_assets nb USING (asset_key)\n    ), eligible_assets AS (\n      SELECT DISTINCT asset_key FROM all_rows\n      WHERE need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n    ), grouped_need_counts AS (\n      SELECT a.group_key, count(DISTINCT ar.canonical_need_id)::integer AS need_count,\n        count(DISTINCT ar.canonical_need_id) FILTER (\n          WHERE ar.need_id = ANY(CAST(%(eligible_need_ids)s AS uuid[]))\n        )::integer AS eligible_need_count,\n        count(DISTINCT ar.canonical_need_id) FILTER (\n          WHERE ar.canonical_need_id = ANY(CAST(%(pursued_need_ids)s AS uuid[]))\n        )::integer AS pursued_eligible_need_count,\n        bool_or(ar.has_contact_actions) AS has_contact_actions,\n        max(ar.commercial_score) AS commercial_score\n      FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key\n      GROUP BY a.group_key\n    ), grouped AS (\n      SELECT group_key, (array_agg(group_name ORDER BY group_name))[1] AS name,\n        (array_agg(group_role ORDER BY group_role))[1] AS role,\n        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')\n             THEN 'same_name_unconfirmed'\n             WHEN bool_or(group_kind = 'resolved_identity') THEN 'resolved_identity'\n             ELSE 'unresolved' END AS group_kind,\n        CASE WHEN bool_or(group_kind = 'same_name_unconfirmed')\n             THEN max(identity_count)\n             WHEN bool_or(group_kind = 'resolved_identity') THEN 1\n             ELSE NULL END AS identity_count,\n        max(priority_score)::integer AS priority_score,\n        count(*)::integer AS project_count,\n        gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,\n        gnc.has_contact_actions, gnc.commercial_score,\n        count(*) FILTER (\n          WHERE asset_key IN (SELECT asset_key FROM eligible_assets)\n        )::integer AS relevant_project_count,\n        array_agg(DISTINCT sector ORDER BY sector) AS sectors,\n        max(updated_at) AS updated_at\n      FROM assigned JOIN grouped_need_counts gnc USING (group_key)\n      GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,\n               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score\n               \n    )\n    , page_rows AS MATERIALIZED (SELECT g.*, count(*) OVER() AS total, count(*) FILTER (WHERE g.group_kind='resolved_identity') OVER() AS account_total, coalesce(sum(g.project_count) OVER(),0) AS project_total, (SELECT count(DISTINCT ar.canonical_need_id) FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE TRUE)) AS need_total FROM grouped g WHERE TRUE ORDER BY (commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, priority_score DESC NULLS LAST, name, group_key LIMIT %(limit)s OFFSET %(offset)s), page_commercial_projects AS (SELECT p.group_key, jsonb_agg(DISTINCT jsonb_build_object('project_id', ar.project_id, 'company_id', a.company_id, 'facts', coalesce(b.compact->'customer_facts', '[]'::jsonb), 'priority', b.compact->'customer_priority', 'developments', coalesce(b.compact->'customer_developments', '[]'::jsonb))) AS commercial_projects FROM page_rows p JOIN assigned a ON a.group_key=p.group_key JOIN all_rows ar ON ar.asset_key=a.asset_key JOIN browse_rows b ON b.generation_id=%(generation)s AND b.project_id=ar.project_id AND b.need_id=ar.need_id GROUP BY p.group_key) SELECT p.*, cp.commercial_projects FROM page_rows p LEFT JOIN page_commercial_projects cp USING (group_key) ORDER BY (commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, priority_score DESC NULLS LAST, name, group_key",
+  "captured_sql_note": "Hash-verified reconstruction from candidate-current-page1-plan.json, replacing only the compact projection with the historical failed variant from capture_failed_candidate_plan.py; no query was rerun."
+}

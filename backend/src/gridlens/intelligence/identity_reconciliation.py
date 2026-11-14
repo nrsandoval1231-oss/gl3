@@ -6,7 +6,9 @@ identifier or attributed review and remains attached to its project-scoped claim
 
 from __future__ import annotations
 
+import hashlib
 import re
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
@@ -517,6 +519,238 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             )
             session.flush()
     _reuse_exact_project_company_for_named_people(session, list(claims.values()), current_by_claim)
+
+
+def _same_project_scoped_company_role_revision(
+    prior: BuyingChainClaim,
+    current: BuyingChainClaim,
+    link: BuyingChainIdentityLink,
+    prior_candidate: dict[str, Any],
+    prior_support: list[dict[str, Any]],
+    current_citations: list[dict[str, Any]],
+) -> bool:
+    """Allow local company identity continuity across a same-role source revision.
+
+    This is narrower than name resolution: legal-name spelling, category, role,
+    project, and source URL must remain exact. Only a project-scoped company link
+    may use this path; person, reviewed, and strong-identifier links retain their
+    exact-quote/current-proof rules.
+    """
+    if (
+        link.entity_type != "company"
+        or link.basis != "project_scoped"
+        or prior.project_id != current.project_id
+        or prior.entity_key != current.entity_key
+        or prior.person_name is not None
+        or current.person_name is not None
+        or prior.organization != current.organization
+        or prior.category != current.category
+        or prior.organization_relationship != current.organization_relationship
+        or prior.person_organization_relationship != current.person_organization_relationship
+        or prior.person_project_relationship != current.person_project_relationship
+        or prior_candidate.get("stale")
+        or prior_candidate.get("suppressed")
+        or prior_candidate.get("correction_stale")
+    ):
+        return False
+    old_role_sources = {
+        str(row.get("url"))
+        for row in prior_support
+        if row.get("current_support")
+        and row.get("supports") == "project_organization"
+        and str(row.get("id")) == str(link.source_evidence_id)
+    }
+    if not old_role_sources:
+        return False
+    return any(
+        citation.get("supports") == "project_organization"
+        and citation.get("url") in old_role_sources
+        and isinstance(citation.get("quote"), str)
+        and citation["quote"]
+        for citation in current_citations
+    )
+
+
+def _same_prior_run_project_scoped_company_role_revision(
+    prior: BuyingChainClaim,
+    current: BuyingChainClaim,
+    link: BuyingChainIdentityLink,
+    *,
+    prior_claim_ids: set[str],
+    prior_source: Any,
+    prior_citation: dict[str, Any],
+    current_citations: list[dict[str, Any]],
+) -> bool:
+    """Use the immediately prior run as local identity lineage, never as support.
+
+    The source may have been superseded by an accepted observation before the
+    next enrichment pass starts. Its prior-run membership and immutable citation
+    can preserve a project-local ID, while the replacement citation must be
+    independently current and accepted at the caller.
+    """
+    if (
+        str(prior.id) not in prior_claim_ids
+        or link.entity_type != "company"
+        or link.basis != "project_scoped"
+        or link.state != "current"
+        or prior.project_id != current.project_id
+        or prior.entity_key != current.entity_key
+        or prior.person_name is not None
+        or current.person_name is not None
+        or prior.organization != current.organization
+        or prior.category != current.category
+        or prior.organization_relationship != current.organization_relationship
+        or prior.person_organization_relationship != current.person_organization_relationship
+        or prior.person_project_relationship != current.person_project_relationship
+        or prior_citation.get("supports") != "project_organization"
+        or str(prior_citation.get("evidence_id")) != str(prior_source.id)
+        or str(link.source_evidence_id) != str(prior_source.id)
+        or link.source_version_hash != prior_source.content_hash
+        or prior_source.project_id != prior.project_id
+        or prior_citation.get("url") != prior_source.url
+        or not isinstance(prior_citation.get("quote"), str)
+        or not prior_citation.get("quote")
+    ):
+        return False
+    old_url = prior_citation.get("url")
+    return isinstance(old_url, str) and any(
+        citation.get("supports") == "project_organization"
+        and citation.get("url") == old_url
+        and isinstance(citation.get("quote"), str)
+        and citation["quote"]
+        for citation in current_citations
+    )
+
+
+def _prior_run_receipt_scope_is_unambiguous(
+    *,
+    latest_run_claim_ids: set[str],
+    matching_claim_ids: set[str],
+    selected_claim_id: str,
+    company_identity_ids: set[str],
+) -> bool:
+    """Require a nonempty latest-run receipt and one local identity lineage."""
+    return bool(
+        latest_run_claim_ids
+        and matching_claim_ids
+        and matching_claim_ids <= latest_run_claim_ids
+        and selected_claim_id in matching_claim_ids
+        and len(company_identity_ids) == 1
+    )
+
+
+def _adjacent_prior_retained_evidence_versions(
+    prior: Any,
+    current: Any,
+    newest_versions: Sequence[Any],
+) -> bool:
+    """Fail closed unless current accepted source directly follows the receipt."""
+    return bool(
+        prior is not None
+        and current is not None
+        and prior.observation_id == current.observation_id
+        and current.observed_at > prior.observed_at
+        and len(newest_versions) == 2
+        and newest_versions[0].id == current.id
+        and newest_versions[1].id == prior.id
+    )
+
+
+def _retained_company_project_history_is_safe(
+    versions: Sequence[Any],
+    *,
+    source_id: str,
+    schema_version: str,
+    max_versions: int = 64,
+) -> bool:
+    """Validate bounded native-source history and reject any adverse version.
+
+    The native ingester reuses immutable Evidence rows for repeated hashes, so
+    timestamps cannot establish when an adverse row was replayed. Any verified
+    adverse version for this Observation therefore disables lineage carry.
+    """
+    if not versions or len(versions) > max_versions:
+        return False
+    from gridlens.ingestion.adapters.retained_company_projects import (
+        interpret_retained_company_project,
+        retained_record_hash,
+    )
+
+    for evidence in versions:
+        provenance = getattr(evidence, "provenance", None)
+        context = (
+            provenance.get("retained_company_project") if isinstance(provenance, dict) else None
+        )
+        if not isinstance(context, dict):
+            return False
+        abstract = getattr(evidence, "abstract", None) or ""
+        title = getattr(evidence, "title", None) or ""
+        if (
+            context.get("schema_version") != schema_version
+            or context.get("source_id") != source_id
+            or context.get("source_url") != getattr(evidence, "url", None)
+            or context.get("content_hash") != getattr(evidence, "content_hash", None)
+            or context.get("body_hash") != hashlib.sha256(abstract.encode("utf-8")).hexdigest()
+        ):
+            return False
+        artifacts = context.get("source_artifacts")
+        if (
+            not isinstance(artifacts, list)
+            or not artifacts
+            or any(
+                not isinstance(item, dict)
+                or not isinstance(item.get("source_file"), str)
+                or not item.get("source_file")
+                or not isinstance(item.get("source_artifact_hash"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", item.get("source_artifact_hash", ""))
+                or not isinstance(item.get("source_excerpt_hash"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", item.get("source_excerpt_hash", ""))
+                for item in artifacts
+            )
+        ):
+            return False
+        url = getattr(evidence, "url", None)
+        if not isinstance(url, str) or not url:
+            return False
+        publication_date = getattr(evidence, "published_at", None)
+        record = {
+            "document_number": hashlib.sha256(url.encode("utf-8")).hexdigest(),
+            "title": title,
+            "abstract": abstract,
+            "html_url": url,
+            "publication_date": publication_date.isoformat() if publication_date else None,
+            "publication_date_metadata": context.get("publication_date_metadata"),
+            "publication_date_precision": context.get("publication_date_precision"),
+            "source_body_hash": context.get("body_hash"),
+            "source_hash": context.get("content_hash"),
+            "retained_company_project": context,
+        }
+        if retained_record_hash(record) != context.get("content_hash"):
+            return False
+        status = context.get("status")
+        if status is None:
+            if context.get("status_quote") is not None or context.get("status_reason") is not None:
+                return False
+            if interpret_retained_company_project(record) is None:
+                return False
+            continue
+        if status != "adverse_status_review":
+            return False
+        quote = context.get("status_quote")
+        if (
+            not isinstance(quote, str)
+            or not quote.strip()
+            or quote not in f"{title}\n{abstract}"
+            or not re.search(
+                r"\b(?:cancelled|canceled|abandoned|withdrawn|suspended|terminated|"
+                r"on\s+hold|not\s+proceeding|stopped)\b",
+                quote,
+                re.IGNORECASE,
+            )
+        ):
+            return False
+        return False
+    return True
 
 
 def _same_current_project_organization_source(

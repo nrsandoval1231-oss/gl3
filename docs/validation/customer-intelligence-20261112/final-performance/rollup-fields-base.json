@@ -1,0 +1,29 @@
+{
+  "source_manifest_sha256": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+  "page_size": 25,
+  "returned_groups": 25,
+  "account_total": 38319,
+  "payload_utf8_bytes": 15760,
+  "summed_item_field_utf8_bytes": {
+    "id": 925,
+    "name": 830,
+    "role": 252,
+    "group_kind": 479,
+    "identity_count": 25,
+    "project_count": 28,
+    "need_count": 28,
+    "relevant_project_count": 26,
+    "total_known_project_count": 28,
+    "eligible_need_count": 26,
+    "pursued_eligible_need_count": 25,
+    "matched_project_id": 100,
+    "matched_need_id": 100,
+    "priority_score": 76,
+    "sectors": 340,
+    "account_contact_project": 4557
+  },
+  "summed_commercial_intelligence_subfield_utf8_bytes": {},
+  "limitations": [
+    "Single direct read-only call; summed item fields omit enclosing JSON syntax."
+  ]
+}

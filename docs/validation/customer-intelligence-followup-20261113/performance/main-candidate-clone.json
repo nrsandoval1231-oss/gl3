@@ -1,0 +1,29 @@
+{
+  "source_root_commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+  "source_backend_manifest_sha256": "d05451d5465be1a6c5260766fae5b72d4781893d835c0191d3eefef9b9270a0a",
+  "source_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/799adfcd6fc22096ab72e9e3",
+  "template_database": "gl3_perf_followup_rollup_scale_main_test",
+  "candidate_database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "generation_id": "f637c22a-8f45-4d41-a020-c5e816e1c10a",
+  "template_generation_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/e43b928f287e2314ce69c98f",
+  "candidate_generation_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/799adfcd6fc22096ab72e9e3",
+  "allowed_test_only_adjustment": "browse_generations.policy_version for the cloned generation row only",
+  "table_counts_before": {
+    "projects": 40000,
+    "browse_rows": 40000,
+    "evidence": 48,
+    "needs": 48,
+    "memberships": 66
+  },
+  "table_counts_after": {
+    "projects": 40000,
+    "browse_rows": 40000,
+    "evidence": 48,
+    "needs": 48,
+    "memberships": 66
+  },
+  "counts_unchanged": true,
+  "limitations": [
+    "Disposable synthetic test databases only; no retained or production data."
+  ]
+}

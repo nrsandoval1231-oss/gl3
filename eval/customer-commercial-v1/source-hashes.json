@@ -1,0 +1,176 @@
+[
+  {
+    "file": "sources/aligned.json",
+    "sha256": "8718450e22b3a2f492e9a38ed00930c337b70e1e68c3577e45b0d8fa59cb0e1e",
+    "url": "https://aligneddc.com/press-release/aligned-data-centers-expands-in-ohio-with-new-mega-scale-ai-campus/",
+    "excerpt_sha256": "21f0eafc1d6221307062484ceaf63cb95c5fb22e31f45b3c1d0ed9742051868b"
+  },
+  {
+    "file": "sources/amazon.json",
+    "sha256": "b3d10005d3f398cadcd917db55dcac311c9a89cc21fd8090f353c65915cf857b",
+    "url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+    "excerpt_sha256": "580404c303077b51593324c009805b4516395755b0c701d3bc0d23d7b72bc500"
+  },
+  {
+    "file": "sources/amazon_supplement.json",
+    "sha256": "7e6aa21879ba8ef967eedf39a9dd557e9642dd8c664a4603f19d8b31f32bbd35",
+    "url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+    "excerpt_sha256": "22a250b12a33b9866bc4f41fdbb83f0d10da8128a23fea7cda984256a2ac71af"
+  },
+  {
+    "file": "sources/applied.json",
+    "sha256": "9d363b86c93497eb85431ac71d11ab6c757ac82bbf0b2b6f83d2bbd29c84b85e",
+    "url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+    "excerpt_sha256": "61b01397f7411e63fc6eab5730e5e0877c3670f3bb8e917283ae81fbc36ef53d"
+  },
+  {
+    "file": "sources/compass.json",
+    "sha256": "34e74d7b6c00581389b5fbf37aba88244a9eaf75b7a020fb977e8f203ec24708",
+    "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+    "excerpt_sha256": "2af33126a4993a550c4f8a311c33b26fcd1d24521fd1b2bf8d213181f970a313"
+  },
+  {
+    "file": "sources/compass_markets.json",
+    "sha256": "ba6a58aea21599a07046e8aae0a31e0e1390b7788227f1085c0e1ffbdb12191f",
+    "url": "https://www.compassdatacenters.com/data-center-markets/",
+    "excerpt_sha256": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0"
+  },
+  {
+    "file": "sources/compass_supplement.json",
+    "sha256": "5c0c0b9dcf0efe84a417f669b09e5dfdd501780b44470438fd9a35a7ee52e9e0",
+    "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+    "excerpt_sha256": "450cf0865cb491077debf5901fe5653b5212a64560c5b545b00b35d6d0f1f391"
+  },
+  {
+    "file": "sources/crusoe.json",
+    "sha256": "3118b43531188617f90d0267bee8a60310e7af061ffc5f133f68bee0c0f94e30",
+    "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+    "excerpt_sha256": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b"
+  },
+  {
+    "file": "sources/cyrusone.json",
+    "sha256": "e19ad67c6185975f70c6a7b92e031edc133644d2f21958e399a22027612e408e",
+    "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+    "excerpt_sha256": "1d75c4c75c1acef41df8138250020dfdbed8ddaedda0c09f47e4d013ac29afd5"
+  },
+  {
+    "file": "sources/cyrusone_supplement.json",
+    "sha256": "577ef5df6365687d71edd7b978809b7d994a85a9b05f0ff6271bde07ef4e89c0",
+    "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+    "excerpt_sha256": "4a7163aab9dce9abaa27695838840071a22e5f71859023faef5442644f489114"
+  },
+  {
+    "file": "sources/databank.json",
+    "sha256": "7588dd65e94ac93b3fc6e9bdb7e37a6a81d84e2ba37400064263b3b182bbde6b",
+    "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+    "excerpt_sha256": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae"
+  },
+  {
+    "file": "sources/digitalrealty.json",
+    "sha256": "68bd6c158ba7c812a27f3ff12a2d9701bcd52779e04fd7670e0f4a20ab8fa460",
+    "url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos",
+    "excerpt_sha256": "8a22689bfe7b04019fdd60ea383aae0999bd22794d04d8ea047fe28f8fd14da8"
+  },
+  {
+    "file": "sources/dominion.json",
+    "sha256": "f5c1aa82bac4f4376b90eeda0250a245808a2c8eb7cf07e42b0c6a2f4b131cf8",
+    "url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+    "excerpt_sha256": "1e28a236702cd5c86c6c6904a6c09575c6576ede4be133fc49cf0fe2d7d36ed2"
+  },
+  {
+    "file": "sources/dominion_project_supplement.json",
+    "sha256": "2da2df3e4cc4c71aa74f5681afbfcabf8bb4eaaedd7d411c0e7ca442f1a7b2ce",
+    "url": "https://coastalvawind.com/",
+    "excerpt_sha256": "94eb35e0d46803a22c5db59c404a60e1fb9740598dca3561a00483252c078c16"
+  },
+  {
+    "file": "sources/edgecore_press.json",
+    "sha256": "b95b82f9c618bd354f1394b8777c268e68760d7be4b234982fb7c9ce3dabbec6",
+    "url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/",
+    "excerpt_sha256": "0e79bfc542a27d6b58836256c5950d4d45f55e97045245b9621e6c26b953a274"
+  },
+  {
+    "file": "sources/equinix.json",
+    "sha256": "d1042702abeef78f0e82bf187db0f410640de8c946efb3a65b43d7f121760dcc",
+    "url": "https://newsroom.equinix.com/2025-11-10-Equinix-Tops-Out-Its-Second-Data-Center-in-Johor",
+    "excerpt_sha256": "a0128df3643a8544a4413b480fa87a4213100c22930c91b72fc49818cf5b3537"
+  },
+  {
+    "file": "sources/fervo.json",
+    "sha256": "270f584774c2c9858f3857c60a2b8fad4830278128fbfc75ffbd678a96ad5994",
+    "url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/",
+    "excerpt_sha256": "66c3f1161ce0a6c5a06ad9e590b2b3173f059d2acf02121bbfe89ee4d9876d63"
+  },
+  {
+    "file": "sources/fervo_supplement.json",
+    "sha256": "81ec356cc69e2f77fd61fe35a2aafb161a3555773b5fe32694770ac941b8445b",
+    "url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/",
+    "excerpt_sha256": "7173888e1d2b03f40d024edf04e172597420afcfb71b2973e861be7a31c7f315"
+  },
+  {
+    "file": "sources/google.json",
+    "sha256": "934c65f8d0612fd41de867af18de33e0ac76b81c25aea62177fe8ddf1684a3ab",
+    "url": "https://datacenters.google/locations/indiana/",
+    "excerpt_sha256": "a35daaed591c67e5f36203f7395f5ac2fb91b5dae826cfbb5d207b632c11b0d6"
+  },
+  {
+    "file": "sources/google_supplement.json",
+    "sha256": "1f475572e3335216ed046f7c08482153c7d75bccb549935be891cbccf6df0911",
+    "url": "https://datacenters.google/locations/indiana/",
+    "excerpt_sha256": "bf878d40a3d0bb9ee6730d33f3e57645af4af4d4474e7790d5bd7d7945780e30"
+  },
+  {
+    "file": "sources/meta.json",
+    "sha256": "6d623cadec1439b42d603ddce88487e9edf8e1efa68768dd3fea9cc3882c8dd6",
+    "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+    "excerpt_sha256": "37f4bef6e911b53a96203ee7deaaf1e0bc36920afb17b4e7869c7b2b3449be84"
+  },
+  {
+    "file": "sources/microsoft.json",
+    "sha256": "a0bf271f87dcdcb7ffa3150d10c435ba3ca25ca98b4a1408b16dfea4be40ac3e",
+    "url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/",
+    "excerpt_sha256": "425109efa5db525d1cfa0f1d7b1205f37c9edbe262921104e800c5c2baa67980"
+  },
+  {
+    "file": "sources/qts.json",
+    "sha256": "40ab0eb11c9ebbf38dc18ae32f9327e93e6461ba48e8b6cd9021a2482581832c",
+    "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+    "excerpt_sha256": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe"
+  },
+  {
+    "file": "sources/stack.json",
+    "sha256": "1d186d3877d434f1cfb3b48fd27ec235ac3c08671874adee3f2850586a065ece",
+    "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+    "excerpt_sha256": "43e7a94de8f221db1775083a6c1abd7d3671b4e3c9cf5ef8087419efe81fcb9c"
+  },
+  {
+    "file": "sources/stack_supplement.json",
+    "sha256": "4ce1f75f3743bd953b1d63953f3f841b948de72ec6120675bf2c42e208849f1d",
+    "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+    "excerpt_sha256": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376"
+  },
+  {
+    "file": "sources/switch.json",
+    "sha256": "e860f63d3e4dc99ac3055af3626f4d4fb628943dbde963a57f6ec781bc8e9665",
+    "url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/",
+    "excerpt_sha256": "2c65f64e744ff3b1aedaa2f6ddd9cff9e45483c5e8fca00e85f155b97e35bb66"
+  },
+  {
+    "file": "sources/terrapower.json",
+    "sha256": "8ae1ed8761a56054f76b964b6cb295edc01bf460eaf32a36ae8d6865c04dc08d",
+    "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+    "excerpt_sha256": "57d5fbc08e4ed65292e865e4ae744cb0537293e313317443c31597ef36f9315f"
+  },
+  {
+    "file": "sources/terrapower_supplement.json",
+    "sha256": "3539f3d83414d8c91a8b75160d1f4d8bcf8ee86f0c0d45eb48c09ff47a941cf9",
+    "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+    "excerpt_sha256": "a0cc364180ffc780c8c80eb0c7560e5d5e1ff2445bb0c9c7d70c52f3010ef51a"
+  },
+  {
+    "file": "sources/vantage.json",
+    "sha256": "a98ffb126d96af21900c01bf251c2f758d79521e860ea6e1ee33f1f9359866f5",
+    "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+    "excerpt_sha256": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f"
+  }
+]

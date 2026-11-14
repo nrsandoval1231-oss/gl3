@@ -1,0 +1,1974 @@
+{
+  "captured_at": "2026-11-14T07:01:40.863452+00:00",
+  "immutable_inputs": {
+    "gold_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+    "gold_used_as_runtime_input": false,
+    "source_artifacts_verified": 29,
+    "source_manifest_sha256": "4b8831df9e94261806d2df7d51a4df1fd4299fe3b4daf862fdc64b99f192c5fb"
+  },
+  "runtime": {
+    "disposable_database": "gl3_customer_runtime_20261114070136_251034c4_test",
+    "evaluation_limits": {
+      "contacts": "unavailable_unverified; no current contact evidence was acquired",
+      "cross_customer_grouping": "not_measured; no independently proven global IDs",
+      "dedupe": "only native ingestion replay keys observed; no identity oracle",
+      "identity_accuracy": "not_measured; reference labels were never seeded",
+      "portfolio_mw_rollup": "not_evaluated; source MW facts do not populate required_mw",
+      "ranking_usefulness": "not_evaluated; browse generation publication is plumbing only"
+    },
+    "native_runtime": {
+      "accepted_interpretations": 5,
+      "account_projection": {
+        "account_api_rows": 3,
+        "account_cards": [
+          {
+            "aliases": [
+              "CyrusOne"
+            ],
+            "contact_state": "unavailable_unverified",
+            "highest_priority_need": {
+              "commercial_disposition": "WATCH",
+              "location": "Bosque County, TX",
+              "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+              "project_title": "new data center adjacent to the Thad Hill Energy Center",
+              "qualification_tier": "Signal",
+              "required_mw": null
+            },
+            "name": "CyrusOne",
+            "need_count": 1,
+            "project_count": 1,
+            "supporting_evidence_count": 1
+          },
+          {
+            "aliases": [
+              "DataBank"
+            ],
+            "contact_state": "unavailable_unverified",
+            "highest_priority_need": {
+              "commercial_disposition": "WATCH",
+              "location": "Red Oak, TX",
+              "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+              "project_title": "Red Oak, TX data center campus",
+              "qualification_tier": "Signal",
+              "required_mw": null
+            },
+            "name": "DataBank",
+            "need_count": 1,
+            "project_count": 1,
+            "supporting_evidence_count": 1
+          },
+          {
+            "aliases": [
+              "Switch"
+            ],
+            "contact_state": "unavailable_unverified",
+            "highest_priority_need": {
+              "commercial_disposition": "WATCH",
+              "location": "Round Rock, TX",
+              "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+              "project_title": "Fifth Prime data center campus",
+              "qualification_tier": "Signal",
+              "required_mw": null
+            },
+            "name": "Switch",
+            "need_count": 1,
+            "project_count": 1,
+            "supporting_evidence_count": 1
+          }
+        ],
+        "browse_membership_rows": 3
+      },
+      "current_project_scoped_company_links": 3,
+      "customer_results_ui": {
+        "api_payloads": {
+          "canonical_customer_groups": {
+            "as_of": "2026-11-14T07:01:40.157639+00:00",
+            "cohort_token": "p1_fa911397f116104b69fb02c144fe6994352fc16dbef661aaeef0256b4deab724",
+            "count_unit": "groups",
+            "facets": {
+              "regions": [
+                "Bosque County, TX",
+                "Red Oak, TX",
+                "Round Rock, TX"
+              ],
+              "stages": []
+            },
+            "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "items": [
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "690f869a-db79-4d36-9175-b06e0668ef4c"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 20,
+                    "potential": 12,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 2,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 1,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null,
+                    "reported_target": {
+                      "event_type": "operational_target",
+                      "label": "by fourth quarter of 2026"
+                    }
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "CyrusOne",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "193b7a24-06b6-4f1f-8e81-8f0d846c73ad"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 1
+                    },
+                    "status": "supported",
+                    "total_mw": null,
+                    "totals": [
+                      {
+                        "basis": "it_load",
+                        "complete": true,
+                        "qualifier": "up_to",
+                        "status": "upper_bound",
+                        "value_mw": "480"
+                      }
+                    ]
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 20,
+                    "potential": 8,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 1,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 1,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_b85c4cf17805470e5bcfb62434d42c7d",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "DataBank",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "5904b062-11b0-4f0e-948d-7a5d15ceb6dd"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 0,
+                    "potential": 0,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 0,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 0,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_de1d109aa037fbb53390c1f076a72429",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "Switch",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              }
+            ],
+            "limit": 25,
+            "offset": 0,
+            "qualification_state": "current",
+            "refresh_state": "current",
+            "total": 3,
+            "totals": {
+              "accounts": 3,
+              "needs": 3,
+              "projects": 3
+            },
+            "valid_until": "2026-11-15T00:00:00+00:00"
+          },
+          "canonical_group_open": {
+            "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "group": {
+              "account_contact_project": null,
+              "commercial_intelligence": {
+                "as_of": "2026-11-14",
+                "canonical_company_identity_ids": [
+                  "690f869a-db79-4d36-9175-b06e0668ef4c"
+                ],
+                "capacity": {
+                  "claims": [],
+                  "conflicts": [],
+                  "coverage": {
+                    "projects_total": 1,
+                    "projects_with_capacity": 0
+                  },
+                  "excluded_claim_ids": [],
+                  "limitations": [
+                    "Different electrical bases are never added together.",
+                    "Partial supported amounts are not a complete company total.",
+                    "Mixed upper and lower bounds cannot establish an aggregate bound."
+                  ],
+                  "selected_claim_ids": [],
+                  "status": "insufficient_data",
+                  "superseded_claim_ids": [],
+                  "total_mw": null,
+                  "totals": []
+                },
+                "commissioning": {
+                  "assumptions": [],
+                  "base_mw": null,
+                  "calculation_version": "commissioning-test-plan-v1.0.0",
+                  "confidence": "insufficient",
+                  "config": {
+                    "decimal_places": 6,
+                    "max_blocks": 1000
+                  },
+                  "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+                  "demand_class": "engineering_scenario",
+                  "high_mw": null,
+                  "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                  "input_evidence": [],
+                  "limitations": [
+                    "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                    "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                    "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                    "Supply source and customer procurement intent are unknown unless independently verified.",
+                    "A nonempty bounded, project-specific commissioning test plan is required."
+                  ],
+                  "low_mw": null,
+                  "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "stage_demands": [],
+                  "status": "insufficient_data",
+                  "verified_customer_demand": false,
+                  "version": "commissioning-test-plan-v1.0.0"
+                },
+                "limitations": [
+                  "Engineering scenarios are not verified customer demand.",
+                  "Only explicit supported source facts are included; missing values remain unknown."
+                ],
+                "priority": {
+                  "components": {
+                    "announced_upper_bound": 0,
+                    "capacity": 0,
+                    "freshness": 0,
+                    "geographic_fit": 0,
+                    "material_changes": 0,
+                    "phase": 0,
+                    "timing": 12,
+                    "verified_contacts": 0
+                  },
+                  "confidence": 20,
+                  "limitations": [
+                    "Geographic fit and contact availability require separately verified account context.",
+                    "Facility capacity indicates project scale, not rental demand.",
+                    "Operational and ready-for-service targets are timing proxies, not commissioning or energization."
+                  ],
+                  "potential": 12,
+                  "priority_basis": {
+                    "capacity": {
+                      "basis": null,
+                      "claim_ids": [],
+                      "complete": false,
+                      "kind": "unknown",
+                      "sources": [],
+                      "value_mw": null
+                    },
+                    "timing": {
+                      "claim_id": "tf_4f3d4fae8ffcaede1f48bec2dfb4c790",
+                      "event_type": "operational_target",
+                      "kind": "reported_timing_proxy",
+                      "label": "by fourth quarter of 2026",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "current": true,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                        "published_at": "2025-07-30",
+                        "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                        "verification_status": "reported"
+                      }
+                    }
+                  },
+                  "ranking_method": "maximum supported project score before account pagination",
+                  "score": 2,
+                  "version": "customer-commercial-priority-v2"
+                },
+                "recent_developments": [],
+                "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                "scope": "all account projects in selected sector; independent of child pagination",
+                "sources": [
+                  {
+                    "authority": "unknown",
+                    "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                    "current": true,
+                    "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                    "extracted_at": null,
+                    "extraction_location": "retained excerpt text",
+                    "extraction_method": "deterministic",
+                    "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                    "published_at": "2025-07-30",
+                    "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                    "source_id": "retained-company-project-evaluation",
+                    "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                    "verification_status": "reported"
+                  }
+                ],
+                "timelines": {
+                  "claims": [
+                    {
+                      "display_label": "by fourth quarter of 2026",
+                      "earliest": null,
+                      "end": "2026-12-31",
+                      "event_type": "operational_target",
+                      "explicit_revision": false,
+                      "extraction_method": "customer-facts-v1",
+                      "fact_id": "tf_4f3d4fae8ffcaede1f48bec2dfb4c790",
+                      "label": "fourth quarter of 2026",
+                      "latest": "2026-12-31",
+                      "precision": "quarter",
+                      "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                      "qualifier": "deadline",
+                      "quote": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                      "scope_id": "495445dc-27a5-4957-832a-2ee3e678c21d:site",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "current": true,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                        "published_at": "2025-07-30",
+                        "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                        "verification_status": "reported"
+                      },
+                      "start": "2026-10-01",
+                      "status": "expected",
+                      "subject_binding": {
+                        "alias": "new data center adjacent to the Thad Hill Energy Center",
+                        "occurrences": [
+                          {
+                            "alias": "new data center adjacent to the Thad Hill Energy Center",
+                            "antecedent_span": [
+                              0,
+                              300
+                            ],
+                            "predicate": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                            "predicate_span": [
+                              301,
+                              492
+                            ],
+                            "quote_span": [
+                              301,
+                              492
+                            ],
+                            "source_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                            "subject_kind": "adjacent_anaphora",
+                            "subject_span": [
+                              220,
+                              275
+                            ]
+                          }
+                        ],
+                        "predicate": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                        "source_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "subject_kind": "adjacent_anaphora"
+                      }
+                    }
+                  ],
+                  "conflicts": [],
+                  "construction_start": null,
+                  "expected_energization": null,
+                  "selected_claim_ids": [
+                    "tf_4f3d4fae8ffcaede1f48bec2dfb4c790"
+                  ],
+                  "superseded_claim_ids": []
+                },
+                "version": "customer-intelligence-v1"
+              },
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+              "identity_count": 1,
+              "matched_need_id": null,
+              "matched_project_id": null,
+              "name": "CyrusOne",
+              "need_count": 1,
+              "priority_score": 45,
+              "project_count": 1,
+              "pursued_eligible_need_count": 0,
+              "relevant_project_count": 0,
+              "role": "customer",
+              "sectors": [
+                "data_centers"
+              ],
+              "total_known_project_count": 1
+            },
+            "parent_cohort_token": "p1_fa911397f116104b69fb02c144fe6994352fc16dbef661aaeef0256b4deab724",
+            "projects": {
+              "as_of": "2026-11-14T07:01:40.157639+00:00",
+              "cohort_token": "p1_fa911397f116104b69fb02c144fe6994352fc16dbef661aaeef0256b4deab724.group.a21c33093a46fdd2",
+              "count_unit": "projects",
+              "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+              "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+              "items": [
+                {
+                  "asset_identity": null,
+                  "asset_type": "data_center",
+                  "commercial_brief": {
+                    "best_contact": null,
+                    "freshness": {
+                      "as_of": "2026-11-14T07:01:40.847143+00:00",
+                      "source_age_days": 472,
+                      "source_date": "2025-07-30",
+                      "status": "stale_source"
+                    },
+                    "limitations": [
+                      "No current source-backed event is available to explain why now.",
+                      "Activity-specific power amount is unknown; unknown is not zero.",
+                      "No privacy-filtered contact route is available.",
+                      "Next action is a research prompt; no buyer or purchase authority is established."
+                    ],
+                    "next_action": {
+                      "kind": "research",
+                      "source": null,
+                      "text": "Research the activity-specific temporary power requirement using current project sources."
+                    },
+                    "power_need": {
+                      "amount_class": "unknown",
+                      "limitations": [
+                        "Activity-specific power amount is unknown; unknown is not zero."
+                      ],
+                      "scope": "construction",
+                      "status": "unknown",
+                      "unit": null,
+                      "value": null
+                    },
+                    "sources": [
+                      {
+                        "date": "2025-07-30",
+                        "event_date_label": null,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "title": "Cyrusone and Calpine Announce New Hyperscale Data Center Development in Texas",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+                      }
+                    ],
+                    "version": "commercial-brief-v1",
+                    "why_now": {
+                      "scope": null,
+                      "source_date": null,
+                      "sources": [],
+                      "text": null
+                    }
+                  },
+                  "company": null,
+                  "contact": [],
+                  "contact_people": [],
+                  "customer_identity_id": "690f869a-db79-4d36-9175-b06e0668ef4c",
+                  "eligible_need_ids": [],
+                  "event": null,
+                  "id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "location": "Bosque County, TX",
+                  "name": "new data center adjacent to the Thad Hill Energy Center",
+                  "need_count": 1,
+                  "needs": [
+                    {
+                      "activity": "construction",
+                      "asset_type": "data_center",
+                      "browse_title": "new data center adjacent to the Thad Hill Energy Center",
+                      "commercial_brief": {
+                        "best_contact": null,
+                        "freshness": {
+                          "as_of": "2026-11-14T07:01:40.847143+00:00",
+                          "source_age_days": 472,
+                          "source_date": "2025-07-30",
+                          "status": "stale_source"
+                        },
+                        "limitations": [
+                          "No current source-backed event is available to explain why now.",
+                          "Activity-specific power amount is unknown; unknown is not zero.",
+                          "No privacy-filtered contact route is available.",
+                          "Next action is a research prompt; no buyer or purchase authority is established."
+                        ],
+                        "next_action": {
+                          "kind": "research",
+                          "source": null,
+                          "text": "Research the activity-specific temporary power requirement using current project sources."
+                        },
+                        "power_need": {
+                          "amount_class": "unknown",
+                          "limitations": [
+                            "Activity-specific power amount is unknown; unknown is not zero."
+                          ],
+                          "scope": "construction",
+                          "status": "unknown",
+                          "unit": null,
+                          "value": null
+                        },
+                        "sources": [
+                          {
+                            "date": "2025-07-30",
+                            "event_date_label": null,
+                            "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                            "title": "Cyrusone and Calpine Announce New Hyperscale Data Center Development in Texas",
+                            "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+                          }
+                        ],
+                        "version": "commercial-brief-v1",
+                        "why_now": {
+                          "scope": null,
+                          "source_date": null,
+                          "sources": [],
+                          "text": null
+                        }
+                      },
+                      "commercial_preview": {
+                        "disposition": "WATCH",
+                        "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                        "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?",
+                        "organization": "CyrusOne",
+                        "reason": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award."
+                      },
+                      "contact_actions": [],
+                      "contact_people": [],
+                      "evidence_count": 1,
+                      "id": "59b6975e-f5a0-4db6-8ff9-b0e2144c1952",
+                      "location": "Bosque County, TX",
+                      "name": "new data center adjacent to the Thad Hill Energy Center",
+                      "priority_label": "Data center",
+                      "priority_segment": 6,
+                      "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                      "project_metadata": {
+                        "asset_identity": null,
+                        "data_center": {
+                          "campus": "new data center adjacent to the Thad Hill Energy Center"
+                        },
+                        "event": null,
+                        "location": "Bosque County, TX",
+                        "name": "new data center adjacent to the Thad Hill Energy Center",
+                        "oil_gas": null,
+                        "operator": null,
+                        "owner": null,
+                        "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                        "power_summary_kind": "unknown",
+                        "sector": "data_centers",
+                        "title": "new data center adjacent to the Thad Hill Energy Center"
+                      },
+                      "tier": "Signal"
+                    }
+                  ],
+                  "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                  "power_amount_class": "unknown",
+                  "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                  "power_summary_kind": "unknown",
+                  "priority_score": 45,
+                  "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "project_ids": [
+                    "495445dc-27a5-4957-832a-2ee3e678c21d"
+                  ],
+                  "representative_need_id": "59b6975e-f5a0-4db6-8ff9-b0e2144c1952",
+                  "sector": "data_centers",
+                  "updated_at": "2026-11-14T07:01:38.186189+00:00"
+                }
+              ],
+              "limit": 25,
+              "offset": 0,
+              "qualification_state": "current",
+              "refresh_state": "current",
+              "total": 1,
+              "valid_until": "2026-11-15T00:00:00+00:00"
+            }
+          },
+          "opened_group": {
+            "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "group": {
+              "account_contact_project": null,
+              "commercial_intelligence": {
+                "as_of": "2026-11-14",
+                "canonical_company_identity_ids": [
+                  "690f869a-db79-4d36-9175-b06e0668ef4c"
+                ],
+                "capacity": {
+                  "claims": [],
+                  "conflicts": [],
+                  "coverage": {
+                    "projects_total": 1,
+                    "projects_with_capacity": 0
+                  },
+                  "excluded_claim_ids": [],
+                  "limitations": [
+                    "Different electrical bases are never added together.",
+                    "Partial supported amounts are not a complete company total.",
+                    "Mixed upper and lower bounds cannot establish an aggregate bound."
+                  ],
+                  "selected_claim_ids": [],
+                  "status": "insufficient_data",
+                  "superseded_claim_ids": [],
+                  "total_mw": null,
+                  "totals": []
+                },
+                "commissioning": {
+                  "assumptions": [],
+                  "base_mw": null,
+                  "calculation_version": "commissioning-test-plan-v1.0.0",
+                  "confidence": "insufficient",
+                  "config": {
+                    "decimal_places": 6,
+                    "max_blocks": 1000
+                  },
+                  "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+                  "demand_class": "engineering_scenario",
+                  "high_mw": null,
+                  "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                  "input_evidence": [],
+                  "limitations": [
+                    "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                    "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                    "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                    "Supply source and customer procurement intent are unknown unless independently verified.",
+                    "A nonempty bounded, project-specific commissioning test plan is required."
+                  ],
+                  "low_mw": null,
+                  "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "stage_demands": [],
+                  "status": "insufficient_data",
+                  "verified_customer_demand": false,
+                  "version": "commissioning-test-plan-v1.0.0"
+                },
+                "limitations": [
+                  "Engineering scenarios are not verified customer demand.",
+                  "Only explicit supported source facts are included; missing values remain unknown."
+                ],
+                "priority": {
+                  "components": {
+                    "announced_upper_bound": 0,
+                    "capacity": 0,
+                    "freshness": 0,
+                    "geographic_fit": 0,
+                    "material_changes": 0,
+                    "phase": 0,
+                    "timing": 12,
+                    "verified_contacts": 0
+                  },
+                  "confidence": 20,
+                  "limitations": [
+                    "Geographic fit and contact availability require separately verified account context.",
+                    "Facility capacity indicates project scale, not rental demand.",
+                    "Operational and ready-for-service targets are timing proxies, not commissioning or energization."
+                  ],
+                  "potential": 12,
+                  "priority_basis": {
+                    "capacity": {
+                      "basis": null,
+                      "claim_ids": [],
+                      "complete": false,
+                      "kind": "unknown",
+                      "sources": [],
+                      "value_mw": null
+                    },
+                    "timing": {
+                      "claim_id": "tf_4f3d4fae8ffcaede1f48bec2dfb4c790",
+                      "event_type": "operational_target",
+                      "kind": "reported_timing_proxy",
+                      "label": "by fourth quarter of 2026",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "current": true,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                        "published_at": "2025-07-30",
+                        "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                        "verification_status": "reported"
+                      }
+                    }
+                  },
+                  "ranking_method": "maximum supported project score before account pagination",
+                  "score": 2,
+                  "version": "customer-commercial-priority-v2"
+                },
+                "recent_developments": [],
+                "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                "scope": "all account projects in selected sector; independent of child pagination",
+                "sources": [
+                  {
+                    "authority": "unknown",
+                    "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                    "current": true,
+                    "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                    "extracted_at": null,
+                    "extraction_location": "retained excerpt text",
+                    "extraction_method": "deterministic",
+                    "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                    "published_at": "2025-07-30",
+                    "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                    "source_id": "retained-company-project-evaluation",
+                    "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                    "verification_status": "reported"
+                  }
+                ],
+                "timelines": {
+                  "claims": [
+                    {
+                      "display_label": "by fourth quarter of 2026",
+                      "earliest": null,
+                      "end": "2026-12-31",
+                      "event_type": "operational_target",
+                      "explicit_revision": false,
+                      "extraction_method": "customer-facts-v1",
+                      "fact_id": "tf_4f3d4fae8ffcaede1f48bec2dfb4c790",
+                      "label": "fourth quarter of 2026",
+                      "latest": "2026-12-31",
+                      "precision": "quarter",
+                      "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                      "qualifier": "deadline",
+                      "quote": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                      "scope_id": "495445dc-27a5-4957-832a-2ee3e678c21d:site",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "current": true,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-14T07:01:38.171613+00:00",
+                        "published_at": "2025-07-30",
+                        "semantic_hash": "cfc7e09cae3ed715ed2fdbf25cb3000ca3e8b155836b70369dcd82d3fddf616a",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas",
+                        "verification_status": "reported"
+                      },
+                      "start": "2026-10-01",
+                      "status": "expected",
+                      "subject_binding": {
+                        "alias": "new data center adjacent to the Thad Hill Energy Center",
+                        "occurrences": [
+                          {
+                            "alias": "new data center adjacent to the Thad Hill Energy Center",
+                            "antecedent_span": [
+                              0,
+                              300
+                            ],
+                            "predicate": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                            "predicate_span": [
+                              301,
+                              492
+                            ],
+                            "quote_span": [
+                              301,
+                              492
+                            ],
+                            "source_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                            "subject_kind": "adjacent_anaphora",
+                            "subject_span": [
+                              220,
+                              275
+                            ]
+                          }
+                        ],
+                        "predicate": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026.",
+                        "source_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                        "subject_kind": "adjacent_anaphora"
+                      }
+                    }
+                  ],
+                  "conflicts": [],
+                  "construction_start": null,
+                  "expected_energization": null,
+                  "selected_claim_ids": [
+                    "tf_4f3d4fae8ffcaede1f48bec2dfb4c790"
+                  ],
+                  "superseded_claim_ids": []
+                },
+                "version": "customer-intelligence-v1"
+              },
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+              "identity_count": 1,
+              "matched_need_id": null,
+              "matched_project_id": null,
+              "name": "CyrusOne",
+              "need_count": 1,
+              "priority_score": 45,
+              "project_count": 1,
+              "pursued_eligible_need_count": 0,
+              "relevant_project_count": 0,
+              "role": "customer",
+              "sectors": [
+                "data_centers"
+              ],
+              "total_known_project_count": 1
+            },
+            "parent_cohort_token": "p1_aff5667075136a5c7545c0abba4b10d8c271816b33207b22e0c08c0d4e6000d0",
+            "projects": {
+              "as_of": "2026-11-14T07:01:40.157639+00:00",
+              "cohort_token": "p1_aff5667075136a5c7545c0abba4b10d8c271816b33207b22e0c08c0d4e6000d0.group.a21c33093a46fdd2",
+              "count_unit": "projects",
+              "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+              "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+              "items": [
+                {
+                  "asset_identity": null,
+                  "asset_type": "data_center",
+                  "commercial_brief": {
+                    "best_contact": null,
+                    "freshness": {
+                      "as_of": "2026-11-14T07:01:40.814157+00:00",
+                      "source_age_days": 472,
+                      "source_date": "2025-07-30",
+                      "status": "stale_source"
+                    },
+                    "limitations": [
+                      "No current source-backed event is available to explain why now.",
+                      "Activity-specific power amount is unknown; unknown is not zero.",
+                      "No privacy-filtered contact route is available.",
+                      "Next action is a research prompt; no buyer or purchase authority is established."
+                    ],
+                    "next_action": {
+                      "kind": "research",
+                      "source": null,
+                      "text": "Research the activity-specific temporary power requirement using current project sources."
+                    },
+                    "power_need": {
+                      "amount_class": "unknown",
+                      "limitations": [
+                        "Activity-specific power amount is unknown; unknown is not zero."
+                      ],
+                      "scope": "construction",
+                      "status": "unknown",
+                      "unit": null,
+                      "value": null
+                    },
+                    "sources": [
+                      {
+                        "date": "2025-07-30",
+                        "event_date_label": null,
+                        "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                        "title": "Cyrusone and Calpine Announce New Hyperscale Data Center Development in Texas",
+                        "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+                      }
+                    ],
+                    "version": "commercial-brief-v1",
+                    "why_now": {
+                      "scope": null,
+                      "source_date": null,
+                      "sources": [],
+                      "text": null
+                    }
+                  },
+                  "company": null,
+                  "contact": [],
+                  "contact_people": [],
+                  "customer_identity_id": "690f869a-db79-4d36-9175-b06e0668ef4c",
+                  "eligible_need_ids": [],
+                  "event": null,
+                  "id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "location": "Bosque County, TX",
+                  "name": "new data center adjacent to the Thad Hill Energy Center",
+                  "need_count": 1,
+                  "needs": [
+                    {
+                      "activity": "construction",
+                      "asset_type": "data_center",
+                      "browse_title": "new data center adjacent to the Thad Hill Energy Center",
+                      "commercial_brief": {
+                        "best_contact": null,
+                        "freshness": {
+                          "as_of": "2026-11-14T07:01:40.814157+00:00",
+                          "source_age_days": 472,
+                          "source_date": "2025-07-30",
+                          "status": "stale_source"
+                        },
+                        "limitations": [
+                          "No current source-backed event is available to explain why now.",
+                          "Activity-specific power amount is unknown; unknown is not zero.",
+                          "No privacy-filtered contact route is available.",
+                          "Next action is a research prompt; no buyer or purchase authority is established."
+                        ],
+                        "next_action": {
+                          "kind": "research",
+                          "source": null,
+                          "text": "Research the activity-specific temporary power requirement using current project sources."
+                        },
+                        "power_need": {
+                          "amount_class": "unknown",
+                          "limitations": [
+                            "Activity-specific power amount is unknown; unknown is not zero."
+                          ],
+                          "scope": "construction",
+                          "status": "unknown",
+                          "unit": null,
+                          "value": null
+                        },
+                        "sources": [
+                          {
+                            "date": "2025-07-30",
+                            "event_date_label": null,
+                            "evidence_id": "9d080260-e5f1-4773-94ee-01e685110573",
+                            "title": "Cyrusone and Calpine Announce New Hyperscale Data Center Development in Texas",
+                            "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+                          }
+                        ],
+                        "version": "commercial-brief-v1",
+                        "why_now": {
+                          "scope": null,
+                          "source_date": null,
+                          "sources": [],
+                          "text": null
+                        }
+                      },
+                      "commercial_preview": {
+                        "disposition": "WATCH",
+                        "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                        "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?",
+                        "organization": "CyrusOne",
+                        "reason": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award."
+                      },
+                      "contact_actions": [],
+                      "contact_people": [],
+                      "evidence_count": 1,
+                      "id": "59b6975e-f5a0-4db6-8ff9-b0e2144c1952",
+                      "location": "Bosque County, TX",
+                      "name": "new data center adjacent to the Thad Hill Energy Center",
+                      "priority_label": "Data center",
+                      "priority_segment": 6,
+                      "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                      "project_metadata": {
+                        "asset_identity": null,
+                        "data_center": {
+                          "campus": "new data center adjacent to the Thad Hill Energy Center"
+                        },
+                        "event": null,
+                        "location": "Bosque County, TX",
+                        "name": "new data center adjacent to the Thad Hill Energy Center",
+                        "oil_gas": null,
+                        "operator": null,
+                        "owner": null,
+                        "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                        "power_summary_kind": "unknown",
+                        "sector": "data_centers",
+                        "title": "new data center adjacent to the Thad Hill Energy Center"
+                      },
+                      "tier": "Signal"
+                    }
+                  ],
+                  "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                  "power_amount_class": "unknown",
+                  "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                  "power_summary_kind": "unknown",
+                  "priority_score": 45,
+                  "project_id": "495445dc-27a5-4957-832a-2ee3e678c21d",
+                  "project_ids": [
+                    "495445dc-27a5-4957-832a-2ee3e678c21d"
+                  ],
+                  "representative_need_id": "59b6975e-f5a0-4db6-8ff9-b0e2144c1952",
+                  "sector": "data_centers",
+                  "updated_at": "2026-11-14T07:01:38.186189+00:00"
+                }
+              ],
+              "limit": 25,
+              "offset": 0,
+              "qualification_state": "current",
+              "refresh_state": "current",
+              "total": 1,
+              "valid_until": "2026-11-15T00:00:00+00:00"
+            }
+          },
+          "ordinary_groups": {
+            "as_of": "2026-11-14T07:01:40.157639+00:00",
+            "cohort_token": "p1_aff5667075136a5c7545c0abba4b10d8c271816b33207b22e0c08c0d4e6000d0",
+            "count_unit": "groups",
+            "facets": {
+              "regions": [
+                "Abilene, TX",
+                "Bosque County, TX",
+                "Red Oak, TX",
+                "Round Rock, TX"
+              ],
+              "stages": []
+            },
+            "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "items": [
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "690f869a-db79-4d36-9175-b06e0668ef4c"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 20,
+                    "potential": 12,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 2,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 1,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null,
+                    "reported_target": {
+                      "event_type": "operational_target",
+                      "label": "by fourth quarter of 2026"
+                    }
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "CyrusOne",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "193b7a24-06b6-4f1f-8e81-8f0d846c73ad"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 1
+                    },
+                    "status": "supported",
+                    "total_mw": null,
+                    "totals": [
+                      {
+                        "basis": "it_load",
+                        "complete": true,
+                        "qualifier": "up_to",
+                        "status": "upper_bound",
+                        "value_mw": "480"
+                      }
+                    ]
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 20,
+                    "potential": 8,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 1,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 1,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_b85c4cf17805470e5bcfb62434d42c7d",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "DataBank",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 0,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown.",
+                    "Company identity is unresolved; portfolio totals withheld."
+                  ],
+                  "priority": {
+                    "confidence": 0,
+                    "potential": 0,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 0,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 0,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "unresolved",
+                "id": "cg_b97676e6e98fd42622c5e884b15d499b",
+                "identity_count": null,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "Lancium Clean Campus",
+                "need_count": 1,
+                "priority_score": 56,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "unresolved",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-14",
+                  "canonical_company_identity_ids": [
+                    "5904b062-11b0-4f0e-948d-7a5d15ceb6dd"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 0,
+                    "potential": 0,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 0,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 0,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_de1d109aa037fbb53390c1f076a72429",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "Switch",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              }
+            ],
+            "limit": 25,
+            "offset": 0,
+            "qualification_state": "current",
+            "refresh_state": "current",
+            "total": 4,
+            "totals": {
+              "accounts": 3,
+              "needs": 4,
+              "projects": 4
+            },
+            "valid_until": "2026-11-15T00:00:00+00:00"
+          },
+          "shortlist_groups": {
+            "as_of": "2026-11-14T07:01:40.157639+00:00",
+            "cohort_token": "p1_c01d90054de87c47bfa09e398029111d019870f098d917853dd0c4823f5e840c",
+            "count_unit": "groups",
+            "facets": {
+              "regions": [
+                "Abilene, TX",
+                "Bosque County, TX",
+                "Red Oak, TX",
+                "Round Rock, TX"
+              ],
+              "stages": []
+            },
+            "generation": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+            "items": [],
+            "limit": 25,
+            "offset": 0,
+            "qualification_state": "current",
+            "refresh_state": "current",
+            "total": 0,
+            "totals": {
+              "accounts": 0,
+              "needs": 0,
+              "projects": 0
+            },
+            "valid_until": "2026-11-15T00:00:00+00:00"
+          }
+        },
+        "canonical_customer_groups": {
+          "items": [
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+              "identity_count": 1,
+              "name": "CyrusOne",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_b85c4cf17805470e5bcfb62434d42c7d",
+              "identity_count": 1,
+              "name": "DataBank",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_de1d109aa037fbb53390c1f076a72429",
+              "identity_count": 1,
+              "name": "Switch",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            }
+          ],
+          "total": 3
+        },
+        "opened_group": {
+          "eligible_need_count": 0,
+          "group_kind": "resolved_identity",
+          "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+          "name": "CyrusOne",
+          "projects": [
+            {
+              "location": "Bosque County, TX",
+              "name": "new data center adjacent to the Thad Hill Energy Center",
+              "qualification_tier": null,
+              "required_mw": null
+            }
+          ],
+          "role": "customer"
+        },
+        "opened_group_source": "ordinary_groups",
+        "ordinary_groups": {
+          "items": [
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_5348e716b523948dc9dae68b11b2b3a3",
+              "identity_count": 1,
+              "name": "CyrusOne",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_b85c4cf17805470e5bcfb62434d42c7d",
+              "identity_count": 1,
+              "name": "DataBank",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "unresolved",
+              "id": "cg_b97676e6e98fd42622c5e884b15d499b",
+              "identity_count": null,
+              "name": "Lancium Clean Campus",
+              "priority_score": 56,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "unresolved"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_de1d109aa037fbb53390c1f076a72429",
+              "identity_count": 1,
+              "name": "Switch",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            }
+          ],
+          "total": 4
+        },
+        "sector": "data_centers",
+        "shortlist_groups": {
+          "items": [],
+          "total": 0
+        }
+      },
+      "evidence_rows": 5,
+      "needs_with_unknown_mw": 4,
+      "power_need_rows": 4,
+      "project_rows": 5,
+      "projects": [
+        {
+          "location": "Conesville Industrial Park",
+          "name": "Conesville Industrial Park data center campus",
+          "power_need_count": 0,
+          "region_state": null,
+          "region_status": "HOLD",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Round Rock, TX",
+          "name": "Fifth Prime data center campus",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Abilene, TX",
+          "name": "Lancium Clean Campus",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Bosque County, TX",
+          "name": "new data center adjacent to the Thad Hill Energy Center",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Red Oak, TX",
+          "name": "Red Oak, TX data center campus",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        }
+      ],
+      "saved_browse_generation": {
+        "generation_id": "db6f5bfb-b1c7-4883-9cc6-049a1df23318",
+        "rows": 4,
+        "status": "published"
+      },
+      "source_backed_fact_packages": [
+        {
+          "capacity_claims": [],
+          "commissioning_inputs": 0,
+          "required_mw": null,
+          "timeline_claims": [
+            {
+              "event_type": "operational_target",
+              "label": "fourth quarter of 2026",
+              "precision": "quarter",
+              "quote": "The deal secures power, grid connection, and land to support a new state of the art facility that is currently under construction and expected to be operational by the fourth quarter of 2026."
+            }
+          ],
+          "url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+        },
+        {
+          "capacity_claims": [
+            {
+              "basis": "it_load",
+              "phase_id": "1",
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "a086997e-5ccd-4f08-8224-91c24ec3b693:phase:1",
+              "value_mw": "240"
+            },
+            {
+              "basis": "it_load",
+              "phase_id": null,
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "a086997e-5ccd-4f08-8224-91c24ec3b693:site",
+              "value_mw": "480"
+            }
+          ],
+          "commissioning_inputs": 0,
+          "required_mw": null,
+          "timeline_claims": [],
+          "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        }
+      ]
+    },
+    "source_admission": {
+      "accepted_source_records": [
+        {
+          "activity_key": "facility-expansion",
+          "activity_quote": "development of its new data center campus inside the Conesville Industrial Park",
+          "alias_spans": {},
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [],
+          "project_location": "Conesville Industrial Park",
+          "project_name": "Conesville Industrial Park data center campus",
+          "publication_date": "2025-07-24",
+          "source_files": [
+            "sources/aligned.json"
+          ],
+          "source_hash": "b8d2bff3f1b88c71308168f38655eb5a81e6a38999b7c970d1aad798966dc231",
+          "source_url": "https://aligneddc.com/press-release/aligned-data-centers-expands-in-ohio-with-new-mega-scale-ai-campus/"
+        },
+        {
+          "activity_key": "construction",
+          "activity_quote": "Construction has begun",
+          "alias_spans": {},
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [],
+          "project_location": "Abilene, TX",
+          "project_name": "Lancium Clean Campus",
+          "publication_date": "2025-03-18",
+          "source_files": [
+            "sources/crusoe.json"
+          ],
+          "source_hash": "61cb8294e593288253a9536aed993a7cc5b7ae52ffa3ee7dc1e9f1ebfcfa2268",
+          "source_url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts"
+        },
+        {
+          "activity_key": "construction",
+          "activity_quote": "currently under construction",
+          "alias_spans": {},
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [],
+          "project_location": "Bosque County, TX",
+          "project_name": "new data center adjacent to the Thad Hill Energy Center",
+          "publication_date": "2025-07-30",
+          "source_files": [
+            "sources/cyrusone.json",
+            "sources/cyrusone_supplement.json"
+          ],
+          "source_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+          "source_url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+        },
+        {
+          "activity_key": "facility-expansion",
+          "activity_quote": "development of a 480MW data center campus on 292 acres of land in Red Oak",
+          "alias_spans": {
+            "Red Oak Campus": [
+              460,
+              477
+            ]
+          },
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [
+            "Red Oak Campus"
+          ],
+          "project_location": "Red Oak, TX",
+          "project_name": "Red Oak, TX data center campus",
+          "publication_date": "2024-09-10",
+          "source_files": [
+            "sources/databank.json"
+          ],
+          "source_hash": "baf748307ce3f3642eef04fc21dd22f6a4f378baf5e0f9ca9707abc27a6bc7af",
+          "source_url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        },
+        {
+          "activity_key": "facility-expansion",
+          "activity_quote": "to construct",
+          "alias_spans": {
+            "The Rock": [
+              489,
+              500
+            ]
+          },
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [
+            "The Rock"
+          ],
+          "project_location": "Round Rock, TX",
+          "project_name": "Fifth Prime data center campus",
+          "publication_date": "2021-06-01",
+          "source_files": [
+            "sources/switch.json"
+          ],
+          "source_hash": "1df68c94362f8cf1511cdb5a8a9140d535049a9a229c8034b2e3266006d2d739",
+          "source_url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/"
+        }
+      ],
+      "candidate_records": 5,
+      "held_documents": 17,
+      "hold_reasons": [
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation"
+      ],
+      "hold_receipts": [
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/microsoft.json"
+          ],
+          "source_url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion_project_supplement.json"
+          ],
+          "source_url": "https://coastalvawind.com/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/meta.json"
+          ],
+          "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/google.json",
+            "sources/google_supplement.json"
+          ],
+          "source_url": "https://datacenters.google/locations/indiana/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/edgecore_press.json"
+          ],
+          "source_url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/fervo.json",
+            "sources/fervo_supplement.json"
+          ],
+          "source_url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/applied.json"
+          ],
+          "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/equinix.json"
+          ],
+          "source_url": "https://newsroom.equinix.com/2025-11-10-Equinix-Tops-Out-Its-Second-Data-Center-in-Johor"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/vantage.json"
+          ],
+          "source_url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/amazon.json",
+            "sources/amazon_supplement.json"
+          ],
+          "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass_markets.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/data-center-markets/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass.json",
+            "sources/compass_supplement.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/digitalrealty.json"
+          ],
+          "source_url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion.json"
+          ],
+          "source_url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/qts.json"
+          ],
+          "source_url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/stack.json",
+            "sources/stack_supplement.json"
+          ],
+          "source_url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/terrapower.json",
+            "sources/terrapower_supplement.json"
+          ],
+          "source_url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant"
+        }
+      ],
+      "native_signals": 4,
+      "retrieved_records": 5
+    }
+  },
+  "schema_version": "gridlens-customer-commercial-runtime-v2"
+}

@@ -1,0 +1,13 @@
+{
+  "comparison": "Original carry block only, restored in memory inside current native pipeline; not a full main checkout result",
+  "original_ref": "73e01a73",
+  "original_source_path": "backend/src/gridlens/intelligence/buying_chain.py",
+  "original_block_sha256": "3990e859d4708331d498f93f84496a88e22846f1ad97e5fae9c891fd4ca3f651",
+  "original_lines": 55,
+  "test": "tests/integration/test_real_customer_commercial_runtime.py::test_retained_company_project_records_enter_native_pipeline",
+  "initial_state": "committed initial480MW enrichment; two durable runs/claims/source versions verified after640MW revision",
+  "result": "EXPECTED FAILURE: canonical project-scoped company UUID changed at exact continuity assertion; 1failed in5.41s",
+  "before_company_id": "94a0c581-da08-47cd-b93e-ee515d2347c2",
+  "after_company_id": "9fde6523-f386-42b5-98c6-584fea9f2efc",
+  "product_files_modified": false
+}

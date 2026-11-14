@@ -15,6 +15,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.buying_chain import buying_chain_views
+from gridlens.intelligence.customer_primary import (
+    CUSTOMER_ROLE_ORDER,
+    OWNER_ROLES,
+    PROJECT_CUSTOMER_ROLE,
+)
 from gridlens.intelligence.identity_reconciliation import current_claim_identity_links
 from gridlens.intelligence.saved_history_privacy import (
     _redact_all_contact_tokens,
@@ -36,9 +41,11 @@ from gridlens.persistence.models import (
     Project,
 )
 
-# Only roles that can identify a customer account. Contractors remain project
-# relationships and applicants alone never create a customer account.
-CUSTOMER_ROLES = {"owner_developer", "owner_construction", "owner_energy", "asset_operator"}
+# Canonical producer roles come from the selector/rollup policy. Keep the
+# historical exported name as a compatibility view for callers that mean the
+# former owner/operator subset; all account-producing paths use the full set.
+PRIMARY_CUSTOMER_ROLES = frozenset(CUSTOMER_ROLE_ORDER)
+CUSTOMER_ROLES = PRIMARY_CUSTOMER_ROLES - {PROJECT_CUSTOMER_ROLE}
 
 
 def account_queue(
@@ -768,7 +775,7 @@ def _current_customer_claims(
         else {}
     )
     candidate_ids = {
-        claim_id for claim_id, claim in claims.items() if claim.category in CUSTOMER_ROLES
+        claim_id for claim_id, claim in claims.items() if claim.category in PRIMARY_CUSTOMER_ROLES
     }
     valid = current_claim_identity_links(session, candidate_ids)
     identity_for_claim = {
@@ -788,7 +795,7 @@ def _current_customer_claims(
         for candidate in view.get("candidates", [])
         if not candidate.get("stale")
         and not candidate.get("retracted")
-        and candidate.get("category") in CUSTOMER_ROLES
+        and candidate.get("category") in PRIMARY_CUSTOMER_ROLES
         and candidate.get("organization_relationship") == "DIRECT"
     }
     linked_claims = [
@@ -880,32 +887,48 @@ def _primary_role_selections(session, rows, sectors_by_project):
         for project_id, _identity, _name in _current_conflicted_memberships(session, project_ids)
     }
     retracted_projects = _retracted_primary_projects(session, project_ids)
-    retracted_owner_projects = _retracted_owner_projects(session, project_ids)
+    retracted_owner_projects, retracted_project_customers = _retracted_preferred_customer_projects(
+        session, project_ids
+    )
+    # A retracted project-customer role blocks fallback only where that role
+    # participates in primary selection. In oil and gas it is unsupported and
+    # must not prevent the existing owner/operator path.
+    retracted_preferred_projects = retracted_owner_projects | {
+        project_id
+        for project_id in retracted_project_customers
+        if sectors_by_project.get(project_id, "unknown") != "oil_gas"
+    }
     return select_primary_roles(
         rows,
         sectors_by_project,
         blocked_project_ids=conflicted_projects | retracted_projects,
-        blocked_owner_project_ids=retracted_owner_projects,
+        blocked_owner_project_ids=retracted_preferred_projects,
     )
 
 
-def _retracted_owner_projects(session: Session, project_ids: set[UUID]) -> set[UUID]:
-    """Find source-current explicit owner retractions without scanning per project."""
+def _retracted_preferred_customer_projects(
+    session: Session, project_ids: set[UUID]
+) -> tuple[set[UUID], set[UUID]]:
+    """Find source-current owner and project-customer retractions in one history read."""
     if not project_ids:
-        return set()
+        return set(), set()
     from gridlens.intelligence.buying_chain import buying_chain_views
 
-    result = set()
+    owner_projects, project_customer_projects = set(), set()
     for project_id, view in buying_chain_views(session, project_ids, history=True).items():
-        if any(
-            candidate.get("category") in {"owner_developer", "owner_construction", "owner_energy"}
-            and candidate.get("retracted") is True
-            and not candidate.get("stale")
-            and not candidate.get("correction_stale")
-            for candidate in view.get("candidates", [])
-        ):
-            result.add(UUID(str(project_id)))
-    return result
+        for candidate in view.get("candidates", []):
+            if (
+                candidate.get("retracted") is not True
+                or candidate.get("stale")
+                or candidate.get("correction_stale")
+            ):
+                continue
+            category = candidate.get("category")
+            if category in OWNER_ROLES:
+                owner_projects.add(UUID(str(project_id)))
+            elif category == PROJECT_CUSTOMER_ROLE:
+                project_customer_projects.add(UUID(str(project_id)))
+    return owner_projects, project_customer_projects
 
 
 def _membership_claim(membership: CompanyProjectMembership, observed_at: datetime) -> Any:
@@ -1019,7 +1042,7 @@ def associated_accounts_for_projects(
             ),
         )
         role, claim = candidates[0]
-        if role not in CUSTOMER_ROLES:
+        if role not in PRIMARY_CUSTOMER_ROLES:
             result[project_id] = None
             continue
         if hasattr(claim, "membership_basis"):
@@ -1067,7 +1090,9 @@ def _current_role_claims(
         claims_query = claims_query.where(BuyingChainClaim.project_id.in_(project_ids))
     all_claims = session.scalars(claims_query).all()
     candidates = [
-        claim for claim in all_claims if include_noncustomer or claim.category in CUSTOMER_ROLES
+        claim
+        for claim in all_claims
+        if include_noncustomer or claim.category in PRIMARY_CUSTOMER_ROLES
     ]
     views = (
         buying_chain_views(session, {claim.project_id for claim in candidates})
@@ -1080,7 +1105,7 @@ def _current_role_claims(
         for row in view.get("candidates", [])
         if not row.get("stale")
         and not row.get("retracted")
-        and (include_noncustomer or row.get("category") in CUSTOMER_ROLES)
+        and (include_noncustomer or row.get("category") in PRIMARY_CUSTOMER_ROLES)
         and (include_noncustomer or row.get("organization_relationship") == "DIRECT")
     }
     projects = (

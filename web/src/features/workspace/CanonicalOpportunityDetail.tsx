@@ -60,7 +60,10 @@ function equipmentKw(demand: EquipmentDemandProjection | null, key: 'connected_k
 export function CanonicalOpportunityDetail(props: Props) {
   const { item, pending, loading, error, associationNotice, tab, onTab, onBack, onRetry, accountFirst = false } = props
   const canonicalTab: CanonicalTab = tabForWorkspace(tab)
-  const detailShortlist = new URLSearchParams(window.location.search).get('shortlist') !== '0'
+  const detailRoute = new URLSearchParams(window.location.search)
+  const detailShortlist = detailRoute.has('shortlist')
+    ? detailRoute.get('shortlist') === '1'
+    : detailRoute.get('customerScope') !== 'canonical' && (detailRoute.get('groupBrowse') === '1' || detailRoute.get('projectBrowse') === '1')
   const [projectState, setProjectState] = useState<{ needId: string | null; project: import('../../api/client').ProjectResult | null; validUntil: string | null }>({ needId: null, project: null, validUntil: null })
   const [projectStatus, setProjectStatus] = useState<{ needId: string | null; loading: boolean; error: string }>({ needId: null, loading: false, error: '' })
   const [projectRefreshNonce, setProjectRefreshNonce] = useState(0)

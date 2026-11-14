@@ -1,0 +1,161 @@
+{
+  "controlled_policy_binding_adjustment": {
+    "adjustment_type": "synthetic-test-only-policy-binding",
+    "after_snapshot": {
+      "browse_rows": {
+        "h": "26706378d817be9c00cc8c513cd598cd",
+        "n": 40000
+      },
+      "evidence": {
+        "h": "73e71788f45612e01f7c669d75d98798",
+        "n": 48
+      },
+      "generation": {
+        "built_at": "2026-11-13T13:44:03.567063+00:00",
+        "digest": "a5ecbedd695b71fd006c658c9b292a211feaa3edcaf954ea44ee69cdfaa26d42",
+        "id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "input_revision": 40303,
+        "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/072b99e91d8dffd2c7f9ddde",
+        "row_count": 40000,
+        "valid_from": "2026-11-13T13:43:03.567063+00:00",
+        "valid_until": "2026-11-14T13:44:03.567063+00:00"
+      },
+      "memberships": {
+        "h": "ce1771af4e5f277aecf14927ee9f833e",
+        "n": 66
+      },
+      "power_needs": {
+        "h": "a9f5237db559f17dca1075cdca15d4c0",
+        "n": 48
+      },
+      "projects": {
+        "h": "c8138895d8be68640119ff9e21d774c4",
+        "n": 40000
+      },
+      "state": {
+        "full_revision": 5,
+        "generation_id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "id": 1,
+        "input_revision": 40303,
+        "prepared_generation_id": null,
+        "stale_since": "2026-11-13T13:46:22.227454+00:00",
+        "structural_revision": 40302
+      }
+    },
+    "before_snapshot": {
+      "browse_rows": {
+        "h": "26706378d817be9c00cc8c513cd598cd",
+        "n": 40000
+      },
+      "evidence": {
+        "h": "73e71788f45612e01f7c669d75d98798",
+        "n": 48
+      },
+      "generation": {
+        "built_at": "2026-11-13T13:44:03.567063+00:00",
+        "digest": "a5ecbedd695b71fd006c658c9b292a211feaa3edcaf954ea44ee69cdfaa26d42",
+        "id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "input_revision": 40303,
+        "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/75b6015e9e3aff51f99b37e1",
+        "row_count": 40000,
+        "valid_from": "2026-11-13T13:43:03.567063+00:00",
+        "valid_until": "2026-11-14T13:44:03.567063+00:00"
+      },
+      "memberships": {
+        "h": "ce1771af4e5f277aecf14927ee9f833e",
+        "n": 66
+      },
+      "power_needs": {
+        "h": "a9f5237db559f17dca1075cdca15d4c0",
+        "n": 48
+      },
+      "projects": {
+        "h": "c8138895d8be68640119ff9e21d774c4",
+        "n": 40000
+      },
+      "state": {
+        "full_revision": 5,
+        "generation_id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "id": 1,
+        "input_revision": 40303,
+        "prepared_generation_id": null,
+        "stale_since": "2026-11-13T13:46:22.227454+00:00",
+        "structural_revision": 40302
+      }
+    },
+    "clone_snapshot_before_rebind": {
+      "browse_rows": {
+        "h": "26706378d817be9c00cc8c513cd598cd",
+        "n": 40000
+      },
+      "evidence": {
+        "h": "73e71788f45612e01f7c669d75d98798",
+        "n": 48
+      },
+      "generation": {
+        "built_at": "2026-11-13T13:44:03.567063+00:00",
+        "digest": "a5ecbedd695b71fd006c658c9b292a211feaa3edcaf954ea44ee69cdfaa26d42",
+        "id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "input_revision": 40303,
+        "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/75b6015e9e3aff51f99b37e1",
+        "row_count": 40000,
+        "valid_from": "2026-11-13T13:43:03.567063+00:00",
+        "valid_until": "2026-11-14T13:44:03.567063+00:00"
+      },
+      "memberships": {
+        "h": "ce1771af4e5f277aecf14927ee9f833e",
+        "n": 66
+      },
+      "power_needs": {
+        "h": "a9f5237db559f17dca1075cdca15d4c0",
+        "n": 48
+      },
+      "projects": {
+        "h": "c8138895d8be68640119ff9e21d774c4",
+        "n": 40000
+      },
+      "state": {
+        "full_revision": 5,
+        "generation_id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+        "id": 1,
+        "input_revision": 40303,
+        "prepared_generation_id": null,
+        "stale_since": "2026-11-13T13:46:22.227454+00:00",
+        "structural_revision": 40302
+      }
+    },
+    "database": "gl3_mission_rollup_scale_payload_after_20261113_test",
+    "generation_id": "d9046285-c591-4eb3-8ed3-08e6da49ce11",
+    "new_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/072b99e91d8dffd2c7f9ddde",
+    "old_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/75b6015e9e3aff51f99b37e1",
+    "only_database_field_changed": "browse_generations.policy_version for browse_state.generation_id",
+    "reason": "The read-only project-page query optimization changes customer_results.py, which participates in saved-browse policy fingerprinting; the synthetic generation content is unchanged and must be queryable for a same-snapshot before/after comparison.",
+    "source_backend_src_manifest_sha256": "1f05af5cecd518ca575aaaf4af4d3606e8c9943f955e6fbe1ec91ba3855599de",
+    "source_content_and_generation_uuid_checks": "all verified equal; only policy_version differs as specified",
+    "source_head": "2336b02ab5f12d88a87ca8b00968050ece047089"
+  },
+  "database": "gl3_mission_rollup_scale_payload_after_20261113_test",
+  "profiles": {
+    "false": {
+      "explain_execution_ms": 1622.85,
+      "groups_call_ms": 8494.995,
+      "page_groups": 25,
+      "query_sha256": "ae684713357ba202b8cbc54dcdedea57d750ca6c4791e30d1c4ea8394c39da00",
+      "receipt": "/workspace/gl3-page-payload-opt-20261113/docs/validation/customer-intelligence-20261112/final-performance/profile-20261113/after_canonical_only_false.json",
+      "sql_statements": 57,
+      "total_groups": 38319
+    },
+    "true": {
+      "explain_execution_ms": 1522.394,
+      "groups_call_ms": 5225.437,
+      "page_groups": 25,
+      "query_sha256": "806847b1e25b7d436a960c60bf030187c684404c99763b07369f46f386c6da63",
+      "receipt": "/workspace/gl3-page-payload-opt-20261113/docs/validation/customer-intelligence-20261112/final-performance/profile-20261113/after_canonical_only_true.json",
+      "sql_statements": 57,
+      "total_groups": 316
+    }
+  },
+  "seed_manifest_sha256": "b625e0594b9527f310ab4f29ba8c5a4a9eeb4eba71f43b0641298ab1b4978d21",
+  "source_head": "2336b02ab5f12d88a87ca8b00968050ece047089",
+  "source_manifest_sha256": "1f05af5cecd518ca575aaaf4af4d3606e8c9943f955e6fbe1ec91ba3855599de"
+}

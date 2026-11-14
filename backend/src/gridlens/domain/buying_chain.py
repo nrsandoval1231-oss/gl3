@@ -29,6 +29,9 @@ class Category(StrEnum):
     FIELD_OPERATIONS = "field_operations"
     PROCUREMENT = "procurement"
     UNKNOWN = "unknown"
+    # Explicit project-specific customer/site relationship. Keep additive at
+    # the end so all established category ordering remains stable.
+    PROJECT_CUSTOMER = "project_customer"
 
 
 CATEGORY_PRIORITY = {category.value: position for position, category in enumerate(Category)}

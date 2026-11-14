@@ -4,6 +4,7 @@ Start with [AGENTS.md](../AGENTS.md). For current deployment facts, use the acce
 
 | Need | Maintained entry point |
 |---|---|
+| Customer commercial intelligence (draft; blocked acceptance) | [Architecture and contract](engineering/customer-commercial-intelligence-20261112.md), [commissioning model](engineering/commissioning-model-20261112.md), [20-customer evaluation](../eval/customer-commercial-v1/README.md) |
 | Current production revision and verification | [November 2 release receipt](validation/production-release-20261102.md), [sanitized machine receipt](validation/production-release-20261102.json) |
 | Product and commercial integrity | [Autonomous canon](product/AUTONOMOUS_INTELLIGENCE_CANON.md), [operator/customer results](product/PROJECT_FIRST_RESULTS_CANON.md), compatible [PRD](product/PRD.md) |
 | UI and brand | [UI canon](design/UI_CANON.md), [brand assets](design/BRAND_ASSETS.md) |
@@ -28,3 +29,5 @@ Start with [AGENTS.md](../AGENTS.md). For current deployment facts, use the acce
 CURRENT implementation and TARGET contracts are separated in the [architecture](architecture/overview.md), [engine](architecture/intelligence-engine.md), [data model](architecture/data-model.md), [demand models](architecture/demand-models.md) and [verification/evaluation](architecture/verification-evaluation.md). NEXT work is sequenced in the [roadmap](delivery/intelligence-roadmap.md) and [current equipment-demand audit](engineering/equipment-demand-slice-20261030.md); the [performance Phase 2 plan and results](engineering/ingestion-writes-phase2-20261111.md); the [account list read-performance measurement and fix](engineering/account-list-read-performance-20261112.md); the [Phase 0 audit](engineering/intelligence-phase0-audit-20261029.md) preserves the earlier baseline. DEFERRED engine capabilities are specifications, not shipped functionality. Replaced authority bytes are retained in the [Phase 0 archive](../.agent/archive/INTELLIGENCE-PHASE0-20261029/README.md).
 
 The deployed Nov 2 application includes the bounded [O&G equipment-demand slice](engineering/equipment-demand-slice-20261030.md) and its `equipment-demand-v1` summary contract. The current release reported zero validated equipment-demand records, so its additional-equipment demand summary remains unavailable; it does not represent total portfolio demand. Earlier [PR152 equipment claim-map verification](validation/og-equipment-claims-20261029.md) and the [native FERC notice extension](engineering/native-equipment-demand-20261030.md) are separate dated evidence; they do not establish broad or scheduled source coverage.
+
+Current draft mission receipts: [commercial intelligence delivery checkpoint](validation/customer-intelligence-20261112/DELIVERY.md).

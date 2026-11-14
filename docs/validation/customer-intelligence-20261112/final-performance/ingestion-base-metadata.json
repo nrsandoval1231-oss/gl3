@@ -1,0 +1,35 @@
+{
+  "lane": "ingestion",
+  "side": "base",
+  "started_at": "2026-11-13T02:59:25.759949+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "base",
+      "source_commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+      "source_manifest_sha256_before": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "database": "gl3_mission_ingest_base_test",
+      "commands": [
+        {
+          "label": "ingestion-base",
+          "started_at": "2026-11-13T02:59:25.980191+00:00",
+          "finished_at": "2026-11-13T03:00:27.926463+00:00",
+          "wall_seconds": 61.946,
+          "exit_code": 0,
+          "log_file": "ingestion-base.log",
+          "log_sha256": "9ceec6a4cbc13bd6e4b82da0f57a308167bb12f5522819ca99252b1db104b965"
+        }
+      ],
+      "harness_sha256": "41c1985768c4554d79ffa3b96b1113c2f38b7223e9731d8b19cc3631a552ba48",
+      "source_manifest_sha256_after": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "limitations": [
+    "Synthetic, disposable local fixtures only.",
+    "No external or paid provider execution.",
+    "Timings are single-run diagnostics, not a production SLA."
+  ],
+  "updated_at": "2026-11-13T03:00:27.946826+00:00",
+  "finished_at": "2026-11-13T03:00:27.947065+00:00"
+}

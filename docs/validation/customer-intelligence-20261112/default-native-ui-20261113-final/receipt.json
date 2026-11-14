@@ -1,0 +1,972 @@
+{
+  "captured_at": "2026-11-13T13:59:27.746Z",
+  "database": "gl3_retained_ui_smoke_20261113_13da6025_test",
+  "native_source_data": true,
+  "api_mocking": false,
+  "baseline_frontend_commit": "2cf4f67b",
+  "comparison_backend_source": {
+    "web/src/features/workspace/ProjectResults.tsx": "7a5ddae1359a46b664a198cbd52167f2bab877d9679aac2e29136656a789b9d4",
+    "web/src/features/workspace/Workspace.tsx": "e3a2d739f96cf82aa01220f8502eeb8ddff16512ea2ded603c9fee3fbc169ddf",
+    "web/src/features/workspace/CanonicalOpportunityDetail.tsx": "d413554453c781d605bdeeece6137213b809392f546f3c34826d650ea554db9c",
+    "web/src/features/companies/CompanyView.tsx": "2b270e98c911b4f251a4636854c45e99698c6536da810440707ae9054e328f6c",
+    "web/src/api/client.ts": "84d9dc10361bd8c3f3d7f9f3d8cfba93e011b95e46dc1d0fb4daef053be578a6",
+    "web/src/state/projectBrowseCache.ts": "9d8f4ac520401efd643f17bf3c3c979b95395af645e3dfc807f65e5ba2a9458d",
+    "backend/src/gridlens/intelligence/customer_results.py": "0ed7f395e747b7d95857effedaa1f761bfc94ffc3d0539ccf63871bbe5a23ade",
+    "backend/src/gridlens/api/app.py": "6eb22cc5caad9b3915955736b41e344f4fd512e86fdaa410c186e4d677468d0f"
+  },
+  "limitations": [
+    "Same current backend and test database; before image compares frontend defaults, not a complete old backend deployment.",
+    "Only two admitted organizations; historical source announcements do not establish current project status or verified customer demand.",
+    "No salesperson usability acceptance or production performance measurement."
+  ],
+  "groupResponses": [
+    {
+      "url": "http://127.0.0.1:15491/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false&canonical_only=true",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "cg_ef0748205a9deafe7b9edf03e94a0ff3",
+            "name": "CyrusOne",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "insufficient_data",
+                "total_mw": null,
+                "totals": [],
+                "coverage": {
+                  "projects_with_capacity": 0,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0,
+                "reported_target": {
+                  "event_type": "operational_target",
+                  "label": "by fourth quarter of 2026"
+                }
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "4",
+                  "summary": "Construction or energization schedule revised",
+                  "project_id": "e8d3b290-d548-40cd-b8dd-23307a5cfe92",
+                  "evidence_id": "ff86d2a6-50cd-4e53-b2bc-f278419e825c",
+                  "observed_at": "2026-11-13T13:26:44.912191+00:00",
+                  "source_date": "2025-07-30",
+                  "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                  "observation_id": "630f6b9a-fc38-4f8b-93f2-9daacf81d8f9",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 22,
+                "confidence": 20,
+                "score": 4,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "ede2377b-b01e-4e6e-a719-ce6db82b3b0e"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          },
+          {
+            "id": "cg_a71fd5eee68044c0db048b36a88c1c45",
+            "name": "DataBank",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "supported",
+                "total_mw": null,
+                "totals": [
+                  {
+                    "basis": "it_load",
+                    "value_mw": "480",
+                    "status": "upper_bound",
+                    "qualifier": "up_to",
+                    "complete": true
+                  }
+                ],
+                "coverage": {
+                  "projects_with_capacity": 1,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "8",
+                  "summary": "Build capacity revised",
+                  "project_id": "78622370-7ef2-4d8c-8595-55d5aa95a7eb",
+                  "evidence_id": "8b6da907-314d-40fc-82d7-ab9ccf53e386",
+                  "observed_at": "2026-11-13T13:26:45.512212+00:00",
+                  "source_date": "2024-09-10",
+                  "content_hash": "baf748307ce3f3642eef04fc21dd22f6a4f378baf5e0f9ca9707abc27a6bc7af",
+                  "observation_id": "a1435cce-bf23-49a1-acc3-d569db25539a",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 18,
+                "confidence": 20,
+                "score": 3,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "eb1cabae-69ab-466f-ac54-c4d2570d7baa"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          }
+        ],
+        "count_unit": "groups",
+        "total": 2,
+        "totals": {
+          "accounts": 2,
+          "projects": 2,
+          "needs": 2
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_b4df0ff3c8cea039d08428d77af69d3ab0f0d93304cbb44dacf0f9c27c3b22f5",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:15490/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true",
+      "status": 200,
+      "body": {
+        "items": [],
+        "count_unit": "groups",
+        "total": 0,
+        "totals": {
+          "accounts": 0,
+          "projects": 0,
+          "needs": 0
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_85b6e4e597aebc6cc67a7118ceba4bbf46a35b7d5275db642cce297871982fc1",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:15491/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false&canonical_only=true",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "cg_ef0748205a9deafe7b9edf03e94a0ff3",
+            "name": "CyrusOne",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "insufficient_data",
+                "total_mw": null,
+                "totals": [],
+                "coverage": {
+                  "projects_with_capacity": 0,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0,
+                "reported_target": {
+                  "event_type": "operational_target",
+                  "label": "by fourth quarter of 2026"
+                }
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "4",
+                  "summary": "Construction or energization schedule revised",
+                  "project_id": "e8d3b290-d548-40cd-b8dd-23307a5cfe92",
+                  "evidence_id": "ff86d2a6-50cd-4e53-b2bc-f278419e825c",
+                  "observed_at": "2026-11-13T13:26:44.912191+00:00",
+                  "source_date": "2025-07-30",
+                  "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                  "observation_id": "630f6b9a-fc38-4f8b-93f2-9daacf81d8f9",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 22,
+                "confidence": 20,
+                "score": 4,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "ede2377b-b01e-4e6e-a719-ce6db82b3b0e"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          },
+          {
+            "id": "cg_a71fd5eee68044c0db048b36a88c1c45",
+            "name": "DataBank",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "supported",
+                "total_mw": null,
+                "totals": [
+                  {
+                    "basis": "it_load",
+                    "value_mw": "480",
+                    "status": "upper_bound",
+                    "qualifier": "up_to",
+                    "complete": true
+                  }
+                ],
+                "coverage": {
+                  "projects_with_capacity": 1,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "8",
+                  "summary": "Build capacity revised",
+                  "project_id": "78622370-7ef2-4d8c-8595-55d5aa95a7eb",
+                  "evidence_id": "8b6da907-314d-40fc-82d7-ab9ccf53e386",
+                  "observed_at": "2026-11-13T13:26:45.512212+00:00",
+                  "source_date": "2024-09-10",
+                  "content_hash": "baf748307ce3f3642eef04fc21dd22f6a4f378baf5e0f9ca9707abc27a6bc7af",
+                  "observation_id": "a1435cce-bf23-49a1-acc3-d569db25539a",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 18,
+                "confidence": 20,
+                "score": 3,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "eb1cabae-69ab-466f-ac54-c4d2570d7baa"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          }
+        ],
+        "count_unit": "groups",
+        "total": 2,
+        "totals": {
+          "accounts": 2,
+          "projects": 2,
+          "needs": 2
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_b4df0ff3c8cea039d08428d77af69d3ab0f0d93304cbb44dacf0f9c27c3b22f5",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:15491/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=true&canonical_only=true",
+      "status": 200,
+      "body": {
+        "items": [],
+        "count_unit": "groups",
+        "total": 0,
+        "totals": {
+          "accounts": 0,
+          "projects": 0,
+          "needs": 0
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_20c62a6a7b90823074477c5e9b97b5e2ac065afda598fb6df3b72ecf7825a03d",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:15491/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false&canonical_only=true",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "cg_ef0748205a9deafe7b9edf03e94a0ff3",
+            "name": "CyrusOne",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "insufficient_data",
+                "total_mw": null,
+                "totals": [],
+                "coverage": {
+                  "projects_with_capacity": 0,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0,
+                "reported_target": {
+                  "event_type": "operational_target",
+                  "label": "by fourth quarter of 2026"
+                }
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "4",
+                  "summary": "Construction or energization schedule revised",
+                  "project_id": "e8d3b290-d548-40cd-b8dd-23307a5cfe92",
+                  "evidence_id": "ff86d2a6-50cd-4e53-b2bc-f278419e825c",
+                  "observed_at": "2026-11-13T13:26:44.912191+00:00",
+                  "source_date": "2025-07-30",
+                  "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                  "observation_id": "630f6b9a-fc38-4f8b-93f2-9daacf81d8f9",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 22,
+                "confidence": 20,
+                "score": 4,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "ede2377b-b01e-4e6e-a719-ce6db82b3b0e"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          },
+          {
+            "id": "cg_a71fd5eee68044c0db048b36a88c1c45",
+            "name": "DataBank",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "supported",
+                "total_mw": null,
+                "totals": [
+                  {
+                    "basis": "it_load",
+                    "value_mw": "480",
+                    "status": "upper_bound",
+                    "qualifier": "up_to",
+                    "complete": true
+                  }
+                ],
+                "coverage": {
+                  "projects_with_capacity": 1,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "8",
+                  "summary": "Build capacity revised",
+                  "project_id": "78622370-7ef2-4d8c-8595-55d5aa95a7eb",
+                  "evidence_id": "8b6da907-314d-40fc-82d7-ab9ccf53e386",
+                  "observed_at": "2026-11-13T13:26:45.512212+00:00",
+                  "source_date": "2024-09-10",
+                  "content_hash": "baf748307ce3f3642eef04fc21dd22f6a4f378baf5e0f9ca9707abc27a6bc7af",
+                  "observation_id": "a1435cce-bf23-49a1-acc3-d569db25539a",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 18,
+                "confidence": 20,
+                "score": 3,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "eb1cabae-69ab-466f-ac54-c4d2570d7baa"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          }
+        ],
+        "count_unit": "groups",
+        "total": 2,
+        "totals": {
+          "accounts": 2,
+          "projects": 2,
+          "needs": 2
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_b4df0ff3c8cea039d08428d77af69d3ab0f0d93304cbb44dacf0f9c27c3b22f5",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:15491/api/opportunities/groups?sector=all&limit=25&offset=0&sort=priority&shortlist=false&canonical_only=true",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "id": "cg_ef0748205a9deafe7b9edf03e94a0ff3",
+            "name": "CyrusOne",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "insufficient_data",
+                "total_mw": null,
+                "totals": [],
+                "coverage": {
+                  "projects_with_capacity": 0,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0,
+                "reported_target": {
+                  "event_type": "operational_target",
+                  "label": "by fourth quarter of 2026"
+                }
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "4",
+                  "summary": "Construction or energization schedule revised",
+                  "project_id": "e8d3b290-d548-40cd-b8dd-23307a5cfe92",
+                  "evidence_id": "ff86d2a6-50cd-4e53-b2bc-f278419e825c",
+                  "observed_at": "2026-11-13T13:26:44.912191+00:00",
+                  "source_date": "2025-07-30",
+                  "content_hash": "f00a099095c2ac1fb66c38be615dcd756b962efa7fff3a85008097e51f47b332",
+                  "observation_id": "630f6b9a-fc38-4f8b-93f2-9daacf81d8f9",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 22,
+                "confidence": 20,
+                "score": 4,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "ede2377b-b01e-4e6e-a719-ce6db82b3b0e"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          },
+          {
+            "id": "cg_a71fd5eee68044c0db048b36a88c1c45",
+            "name": "DataBank",
+            "role": "customer",
+            "group_kind": "resolved_identity",
+            "identity_count": 1,
+            "project_count": 1,
+            "need_count": 1,
+            "relevant_project_count": 0,
+            "total_known_project_count": 1,
+            "eligible_need_count": 0,
+            "pursued_eligible_need_count": 0,
+            "matched_project_id": null,
+            "matched_need_id": null,
+            "priority_score": 45,
+            "sectors": [
+              "data_centers"
+            ],
+            "account_contact_project": null,
+            "commercial_intelligence": {
+              "version": "customer-intelligence-v1",
+              "as_of": "2026-11-13",
+              "capacity": {
+                "status": "supported",
+                "total_mw": null,
+                "totals": [
+                  {
+                    "basis": "it_load",
+                    "value_mw": "480",
+                    "status": "upper_bound",
+                    "qualifier": "up_to",
+                    "complete": true
+                  }
+                ],
+                "coverage": {
+                  "projects_with_capacity": 1,
+                  "projects_total": 1
+                },
+                "conflict_count": 0
+              },
+              "timelines": {
+                "construction_start": null,
+                "expected_energization": null,
+                "conflict_count": 0
+              },
+              "commissioning": {
+                "status": "insufficient_data",
+                "low_mw": null,
+                "base_mw": null,
+                "high_mw": null,
+                "confidence": "insufficient",
+                "demand_class": "engineering_scenario",
+                "verified_customer_demand": false,
+                "calculation_version": "commissioning-test-plan-v1.0.0",
+                "limitations": [
+                  "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                  "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                  "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                  "Supply source and customer procurement intent are unknown unless independently verified.",
+                  "A nonempty bounded, project-specific commissioning test plan is required."
+                ],
+                "version": "commissioning-test-plan-v1.0.0"
+              },
+              "recent_developments": [
+                {
+                  "id": "8",
+                  "summary": "Build capacity revised",
+                  "project_id": "78622370-7ef2-4d8c-8595-55d5aa95a7eb",
+                  "evidence_id": "8b6da907-314d-40fc-82d7-ab9ccf53e386",
+                  "observed_at": "2026-11-13T13:26:45.512212+00:00",
+                  "source_date": "2024-09-10",
+                  "content_hash": "baf748307ce3f3642eef04fc21dd22f6a4f378baf5e0f9ca9707abc27a6bc7af",
+                  "observation_id": "a1435cce-bf23-49a1-acc3-d569db25539a",
+                  "buying_chain_evidence_id": null
+                }
+              ],
+              "priority": {
+                "version": "customer-commercial-priority-v2",
+                "potential": 18,
+                "confidence": 20,
+                "score": 3,
+                "ranking_method": "maximum supported project score before account pagination"
+              },
+              "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+              "limitations": [
+                "Engineering scenarios are not verified customer demand.",
+                "Only explicit supported source facts are included; missing values remain unknown."
+              ],
+              "canonical_company_identity_ids": [
+                "eb1cabae-69ab-466f-ac54-c4d2570d7baa"
+              ],
+              "source_count": 1,
+              "details_available": true
+            }
+          }
+        ],
+        "count_unit": "groups",
+        "total": 2,
+        "totals": {
+          "accounts": 2,
+          "projects": 2,
+          "needs": 2
+        },
+        "limit": 25,
+        "offset": 0,
+        "cohort_token": "p1_b4df0ff3c8cea039d08428d77af69d3ab0f0d93304cbb44dacf0f9c27c3b22f5",
+        "generation": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "facets": {
+          "regions": [
+            "Bosque County, TX",
+            "Red Oak, TX"
+          ],
+          "stages": []
+        },
+        "generation_id": "0cd3900a-afe3-4805-88e4-085670a4d9d0",
+        "as_of": "2026-11-13T13:34:03.026614+00:00",
+        "valid_until": "2026-11-14T00:00:00+00:00",
+        "qualification_state": "current",
+        "refresh_state": "current"
+      }
+    }
+  ],
+  "generationIds": [
+    "0cd3900a-afe3-4805-88e4-085670a4d9d0"
+  ],
+  "source_hashes": {
+    "web/src/features/workspace/ProjectResults.tsx": "7a5ddae1359a46b664a198cbd52167f2bab877d9679aac2e29136656a789b9d4",
+    "web/src/features/workspace/Workspace.tsx": "e3a2d739f96cf82aa01220f8502eeb8ddff16512ea2ded603c9fee3fbc169ddf",
+    "web/src/features/workspace/CanonicalOpportunityDetail.tsx": "d413554453c781d605bdeeece6137213b809392f546f3c34826d650ea554db9c",
+    "web/src/features/companies/CompanyView.tsx": "2b270e98c911b4f251a4636854c45e99698c6536da810440707ae9054e328f6c",
+    "web/src/api/client.ts": "84d9dc10361bd8c3f3d7f9f3d8cfba93e011b95e46dc1d0fb4daef053be578a6",
+    "web/src/state/projectBrowseCache.ts": "9d8f4ac520401efd643f17bf3c3c979b95395af645e3dfc807f65e5ba2a9458d",
+    "backend/src/gridlens/intelligence/customer_results.py": "0ed7f395e747b7d95857effedaa1f761bfc94ffc3d0539ccf63871bbe5a23ade",
+    "backend/src/gridlens/api/app.py": "6eb22cc5caad9b3915955736b41e344f4fd512e86fdaa410c186e4d677468d0f"
+  },
+  "screenshots": {
+    "after-databank-detail.png": "607e634b92be1db788fd8aba31e879b491003535bcf0f5767acf587e6778b2ed",
+    "after-default-desktop.png": "de492a831d796ce16850d8c3033f9baa3c1f42ac04ebe213b6bf43a80e73d21a",
+    "after-default-mobile.png": "06a7fcfcc15b57da1e4407c49401a155955c911b288e4c296b3b9cf070faf799",
+    "before-default-desktop.png": "e01b6dec45932e9abfdb8029ee555c18516e707777856e9bd51001e0a6373b46"
+  },
+  "external_requests": []
+}

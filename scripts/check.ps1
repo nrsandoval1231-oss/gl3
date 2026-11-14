@@ -62,6 +62,7 @@ Invoke-Native "npm ci" { npm ci --prefix web }
 Invoke-Native "npm audit" { npm audit --prefix web --audit-level=high }
 Invoke-Native "web typecheck" { npm run typecheck --prefix web }
 Invoke-Native "web build" { npm run build --prefix web }
+Invoke-Native "web build identity guard" { node --test deploy/validate-web-build.test.mjs }
 
 Push-Location (Join-Path $Root "web")
 try {

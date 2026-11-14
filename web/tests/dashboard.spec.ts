@@ -60,7 +60,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
     return route.fulfill({ status: 503, json: { detail: 'Not supplied by this project results fixture' } })
   })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
   await expect(page.locator('.customer-group-toggle').first()).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Project type' }).getByRole('button')).toHaveText(['All', 'Oil & Gas', 'Data Centers'])
@@ -68,7 +68,7 @@ test('project results preserve detail history, truthful gaps, and responsive nav
   const account = page.getByRole('region', { name: 'Company Fixture Customer 1' })
   await expect(account.getByRole('region', { name: 'Account projects' }).locator('.cmp-projects li')).toHaveCount(1)
   await expect(account.locator('.cmp-projects li')).toContainText('Construction notice')
-  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No current business contact route is available.')
+  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No verified business contact is currently available. Contact research is needed.')
   await expect(page.locator('.brand-kpi')).toHaveCount(0)
 
   await account.locator('.cmp-projects li').getByRole('button', { name: /Open project detail Site development 1/ }).click()

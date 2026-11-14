@@ -1,3 +1,9 @@
+## Current owner mission — November 12, 2026
+
+The owner requests commercial customer intelligence across controlled PRs, using existing canonical identities and research. Start with the [architecture audit and contract](docs/engineering/customer-commercial-intelligence-20261112.md). Phase 2 PR188 is merged; the old draft-only checkpoint below is dated history. PR189 remains a separate conflicting draft and must be reconciled selectively. Source migration head is 0056; source merge does not establish production state.
+
+The customer mission is currently blocked on real-world commercial acceptance: the [20-customer evaluation](eval/customer-commercial-v1/README.md) produces zero project-scoped published claims, despite source-backed reference assertions. Do not call this missing public information or successful extraction. Do not merge unresolved work or claim the mission complete. Preserve ingestion, identity, source/privacy, need-scoped Pursuits and recovery. No production deployment, retained-data writes, credentials, source activation or paid runtime providers are authorized.
+
 # Working in GridLens GL3
 
 Read in order:

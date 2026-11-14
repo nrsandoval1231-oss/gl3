@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockDemandSummary } from './mock-demand-summary'
 
-// SYNTHETIC UI FIXTURE ONLY. Bare Opportunities is the server-ranked account
-// shortlist; flat project browsing remains an explicit bookmarked compatibility route.
+// SYNTHETIC UI FIXTURE ONLY. Bare Opportunities includes all canonical customer
+// accounts; the evidence shortlist remains an explicit optional filter.
 
 const project = {
   id: 'project-1', project_id: 'project-1', project_ids: ['project-1'], name: 'Example Compressor Station', company: 'Example Energy', customer_identity_id: 'company-1',
@@ -24,6 +24,8 @@ const need = {
   associated_account: { company_identity_id: 'group-1', name: 'Example Energy', role: 'asset_operator', basis: 'Synthetic identity-backed fixture.', support_status: 'current', evidence_refs: [{ namespace: 'retained-evidence', id: 'synthetic-source-1', retained_evidence_id: 'synthetic-source-1' }] },
 }
 const groupPage = { items: [group], total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'g1', generation: 'g', valid_until: '2099-01-01T00:00:00Z', facets: { regions: [], stages: [] } }
+const unqualifiedProject = { ...project, id: 'project-2', project_id: 'project-2', project_ids: ['project-2'], name: 'Unqualified Signal', company: 'Unqualified Energy', customer_identity_id: 'company-2', eligible_need_ids: [], needs: [{ id: 'need-2', project_id: 'project-2', tier: 'Signal', activity: 'reported development' }], shortlist_assessment: null }
+const unqualifiedGroup = { ...group, id: 'group-2', name: 'Unqualified Energy', eligible_need_count: 0, relevant_project_count: 0, featured_project: unqualifiedProject }
 const projectPage = { items: [project], total: 1, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'p1', parent_cohort_token: 'g1', generation: 'g', valid_until: '2099-01-01T00:00:00Z' }
 
 async function mock(page: Page) {
@@ -31,7 +33,11 @@ async function mock(page: Page) {
   await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.includes('demand-summary'), route => {
     const path = new URL(route.request().url()).pathname
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (path === '/api/opportunities/groups') return route.fulfill({ json: groupPage })
+    if (path === '/api/opportunities/groups') {
+      const shortlist = new URL(route.request().url()).searchParams.get('shortlist') === 'true'
+      const items = shortlist ? [group] : [group, unqualifiedGroup]
+      return route.fulfill({ json: { ...groupPage, items, total: items.length } })
+    }
     if (path === '/api/opportunities/groups/group-1/open') return route.fulfill({ json: { group, projects: projectPage, parent_cohort_token: 'g1' } })
     if (path === '/api/opportunities/groups/group-1/projects') return route.fulfill({ json: projectPage })
     if (path === '/api/opportunities/projects') return route.fulfill({ json: { ...projectPage, items: [project] } })
@@ -44,26 +50,45 @@ async function mock(page: Page) {
 
 const params = (page: Page) => new URL(page.url()).searchParams
 
-test('the bare Opportunities view is a compact server-ranked account shortlist', async ({ page }) => {
+test('the bare Opportunities view includes all canonical customers; unqualified signals have no card quick-add', async ({ page }) => {
   const groupQueries: URL[] = []
   await mock(page)
   await page.route('**/api/opportunities/groups?*', route => { groupQueries.push(new URL(route.request().url())); return route.fallback() })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.customer-group')).toHaveCount(1)
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'All customers' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.customer-group')).toHaveCount(2)
+  const unqualifiedCard = page.locator('.customer-group').filter({ hasText: 'Unqualified Energy' })
+  await expect(unqualifiedCard).toContainText('Unqualified Signal')
+  await expect(unqualifiedCard.getByRole('button', { name: /Add to Pursuit/ })).toHaveCount(0)
   await expect(page.locator('.cfr-kpis')).toHaveCount(0)
   await expect(page.locator('.cfr-table')).toHaveCount(0)
-  await expect(page.locator('.customer-group-featured')).toContainText('Synthetic source reports current electrical construction.')
-  await expect.poll(() => groupQueries.some(url => url.searchParams.get('shortlist') === 'true')).toBe(true)
+  await expect(page.locator('.customer-group').filter({ hasText: 'Example Energy' }).locator('.customer-group-featured')).toContainText('Synthetic source reports current electrical construction.')
+  await expect.poll(() => groupQueries.some(url => url.searchParams.get('shortlist') === 'false')).toBe(true)
+  expect(groupQueries.some(url => url.searchParams.get('canonical_only') === 'true')).toBe(true)
   expect(params(page).get('groupBrowse')).toBeNull()
 })
 
-test('the bare root path also opens the account shortlist', async ({ page }) => {
+test('the explicit shortlist URL filters customers and remains shareable', async ({ page }) => {
+  const groupQueries: URL[] = []
   await mock(page)
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await page.route('**/api/opportunities/groups?*', route => { groupQueries.push(new URL(route.request().url())); return route.fallback() })
+  await page.goto('/?shortlist=1')
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.customer-group')).toHaveCount(1)
+  await expect.poll(() => groupQueries.some(url => url.searchParams.get('shortlist') === 'true')).toBe(true)
+  expect(groupQueries.some(url => url.searchParams.get('canonical_only') === 'true')).toBe(true)
+})
+
+test('explicit legacy group browsing keeps its broader group scope', async ({ page }) => {
+  const groupQueries: URL[] = []
+  await mock(page)
+  await page.route('**/api/opportunities/groups?*', route => { groupQueries.push(new URL(route.request().url())); return route.fallback() })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
+  await expect(page.locator('.customer-group')).toHaveCount(2)
+  await expect.poll(() => groupQueries.some(url => url.searchParams.get('canonical_only') === 'false')).toBe(true)
 })
 
 test('?projectBrowse=1 remains an explicit flat project compatibility route', async ({ page }) => {
@@ -76,7 +101,9 @@ test('?projectBrowse=1 remains an explicit flat project compatibility route', as
 
 test('the default account opens shared Companies detail and retains account context on a project deep link', async ({ page }) => {
   const pursuitPosts: Array<{ need_id: string }> = []
+  const accountReads: URL[] = []
   await mock(page)
+  page.on('request', request => { const url = new URL(request.url()); if (/\/api\/opportunities\/groups\/group-1\/(?:open|projects)$/.test(url.pathname)) accountReads.push(url) })
   await page.route('**/api/commercial-pursuits', async route => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON() as { need_id: string }
@@ -88,8 +115,14 @@ test('the default account opens shared Companies detail and retains account cont
   await page.goto('/')
   await page.getByRole('button', { name: /Example Energy/ }).click()
   await expect(page).toHaveURL(/account=group-1/)
+  await expect(page).toHaveURL(/customerScope=canonical/)
   await expect(page.getByRole('heading', { name: 'Example Energy', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Account projects' })).toBeVisible()
+  expect(accountReads.length).toBeGreaterThan(0)
+  expect(accountReads.every(url => url.searchParams.get('shortlist') === 'false' && url.searchParams.get('canonical_only') === 'true')).toBe(true)
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Account projects' })).toBeVisible()
+  expect(accountReads.every(url => url.searchParams.get('shortlist') === 'false' && url.searchParams.get('canonical_only') === 'true')).toBe(true)
   await page.getByRole('button', { name: /Open project detail Example Compressor Station/ }).click()
   await expect(page).toHaveURL(/account=group-1/)
   await expect(page).toHaveURL(/need=need-1/)
@@ -124,7 +157,7 @@ test('Companies and Reports replace the visible Opportunities page while a delay
   release()
   await expect(page).toHaveURL(/panel=companies/)
   await expect(page.getByRole('heading', { name: 'Companies', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toHaveCount(0)
   await expect(page.locator('.customer-group')).toHaveCount(0)
 
   await page.evaluate(() => {
@@ -134,11 +167,11 @@ test('Companies and Reports replace the visible Opportunities page while a delay
   await page.getByRole('button', { name: 'Reports' }).click()
   await expect(page).toHaveURL(/panel=reports/)
   await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Customer accounts', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Customers', exact: true })).toHaveCount(0)
   await page.evaluate(() => window.dispatchEvent(new Event('gl3-demand-refresh')))
   await expect(page).toHaveURL(/panel=reports/)
   await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close navigation panel' }).click()
   await expect(page).not.toHaveURL(/panel=/)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
 })

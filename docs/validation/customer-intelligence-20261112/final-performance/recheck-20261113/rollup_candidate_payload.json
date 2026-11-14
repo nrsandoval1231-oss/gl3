@@ -1,0 +1,29 @@
+{
+  "side": "candidate",
+  "database": "gl3_mission_rollup_scale_recheck_candidate_test",
+  "source_manifest_sha256": "08b731418fd83c707fc6264b37bdac0bf777c9400a070fe019d9c947d1d57cb1",
+  "transaction_context": "read-only, 15s timeout, SET LOCAL jit = off",
+  "page_sizes": {
+    "1": {
+      "payload_utf8_bytes": 7180,
+      "returned_groups": 1,
+      "account_total": 38319
+    },
+    "25": {
+      "payload_utf8_bytes": 57128,
+      "returned_groups": 25,
+      "account_total": 38319
+    },
+    "50": {
+      "payload_utf8_bytes": 109378,
+      "returned_groups": 50,
+      "account_total": 38319
+    }
+  },
+  "provider_ledger_rows": {
+    "logical_calls": 0,
+    "logical_call_budgets": 0,
+    "logical_call_settlements": 0
+  },
+  "encoding": "Compact JSON UTF-8; excludes HTTP headers, compression and transport."
+}

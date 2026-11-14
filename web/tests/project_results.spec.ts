@@ -67,7 +67,7 @@ test('account-first list filters and pages the entire server cohort before openi
   await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
 
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.cfr-kpis')).toHaveCount(0)
   await expect(page.locator('.customer-group')).toHaveCount(25)
   await expect(page.locator('.project-results-count')).toHaveText('26 accounts')
@@ -275,7 +275,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
     associated_account: { company_identity_id: 'group-synthetic-1', name: 'Example Energy', support_status: 'current' },
   } }))
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.locator('.project-results-count')).toHaveText('1 account')
   await page.locator('.customer-group').getByRole('button', { name: /Example Energy/ }).click()
   const account = page.getByRole('region', { name: 'Company Example Energy' })
@@ -285,7 +285,7 @@ test('shared account detail keeps project source context and rejects unsafe cont
   await row.getByText('Sources', { exact: true }).click()
   await expect(row.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://example.test/source')
   await expect(row.getByRole('link', { name: 'Call direct' })).toHaveCount(0)
-  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No current business contact route is available.')
+  await expect(account.getByRole('region', { name: 'Account overview' })).toContainText('No verified business contact is currently available. Contact research is needed.')
   await row.getByRole('button', { name: /Open project detail/ }).click()
   const detail = page.getByRole('complementary', { name: 'Opportunity detail' })
   await expect(detail.getByRole('heading', { name: 'Example Compressor Station', exact: true })).toBeVisible()
@@ -1286,12 +1286,16 @@ test('cached browse context expires at the backend valid-until boundary', async 
 })
 
 test('mounted account project details and contacts disappear at their independent generation expiry', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-10-29T12:00:00Z') })
+  await page.clock.install({ time: new Date('2026-10-29T11:59:00Z') })
+  let pauseClock: Promise<void> | undefined
   let openReads = 0
   let freshGeneration = false
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await mockDemandSummary(page)
-  await page.route('**/api/opportunities/groups?*', route => route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } }))
+  await page.route('**/api/opportunities/groups?*', async route => {
+    await (pauseClock ??= page.clock.pauseAt(new Date('2026-10-29T12:00:00Z')))
+    return route.fulfill({ json: { ...groupPage, as_of: '2026-10-29T11:59:00Z', valid_until: '2026-10-29T12:00:20Z', qualification_state: 'current', refresh_state: 'current' } })
+  })
   await page.route('**/api/opportunities/groups/group-synthetic-1/open?*', route => {
     openReads += 1
     const validUntil = freshGeneration ? '2026-10-29T12:00:20Z' : '2026-10-29T12:00:02Z'
@@ -1396,7 +1400,7 @@ test('far-future account and child snapshots remain visible until their exact ex
   await page.evaluate(async ({ cachedGroup, cachedProject, childExpiryAt, accountExpiryAt }) => {
     const cachePath = '/src/state/projectBrowseCache.ts'
     const cache = await import(cachePath)
-    const route = { search: '', sector: 'all', offset: 0, shortlist: true }
+    const route = { search: '', sector: 'all', offset: 0, shortlist: true, canonicalOnly: false }
     const page = {
       ...{
         items: [cachedGroup], total: 1, count_unit: 'groups', limit: 25, offset: 0,

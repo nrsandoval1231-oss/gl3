@@ -159,6 +159,39 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     assert "FIRECRAWL_API_KEY" not in services["web"].get("environment", {})
 
 
+def test_backend_compose_operations_do_not_require_frontend_revision(tmp_path):
+    if not shutil.which("docker"):
+        pytest.skip("Docker Compose unavailable")
+    root = Path(__file__).resolve().parents[3]
+    config = tmp_path / ".env.prod"
+    config.write_text((root / "deploy/digitalocean/env.prod.example").read_text())
+    compose = tmp_path / "deploy/digitalocean/compose.prod.yaml"
+    compose.parent.mkdir(parents=True)
+    compose.write_text((root / "deploy/digitalocean/compose.prod.yaml").read_text())
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(config),
+            "-f",
+            str(compose),
+            "config",
+            "--no-env-resolution",
+            "--format",
+            "json",
+        ],
+        env=_process_environment(CLOUDFLARE_TUNNEL_TOKEN="synthetic-tunnel", GRIDLENS_BUILD_SHA=""),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    assert "worker" in services
+    assert services["web"]["build"]["args"]["GRIDLENS_BUILD_SHA"] == ""
+
+
 # Total-deadline enforcement is covered against a loopback server in
 # test_intelligence_provider_transport.py.
 

@@ -96,6 +96,6 @@ test('default account-first landing hides the legacy queue and briefing controls
   await page.goto('/?view=workspace')
   await expect(page.locator('.wh-queue-meta')).toHaveCount(0)
   await expect(page.locator('.wh-briefing-scope')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   await expect(page.getByText('No accounts are available in this scope.')).toBeVisible()
 })

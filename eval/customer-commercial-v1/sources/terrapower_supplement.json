@@ -1,0 +1,13 @@
+{
+  "source_id": "terrapower_supplement",
+  "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "excerpts": [
+    "“This is the moment our industry has been working toward for a generation. We’re not just breaking new ground on a first-of-a-kind nuclear plant in Wyoming; we’re building the next generation of America’s energy infrastructure,” said **Chris Levesque, president and CEO of TerraPower**. “The Natrium plant will deliver reliable and dispatchable power to the grid and Kemmerer Unit 1 serve as a commercial blueprint to mobilize a fleet of Natrium plants across the country and around the world.”",
+    "“The United States needs more reliable baseload power now. Wyoming’s energy workers continue to lead the way,” said **U.S. Senator John Barrasso**. “As the country’s number one producer of uranium, Wyoming is the perfect place to build TerraPower’s advanced nuclear reactor. Starting construction on this groundbreaking project will create more jobs in Kemmerer and help expand Wyoming’s already strong energy economy. It’s a win-win for Wyoming and America’s energy security.”",
+    "The plant features a 345-megawatt (MW) sodium-cooled fast reactor with an integrated molten salt-based energy storage system. The storage technology can boost energy output to 500 MW of power when needed, equivalent to the amount of energy needed to power around 400,000 homes. The energy storage capability is designed to keep base output steady, ensuring constant reliability, and can quickly ramp up when demand peaks. It is the only advanced reactor design with this unique feature.",
+    "This first Natrium plant is being developed through the U.S. Department of Energy’s Advanced Reactor Demonstration Program (ARDP), a public-private partnership. When complete, the project will be the first utility-scale advanced nuclear power plant in the U.S. and Wyoming’s first-ever commercial nuclear generating station. The project has been under active development since TerraPower [broke ground](https://www.terrapower.com/terrapower-begins-construction-in-wyoming) on the greenfield site in June 2024 and began construction on non-nuclear support facilities."
+  ]
+}

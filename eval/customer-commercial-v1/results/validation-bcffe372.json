@@ -1,0 +1,33 @@
+{
+  "source_commit": "bcffe37291ad3ba355d1da70d13fa872c20106dc",
+  "reference_sha256": "243dce0a8dac5592ead63103deb4688d2d613168107f998d4f49d96993df9177",
+  "runner_sha256": "b8cd2cb4275611f1c7a013d1de1867528a588967c203d02c0752c6acbcb914b6",
+  "result_file": "results/scoped-candidate-bcffe372.json",
+  "result_sha256": "18e56f01ccc48b52fb10cd33c531ddcb96bff5fdb289ce3d2a47a1496a8cdb40",
+  "source_manifest": {
+    "backend/src/gridlens/domain/commissioning.py": "8b9fcb6a1f344906a2d60c4d9122aa838476604cb53169ac2fd77442ffebd689",
+    "backend/src/gridlens/domain/customer_intelligence.py": "1f7fa58bdcc2b168f71689ba8a3f439fedf59a94980cf5fe2bcb064d1c79de3e",
+    "backend/src/gridlens/domain/project_research.py": "de25a51f9ab169f7d6d6446a792dc9799513a478bc6bc9d0ff1d813a172a2c3b",
+    "backend/src/gridlens/intelligence/customer_intelligence.py": "379119f2f0129610940822cc93ffaa9dd9508d9f77ffeb99060c871a9054d8a3"
+  },
+  "checks": [
+    {
+      "command": "uv run --project backend pytest backend/tests/unit/test_customer_commercial_evaluation.py -q",
+      "result": "9 passed in 0.56s after timeline qualifier semantic correction"
+    },
+    {
+      "command": "uv run --project backend ruff check scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "All checks passed"
+    },
+    {
+      "command": "uv run --project backend ruff format scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "2 files left unchanged"
+    },
+    {
+      "command": "uv run --project backend python scripts/evaluate_customer_commercial.py --output eval/customer-commercial-v1/results/scoped-candidate-20261112.json",
+      "result": "exit0 at bcffe372; stable before/after source manifest; artifact moved without byte changes to scoped-candidate-bcffe372.json; prior f8 artifact restored to original path"
+    }
+  ],
+  "acceptance": "not accepted: publication coverage blocker; reference exact-hash review attestation pending",
+  "full_repository_ci": "not run by this lane"
+}

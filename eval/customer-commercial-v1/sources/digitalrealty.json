@@ -1,0 +1,16 @@
+{
+  "source_id": "digitalrealty",
+  "url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos",
+  "title": "Digital Realty Expands Presence in West Africa with New Data Center in Lagos ",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "<p>LAGOS, Nigeria – August 22, 2025 – Digital Realty (NYSE: DLR), the leading global provider of carrier-neutral data center, colocation, and interconnection solutions, today announced the...</p>"
+  ]
+}
+

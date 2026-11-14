@@ -1,0 +1,4551 @@
+{
+  "as_of": "2026-11-12",
+  "evaluation_version": "customer-commercial-evaluation-v1",
+  "extractor_source_sha256": "b61b9778002b11cf5dd8af08ddf5f7bbb5e9a63b3ac0e23f267b0bc9299f7716",
+  "extractor_version": "customer-facts-v1",
+  "limitations": [
+    "Purposive stress cohort; results are not population-wide production accuracy.",
+    "Input is retained selected source excerpts, not the complete discovery/ingestion pipeline.",
+    "Predictions use source text only; supplied fixture grouping is not canonical-company accuracy.",
+    "Strict unmatched supported reference claims are parser missingness, not source missingness.",
+    "Empty predictions produce undefined precision (null), never a perfect precision score.",
+    "No current contact verification, positive commissioning scenario, or sales-user acceptance is established."
+  ],
+  "metrics": {
+    "canonical_identity_accuracy": {
+      "reason": "No runtime identity/project matcher or account grouping invoked; fixture assignment supplied.",
+      "status": "not_evaluated",
+      "value": null
+    },
+    "capacity_double_counting": {
+      "reason": "Requires independently reviewed expected typed rollup totals and included/disjoint scope coverage; claim recall alone is insufficient.",
+      "status": "not_evaluated"
+    },
+    "capacity_extraction_strict_value_basis_scope": {
+      "false_negative": 22,
+      "false_positive": 11,
+      "precision": 0.47619047619047616,
+      "predicted_claims": 21,
+      "recall": 0.3125,
+      "reference_claims": 32,
+      "true_positive": 10
+    },
+    "commercial_prioritization_quality": {
+      "reason": "No independent labeled ranking or salesperson review.",
+      "status": "not_evaluated"
+    },
+    "commissioning_abstention": {
+      "correct": 20,
+      "eligible": 20,
+      "positive_scenarios_evaluated": 0
+    },
+    "contacts": {
+      "reason": "Contact acquisition/verification pipeline not invoked.",
+      "reference_current_verified_methods": 0,
+      "reference_historically_named_functional_leaders": 6,
+      "status": "not_evaluated"
+    },
+    "customer_card_usefulness": {
+      "reason": "Manual rubric has not been administered to independent sales reviewers.",
+      "status": "not_evaluated"
+    },
+    "duplicate_customer_rate": {
+      "reason": "No runtime identity/project matcher or account grouping invoked; fixture assignment supplied.",
+      "status": "not_evaluated",
+      "value": null
+    },
+    "project_association_accuracy": {
+      "reason": "No runtime identity/project matcher or account grouping invoked; fixture assignment supplied.",
+      "status": "not_evaluated",
+      "value": null
+    },
+    "provenance_completeness": {
+      "claims": 23,
+      "complete": 23,
+      "coverage": 1.0
+    },
+    "timeline_extraction_strict_kind_value_precision_scope": {
+      "false_negative": 30,
+      "false_positive": 2,
+      "precision": 0.0,
+      "predicted_claims": 2,
+      "recall": 0.0,
+      "reference_claims": 30,
+      "true_positive": 0
+    }
+  },
+  "organization_count": 20,
+  "records": [
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 1,
+        "precision": 0.5,
+        "predicted_claims": 2,
+        "recall": 1.0,
+        "reference_claims": 1,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [
+          1
+        ],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Vantage Data Centers",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_0c2f09dfa539c91fb2ec39619c0679bd",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:vantage-frontier",
+            "qualifier": "exact",
+            "quote": "19, 2025)** \u2013 Vantage Data Centers, a leading global provider of hyperscale data centers, today announced its largest investment to date of over $25 billion to develop a mega-scale 1.4GW data center campus in Shackelford County, Texas.",
+            "scope_id": "fixture-project:vantage-frontier:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f",
+              "evidence_id": "fixture-source:vantage",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "1400"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_3ea69b7d629f17a93fdd7eb82c1e515f",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:vantage-frontier",
+            "qualifier": "exact",
+            "quote": "In particular, the launch of our Frontier campus with 1.4GW of GPU compute capacity marks a watershed moment for Vantage as we deliver on our promise to meet the unprecedented requirements of our customers,\u201d said Dana Adams, president of North America, at Vantage Data Centers.",
+            "scope_id": "fixture-project:vantage-frontier:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f",
+              "evidence_id": "fixture-source:vantage",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "1400"
+          }
+        ],
+        "project_id": "fixture-project:vantage-frontier",
+        "source_reads": [
+          {
+            "artifact": "sources/vantage.json",
+            "text_sha256": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_0c2f09dfa539c91fb2ec39619c0679bd",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:vantage-frontier",
+                "qualifier": "exact",
+                "quote": "19, 2025)** \u2013 Vantage Data Centers, a leading global provider of hyperscale data centers, today announced its largest investment to date of over $25 billion to develop a mega-scale 1.4GW data center campus in Shackelford County, Texas.",
+                "scope_id": "fixture-project:vantage-frontier:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f",
+                  "evidence_id": "fixture-source:vantage",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "1400"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_3ea69b7d629f17a93fdd7eb82c1e515f",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:vantage-frontier",
+                "qualifier": "exact",
+                "quote": "In particular, the launch of our Frontier campus with 1.4GW of GPU compute capacity marks a watershed moment for Vantage as we deliver on our promise to meet the unprecedented requirements of our customers,\u201d said Dana Adams, president of North America, at Vantage Data Centers.",
+                "scope_id": "fixture-project:vantage-frontier:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f",
+                  "evidence_id": "fixture-source:vantage",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "1400"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_0c2f09dfa539c91fb2ec39619c0679bd"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "1400",
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_0c2f09dfa539c91fb2ec39619c0679bd"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "1400"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:vantage-frontier",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 25,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 25,
+            "score": 20,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "13fd6319c54edeb25372776c8d5ebca4ff90ecc1f26aaa47a4546cab3b2fb65f",
+              "evidence_id": "fixture-source:vantage",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 2,
+        "complete": 2
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "vantage-frontier",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Aligned Data Centers",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:aligned-conesville",
+        "source_reads": [
+          {
+            "artifact": "sources/aligned.json",
+            "text_sha256": "21f0eafc1d6221307062484ceaf63cb95c5fb22e31f45b3c1d0ed9742051868b"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:aligned-conesville",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "source_missing",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "aligned-conesville",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 3,
+        "precision": 0.4,
+        "predicted_claims": 5,
+        "recall": 0.6666666666666666,
+        "reference_claims": 3,
+        "true_positive": 2,
+        "unmatched_prediction_indices": [
+          0,
+          3,
+          4
+        ],
+        "unmatched_reference_indices": [
+          0
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "DataBank",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_2a6d5aecba1e1d2d90bd886ab3ecd7bb",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:databank-red-oak",
+            "qualifier": "exact",
+            "quote": "**Dallas, TX \u2013 September 10, 2024** \u2013 [DataBank](https://www.databank.com/), a leading provider of enterprise-class edge colocation, interconnection, and managed services, today announced the development of a 480MW data center campus on 292 acres of land in Red Oak, TX, dramatically expanding its capacity and ability to meet growing demand for data center space and power being driven by A.I.",
+            "scope_id": "fixture-project:databank-red-oak:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "480"
+          },
+          {
+            "basis": "it_load",
+            "capacity_type": "individual_phase",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_5ba4a867d0aad60e24db24c498d8f030",
+            "includes_scope_ids": [],
+            "phase_id": "1",
+            "project_id": "fixture-project:databank-red-oak",
+            "qualifier": "up_to",
+            "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+            "scope_id": "fixture-project:databank-red-oak:phase:1",
+            "source": {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "240"
+          },
+          {
+            "basis": "utility_service",
+            "capacity_type": "individual_phase",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_a20982e1611ff70513662d5af51b10bb",
+            "includes_scope_ids": [],
+            "phase_id": "1",
+            "project_id": "fixture-project:databank-red-oak",
+            "qualifier": "exact",
+            "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+            "scope_id": "fixture-project:databank-red-oak:phase:1",
+            "source": {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "400"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_10427a2ea3383744c13dcde0aa9861d1",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:databank-red-oak",
+            "qualifier": "exact",
+            "quote": "This announcement is DataBank\u2019s third new campus announcement in the past twelve months and follows its acquisition of a [95-acre/120MW campus in the Atlanta market in October 2023](https://www.databank.com/resources/press-releases/databank-acquires-nearly-100-acres-of-land-in-atlanta-for-new-data-center-campus/) and an [85-acre/192MW campus in Northern Virginia in November 2023](https://www.databank.com/resources/press-releases/databank-purchases-85-acres-of-land-in-northern-virginia-for-new-data-center-campus/).",
+            "scope_id": "fixture-project:databank-red-oak:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "120"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_b6211b36da41b1a33d223da99a3c6b1f",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:databank-red-oak",
+            "qualifier": "exact",
+            "quote": "This announcement is DataBank\u2019s third new campus announcement in the past twelve months and follows its acquisition of a [95-acre/120MW campus in the Atlanta market in October 2023](https://www.databank.com/resources/press-releases/databank-acquires-nearly-100-acres-of-land-in-atlanta-for-new-data-center-campus/) and an [85-acre/192MW campus in Northern Virginia in November 2023](https://www.databank.com/resources/press-releases/databank-purchases-85-acres-of-land-in-northern-virginia-for-new-data-center-campus/).",
+            "scope_id": "fixture-project:databank-red-oak:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "192"
+          }
+        ],
+        "project_id": "fixture-project:databank-red-oak",
+        "source_reads": [
+          {
+            "artifact": "sources/databank.json",
+            "text_sha256": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_10427a2ea3383744c13dcde0aa9861d1",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:databank-red-oak",
+                "qualifier": "exact",
+                "quote": "This announcement is DataBank\u2019s third new campus announcement in the past twelve months and follows its acquisition of a [95-acre/120MW campus in the Atlanta market in October 2023](https://www.databank.com/resources/press-releases/databank-acquires-nearly-100-acres-of-land-in-atlanta-for-new-data-center-campus/) and an [85-acre/192MW campus in Northern Virginia in November 2023](https://www.databank.com/resources/press-releases/databank-purchases-85-acres-of-land-in-northern-virginia-for-new-data-center-campus/).",
+                "scope_id": "fixture-project:databank-red-oak:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+                  "evidence_id": "fixture-source:databank",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "120"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_2a6d5aecba1e1d2d90bd886ab3ecd7bb",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:databank-red-oak",
+                "qualifier": "exact",
+                "quote": "**Dallas, TX \u2013 September 10, 2024** \u2013 [DataBank](https://www.databank.com/), a leading provider of enterprise-class edge colocation, interconnection, and managed services, today announced the development of a 480MW data center campus on 292 acres of land in Red Oak, TX, dramatically expanding its capacity and ability to meet growing demand for data center space and power being driven by A.I.",
+                "scope_id": "fixture-project:databank-red-oak:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+                  "evidence_id": "fixture-source:databank",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "480"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_b6211b36da41b1a33d223da99a3c6b1f",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:databank-red-oak",
+                "qualifier": "exact",
+                "quote": "This announcement is DataBank\u2019s third new campus announcement in the past twelve months and follows its acquisition of a [95-acre/120MW campus in the Atlanta market in October 2023](https://www.databank.com/resources/press-releases/databank-acquires-nearly-100-acres-of-land-in-atlanta-for-new-data-center-campus/) and an [85-acre/192MW campus in Northern Virginia in November 2023](https://www.databank.com/resources/press-releases/databank-purchases-85-acres-of-land-in-northern-virginia-for-new-data-center-campus/).",
+                "scope_id": "fixture-project:databank-red-oak:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+                  "evidence_id": "fixture-source:databank",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "192"
+              },
+              {
+                "basis": "it_load",
+                "capacity_type": "individual_phase",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_5ba4a867d0aad60e24db24c498d8f030",
+                "includes_scope_ids": [],
+                "phase_id": "1",
+                "project_id": "fixture-project:databank-red-oak",
+                "qualifier": "up_to",
+                "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                "scope_id": "fixture-project:databank-red-oak:phase:1",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+                  "evidence_id": "fixture-source:databank",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "240"
+              },
+              {
+                "basis": "utility_service",
+                "capacity_type": "individual_phase",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_a20982e1611ff70513662d5af51b10bb",
+                "includes_scope_ids": [],
+                "phase_id": "1",
+                "project_id": "fixture-project:databank-red-oak",
+                "qualifier": "exact",
+                "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                "scope_id": "fixture-project:databank-red-oak:phase:1",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+                  "evidence_id": "fixture-source:databank",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "400"
+              }
+            ],
+            "conflicts": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_10427a2ea3383744c13dcde0aa9861d1",
+                  "cf_2a6d5aecba1e1d2d90bd886ab3ecd7bb",
+                  "cf_b6211b36da41b1a33d223da99a3c6b1f"
+                ],
+                "reason": "Equal-authority capacity claims disagree.",
+                "scope_id": "fixture-project:databank-red-oak:site"
+              }
+            ],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_5ba4a867d0aad60e24db24c498d8f030",
+              "cf_a20982e1611ff70513662d5af51b10bb"
+            ],
+            "status": "conflict",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [],
+                "complete": false,
+                "qualifier": "exact",
+                "status": "conflict",
+                "value_mw": null
+              },
+              {
+                "basis": "it_load",
+                "claim_ids": [
+                  "cf_5ba4a867d0aad60e24db24c498d8f030"
+                ],
+                "complete": false,
+                "qualifier": "up_to",
+                "status": "upper_bound",
+                "value_mw": "240"
+              },
+              {
+                "basis": "utility_service",
+                "claim_ids": [
+                  "cf_a20982e1611ff70513662d5af51b10bb"
+                ],
+                "complete": false,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "400"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:databank-red-oak",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 20,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 40,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 20,
+            "score": 8,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research conflicting project facts using primary sources before outreach.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "5d0aead1153026120324c9630a34f7c8f1ebb6bd8184b03b270d0a4a0e486dae",
+              "evidence_id": "fixture-source:databank",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 5,
+        "complete": 5
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "databank-red-oak",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "CyrusOne",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:cyrusone-bosque",
+        "source_reads": [
+          {
+            "artifact": "sources/cyrusone.json",
+            "text_sha256": "1d75c4c75c1acef41df8138250020dfdbed8ddaedda0c09f47e4d013ac29afd5"
+          },
+          {
+            "artifact": "sources/cyrusone_supplement.json",
+            "text_sha256": "4a7163aab9dce9abaa27695838840071a22e5f71859023faef5442644f489114"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:cyrusone-bosque",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "cyrusone-bosque",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 1,
+        "precision": 0.5,
+        "predicted_claims": 2,
+        "recall": 0.5,
+        "reference_claims": 2,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [
+          0
+        ],
+        "unmatched_reference_indices": [
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "QTS Realty Trust",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_b5776038540a0f36fa468a1cb7d4d6ce",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:qts-hillsboro",
+            "qualifier": "exact",
+            "quote": "The initial development will feature construction of a 158,000 square foot data center encompassing 85,000 square feet of leasable capacity and 27 megawatts of gross power capacity.",
+            "scope_id": "fixture-project:qts-hillsboro:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe",
+              "evidence_id": "fixture-source:qts",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "27"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_5e8bfe864861d88ac82717d835d20f00",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:qts-hillsboro",
+            "qualifier": "more_than",
+            "quote": "QTS believes the 92-acre site can ultimately support the construction of five mega data centers totaling approximately 1.5 million gross square feet encompassing more than 1 million square feet of leasable capacity and more than 250 megawatts of gross power capacity.",
+            "scope_id": "fixture-project:qts-hillsboro:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe",
+              "evidence_id": "fixture-source:qts",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "250"
+          }
+        ],
+        "project_id": "fixture-project:qts-hillsboro",
+        "source_reads": [
+          {
+            "artifact": "sources/qts.json",
+            "text_sha256": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_5e8bfe864861d88ac82717d835d20f00",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:qts-hillsboro",
+                "qualifier": "more_than",
+                "quote": "QTS believes the 92-acre site can ultimately support the construction of five mega data centers totaling approximately 1.5 million gross square feet encompassing more than 1 million square feet of leasable capacity and more than 250 megawatts of gross power capacity.",
+                "scope_id": "fixture-project:qts-hillsboro:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe",
+                  "evidence_id": "fixture-source:qts",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "250"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_b5776038540a0f36fa468a1cb7d4d6ce",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:qts-hillsboro",
+                "qualifier": "exact",
+                "quote": "The initial development will feature construction of a 158,000 square foot data center encompassing 85,000 square feet of leasable capacity and 27 megawatts of gross power capacity.",
+                "scope_id": "fixture-project:qts-hillsboro:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe",
+                  "evidence_id": "fixture-source:qts",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "27"
+              }
+            ],
+            "conflicts": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_5e8bfe864861d88ac82717d835d20f00",
+                  "cf_b5776038540a0f36fa468a1cb7d4d6ce"
+                ],
+                "reason": "Equal-authority capacity claims disagree.",
+                "scope_id": "fixture-project:qts-hillsboro:site"
+              }
+            ],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "conflict",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [],
+                "complete": false,
+                "qualifier": "exact",
+                "status": "conflict",
+                "value_mw": null
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:qts-hillsboro",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research conflicting project facts using primary sources before outreach.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "3783a3780069b36a47a8dfb1690f651b7d6870b86e6de4c6c8185ea29f49acbe",
+              "evidence_id": "fixture-source:qts",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 2,
+        "complete": 2
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "qts-hillsboro",
+      "timeline": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Switch",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:switch-the-rock",
+        "source_reads": [
+          {
+            "artifact": "sources/switch.json",
+            "text_sha256": "2c65f64e744ff3b1aedaa2f6ddd9cff9e45483c5e8fca00e85f155b97e35bb66"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:switch-the-rock",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "switch-the-rock",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": 1.0,
+        "predicted_claims": 1,
+        "recall": 0.5,
+        "reference_claims": 2,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Meta",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_21d40960a71f9b4f770a06b1b10fb18c",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:meta-richland",
+            "qualifier": "exact",
+            "quote": "This data center will play a vital role in accelerating our AI progress, delivering 5 gigawatts of compute capacity to house Hyperion, our largest multi-gigawatt AI cluster.",
+            "scope_id": "fixture-project:meta-richland:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "37f4bef6e911b53a96203ee7deaaf1e0bc36920afb17b4e7869c7b2b3449be84",
+              "evidence_id": "fixture-source:meta",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "5000"
+          }
+        ],
+        "project_id": "fixture-project:meta-richland",
+        "source_reads": [
+          {
+            "artifact": "sources/meta.json",
+            "text_sha256": "37f4bef6e911b53a96203ee7deaaf1e0bc36920afb17b4e7869c7b2b3449be84"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_21d40960a71f9b4f770a06b1b10fb18c",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:meta-richland",
+                "qualifier": "exact",
+                "quote": "This data center will play a vital role in accelerating our AI progress, delivering 5 gigawatts of compute capacity to house Hyperion, our largest multi-gigawatt AI cluster.",
+                "scope_id": "fixture-project:meta-richland:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "37f4bef6e911b53a96203ee7deaaf1e0bc36920afb17b4e7869c7b2b3449be84",
+                  "evidence_id": "fixture-source:meta",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "5000"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_21d40960a71f9b4f770a06b1b10fb18c"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "5000",
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_21d40960a71f9b4f770a06b1b10fb18c"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "5000"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:meta-richland",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 25,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 25,
+            "score": 20,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "37f4bef6e911b53a96203ee7deaaf1e0bc36920afb17b4e7869c7b2b3449be84",
+              "evidence_id": "fixture-source:meta",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 1,
+        "complete": 1
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "meta-richland",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Google",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:google-fort-wayne",
+        "source_reads": [
+          {
+            "artifact": "sources/google.json",
+            "text_sha256": "a35daaed591c67e5f36203f7395f5ac2fb91b5dae826cfbb5d207b632c11b0d6"
+          },
+          {
+            "artifact": "sources/google_supplement.json",
+            "text_sha256": "bf878d40a3d0bb9ee6730d33f3e57645af4af4d4474e7790d5bd7d7945780e30"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:google-fort-wayne",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "source_missing",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "google-fort-wayne",
+      "timeline": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Amazon Web Services",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:aws-madison",
+        "source_reads": [
+          {
+            "artifact": "sources/amazon.json",
+            "text_sha256": "580404c303077b51593324c009805b4516395755b0c701d3bc0d23d7b72bc500"
+          },
+          {
+            "artifact": "sources/amazon_supplement.json",
+            "text_sha256": "22a250b12a33b9866bc4f41fdbb83f0d10da8128a23fea7cda984256a2ac71af"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:aws-madison",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "source_missing",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "aws-madison",
+      "timeline": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Microsoft",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:microsoft-fairwater",
+        "source_reads": [
+          {
+            "artifact": "sources/microsoft.json",
+            "text_sha256": "425109efa5db525d1cfa0f1d7b1205f37c9edbe262921104e800c5c2baa67980"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:microsoft-fairwater",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "source_missing",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "microsoft-fairwater",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 1,
+        "precision": 0.5,
+        "predicted_claims": 2,
+        "recall": 0.5,
+        "reference_claims": 2,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [
+          1
+        ],
+        "unmatched_reference_indices": [
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "STACK Infrastructure",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_7090d11fcdb1f41f89fb79d9279970c2",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:stack-svy01",
+            "qualifier": "exact",
+            "quote": "**Denver, COLORADO** \u2014 March 26, 2024 \u2014 [STACK Infrastructure](https://www.stackinfra.com/) (\u201cSTACK\u201d), the digital infrastructure partner to the world\u2019s most innovative companies and a leading global developer and operator of data centers, today announced a groundbreaking and expansion of its 100MW campus in San Jose, SVY01.",
+            "scope_id": "fixture-project:stack-svy01:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "43e7a94de8f221db1775083a6c1abd7d3671b4e3c9cf5ef8087419efe81fcb9c",
+              "evidence_id": "fixture-source:stack",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "100"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_164be2223d8eb18cc2f3edab9b11143a",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:stack-svy01",
+            "qualifier": "exact",
+            "quote": "# STACK Infrastructure Breaks Ground on Expansion of 100MW Campus in Heart of Silicon Valley",
+            "scope_id": "fixture-project:stack-svy01:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376",
+              "evidence_id": "fixture-source:stack_supplement",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "100"
+          }
+        ],
+        "project_id": "fixture-project:stack-svy01",
+        "source_reads": [
+          {
+            "artifact": "sources/stack.json",
+            "text_sha256": "43e7a94de8f221db1775083a6c1abd7d3671b4e3c9cf5ef8087419efe81fcb9c"
+          },
+          {
+            "artifact": "sources/stack_supplement.json",
+            "text_sha256": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_164be2223d8eb18cc2f3edab9b11143a",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:stack-svy01",
+                "qualifier": "exact",
+                "quote": "# STACK Infrastructure Breaks Ground on Expansion of 100MW Campus in Heart of Silicon Valley",
+                "scope_id": "fixture-project:stack-svy01:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376",
+                  "evidence_id": "fixture-source:stack_supplement",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "100"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_7090d11fcdb1f41f89fb79d9279970c2",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:stack-svy01",
+                "qualifier": "exact",
+                "quote": "**Denver, COLORADO** \u2014 March 26, 2024 \u2014 [STACK Infrastructure](https://www.stackinfra.com/) (\u201cSTACK\u201d), the digital infrastructure partner to the world\u2019s most innovative companies and a leading global developer and operator of data centers, today announced a groundbreaking and expansion of its 100MW campus in San Jose, SVY01.",
+                "scope_id": "fixture-project:stack-svy01:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "43e7a94de8f221db1775083a6c1abd7d3671b4e3c9cf5ef8087419efe81fcb9c",
+                  "evidence_id": "fixture-source:stack",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "100"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_d0c768b6d7baf59f67b52ac9daba863b",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:stack-svy01",
+                "qualifier": "exact",
+                "quote": "**Denver, COLORADO** \u2014 March 26, 2024 \u2014 [STACK Infrastructure](https://www.stackinfra.com/) (\u201cSTACK\u201d), the digital infrastructure partner to the world\u2019s most innovative companies and a leading global developer and operator of data centers, today announced a groundbreaking and expansion of its 100MW campus in San Jose, SVY01.",
+                "scope_id": "fixture-project:stack-svy01:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376",
+                  "evidence_id": "fixture-source:stack_supplement",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "100"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_164be2223d8eb18cc2f3edab9b11143a"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "100",
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_164be2223d8eb18cc2f3edab9b11143a"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "100"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:stack-svy01",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 20,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 20,
+            "score": 16,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "43e7a94de8f221db1775083a6c1abd7d3671b4e3c9cf5ef8087419efe81fcb9c",
+              "evidence_id": "fixture-source:stack",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+              "verification_status": "reported"
+            },
+            {
+              "authority": "primary",
+              "content_hash": "c185d870ea65692d0b5e6a00b1b3486cd75c6840021fe9bcb3513727b76b2376",
+              "evidence_id": "fixture-source:stack_supplement",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 2,
+        "complete": 2
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "stack-svy01",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 4,
+        "false_positive": 0,
+        "precision": 1.0,
+        "predicted_claims": 1,
+        "recall": 0.2,
+        "reference_claims": 5,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Applied Digital Corporation",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "it_load",
+            "capacity_type": "it_load",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_f974eb6660f3c4b7b406d8142f3ab743",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:applied-ellendale",
+            "qualifier": "exact",
+            "quote": "Applied Digital\u2019s Ellendale campus is designed to host 400 MW of critical IT load.",
+            "scope_id": "fixture-project:applied-ellendale:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "61b01397f7411e63fc6eab5730e5e0877c3670f3bb8e917283ae81fbc36ef53d",
+              "evidence_id": "fixture-source:applied",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "400"
+          }
+        ],
+        "project_id": "fixture-project:applied-ellendale",
+        "source_reads": [
+          {
+            "artifact": "sources/applied.json",
+            "text_sha256": "61b01397f7411e63fc6eab5730e5e0877c3670f3bb8e917283ae81fbc36ef53d"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "it_load",
+                "capacity_type": "it_load",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_f974eb6660f3c4b7b406d8142f3ab743",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:applied-ellendale",
+                "qualifier": "exact",
+                "quote": "Applied Digital\u2019s Ellendale campus is designed to host 400 MW of critical IT load.",
+                "scope_id": "fixture-project:applied-ellendale:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "61b01397f7411e63fc6eab5730e5e0877c3670f3bb8e917283ae81fbc36ef53d",
+                  "evidence_id": "fixture-source:applied",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "400"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_f974eb6660f3c4b7b406d8142f3ab743"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "400",
+            "totals": [
+              {
+                "basis": "it_load",
+                "claim_ids": [
+                  "cf_f974eb6660f3c4b7b406d8142f3ab743"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "400"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:applied-ellendale",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 20,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 20,
+            "score": 16,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "61b01397f7411e63fc6eab5730e5e0877c3670f3bb8e917283ae81fbc36ef53d",
+              "evidence_id": "fixture-source:applied",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 1,
+        "complete": 1
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "applied-ellendale",
+      "timeline": {
+        "false_negative": 3,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 3,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": 1.0,
+        "predicted_claims": 1,
+        "recall": 0.5,
+        "reference_claims": 2,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Crusoe",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_dcb8f23cfe9b89b9d6ee839cff673432",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:crusoe-abilene",
+            "qualifier": "exact",
+            "quote": "The second phase of construction, expected to be completed in mid-2026, includes six additional buildings, bringing the total facility to eight buildings, approximately 4 million square feet, and a total power capacity of 1.2 gigawatts (GW).",
+            "scope_id": "fixture-project:crusoe-abilene:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+              "evidence_id": "fixture-source:crusoe",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "1200"
+          }
+        ],
+        "project_id": "fixture-project:crusoe-abilene",
+        "source_reads": [
+          {
+            "artifact": "sources/crusoe.json",
+            "text_sha256": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_dcb8f23cfe9b89b9d6ee839cff673432",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:crusoe-abilene",
+                "qualifier": "exact",
+                "quote": "The second phase of construction, expected to be completed in mid-2026, includes six additional buildings, bringing the total facility to eight buildings, approximately 4 million square feet, and a total power capacity of 1.2 gigawatts (GW).",
+                "scope_id": "fixture-project:crusoe-abilene:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+                  "evidence_id": "fixture-source:crusoe",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "1200"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_dcb8f23cfe9b89b9d6ee839cff673432"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "1200",
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_dcb8f23cfe9b89b9d6ee839cff673432"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "1200"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:crusoe-abilene",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 25,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 15,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 40,
+            "score": 32,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Identify the verified electrical or commissioning lead and confirm the project test sequence and timing.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+              "evidence_id": "fixture-source:crusoe",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [
+              {
+                "end": "2024-06-30",
+                "event_type": "actual_construction_start",
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "tf_c1de3c4a17736aae4672f4d07246de0f",
+                "label": "June 2024",
+                "precision": "month",
+                "project_id": "fixture-project:crusoe-abilene",
+                "quote": "Crusoe began constructing the AI data center in Abilene in June 2024.",
+                "scope_id": "fixture-project:crusoe-abilene:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+                  "evidence_id": "fixture-source:crusoe",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+                  "verification_status": "reported"
+                },
+                "start": "2024-06-01",
+                "status": "actual"
+              },
+              {
+                "end": "2025-06-30",
+                "event_type": "expected_first_energization",
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "tf_49fb853cd00af93d522241a3382cf274",
+                "label": "first half of 2025",
+                "precision": "half_year",
+                "project_id": "fixture-project:crusoe-abilene",
+                "quote": "The initial phase, comprising two buildings at 980,000 square feet and 200+ megawatts, is expected to be energized in the first half of 2025.",
+                "scope_id": "fixture-project:crusoe-abilene:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+                  "evidence_id": "fixture-source:crusoe",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+                  "verification_status": "reported"
+                },
+                "start": "2025-01-01",
+                "status": "expected"
+              }
+            ],
+            "conflicts": [],
+            "construction_start": {
+              "end": "2024-06-30",
+              "event_type": "actual_construction_start",
+              "explicit_revision": false,
+              "extraction_method": "customer-facts-v1",
+              "fact_id": "tf_c1de3c4a17736aae4672f4d07246de0f",
+              "label": "June 2024",
+              "precision": "month",
+              "project_id": "fixture-project:crusoe-abilene",
+              "quote": "Crusoe began constructing the AI data center in Abilene in June 2024.",
+              "scope_id": "fixture-project:crusoe-abilene:site",
+              "source": {
+                "authority": "primary",
+                "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+                "evidence_id": "fixture-source:crusoe",
+                "observed_at": "2026-11-12",
+                "published_at": null,
+                "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+                "verification_status": "reported"
+              },
+              "start": "2024-06-01",
+              "status": "actual"
+            },
+            "expected_energization": {
+              "end": "2025-06-30",
+              "event_type": "expected_first_energization",
+              "explicit_revision": false,
+              "extraction_method": "customer-facts-v1",
+              "fact_id": "tf_49fb853cd00af93d522241a3382cf274",
+              "label": "first half of 2025",
+              "precision": "half_year",
+              "project_id": "fixture-project:crusoe-abilene",
+              "quote": "The initial phase, comprising two buildings at 980,000 square feet and 200+ megawatts, is expected to be energized in the first half of 2025.",
+              "scope_id": "fixture-project:crusoe-abilene:site",
+              "source": {
+                "authority": "primary",
+                "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+                "evidence_id": "fixture-source:crusoe",
+                "observed_at": "2026-11-12",
+                "published_at": null,
+                "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+                "verification_status": "reported"
+              },
+              "start": "2025-01-01",
+              "status": "expected"
+            },
+            "selected_claim_ids": [
+              "tf_49fb853cd00af93d522241a3382cf274",
+              "tf_c1de3c4a17736aae4672f4d07246de0f"
+            ],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": [
+          {
+            "end": "2024-06-30",
+            "event_type": "actual_construction_start",
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "tf_c1de3c4a17736aae4672f4d07246de0f",
+            "label": "June 2024",
+            "precision": "month",
+            "project_id": "fixture-project:crusoe-abilene",
+            "quote": "Crusoe began constructing the AI data center in Abilene in June 2024.",
+            "scope_id": "fixture-project:crusoe-abilene:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+              "evidence_id": "fixture-source:crusoe",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+              "verification_status": "reported"
+            },
+            "start": "2024-06-01",
+            "status": "actual"
+          },
+          {
+            "end": "2025-06-30",
+            "event_type": "expected_first_energization",
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "tf_49fb853cd00af93d522241a3382cf274",
+            "label": "first half of 2025",
+            "precision": "half_year",
+            "project_id": "fixture-project:crusoe-abilene",
+            "quote": "The initial phase, comprising two buildings at 980,000 square feet and 200+ megawatts, is expected to be energized in the first half of 2025.",
+            "scope_id": "fixture-project:crusoe-abilene:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "acc881aba8d052c309a8e5ee1dbef7d715120558cc50abb0aa57a5b8f1ca615b",
+              "evidence_id": "fixture-source:crusoe",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+              "verification_status": "reported"
+            },
+            "start": "2025-01-01",
+            "status": "expected"
+          }
+        ]
+      },
+      "provenance": {
+        "claims": 3,
+        "complete": 3
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "covered",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "covered_target"
+      },
+      "reference_record_key": "crusoe-abilene",
+      "timeline": {
+        "false_negative": 3,
+        "false_positive": 2,
+        "precision": 0.0,
+        "predicted_claims": 2,
+        "recall": 0.0,
+        "reference_claims": 3,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [
+          0,
+          1
+        ],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 1,
+        "false_positive": 4,
+        "precision": 0.2,
+        "predicted_claims": 5,
+        "recall": 0.5,
+        "reference_claims": 2,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "unmatched_reference_indices": [
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Compass Datacenters",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "utility_service",
+            "capacity_type": "utility_service",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_47eda2dfd9ad4457964befe0066cecfa",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:compass-meridian",
+            "qualifier": "approximate",
+            "quote": "Mississippi Power will supply approximately 500 megawatts of power to the facility.",
+            "scope_id": "fixture-project:compass-meridian:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "2af33126a4993a550c4f8a311c33b26fcd1d24521fd1b2bf8d213181f970a313",
+              "evidence_id": "fixture-source:compass",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "500"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_d4fea67190f7a0083a5b4c95e030966d",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:compass-meridian",
+            "qualifier": "exact",
+            "quote": "This 200 MW campus, located 30 miles west of Chicago in Hoffman Estates, is strategically positioned to support growing demand for capacity in the Midwest.",
+            "scope_id": "fixture-project:compass-meridian:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+              "evidence_id": "fixture-source:compass_markets",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/data-center-markets/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "200"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_41936e26d115916b3458b32cc06e9576",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:compass-meridian",
+            "qualifier": "exact",
+            "quote": "Northern Virginia is home to Compass' 79 MW hyperscale campus in Loudoun County, located in the heart of Data Center Alley.",
+            "scope_id": "fixture-project:compass-meridian:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+              "evidence_id": "fixture-source:compass_markets",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/data-center-markets/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "79"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_63d4bb0a3ed3ad242977e5e3a6f37fa2",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:compass-meridian",
+            "qualifier": "exact",
+            "quote": "To meet the region\u2019s growing demand, Compass is developing multiple sites \u2014 including a 212 MW campus in Goodyear and a 108 MW campus in El Mirage.",
+            "scope_id": "fixture-project:compass-meridian:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+              "evidence_id": "fixture-source:compass_markets",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/data-center-markets/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "212"
+          },
+          {
+            "basis": "campus_development",
+            "capacity_type": "campus_development",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_61b2e0ac75ff12a0c82e2cf7b38359f2",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:compass-meridian",
+            "qualifier": "exact",
+            "quote": "To meet the region\u2019s growing demand, Compass is developing multiple sites \u2014 including a 212 MW campus in Goodyear and a 108 MW campus in El Mirage.",
+            "scope_id": "fixture-project:compass-meridian:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+              "evidence_id": "fixture-source:compass_markets",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/data-center-markets/",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "108"
+          }
+        ],
+        "project_id": "fixture-project:compass-meridian",
+        "source_reads": [
+          {
+            "artifact": "sources/compass.json",
+            "text_sha256": "2af33126a4993a550c4f8a311c33b26fcd1d24521fd1b2bf8d213181f970a313"
+          },
+          {
+            "artifact": "sources/compass_markets.json",
+            "text_sha256": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0"
+          },
+          {
+            "artifact": "sources/compass_supplement.json",
+            "text_sha256": "450cf0865cb491077debf5901fe5653b5212a64560c5b545b00b35d6d0f1f391"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_41936e26d115916b3458b32cc06e9576",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "exact",
+                "quote": "Northern Virginia is home to Compass' 79 MW hyperscale campus in Loudoun County, located in the heart of Data Center Alley.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+                  "evidence_id": "fixture-source:compass_markets",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/data-center-markets/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "79"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_61b2e0ac75ff12a0c82e2cf7b38359f2",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "exact",
+                "quote": "To meet the region\u2019s growing demand, Compass is developing multiple sites \u2014 including a 212 MW campus in Goodyear and a 108 MW campus in El Mirage.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+                  "evidence_id": "fixture-source:compass_markets",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/data-center-markets/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "108"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_63d4bb0a3ed3ad242977e5e3a6f37fa2",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "exact",
+                "quote": "To meet the region\u2019s growing demand, Compass is developing multiple sites \u2014 including a 212 MW campus in Goodyear and a 108 MW campus in El Mirage.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+                  "evidence_id": "fixture-source:compass_markets",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/data-center-markets/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "212"
+              },
+              {
+                "basis": "campus_development",
+                "capacity_type": "campus_development",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_d4fea67190f7a0083a5b4c95e030966d",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "exact",
+                "quote": "This 200 MW campus, located 30 miles west of Chicago in Hoffman Estates, is strategically positioned to support growing demand for capacity in the Midwest.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+                  "evidence_id": "fixture-source:compass_markets",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/data-center-markets/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "200"
+              },
+              {
+                "basis": "utility_service",
+                "capacity_type": "utility_service",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_47eda2dfd9ad4457964befe0066cecfa",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "approximate",
+                "quote": "Mississippi Power will supply approximately 500 megawatts of power to the facility.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "2af33126a4993a550c4f8a311c33b26fcd1d24521fd1b2bf8d213181f970a313",
+                  "evidence_id": "fixture-source:compass",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "500"
+              },
+              {
+                "basis": "utility_service",
+                "capacity_type": "utility_service",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_7780d869f5bc6b34f82bb65a183cc050",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:compass-meridian",
+                "qualifier": "approximate",
+                "quote": "Mississippi Power will supply approximately 500 megawatts of power to the facility.",
+                "scope_id": "fixture-project:compass-meridian:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "450cf0865cb491077debf5901fe5653b5212a64560c5b545b00b35d6d0f1f391",
+                  "evidence_id": "fixture-source:compass_supplement",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "500"
+              }
+            ],
+            "conflicts": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [
+                  "cf_41936e26d115916b3458b32cc06e9576",
+                  "cf_61b2e0ac75ff12a0c82e2cf7b38359f2",
+                  "cf_63d4bb0a3ed3ad242977e5e3a6f37fa2",
+                  "cf_d4fea67190f7a0083a5b4c95e030966d"
+                ],
+                "reason": "Equal-authority capacity claims disagree.",
+                "scope_id": "fixture-project:compass-meridian:site"
+              }
+            ],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_47eda2dfd9ad4457964befe0066cecfa"
+            ],
+            "status": "conflict",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": [
+              {
+                "basis": "campus_development",
+                "claim_ids": [],
+                "complete": false,
+                "qualifier": "exact",
+                "status": "conflict",
+                "value_mw": null
+              },
+              {
+                "basis": "utility_service",
+                "claim_ids": [
+                  "cf_47eda2dfd9ad4457964befe0066cecfa"
+                ],
+                "complete": true,
+                "qualifier": "approximate",
+                "status": "supported",
+                "value_mw": "500"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:compass-meridian",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 25,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 40,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 25,
+            "score": 10,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research conflicting project facts using primary sources before outreach.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "c1b9fe659d07721988f3432dc7a98b89f9bd0a73944bb0e924c7ceb4fdeee4f0",
+              "evidence_id": "fixture-source:compass_markets",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/data-center-markets/",
+              "verification_status": "reported"
+            },
+            {
+              "authority": "primary",
+              "content_hash": "2af33126a4993a550c4f8a311c33b26fcd1d24521fd1b2bf8d213181f970a313",
+              "evidence_id": "fixture-source:compass",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+              "verification_status": "reported"
+            },
+            {
+              "authority": "primary",
+              "content_hash": "450cf0865cb491077debf5901fe5653b5212a64560c5b545b00b35d6d0f1f391",
+              "evidence_id": "fixture-source:compass_supplement",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 5,
+        "complete": 5
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "compass-meridian",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 3,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 3,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "EdgeCore Digital Infrastructure",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:edgecore-mesa",
+        "source_reads": [
+          {
+            "artifact": "sources/edgecore_press.json",
+            "text_sha256": "0e79bfc542a27d6b58836256c5950d4d45f55e97045245b9621e6c26b953a274"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:edgecore-mesa",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "edgecore-mesa",
+      "timeline": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Digital Realty",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:digital-realty-lagos",
+        "source_reads": [
+          {
+            "artifact": "sources/digitalrealty.json",
+            "text_sha256": "8a22689bfe7b04019fdd60ea383aae0999bd22794d04d8ea047fe28f8fd14da8"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:digital-realty-lagos",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "retrieval_partial",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "digital-realty-lagos",
+      "timeline": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": null,
+        "reference_claims": 0,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Equinix",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:equinix-jh2",
+        "source_reads": [
+          {
+            "artifact": "sources/equinix.json",
+            "text_sha256": "a0128df3643a8544a4413b480fa87a4213100c22930c91b72fc49818cf5b3537"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:equinix-jh2",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "source_missing",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "equinix-jh2",
+      "timeline": {
+        "false_negative": 1,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 1,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 3,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 3,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Fervo Energy",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [],
+        "project_id": "fixture-project:fervo-cape-station",
+        "source_reads": [
+          {
+            "artifact": "sources/fervo.json",
+            "text_sha256": "66c3f1161ce0a6c5a06ad9e590b2b3173f059d2acf02121bbfe89ee4d9876d63"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 0
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [],
+            "status": "insufficient_data",
+            "superseded_claim_ids": [],
+            "total_mw": null,
+            "totals": []
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:fervo-cape-station",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 0,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 0,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 0,
+            "score": 0,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 0,
+        "complete": 0
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "source_missing_or_only_status",
+        "contacts": "current_verification_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "fervo-cape-station",
+      "timeline": {
+        "false_negative": 4,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 4,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 0,
+        "false_positive": 0,
+        "precision": 1.0,
+        "predicted_claims": 1,
+        "recall": 1.0,
+        "reference_claims": 1,
+        "true_positive": 1,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": []
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "Dominion Energy",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "generation",
+            "capacity_type": "generation",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_64423c9123a4e56b87f986fbc0b50b09",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:dominion-cvow",
+            "qualifier": "exact",
+            "quote": "The 2.6-gigawatt project will provide zero-carbon energy to as many as 660,000 customers at peak output.",
+            "scope_id": "fixture-project:dominion-cvow:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "1e28a236702cd5c86c6c6904a6c09575c6576ede4be133fc49cf0fe2d7d36ed2",
+              "evidence_id": "fixture-source:dominion",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "2600"
+          }
+        ],
+        "project_id": "fixture-project:dominion-cvow",
+        "source_reads": [
+          {
+            "artifact": "sources/dominion.json",
+            "text_sha256": "1e28a236702cd5c86c6c6904a6c09575c6576ede4be133fc49cf0fe2d7d36ed2"
+          },
+          {
+            "artifact": "sources/dominion_project_supplement.json",
+            "text_sha256": "94eb35e0d46803a22c5db59c404a60e1fb9740598dca3561a00483252c078c16"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "generation",
+                "capacity_type": "generation",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_64423c9123a4e56b87f986fbc0b50b09",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:dominion-cvow",
+                "qualifier": "exact",
+                "quote": "The 2.6-gigawatt project will provide zero-carbon energy to as many as 660,000 customers at peak output.",
+                "scope_id": "fixture-project:dominion-cvow:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "1e28a236702cd5c86c6c6904a6c09575c6576ede4be133fc49cf0fe2d7d36ed2",
+                  "evidence_id": "fixture-source:dominion",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "2600"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_64423c9123a4e56b87f986fbc0b50b09"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "2600",
+            "totals": [
+              {
+                "basis": "generation",
+                "claim_ids": [
+                  "cf_64423c9123a4e56b87f986fbc0b50b09"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "2600"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:dominion-cvow",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 25,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 25,
+            "score": 20,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "1e28a236702cd5c86c6c6904a6c09575c6576ede4be133fc49cf0fe2d7d36ed2",
+              "evidence_id": "fixture-source:dominion",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 1,
+        "complete": 1
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "covered",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "dominion-cvow",
+      "timeline": {
+        "false_negative": 4,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 4,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "capacity": {
+        "false_negative": 2,
+        "false_positive": 1,
+        "precision": 0.0,
+        "predicted_claims": 1,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [
+          0
+        ],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      },
+      "commissioning": {
+        "actual": "insufficient_data",
+        "correct_abstention": true,
+        "expected": "insufficient_data"
+      },
+      "company_label": "TerraPower",
+      "grouping": "supplied_reference_assignment_not_runtime_identity",
+      "predictions": {
+        "capacity_claims": [
+          {
+            "basis": "generation",
+            "capacity_type": "generation",
+            "disjoint_scope_ids": [],
+            "explicit_revision": false,
+            "extraction_method": "customer-facts-v1",
+            "fact_id": "cf_ffbe6daa9e62a7396b72a283a4804208",
+            "includes_scope_ids": [],
+            "phase_id": null,
+            "project_id": "fixture-project:terrapower-kemmerer",
+            "qualifier": "exact",
+            "quote": "The plant features a 345-megawatt (MW) sodium-cooled fast reactor with an integrated molten salt-based energy storage system.",
+            "scope_id": "fixture-project:terrapower-kemmerer:site",
+            "source": {
+              "authority": "primary",
+              "content_hash": "57d5fbc08e4ed65292e865e4ae744cb0537293e313317443c31597ef36f9315f",
+              "evidence_id": "fixture-source:terrapower",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+              "verification_status": "reported"
+            },
+            "status": "reported",
+            "value_mw": "345"
+          }
+        ],
+        "project_id": "fixture-project:terrapower-kemmerer",
+        "source_reads": [
+          {
+            "artifact": "sources/terrapower.json",
+            "text_sha256": "57d5fbc08e4ed65292e865e4ae744cb0537293e313317443c31597ef36f9315f"
+          }
+        ],
+        "summary": {
+          "as_of": "2026-11-12",
+          "capacity": {
+            "claims": [
+              {
+                "basis": "generation",
+                "capacity_type": "generation",
+                "disjoint_scope_ids": [],
+                "explicit_revision": false,
+                "extraction_method": "customer-facts-v1",
+                "fact_id": "cf_ffbe6daa9e62a7396b72a283a4804208",
+                "includes_scope_ids": [],
+                "phase_id": null,
+                "project_id": "fixture-project:terrapower-kemmerer",
+                "qualifier": "exact",
+                "quote": "The plant features a 345-megawatt (MW) sodium-cooled fast reactor with an integrated molten salt-based energy storage system.",
+                "scope_id": "fixture-project:terrapower-kemmerer:site",
+                "source": {
+                  "authority": "primary",
+                  "content_hash": "57d5fbc08e4ed65292e865e4ae744cb0537293e313317443c31597ef36f9315f",
+                  "evidence_id": "fixture-source:terrapower",
+                  "observed_at": "2026-11-12",
+                  "published_at": null,
+                  "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+                  "verification_status": "reported"
+                },
+                "status": "reported",
+                "value_mw": "345"
+              }
+            ],
+            "conflicts": [],
+            "coverage": {
+              "projects_total": 1,
+              "projects_with_capacity": 1
+            },
+            "excluded_claim_ids": [],
+            "limitations": [
+              "Different electrical bases are never added together.",
+              "Partial supported amounts are not a complete company total."
+            ],
+            "selected_claim_ids": [
+              "cf_ffbe6daa9e62a7396b72a283a4804208"
+            ],
+            "status": "supported",
+            "superseded_claim_ids": [],
+            "total_mw": "345",
+            "totals": [
+              {
+                "basis": "generation",
+                "claim_ids": [
+                  "cf_ffbe6daa9e62a7396b72a283a4804208"
+                ],
+                "complete": true,
+                "qualifier": "exact",
+                "status": "supported",
+                "value_mw": "345"
+              }
+            ]
+          },
+          "commissioning": {
+            "assumptions": [],
+            "base_mw": null,
+            "calculation_version": "commissioning-test-plan-v1.0.0",
+            "confidence": "insufficient",
+            "config": {
+              "decimal_places": 6,
+              "max_blocks": 1000
+            },
+            "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+            "demand_class": "engineering_scenario",
+            "high_mw": null,
+            "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "input_evidence": [],
+            "limitations": [
+              "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+              "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+              "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+              "Supply source and customer procurement intent are unknown unless independently verified.",
+              "A nonempty bounded, project-specific commissioning test plan is required."
+            ],
+            "low_mw": null,
+            "project_id": "fixture-project:terrapower-kemmerer",
+            "stage_demands": [],
+            "status": "insufficient_data",
+            "verified_customer_demand": false,
+            "version": "commissioning-test-plan-v1.0.0"
+          },
+          "limitations": [
+            "Engineering scenarios are not verified customer demand.",
+            "Only explicit supported source facts are included; missing values remain unknown."
+          ],
+          "priority": {
+            "components": {
+              "capacity": 20,
+              "freshness": 0,
+              "geographic_fit": 0,
+              "material_changes": 0,
+              "phase": 0,
+              "timing": 0,
+              "verified_contacts": 0
+            },
+            "confidence": 80,
+            "limitations": [
+              "Geographic fit and contact availability require separately verified account context.",
+              "Facility capacity indicates project scale, not rental demand."
+            ],
+            "potential": 20,
+            "score": 16,
+            "version": "customer-commercial-priority-v1"
+          },
+          "recent_developments": [],
+          "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+          "sources": [
+            {
+              "authority": "primary",
+              "content_hash": "57d5fbc08e4ed65292e865e4ae744cb0537293e313317443c31597ef36f9315f",
+              "evidence_id": "fixture-source:terrapower",
+              "observed_at": "2026-11-12",
+              "published_at": null,
+              "url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant",
+              "verification_status": "reported"
+            }
+          ],
+          "timelines": {
+            "claims": [],
+            "conflicts": [],
+            "construction_start": null,
+            "expected_energization": null,
+            "selected_claim_ids": [],
+            "superseded_claim_ids": []
+          },
+          "version": "customer-intelligence-v1"
+        },
+        "timeline_claims": []
+      },
+      "provenance": {
+        "claims": 1,
+        "complete": 1
+      },
+      "reference_missingness": {
+        "capacity": "covered_with_scope_and_qualifier",
+        "commissioning": "input_evidence_insufficient",
+        "construction_start": "covered",
+        "contacts": "source_named_relevant_contact_missing",
+        "first_energization": "source_missing_do_not_convert_operational_milestones"
+      },
+      "reference_record_key": "terrapower-kemmerer",
+      "timeline": {
+        "false_negative": 2,
+        "false_positive": 0,
+        "precision": null,
+        "predicted_claims": 0,
+        "recall": 0.0,
+        "reference_claims": 2,
+        "true_positive": 0,
+        "unmatched_prediction_indices": [],
+        "unmatched_reference_indices": [
+          0,
+          1
+        ]
+      }
+    }
+  ],
+  "reference_review_status": "independent_research_candidate_pending_astra_reference_review",
+  "reference_sha256": "4bb4851915d0b5d4af5a2ac19c11dd82ae9fa870892e3e59d275a4dcb10cbaf2",
+  "runner_sha256": "abc125756746c4fc5a0398fa9c0e7e1e844eea84598db0ab65ac2a68f23c727b",
+  "source_missingness": {
+    "covered_with_scope_and_qualifier": 14,
+    "retrieval_partial": 1,
+    "source_missing": 5
+  }
+}

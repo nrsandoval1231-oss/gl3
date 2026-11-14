@@ -1,0 +1,18 @@
+{
+  "source_id": "vantage",
+  "url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/",
+  "title": "Vantage Data Centers Unveils Plans for “Frontier,” a $25B Mega-campus in Texas to Meet Unprecedented AI Demand - Vantage Data Centers",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-12T12:39:38.801Z",
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "**DENVER (Aug. 19, 2025)** – Vantage Data Centers, a leading global provider of hyperscale data centers, today announced its largest investment to date of over $25 billion to develop a mega-scale 1.4GW data center campus in Shackelford County, Texas. The state-of-the-art campus, “Frontier,” will lead to advancements in AI and employ more than 5,000 individuals across construction and ongoing operations.",
+    "Situated on 1,200 acres, Vantage’s [Frontier campus](https://vantage-dc.com/data-center-locations/north-america/shackelford-county-tx) is the largest across its global portfolio. The campus will be home to 10 data centers totaling 3.7 million square feet and can accommodate ultra high-density racks of 250kW+. To meet the unique and evolving needs of AI deployments, Frontier will utilize liquid cooling to support next generation GPU loads. Construction on the campus has already begun, with the first building scheduled for delivery in the second half of 2026.",
+    "“Texas has become a critical and strategic market for AI providers. In particular, the launch of our Frontier campus with 1.4GW of GPU compute capacity marks a watershed moment for Vantage as we deliver on our promise to meet the unprecedented requirements of our customers,” said Dana Adams, president of North America, at Vantage Data Centers. “This investment in Texas will be a significant economic growth driver for the area as we rapidly deploy the digital infrastructure needed to support AI applications. We look forward to being part of such a welcoming and proud community.”"
+  ]
+}
+

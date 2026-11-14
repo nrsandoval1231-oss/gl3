@@ -1,0 +1,23 @@
+{
+  "slug": "sec-apld-10k",
+  "company": "Applied Digital",
+  "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+  "observed_at": "2026-11-13",
+  "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+  "page_title": "apld-20260531",
+  "status_code": 200,
+  "scrape_id": "01a1d2de-eeb0-74aa-b480-52bc85cdbdb0",
+  "source_markdown_chars": 664286,
+  "excerpts": [
+    {
+      "label": "issuer_cover",
+      "text": "|     |     |     |\n| --- | --- | --- |\n|  |  |  |\n| APPLIED DIGITAL CORPORATION |\n\n(Exact name of registrant as specified in its charter)\n\n|     |     |     |     |     |     |     |     |     |     |     |     |     |     |     |",
+      "sha256_utf8": "c4160223bf79445a97a8637c0d20c1d260a9e6215ba3d864ed8f55abbd7febc5"
+    },
+    {
+      "label": "ein_alt",
+      "text": "|     |     |     |     |     |     |     |     |     |     |     |     |     |     |     |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |\n| Nevada | 95-4863690 |\n| (State or other jurisdiction of incorporation or organization) | (I.R.S. Employer Identification No.) |\n|  |  |  |  |  |\n| 3811 Turtle Creek Boulevard, | Suite 2100, | Dallas, | Texas | 75219 |\n| (Address of Principal Executive Offices) | (Zip Code) |",
+      "sha256_utf8": "72d374ed173b989eaea6fcb6f570057ed36b8a7b2193c3e2d47b4b30d94835ba"
+    }
+  ]
+}

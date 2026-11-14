@@ -84,7 +84,7 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
     <h3>Contacts &amp; Buying Chain</h3>
     <CompanyGraph companyId={companyId}/>
     {error ? <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Retry contacts</button></p> : !current ? <p role="status">Checking retained contacts…</p> : <>
-      {current.research_required && <p><strong>Research Required</strong> · {current.contacts?.length ? 'Review the verified people and company routes below; decision-maker status and purchasing authority are unconfirmed.' : 'No current verified company contact method is available.'}</p>}
+      {current.research_required && <p><strong>Research Required</strong> · {current.contacts?.length ? 'Review published company roles and company routes below; current employment, decision-maker status and purchasing authority are unconfirmed.' : 'No current verified company contact method is available.'}</p>}
       {orderedContacts(current.contacts ?? []).map(contact => <div key={contact.claim_id}>
         <strong>{contact.name ?? contact.company}</strong>{contact.title && <> · {contact.title}</>}
         {contact.name && <p>Affiliation: {contact.company}</p>}
@@ -105,5 +105,61 @@ export function CompanyContacts({ companyId }: { companyId: string }) {
         <small>{contact.assertion_status} · {contact.sheet}, row {contact.row_number} · Import {contact.batch_id}</small>
       </article>)}</section>}
     </>}
+  </section>
+}
+
+export function PublishedCompanyRoles({ companyId }: { companyId: string }) {
+  const [result, setResult] = useState<Contacts | null>(null)
+  useEffect(() => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
+      setResult(null)
+      return
+    }
+    const controller = new AbortController()
+    setResult(null)
+    client.companyContacts(companyId, controller.signal).then(value => {
+      if (!controller.signal.aborted) setResult(value)
+    }).catch(() => { if (!controller.signal.aborted) setResult(null) })
+    return () => controller.abort()
+  }, [companyId])
+
+  useEffect(() => {
+    const roles = result?.published_company_roles ?? []
+    if (!roles.length) return
+    let timer: ReturnType<typeof setTimeout>
+    const checkExpiry = () => {
+      const expiry = Math.min(...roles.map(role => Date.parse(role.valid_until)))
+      const remaining = expiry - Date.now()
+      if (!Number.isFinite(expiry) || remaining <= 0) {
+        setResult(null)
+        return
+      }
+      timer = setTimeout(checkExpiry, Math.min(remaining, 2_147_000_000))
+    }
+    checkExpiry()
+    return () => clearTimeout(timer)
+  }, [result?.published_company_roles])
+
+  const roles = result?.company_id === companyId
+    ? (result.published_company_roles ?? []).filter(role => Date.parse(role.valid_until) > Date.now())
+    : []
+  if (!roles.length) return null
+  return <section aria-label="Published company roles">
+    <h3>Published company roles</h3>
+    <p>These roles appeared on a company roster. Current employment and project involvement are unverified.</p>
+    {roles.map(contact => <article key={`${contact.name}:${contact.title}:${contact.source_hash}`}>
+      <strong>{contact.name}</strong> · {contact.title}
+      <p>{contact.role.replaceAll('_', ' ')} · Published company role; project involvement unverified.</p>
+      <blockquote>{contact.source_quote}</blockquote>
+      {(() => {
+        let url: string | undefined
+        try {
+          const parsed = new URL(contact.source_url)
+          if (parsed.protocol === 'https:' || parsed.protocol === 'http:') url = parsed.href
+        } catch { /* Invalid source URLs are not linked. */ }
+        return url ? <p><a href={url} target="_blank" rel="noreferrer">Open source roster</a> · Observed {displayDate(contact.observed_at) ?? contact.observed_at}</p> : null
+      })()}
+      <small>No personal email or phone is verified. Purchasing authority and project assignment are unconfirmed.</small>
+    </article>)}
   </section>
 }

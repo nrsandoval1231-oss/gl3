@@ -1,0 +1,17 @@
+{
+  "source_id": "switch",
+  "url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/",
+  "title": "Switch Announces Fifth Prime Campus Expansion in Texas",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-12T15:07:18.970Z",
+  "publication_date_metadata": "2021-06-01T22:13:23+00:00",
+  "modified_date_metadata": "2024-04-12T18:14:52+00:00",
+  "excerpts": [
+    "**LAS VEGAS, NV — June 2, 2021 —** [Switch](https://www.switch.com/), Inc. (NYSE: SWCH) (“Switch”), the exascale technology infrastructure company, today announced the primary location of its Fifth Prime data center campus in Texas. The land purchase agreement with Dell Technologies will allow Switch to construct over 1.5 million square feet of its highly resilient Tier 5® data center space next to Dell’s global headquarters in Round Rock, Texas. The Fifth Prime campus will be called “The Rock.”",
+    "Switch [recently announced](https://www.switch.com/switch-launches-fifth-prime-campus-in-texas-agrees-to-acquire-data-foundry/) the acquisition of Data Foundry, with properties capable of delivering over 500,000 square feet and 60 megawatts in Austin and Houston. With the addition of this new land, Switch’s Texas technology campus ecosystem will be architected to provide over 2 million square feet and 185 megawatts of power upon completion. Switch expects to begin site preparation and permitting at The Rock Campus in the summer of 2021. Switch will continue its industry-leading commitment to sustainability by powering these facilities with 100 percent renewable energy."
+  ]
+}
+

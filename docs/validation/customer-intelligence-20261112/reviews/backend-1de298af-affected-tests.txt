@@ -1,0 +1,18 @@
+........................................................................ [ 28%]
+........................................................................ [ 57%]
+........................................................................ [ 86%]
+...................................                                      [100%]
+=============================== warnings summary ===============================
+../../gl3-commercial/backend/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /workspace/gl3-commercial/backend/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_power_need_briefs.py::test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_history[False]
+tests/integration/test_power_need_briefs.py::test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_history[True]
+  /workspace/gl3-backend-fix/backend/src/gridlens/api/app.py:1074: SAWarning: Connection is already established for the given bind; execution_options ignored
+    connection = session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+251 passed, 3 warnings in 654.02s (0:10:54)
+
+EXIT_CODE=0

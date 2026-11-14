@@ -1,0 +1,137 @@
+{
+  "ingestion": [
+    {
+      "phase": "a_all_new",
+      "baseline_wall_seconds": 73.46660822700005,
+      "candidate_wall_seconds": 102.493422861,
+      "observed_candidate_over_baseline": 1.3951021468734712,
+      "baseline_statements": 27067,
+      "candidate_statements": 27967,
+      "baseline_commits": 5,
+      "candidate_commits": 5,
+      "baseline_trigger_calls": 20740,
+      "candidate_trigger_calls": 20740
+    },
+    {
+      "phase": "b_all_unchanged",
+      "baseline_wall_seconds": 5.030158404999838,
+      "candidate_wall_seconds": 9.36848854300024,
+      "observed_candidate_over_baseline": 1.8624639203584963,
+      "baseline_statements": 3927,
+      "candidate_statements": 4227,
+      "baseline_commits": 5,
+      "candidate_commits": 5,
+      "baseline_trigger_calls": 0,
+      "candidate_trigger_calls": 0
+    },
+    {
+      "phase": "c_5%_changed",
+      "baseline_wall_seconds": 8.090730669000095,
+      "candidate_wall_seconds": 9.385891385999912,
+      "observed_candidate_over_baseline": 1.160079573772276,
+      "baseline_statements": 4887,
+      "candidate_statements": 5217,
+      "baseline_commits": 5,
+      "candidate_commits": 5,
+      "baseline_trigger_calls": 570,
+      "candidate_trigger_calls": 570
+    }
+  ],
+  "rollup_corpus": {
+    "projects": 2098,
+    "needs": 48,
+    "evidence": 48
+  },
+  "rollup": [
+    {
+      "page_size": 1,
+      "baseline_p50_ms": 204.1005,
+      "candidate_p50_ms": 264.5055,
+      "baseline_p95_ms": 1111.115,
+      "candidate_p95_ms": 1279.209,
+      "baseline_sql_counts": [
+        53,
+        55
+      ],
+      "candidate_sql_counts": [
+        59,
+        61
+      ],
+      "baseline_json_bytes": 5471,
+      "candidate_json_bytes": 58113
+    },
+    {
+      "page_size": 25,
+      "baseline_p50_ms": 186.32999999999998,
+      "candidate_p50_ms": 355.40099999999995,
+      "baseline_p95_ms": 285.761,
+      "candidate_p95_ms": 484.27,
+      "baseline_sql_counts": [
+        53
+      ],
+      "candidate_sql_counts": [
+        55
+      ],
+      "baseline_json_bytes": 15756,
+      "candidate_json_bytes": 187193
+    },
+    {
+      "page_size": 50,
+      "baseline_p50_ms": 243.72899999999998,
+      "candidate_p50_ms": 391.05100000000004,
+      "baseline_p95_ms": 741.773,
+      "candidate_p95_ms": 481.619,
+      "baseline_sql_counts": [
+        53
+      ],
+      "candidate_sql_counts": [
+        55
+      ],
+      "baseline_json_bytes": 26356,
+      "candidate_json_bytes": 308443
+    }
+  ],
+  "provider_ledgers": {
+    "base": {
+      "logical_calls": 0,
+      "logical_call_budgets": 0,
+      "logical_call_settlements": 0
+    },
+    "candidate": {
+      "logical_calls": 0,
+      "logical_call_budgets": 0,
+      "logical_call_settlements": 0
+    }
+  },
+  "source_checks": {
+    "ingestion": [
+      {
+        "side": "base",
+        "commit": "bf75d32746d28ac44effcb65989d53fdeaa765e4",
+        "source_unchanged_during_run": true,
+        "manifest": "a750011099008bf79a21cbd0c96ac4394c876607b74a42cce3e829850c7f27a5"
+      },
+      {
+        "side": "candidate",
+        "commit": "4b6d0f92ad3d2475c9a783fe7b6bdd649ca0c74a",
+        "source_unchanged_during_run": true,
+        "manifest": "1a7b43fa01c8aa005e6c47a4eb67ea25bd89348bef7efb39c9b91d8deb3e0a96"
+      }
+    ],
+    "rollup": [
+      {
+        "side": "base",
+        "commit": "bf75d32746d28ac44effcb65989d53fdeaa765e4",
+        "source_unchanged_during_run": true,
+        "manifest": "a750011099008bf79a21cbd0c96ac4394c876607b74a42cce3e829850c7f27a5"
+      },
+      {
+        "side": "candidate",
+        "commit": "953b63d4ebc4bd074bedda1a5d533ea4b703dd13",
+        "source_unchanged_during_run": true,
+        "manifest": "1a7b43fa01c8aa005e6c47a4eb67ea25bd89348bef7efb39c9b91d8deb3e0a96"
+      }
+    ]
+  },
+  "assessment": "Observed additional SQL and payload costs. Shared-load timing samples do not establish an isolated regression bound; no no-regression acceptance is claimed."
+}

@@ -1,0 +1,136 @@
+{
+  "source_manifest_sha256": "f5b8e1b9b6dec0f9a5d041bddac15e0e1e6a5fe7c71d5ea6b99620c77a394fe3",
+  "corpus": {
+    "projects": 40000,
+    "needs": 48,
+    "evidence": 48
+  },
+  "samples_per_page_size": 10,
+  "page_sizes": {
+    "1": {
+      "p50_ms": 3041.067,
+      "p95_ms": 8368.6,
+      "times_ms": [
+        8368.6,
+        3005.095,
+        3144.817,
+        2984.568,
+        3201.645,
+        3064.452,
+        3125.088,
+        3017.682,
+        2940.155,
+        2893.802
+      ],
+      "sql_statements": [
+        55,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53
+      ],
+      "account_totals": [
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319
+      ]
+    },
+    "25": {
+      "p50_ms": 3252.992,
+      "p95_ms": 10450.355,
+      "times_ms": [
+        3307.706,
+        2791.387,
+        3079.321,
+        3907.196,
+        3256.893,
+        2801.382,
+        2817.801,
+        3249.091,
+        3515.681,
+        10450.355
+      ],
+      "sql_statements": [
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53
+      ],
+      "account_totals": [
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319
+      ]
+    },
+    "50": {
+      "p50_ms": 3142.169,
+      "p95_ms": 7217.224,
+      "times_ms": [
+        7217.224,
+        3530.405,
+        3184.682,
+        6344.906,
+        3757.39,
+        2970.116,
+        3017.987,
+        2922.243,
+        2880.865,
+        3099.656
+      ],
+      "sql_statements": [
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53,
+        53
+      ],
+      "account_totals": [
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319,
+        38319
+      ]
+    }
+  },
+  "postgres_context": "read-only transaction, 15s statement timeout, SET LOCAL jit = off",
+  "measurement": "Direct read-only SQL/service calls; excludes network, authentication and UI",
+  "limitations": [
+    "Synthetic source corpus; local PostgreSQL; finite sample; no production SLA"
+  ]
+}

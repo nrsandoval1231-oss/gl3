@@ -1,0 +1,21 @@
+{
+  "source_id": "databank",
+  "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+  "title": "DataBank Develops 480MW South Dallas Data Campus",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "**Dallas, TX – September 10, 2024** – [DataBank](https://www.databank.com/), a leading provider of enterprise-class edge colocation, interconnection, and managed services, today announced the development of a 480MW data center campus on 292 acres of land in Red Oak, TX, dramatically expanding its capacity and ability to meet growing demand for data center space and power being driven by A.I. applications.",
+    "The South Dallas land will become home to the new “Red Oak Campus” accommodating up to eight, 2-story data centers of 425,000 gross square feet each, totaling as much as 3.4M square feet. The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings. Construction at the site has already commenced with an initial Ready for Service date of Q2-2026. Red Oak has become a major sub-market in Dallas attracting the world’s largest cloud and technology providers. DataBank’s campus adds to its already significant presence in the market which includes its headquarters location (DFW1) and 6 other data centers in the metro.",
+    "This announcement is DataBank’s third new campus announcement in the past twelve months and follows its acquisition of a [95-acre/120MW campus in the Atlanta market in October 2023](https://www.databank.com/resources/press-releases/databank-acquires-nearly-100-acres-of-land-in-atlanta-for-new-data-center-campus/) and an [85-acre/192MW campus in Northern Virginia in November 2023](https://www.databank.com/resources/press-releases/databank-purchases-85-acres-of-land-in-northern-virginia-for-new-data-center-campus/). When fully developed, the three acquisitions will add more than 450 acres, 5.8M square feet of gross data center space, and 792MW of power to DataBank’s portfolio, more than doubling its 2.7M square feet and 375MW of power before the acquisitions and positioning it to capitalize on A.I.-generated colocation demand for years ahead.",
+    "The new campus, and the facilities ultimately built upon them, will leverage DataBank’s [award-winning Universal Data Hall Design (UDHD)](https://www.databank.com/resources/press-releases/databank-named-data-center-solution-of-the-year-in-2024-data-breakthrough-awards/) which will ensure capacity can be quickly deployed to meet the wide-ranging sustainability and performance requirements of all customers including enterprises, Hyperscale cloud providers, and emerging A.I. applications that need the highest possible power and cooling density.",
+    "Can’t see the form? [Click here](https://go.databank.com/l/1103952/2026-04-09/8z97tm).",
+    "Can’t see the form? [Click here](https://go.databank.com/l/1103952/2026-04-09/8z97t7)."
+  ]
+}
+

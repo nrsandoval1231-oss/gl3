@@ -70,7 +70,7 @@ test('account-first workspace keeps scoped project evidence, contacts, history, 
 
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   const account = page.locator('.wh-account')
   const accountSummary = account.locator('summary')
   const signOut = page.getByRole('button', { name: 'Sign out' })

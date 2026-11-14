@@ -1,0 +1,33 @@
+{
+  "slug": "sec-dlr-10k",
+  "company": "Digital Realty",
+  "url": "https://www.sec.gov/Archives/edgar/data/1297996/000155837025001424/dlr-20241231x10k.htm",
+  "observed_at": "2026-11-13",
+  "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+  "page_title": "DIGITAL REALTY TRUST, INC._December 31, 2024",
+  "status_code": 200,
+  "scrape_id": "01a1d2de-b95b-772c-a1b9-45707b313fee",
+  "source_markdown_chars": 839465,
+  "excerpts": [
+    {
+      "label": "issuer_cover",
+      "text": "\n[Index to Financial Statements](https://www.sec.gov/Archives/edgar/data/1297996/000155837025001424/dlr-20241231x10k.htm#INDEX_423931)\n\n**DIGITAL REALTY TRUST, INC. AND SUBSIDIARIES**\n\n**DIGITAL REALTY TRUST, L.P. AND SUBSIDIARIES**\n\n**NOTES TO CONSOLIDATED FINANCIAL STATEMENTS-**",
+      "sha256_utf8": "77823da3a0eb8287f3dc8d4c1362b97475ddda7a1f4b19319a9726ae6615f934"
+    },
+    {
+      "label": "ein_alt",
+      "text": "| --- | --- |\n| ​<br>​ | ​<br>​ |\n| ​ | ​ |\n| **Maryland** **(Digital Realty Trust, Inc.)**<br>**Maryland** **(Digital Realty Trust, L.P.)** | **26-0081711**<br>**20-2402955** |\n| **(State or other jurisdiction of incorporation or organization)** | **(IRS employer identification number)** |\n| **2323 Bryan Street, Suite 1800**<br>**Dallas** **,** **Texas** | **75201** |\n| **(Address of principal executive offices)** | **(Zip Code)** |\n",
+      "sha256_utf8": "f2d56f6d832e89e0303a44ea9c11ba9a5175e0a32489471ad6f26e276289570f"
+    },
+    {
+      "label": "website_statement",
+      "text": "\nAs of December 31, 2024, our portfolio consisted of 308 data centers (including 78 data centers held as investments in unconsolidated entities), of which 121 are located in the United States, 112 are located in Europe, 36 are located in Latin America, 16 are located in Africa, 16 are located in Asia, six are located in Australia and three are located in Canada.\n\nOur principal executive offices are located at 2323 Bryan Street, Suite 1800, Dallas, Texas 75201. Our telephone number is (214) 231-1350. Our website is www.digitalrealty.com. The information found on, or otherwise accessible through, our website is not incorporated by reference into, nor does it form a part of, this Annual Report on Form 10-K.\n\nIndustry Background\n\nThe digital economy continues to grow and change how enterprises across all industries create and deliver value. Companies increasingly need to operate ubiquitously, on-demand and with real-time intelligence serving customers, partners and employees across multiple channels, business functions and points of business presence. Computational processing power requirements continue to advance, data traffic is growing, and the volume of data that enterprises generate, transmit, process, analyze, monitor and manage is expanding dramatically. The Internet of Things, 5G, autonomous vehicles and artificial intelligence, among other technological advancements, are driving this digital transformation.",
+      "sha256_utf8": "74e95ab9413c8f8598f260e1cae5c7e8c19e58c5b304f5d600d2648c51653c25"
+    },
+    {
+      "label": "website_statement",
+      "text": "\n**Available Information**\n\nAll reports we file with the SEC are available free of charge via EDGAR through the SEC website at www.sec.gov. We will also provide copies of our Forms 8-K, Forms 10-K, Forms 10-Q, Proxy Statements and amendments to those documents at no charge to investors upon request and make electronic copies of such reports available through our website at www.digitalrealty.com as soon as reasonably practicable after filing such material with the SEC. The information found on, or otherwise accessible through, our website is not incorporated by reference into, nor does it form a part of, this report or any other document that we file with the SEC.\n\nOffices\n\nWe have regional U.S. offices in Boston, Chicago, Dallas, Los Angeles, New York, Northern Virginia and San Francisco and regional international offices in Amsterdam, Dublin, London, Singapore, Sydney, Tokyo and Hong Kong.",
+      "sha256_utf8": "b942b44ae11e0267734a2a4669a76216cfe9a080721ca5409a28f84b066b5900"
+    }
+  ]
+}

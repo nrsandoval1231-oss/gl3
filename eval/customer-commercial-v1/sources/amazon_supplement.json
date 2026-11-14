@@ -1,0 +1,15 @@
+{
+  "source_id": "amazon_supplement",
+  "url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "excerpts": [
+    "# AWS plans to invest $10 billion in Mississippi, the largest capital investment in the state’s history",
+    "Today, we are excited to expand this commitment. Amazon Web Services (AWS) plans to invest $10 billion to build two data center complexes, marking the single largest capital investment in Mississippi’s history. In coordination with the Madison County Economic Development Authority (MCEDA), AWS will establish multiple data center complexes in two Madison County industrial parks, which is projected to create at least 1,000 new jobs in the Magnolia State.",
+    "“Since 2011, AWS has invested [more than $108 billion in its infrastructure](https://assets.aboutamazon.com/58/65/29ea168a4839979aa779700ba42c/aws-us-eis-2023.pdf) across the U.S. to support customers of all kinds, and across all industries, in their digital transformation,” said Roger Wehner, AWS director of economic development. “Building on this, we are excited to expand our operations into Mississippi through this planned $10 billion investment, which will tap into the burgeoning tech sector across the state to create new, well-paying jobs and boost the state’s Gross Domestic Product each year. We look forward to delivering new workforce development opportunities and educational programs that support the next generation of talent across the Magnolia State.”",
+    "Communities where Amazon wind and solar farms are located experienced more than $12 billion in additional investment from 2014 through 2022.",
+    "- $2.3 billion invested in Mississippi since 2010, including infrastructure and compensation to our employees\n- $2 billion added into state GDP based on Amazon investments\n- 7,500 full- and part-time jobs created in Mississippi (as of January 2023)\n- 9,000 indirect jobs supported on top of our direct hires in Mississippi (based on Input-Output methodology developed by the U.S. Bureau of Economic Analysis)\n- 1,000+ independent sellers—most of which are small and medium-sized businesses—in Mississippi, selling in Amazon's store",
+    "[What AWS's chief AI and technology officer told employees about the future of AI](https://www.aboutamazon.com/news/aws/aws-cto-future-of-ai)"
+  ]
+}

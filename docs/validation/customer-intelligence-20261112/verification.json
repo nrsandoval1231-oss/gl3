@@ -1,0 +1,148 @@
+{
+  "recorded_at": "2026-11-13T01:34:02.024972+00:00",
+  "disposition": "commercial_acceptance_withheld",
+  "backend_source": "1de298af047f09a32e9a0349f41410a55bc1791e",
+  "affected_backend_matrix": {
+    "passed": 251,
+    "failed": 0,
+    "warnings": 3,
+    "seconds": 654.02,
+    "exit_code": 0,
+    "log_sha256": "5d7696b00b15853c5fd5cbb822a55eaccf2ca5cafd42c027d25049826bf119e2",
+    "execution": "coordinator; independently inspected by Astra",
+    "scope": "affected contract, commissioning, phase, projection, unchanged scale/query gates, customer results and complete power-need-brief module; not full suite"
+  },
+  "independent_backend_checks": {
+    "passed": 95,
+    "seconds": 1.01,
+    "scope": "pure extraction/scoping"
+  },
+  "historical_full_backend_ci": {
+    "run_id": 43332605737,
+    "source": "4b6d0f92ad3d2475c9a783fe7b6bdd649ca0c74a",
+    "passed": 5516,
+    "failed": 3,
+    "skipped": 1,
+    "disposition": "failed; two query regressions repaired; brief-refresh cause unproven"
+  },
+  "historical_ui_ci": {
+    "run_id": 43337471997,
+    "source": "2aea1aa08a11e1d20ad6dbacbd141c4ef0e0e345",
+    "browser_passed": 330,
+    "browser_failed": 6,
+    "browser_flaky": 1,
+    "disposition": "failed; strict contact/rendering repair pending"
+  },
+  "current_full_ci": "GitHub PR checks and PR199 body are authoritative; no pending run is a pass",
+  "commercial_coverage": {
+    "runtime_scoped_capacity_claims": 0,
+    "runtime_scoped_timeline_claims": 0,
+    "identity_contact_salesperson_end_to_end": "not_evaluated"
+  },
+  "production_deployed": false,
+  "repaired_full_backend_ci": {
+    "run_id": 43337420044,
+    "source": "1de298af047f09a32e9a0349f41410a55bc1791e",
+    "passed": 5534,
+    "failed": 1,
+    "skipped": 1,
+    "warnings": 22,
+    "seconds": 683.01,
+    "disposition": "failed; only whole-card/detail equality assertion; compact/detail contract test repair pending; earlier query-budget and brief-refresh failures passed"
+  },
+  "test_only_followup": {
+    "commit": "aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd",
+    "application_source_unchanged_from": "1de298af047f09a32e9a0349f41410a55bc1791e",
+    "requested_matrix_passed": 13,
+    "matrix_seconds": 47.02,
+    "final_revised_route_case_passed": 1,
+    "final_route_seconds": 6.93,
+    "independent_test_contract_review": "accepted by Astra; not fullCI acceptance"
+  },
+  "final_ui": {
+    "source": "7c85c32e",
+    "equivalent_ui_branch": "c0063c7f27dffeb591697a039a481edd1044b77e",
+    "independent_focused_browser_passed": 25,
+    "independent_seconds": 59.1,
+    "independent_extra_metadata_case_passed": 1,
+    "local_generic_tests_executed": 338,
+    "local_generic_failed": null,
+    "failure": "real auth; confirmed403 Origin check failed because local trusted origin missing",
+    "corrected_configuration_isolated_auth_passed": 1,
+    "security_source_changed": false,
+    "typecheck": "passed",
+    "local_generic_failure_artifacts": 1,
+    "local_generic_aggregate_summary": "not retained; no pass/flaky totals or full-run duration inferred"
+  },
+  "completed_backend_ci": {
+    "run_id": 43339762823,
+    "commit": "aa5f2c351c153fd7a20ce7a75292ec0a35f5a2cd",
+    "passed": 5535,
+    "failed": 0,
+    "skipped": 1,
+    "warnings": 22,
+    "seconds": 643.19,
+    "jobs": {
+      "backend": "success",
+      "web": "success",
+      "browser": "success",
+      "brand_assets": "skipped"
+    },
+    "scope": "backend slice; final main-base UI integration remains separate"
+  },
+  "prior_main_base_ci": {
+    "run_id": 43340194178,
+    "head": "d9eb314ad8420ee23d7c7de9d658c4ea307c6a76",
+    "backend": {
+      "passed": 5545,
+      "skipped": 1,
+      "warnings": 22,
+      "seconds": 467.38,
+      "status": "success"
+    },
+    "web": "success",
+    "brand_assets": "success",
+    "browser": {
+      "passed": 337,
+      "failed": 1,
+      "failure": "preexisting background401 transient-render race; test-only deterministic correction e25fd1c7"
+    },
+    "overall": "failed"
+  },
+  "final_test_only_corrections": {
+    "pursuits_heading_commit": "8da9ac87aa37960781420dada8e338631528dbb1",
+    "response_barrier_commit": "e25fd1c7519aad0009b6b8f10fd1389d57cc956f",
+    "full_pursuits_module_passed": 34,
+    "seconds": 46.2,
+    "changed_case_passed": 1,
+    "typecheck": "passed",
+    "application_source_changed": false,
+    "final_main_base_ci": "pending; PR199 checks/body authoritative",
+    "independent_repetitions_passed": 5,
+    "independent_seconds": 14.3,
+    "independent_retries": 0,
+    "independent_disposition": "bounded test corrections accepted by Astra; fullCI and commercial/performance separate"
+  },
+  "security_gate_correction": {
+    "failed_integration_head": "f6d6f563050f1fd5bc42235c1231cf2cb9e890c7",
+    "failed_run_id": 43343788599,
+    "browser": "success",
+    "web": "success",
+    "brand_assets": "success",
+    "backend": "failed dependency audit before tests",
+    "advisory": "CVE-2026-126190 / GHSA-mmhr-3c5m-f64f",
+    "vulnerable_locked_version": "soupsieve 2.10",
+    "fixed_locked_version": "soupsieve 4.0",
+    "python_minimum": "3.11.5",
+    "patch_pr": 200,
+    "patch_commit": "46171d684fc6a64d87767ce5c5ed2a07f4b0fcfa",
+    "targeted_passed": 271,
+    "targeted_seconds": 62.27,
+    "audited_dependencies": 55,
+    "known_vulnerabilities_after_patch": 0,
+    "independent_disposition": "bounded correction accepted by Astra; 62 selectors compiled; package hashes/Python metadata checked",
+    "production_runtime": "unverified and undeployed",
+    "performance": "historical 2.10 measurements are not relabeled as 4.0 acceptance",
+    "final_integrated_ci": "pending; PR199 checks/body authoritative"
+  }
+}

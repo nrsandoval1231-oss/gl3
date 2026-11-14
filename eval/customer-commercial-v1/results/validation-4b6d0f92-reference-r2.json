@@ -1,0 +1,44 @@
+{
+  "source_commit": "953b63d4ebc4bd074bedda1a5d533ea4b703dd13",
+  "reference_revision": "r2-cyrusone-operational-deadline",
+  "reference_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+  "runner_version": "customer-commercial-evaluation-v1.1",
+  "runner_sha256": "642b05aea50a1414ba546984e3a92d7a189c59897554ecde7ed803407842521b",
+  "result_file": "results/scoped-candidate-4b6d0f92-reference-r2.json",
+  "result_sha256": "2b24a97242112b9455a5428cae2e142f7111f35bd0ee08bda13ad55c3bac97b8",
+  "source_manifest": {
+    "backend/src/gridlens/domain/commissioning.py": "8b9fcb6a1f344906a2d60c4d9122aa838476604cb53169ac2fd77442ffebd689",
+    "backend/src/gridlens/domain/customer_intelligence.py": "1f7fa58bdcc2b168f71689ba8a3f439fedf59a94980cf5fe2bcb064d1c79de3e",
+    "backend/src/gridlens/domain/project_research.py": "de25a51f9ab169f7d6d6446a792dc9799513a478bc6bc9d0ff1d813a172a2c3b",
+    "backend/src/gridlens/intelligence/customer_intelligence.py": "031b78f726e905f0f97a71581bae03c47ef00038407c0c87cb70b5192608700c"
+  },
+  "checks": [
+    {
+      "command": "uv run --project backend pytest backend/tests/unit/test_customer_commercial_evaluation.py -q",
+      "result": "10 passed in 0.65s"
+    },
+    {
+      "command": "uv run --project backend ruff check scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "All checks passed"
+    },
+    {
+      "command": "uv run --project backend ruff format scripts/evaluate_customer_commercial.py backend/tests/unit/test_customer_commercial_evaluation.py",
+      "result": "2 files left unchanged"
+    },
+    {
+      "command": "uv run --project backend python scripts/evaluate_customer_commercial.py --output eval/customer-commercial-v1/results/scoped-candidate-4b6d0f92-reference-r2.json",
+      "result": "exit 0; stable production source manifest; raw timeline 1 TP /7 predictions /30 reference assertions"
+    }
+  ],
+  "acceptance": "commercial publication coverage blocked; bounded reference-label review is not runtime/sales acceptance",
+  "full_repository_ci": "not run by this lane",
+  "reference_review": {
+    "reviewer": "/root/astra_acceptance",
+    "scope": "approved bounded label/scorer correction only",
+    "reference_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+    "review_file": "reference-review.md",
+    "review_file_sha256": "e7c4260d6effcd78da53868cdc2a06f345b110e7dfd92300ea7dbec8b3677718",
+    "independent_controls": "10 passed in 0.61s",
+    "runtime_commercial_acceptance": false
+  }
+}

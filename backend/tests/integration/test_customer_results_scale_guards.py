@@ -30,6 +30,7 @@ def test_account_contact_query_keeps_its_scale_safe_shape():
     aggregated once instead of by a correlated subquery per candidate row.
     """
     source = inspect.getsource(customer_results._account_contact_projects)
+    assert "include_commercial_projects=False" in source
     assert "contact_assigned AS MATERIALIZED" in source
     assert "FROM contact_assigned a" in source
     assert "ARRAY(SELECT ar2.project_id" not in source

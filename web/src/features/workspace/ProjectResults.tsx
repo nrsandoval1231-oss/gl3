@@ -1,11 +1,44 @@
 import { useEffect, useRef, useState } from 'react'
-import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
+import { browseUpdatingNotice, client, OpportunityBrowsePendingError, OpportunityCohortChangedError, OpportunityGroupUnavailableError, type CommercialCustomerIntelligence, type CustomerRollupFilters, type CustomerRollupSort, type OpportunityGroup, type OpportunityGroupsPage, type ProjectResult, type ProjectResultsPage } from '../../api/client'
 import { clearProjectBrowseCache, invalidateProjectBrowseCache, projectBrowseCacheKey, projectBrowseCacheVersion, readProjectBrowseCache, writeProjectBrowseCache, type ProjectBrowseRoute } from '../../state/projectBrowseCache'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from './opportunityExport'
-import { bestProjectContactRoutes, CompanyView, generalCompanyContactRoutes, safeContactSourceUrl, selectAccountContactProject } from '../companies/CompanyView'
+import { bestProjectContactRoutes, commercialCapacityUnavailableMessage, CompanyView, generalCompanyContactRoutes, reportedCommercialTarget, safeContactSourceUrl, selectAccountContactProject, verifiedContactPeople, VerifiedContactPeople } from '../companies/CompanyView'
 
 type Props = { selectedNeedId?: string; accountContextStatus?: 'valid' | 'pending' | 'unavailable'; onNeed: (need: { id: string }, context?: { accountId: string; projectId?: string }) => void; onBrowseChange?: () => void }
+function commercialIntel(group: OpportunityGroup): CommercialCustomerIntelligence | null { return group.commercial_intelligence ?? null }
+function intelLabel(value: unknown): string { if (typeof value === 'string' || typeof value === 'number') return String(value); if (!value || typeof value !== 'object') return ''; const row = value as Record<string, unknown>; const display = row.display_label; if (typeof display === 'string') return display; return [row.summary, row.title, row.name, row.label, row.value, row.text, row.date, row.precision].filter((item): item is string | number => typeof item === 'string' || typeof item === 'number').join(' · ') }
+function sourceDate(value: unknown): string | null { if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null; const parsed = new Date(`${value}T00:00:00Z`); return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null }
+function capacityBasis(value: string) { const labels: Record<string,string> = { campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' }; return labels[value] ?? value.replaceAll('_',' ') }
+function capacityPrefix(qualifier: string | undefined, status: string) { if (qualifier === 'up_to' || status === 'upper_bound') return 'Up to '; if (qualifier === 'approximate') return 'Approximately '; if (qualifier === 'more_than') return 'More than '; if (qualifier === 'at_least' || status === 'lower_bound') return 'At least '; return '' }
+function CustomerIntelSummary({ group, showNextAction = true }: { group: OpportunityGroup; showNextAction?: boolean }) {
+  const intel = commercialIntel(group)
+  const totals = intel?.capacity?.totals?.filter(item => item.value_mw != null && item.status !== 'unknown') ?? []
+  const scenario = intel?.commissioning
+  const capacityDetail = intel?.capacity as CommercialCustomerIntelligence['capacity'] & { conflict_count?: number } | undefined
+  const timelineDetail = intel?.timelines as CommercialCustomerIntelligence['timelines'] & { conflict_count?: number } | undefined
+  const construction = intelLabel(intel?.timelines?.construction_start)
+  const energization = intelLabel(intel?.timelines?.expected_energization)
+  const reportedTarget = reportedCommercialTarget(intel)
+  const capacity = totals.map(item => { const detail = item as typeof item & { qualifier?: string; complete?: boolean }; return `${capacityPrefix(detail.qualifier,item.status)}${item.value_mw} MW ${capacityBasis(item.basis ?? 'capacity')}${detail.complete === false ? ' · partial coverage' : ''}` }).join(' · ')
+  const capacityCoverage = intel?.capacity?.coverage ? `${String(intel.capacity.coverage.projects_with_capacity ?? 0)} of ${String(intel.capacity.coverage.projects_total ?? '?')} projects with supported capacity` : ''
+  const capacityConflictCount = capacityDetail?.conflict_count ?? intel?.capacity?.conflicts?.length ?? 0
+  const timelineConflictCount = timelineDetail?.conflict_count ?? intel?.timelines?.conflicts?.length ?? 0
+  const scenarioText = scenario && scenario.low_mw != null && scenario.high_mw != null
+    ? `Engineering scenario · ${scenario.low_mw}–${scenario.high_mw} MW${scenario.base_mw != null ? ` · base ${scenario.base_mw} MW` : ''}`
+    : scenario?.base_mw != null ? `${scenario.base_mw} MW base engineering scenario`
+      : scenario?.low_mw != null ? `Low scenario bound · ${scenario.low_mw} MW`
+        : scenario?.high_mw != null ? `High scenario bound · ${scenario.high_mw} MW` : ''
+  const development = (intel?.recent_developments ?? []).map(item => ({ label: intelLabel(item), sourceDate: sourceDate(item.source_date) })).find(item => item.label)
+  const nextAction = intelLabel(intel?.recommended_next_action)
+  return <div className="premium-intelligence-summary" aria-label="Commercial intelligence">
+    <span><strong>Build capacity</strong>{capacity || commercialCapacityUnavailableMessage(intel?.capacity.status)}{capacityCoverage && <small>{capacityCoverage}</small>}{(capacityConflictCount > 0 || intel?.capacity.status === 'conflict') && <small role="status">Conflicting capacity claims require review.</small>}</span>
+    <span><strong>Timing</strong><small><b>Construction start</b> · {construction || 'Not established'}</small><small><b>Expected energization</b> · {energization || 'Not established'}</small>{reportedTarget && <small><b>{reportedTarget.label}</b> · {reportedTarget.value} · source-reported; energization unverified</small>}{timelineConflictCount > 0 && <small role="status">Conflicting timeline claims require review.</small>}</span>
+    <span><strong>Commissioning</strong>{scenarioText || 'Insufficient data for an engineering scenario'}</span>
+    {development && <span className="premium-intelligence-development"><strong>Recent development</strong>{development.label}<small>{development.sourceDate ? `Source date ${development.sourceDate}` : 'Source date unknown'}</small></span>}
+    {showNextAction && nextAction && <span className="premium-intelligence-action"><strong>Next action</strong>{nextAction}</span>}
+  </div>
+}
 const MAX_PENDING_RETRIES = 3
 const PENDING_EXHAUSTED_MESSAGE = 'Accounts are still being prepared. Please try again shortly.'
 const SEARCH_DEBOUNCE_MS = 300
@@ -16,7 +49,12 @@ const projectSpecificMatch = (group: OpportunityGroup, query: string) => {
   const accountWords = new Set(words(group.name))
   return words(query).some(word => !accountWords.has(word))
 }
-const browseKey = (route: ProjectBrowseRoute) => projectBrowseCacheKey({ ...route, shortlist: route.shortlist ?? new URLSearchParams(location.search).get('shortlist') !== '0' })
+const browseKey = (route: ProjectBrowseRoute) => {
+  const params = new URLSearchParams(location.search)
+  const canonicalOnly = params.get('customerScope') === 'canonical' || (params.get('groupBrowse') !== '1' && params.get('projectBrowse') !== '1')
+  const defaultShortlist = !canonicalOnly && (params.get('groupBrowse') === '1' || params.get('projectBrowse') === '1')
+  return projectBrowseCacheKey({ ...route, shortlist: route.shortlist ?? (params.has('shortlist') ? params.get('shortlist') === '1' : defaultShortlist), canonicalOnly: route.canonicalOnly ?? canonicalOnly })
+}
 function waitForRetry(delayMs: number, signal: AbortSignal): Promise<boolean> {
   if (signal.aborted) return Promise.resolve(false)
   return new Promise(resolve => {
@@ -38,7 +76,7 @@ function browsePageIsValid(page: { valid_until?: string } | null): boolean {
 }
 
 export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid', onNeed, onBrowseChange }: Props) {
-  const readRoute = () => { const route = new URLSearchParams(location.search); const rawOffset = Number(route.get('offset') ?? 0); const rawSort = route.get('sort'); return { search: route.get('q') ?? '', sector: (route.get('sector') === 'oil_gas' || route.get('sector') === 'data_centers' ? route.get('sector') : 'all') as 'all' | 'oil_gas' | 'data_centers', offset: Number.isSafeInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0, region: route.get('region') ?? '', stage: route.get('stage') ?? '', priority: (route.get('priority') === 'ranked' || route.get('priority') === 'unranked' ? route.get('priority') : '') as CustomerRollupFilters['priority'], sort: (rawSort === 'priority_asc' || rawSort === 'company' || rawSort === 'updated' ? rawSort : 'priority') as CustomerRollupSort, shortlist: route.get('shortlist') !== '0', accountId: route.get('account') ?? '' } }
+  const readRoute = () => { const route = new URLSearchParams(location.search); const rawOffset = Number(route.get('offset') ?? 0); const rawSort = route.get('sort'); const canonicalOnly = route.get('customerScope') === 'canonical' || (route.get('groupBrowse') !== '1' && route.get('projectBrowse') !== '1'); const shortlist = route.has('shortlist') ? route.get('shortlist') === '1' : !canonicalOnly && (route.get('groupBrowse') === '1' || route.get('projectBrowse') === '1'); return { search: route.get('q') ?? '', sector: (route.get('sector') === 'oil_gas' || route.get('sector') === 'data_centers' ? route.get('sector') : 'all') as 'all' | 'oil_gas' | 'data_centers', offset: Number.isSafeInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0, region: route.get('region') ?? '', stage: route.get('stage') ?? '', priority: (route.get('priority') === 'ranked' || route.get('priority') === 'unranked' ? route.get('priority') : '') as CustomerRollupFilters['priority'], sort: (rawSort === 'priority_asc' || rawSort === 'company' || rawSort === 'updated' ? rawSort : 'priority') as CustomerRollupSort, shortlist, canonicalOnly, accountId: route.get('account') ?? '' } }
   const [initialRoute] = useState(readRoute)
   const [initialCache] = useState(() => initialRoute.shortlist ? readProjectBrowseCache(initialRoute) : null)
   const [search, setSearch] = useState(initialRoute.search)
@@ -49,6 +87,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
   const [priority, setPriority] = useState<CustomerRollupFilters['priority']>(initialRoute.priority)
   const [sort, setSort] = useState<CustomerRollupSort>(initialRoute.sort)
   const [shortlist, setShortlist] = useState(initialRoute.shortlist)
+  const [canonicalOnly, setCanonicalOnly] = useState(initialRoute.canonicalOnly)
   const [accountId, setAccountId] = useState(initialRoute.accountId)
   const [page, setPage] = useState<OpportunityGroupsPage | null>(initialCache?.page ?? null)
   const [pageKey, setPageKey] = useState(browseKey(initialRoute))
@@ -84,7 +123,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     return () => window.removeEventListener('gl3-clear-continuity', onSessionCleared)
   }, [])
   useEffect(() => {
-    const onPop = () => { parentReloadNotice.current = false; const route = readRoute(); setSearch(route.search); setSearchDraft(route.search); setSector(route.sector); setOffset(route.offset); setRegion(route.region); setStage(route.stage); setPriority(route.priority); setSort(route.sort); setShortlist(route.shortlist); setAccountId(route.accountId) }
+    const onPop = () => { parentReloadNotice.current = false; const route = readRoute(); setSearch(route.search); setSearchDraft(route.search); setSector(route.sector); setOffset(route.offset); setRegion(route.region); setStage(route.stage); setPriority(route.priority); setSort(route.sort); setShortlist(route.shortlist); setCanonicalOnly(route.canonicalOnly); setAccountId(route.accountId) }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -102,11 +141,11 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       if (selectedNeedId) browseChangeRef.current?.()
       setSearch(searchDraft); setOffset(0); updateUrl(searchDraft, sector)
     }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
+    return () => { if (timer !== undefined) clearTimeout(timer) }
   }, [searchDraft, search, sector, selectedNeedId])
   useEffect(() => {
     childEpoch.current += 1; childRequests.current.forEach(request => request.abort()); childRequests.current.clear()
-    const route = { search, sector, offset, region, stage, priority, sort, shortlist }
+    const route = { search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }
     const key = browseKey(route)
     const cached = readProjectBrowseCache(route)
     if (pageKey !== key) {
@@ -121,7 +160,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const loadGroups = async () => {
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
         try {
-          const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort, region, stage, priority, shortlist }, controller.signal)
+          const value = await client.opportunityGroups({ search, sector, limit: 25, offset, cohort_token: cohort, sort, region, stage, priority, shortlist, canonical_only: canonicalOnly }, controller.signal)
           if (controller.signal.aborted) return
           const previousCohort = pageKey === key ? page?.cohort_token : cached?.page.cohort_token
           const cohortChanged = Boolean(previousCohort && previousCohort !== value.cohort_token)
@@ -164,25 +203,25 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     }
     void loadGroups()
     return () => controller.abort()
-  }, [search, sector, offset, region, stage, priority, sort, shortlist, retryKey])
+  }, [search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly, retryKey])
   useEffect(() => {
-    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist })) return
-    const route = { search, sector, offset, region, stage, priority, sort, shortlist }
+    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })) return
+    const route = { search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }
     const version = projectBrowseCacheVersion()
     const save = () => writeProjectBrowseCache(browseKey(route), { savedAt: fetchedAt.current || Date.now(), page, expanded, children, childOffsets, groupParentTokens, openedGroups, scrollY: window.scrollY }, version)
     save()
     window.addEventListener('scroll', save, { passive: true })
     return () => { save(); window.removeEventListener('scroll', save) }
-  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, expanded, children, childOffsets, groupParentTokens, openedGroups])
+  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly, expanded, children, childOffsets, groupParentTokens, openedGroups])
   useEffect(() => {
-    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist }) || pendingScrollRestore.current == null) return
+    if (!page || pageKey !== browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly }) || pendingScrollRestore.current == null) return
     const scrollY = pendingScrollRestore.current; pendingScrollRestore.current = null
     const frame = requestAnimationFrame(() => window.scrollTo(0, scrollY))
     return () => cancelAnimationFrame(frame)
-  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist])
+  }, [page, pageKey, search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly])
   const updateUrl = (nextSearch: string, nextSector: string, nextOffset = 0, cohort?: string, nextRegion = region, nextStage = stage, nextPriority = priority, nextSort = sort, nextShortlist = shortlist) => {
     if (new URLSearchParams(location.search).has('panel')) return
-    const next = new URLSearchParams({ view: 'workspace' }); if (new URLSearchParams(location.search).get('groupBrowse') === '1') next.set('groupBrowse', '1'); next.set('shortlist', nextShortlist ? '1' : '0'); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort); if (nextRegion) next.set('region', nextRegion); if (nextStage) next.set('stage', nextStage); if (nextPriority) next.set('priority', nextPriority); if (nextSort !== 'priority') next.set('sort', nextSort)
+    const next = new URLSearchParams({ view: 'workspace' }); if (new URLSearchParams(location.search).get('groupBrowse') === '1') next.set('groupBrowse', '1'); if (canonicalOnly) next.set('customerScope', 'canonical'); next.set('shortlist', nextShortlist ? '1' : '0'); if (nextSearch) next.set('q', nextSearch); if (nextSector !== 'all') next.set('sector', nextSector); if (nextOffset) next.set('offset', String(nextOffset)); if (cohort) next.set('cohort_token', cohort); if (nextRegion) next.set('region', nextRegion); if (nextStage) next.set('stage', nextStage); if (nextPriority) next.set('priority', nextPriority); if (nextSort !== 'priority') next.set('sort', nextSort)
     history.replaceState(history.state, '', `/?${next}`)
   }
   useEffect(() => {
@@ -196,7 +235,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     if (changed) history.replaceState(history.state, '', `/?${params}`)
   }, [])
   const setFilter = (q: string, s: 'all' | 'oil_gas' | 'data_centers', r = region, st = stage, p = priority, so = sort) => { parentReloadNotice.current = false; resetChildRequests(); if (selectedNeedId) onBrowseChange?.(); if (s !== sector) window.dispatchEvent(new CustomEvent('gl3-demand-sector-change', { detail: s })); setNotice(''); setSearchDraft(q); setSearch(q); setSector(s); setRegion(r); setStage(st); setPriority(p); setSort(so); setOffset(0); updateUrl(q, s, 0, undefined, r, st, p, so) }
-  const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort, shortlist })
+  const requestedKey = browseKey({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })
   const currentPage = pageKey === requestedKey && browsePageIsValid(page) ? page : null
   const previousPage = pageKey !== requestedKey && browsePageIsValid(page) ? page : null
   const searchDraftChanged = searchDraft !== search
@@ -213,17 +252,17 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const validUntil = Date.parse(currentPage.valid_until)
     if (!Number.isFinite(validUntil)) return
     const expire = () => {
-      invalidateProjectBrowseCache({ search, sector, offset, region, stage, priority, sort })
+      invalidateProjectBrowseCache({ search, sector, offset, region, stage, priority, sort, shortlist, canonicalOnly })
       setPage(null); setExpanded({}); setChildren({}); setChildOffsets({}); setGroupParentTokens({}); setOpenedGroups({}); setLoading(true); setNotice('Refreshing expired results…'); setRetryKey(value => value + 1)
     }
-    let timer: ReturnType<typeof setTimeout>
-    const scheduleExpiryCheck = () => {
-      const delay = validUntil - Date.now()
-      if (delay <= 0) { expire(); return }
-      timer = setTimeout(scheduleExpiryCheck, Math.min(delay, MAX_TIMER_DELAY_MS))
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const scheduleExpirationCheck = () => {
+      const remaining = validUntil - Date.now()
+      if (remaining <= 0) { expire(); return }
+      timer = setTimeout(scheduleExpirationCheck, Math.min(remaining, MAX_TIMER_DELAY_MS))
     }
-    scheduleExpiryCheck()
-    return () => clearTimeout(timer)
+    scheduleExpirationCheck()
+    return () => { if (timer !== undefined) clearTimeout(timer) }
   }, [currentPage?.valid_until, pageKey, search, sector, offset, region, stage, priority, sort])
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = []
@@ -258,20 +297,21 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const requestPriority = priority
     const requestSort = sort
     const requestShortlist = shortlist
+    const requestCanonicalOnly = canonicalOnly
     const requestPage = page
     const requestOffset = offset
     setChildLoading(current => ({ ...current, [group.id]: true })); setChildErrors(current => ({ ...current, [group.id]: '' })); setChildNotices(current => ({ ...current, [group.id]: '' }))
     childRequests.current.get(group.id)?.abort()
     const controller = new AbortController(); childRequests.current.set(group.id, controller)
     const epoch = childEpoch.current
-    const requestIsCurrent = () => !controller.signal.aborted && epoch === childEpoch.current && requestSearch === search && requestSector === sector && requestOffset === offset && requestRegion === region && requestStage === stage && requestPriority === priority && requestSort === sort && requestShortlist === shortlist
+    const requestIsCurrent = () => !controller.signal.aborted && epoch === childEpoch.current && requestSearch === search && requestSector === sector && requestOffset === offset && requestRegion === region && requestStage === stage && requestPriority === priority && requestSort === sort && requestShortlist === shortlist && requestCanonicalOnly === canonicalOnly
     const openFreshGroup = async (firstRetryDelayMs = 0) => {
       let retryDelayMs = firstRetryDelayMs
       for (let attempt = 0; attempt <= MAX_PENDING_RETRIES; attempt += 1) {
         if (retryDelayMs > 0 && !(await waitForRetry(retryDelayMs, controller.signal))) return
         if (!requestIsCurrent()) return
         try {
-          const opened = await client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort, region, stage, priority, shortlist }, controller.signal)
+          const opened = await client.openOpportunityGroup(group.id, { search: requestSearch, sector: requestSector, limit: 25, sort, region, stage, priority, shortlist, canonical_only: requestCanonicalOnly }, controller.signal)
           if (!requestIsCurrent()) return
           if (opened.group.id !== group.id) throw new Error('The refreshed operator/customer group did not match the requested group.')
           setOpenedGroups(current => ({ ...current, [group.id]: opened.group }))
@@ -312,7 +352,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       else if (wasPagination) setNotice('Project results changed. Reloaded this operator/customer group.')
       void openFreshGroup(retryDelayMs)
     }
-    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort, region, stage, priority, shortlist }, controller.signal).then(value => {
+    client.groupProjects(group.id, { search: requestSearch, sector: requestSector, limit: 25, offset: childOffset, cohort_token: cohortToken, parent_cohort_token: groupParentTokens[group.id] ?? requestPage?.cohort_token, sort, region, stage, priority, shortlist, canonical_only: requestCanonicalOnly }, controller.signal).then(value => {
       if (!requestIsCurrent()) return
       setChildren(current => ({ ...current, [group.id]: value })); setChildOffsets(current => ({ ...current, [group.id]: childOffset })); setChildLoading(current => ({ ...current, [group.id]: false }))
     }).catch((e: Error) => {
@@ -328,15 +368,15 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       }
     })
   }
-  const openAccount = (id: string, matchedProjectId?: string | null, matchedNeedId?: string | null) => { const params = new URLSearchParams(location.search); params.set('view', 'workspace'); params.set('groupBrowse', '1'); params.set('account', id); if (matchedProjectId) params.set('project', matchedProjectId); else params.delete('project'); if (matchedNeedId) params.set('matchedNeed', matchedNeedId); else params.delete('matchedNeed'); params.delete('need'); params.delete('section'); history.pushState({ ...history.state, accountOpened: true }, '', `/?${params}`); setAccountId(id); window.scrollTo(0, 0) }
+  const openAccount = (id: string, matchedProjectId?: string | null, matchedNeedId?: string | null) => { const params = new URLSearchParams(location.search); params.set('view', 'workspace'); params.set('groupBrowse', '1'); if (canonicalOnly) params.set('customerScope', 'canonical'); params.set('account', id); if (matchedProjectId) params.set('project', matchedProjectId); else params.delete('project'); if (matchedNeedId) params.set('matchedNeed', matchedNeedId); else params.delete('matchedNeed'); params.delete('need'); params.delete('section'); history.pushState({ ...history.state, accountOpened: true }, '', `/?${params}`); setAccountId(id); window.scrollTo(0, 0) }
   const closeAccount = () => { if (history.state?.accountOpened) { history.back(); return } const params = new URLSearchParams(location.search); params.delete('account'); history.pushState(history.state, '', `/?${params}`); setAccountId('') }
-  if (accountId) { const params = new URLSearchParams(location.search); const selectedAccount = currentPage?.items.find(group => group.id === accountId); return <CompanyView groupId={accountId} summary={selectedAccount} onBack={closeAccount} onNeed={(id, projectId) => onNeed({ id }, { accountId, projectId })} backLabel="Back to accounts" shortlist={shortlist} search={search} sector={sector} region={region} stage={stage} priority={priority} sort={sort} matchedProjectId={params.get('project')} matchedNeedId={params.get('matchedNeed')} accountContextStatus={params.has('need') ? accountContextStatus : 'valid'} /> }
+  if (accountId) { const params = new URLSearchParams(location.search); const selectedAccount = currentPage?.items.find(group => group.id === accountId); return <CompanyView groupId={accountId} summary={selectedAccount} onBack={closeAccount} onNeed={(id, projectId) => onNeed({ id }, { accountId, projectId })} backLabel="Back to accounts" shortlist={shortlist} canonicalOnly={canonicalOnly} search={search} sector={sector} region={region} stage={stage} priority={priority} sort={sort} matchedProjectId={params.get('project')} matchedNeedId={params.get('matchedNeed')} accountContextStatus={params.has('need') ? accountContextStatus : 'valid'} /> }
   return <section className="project-results" aria-label="Project opportunities" aria-busy={busy}>
-    <header className="project-results-header"><div className="project-results-title"><h1>Customer accounts</h1><button type="button" aria-label="Refresh customer accounts" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
+    <header className="project-results-header"><div className="project-results-title"><h1>Customers</h1><button type="button" aria-label="Refresh customer accounts" disabled={loading} onClick={() => { window.dispatchEvent(new Event('gl3-demand-refresh')); setRetryKey(value => value + 1) }}>Refresh</button></div>
       <label><span className="project-search-label">Search accounts and projects</span><input aria-label="Search accounts and projects" placeholder="Account, project or location" value={searchDraft} onChange={e => { setSearchDraft(e.target.value); updateUrl(e.target.value, sector) }}/></label>
     </header>
     <nav className="project-sector-tabs" aria-label="Project type">{([['all','All'],['oil_gas','Oil & Gas'],['data_centers','Data Centers']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={sector === value} onClick={() => setFilter(searchDraft, value, '', '', priority)}>{label}</button>)}</nav>
-    <nav className="project-sector-tabs" aria-label="Opportunity scope"><button type="button" aria-pressed={shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(true); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, true) }}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(false); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, false) }}>All Projects</button></nav>
+    <nav className="project-sector-tabs" aria-label="Opportunity scope"><button type="button" aria-pressed={shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(true); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, true) }}>Shortlist</button><button type="button" aria-pressed={!shortlist} onClick={() => { clearProjectBrowseCache(); setShortlist(false); setOffset(0); resetChildRequests(); updateUrl(search, sector, 0, undefined, region, stage, priority, sort, false) }}>All customers</button></nav>
     <button type="button" disabled={!currentPage || busy || error !== '' || !groups.some(group => group.featured_project)} onClick={() => downloadProjectPage(groups.flatMap(group => group.featured_project ? [{ ...group.featured_project, company: group.name }] : []), undefined, 'Current account page — featured project per account')}>Export featured projects on this page</button>
     <details className="customer-rollup-controls"><summary>More filters and sorting</summary><div>
       <label>Region<select aria-label="Region" value={region} onChange={event => setFilter(searchDraft, sector, event.target.value)}><option value="">All regions</option>{region && !((currentPage ?? previousPage)?.facets?.regions ?? []).includes(region) && <option value={region}>{region}</option>}{((currentPage ?? previousPage)?.facets?.regions ?? []).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
@@ -354,7 +394,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
         <span className="customer-group-count">{displayedGroup.project_count} {displayedGroup.project_count === 1 ? 'project' : 'projects'}</span>
         <svg className="customer-group-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button></h2>
-      {displayedGroup.featured_project && <div className="customer-group-featured"><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.commercial_brief ? <CommercialBriefSummary project={displayedGroup.featured_project}/> : <>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/></>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></div>}
+      <div className="customer-group-featured"><CustomerIntelSummary group={displayedGroup} showNextAction={!displayedGroup.featured_project?.commercial_brief}/>{displayedGroup.featured_project && <><p>{displayedGroup.featured_project.name}</p>{displayedGroup.featured_project.commercial_brief ? <CommercialBriefSummary project={displayedGroup.featured_project} contactProject={accountContactProject}/> : <>{displayedGroup.featured_project.event?.date && <small>Evidence event · {displayedGroup.featured_project.event.date}</small>}{displayedGroup.featured_project.shortlist_assessment?.why_now && <p>{displayedGroup.featured_project.shortlist_assessment.why_now}</p>}{displayedGroup.featured_project.shortlist_assessment?.next_step && <p>{displayedGroup.featured_project.shortlist_assessment.next_step}</p>}<FeaturedContact project={displayedGroup.featured_project} contactProject={accountContactProject}/></>}{group.pursued_eligible_need_count != null && group.eligible_need_count != null && group.pursued_eligible_need_count > 0 && <small>{group.pursued_eligible_need_count === group.eligible_need_count ? `All ${group.eligible_need_count} opportunities in Pursuits` : `${group.pursued_eligible_need_count} of ${group.eligible_need_count} opportunities in Pursuits`}</small>}{group.eligible_need_count === 1 && displayedGroup.featured_project.representative_need_id && <AddToPursuit key={displayedGroup.featured_project.representative_need_id} needId={displayedGroup.featured_project.representative_need_id} deferLookup>for {displayedGroup.featured_project.name}</AddToPursuit>}{projectSpecificMatch(group, search) && <button type="button" onClick={() => openAccount(group.id, group.matched_project_id, group.matched_need_id)}>View account with matching opportunity</button>}<button type="button" onClick={() => openAccount(group.id, projectSpecificMatch(group, search) ? group.matched_project_id : null, projectSpecificMatch(group, search) ? group.matched_need_id : null)}>{(group.eligible_need_count ?? 0) > 1 ? `Choose opportunity` : `View account details`}</button></>}</div>
       {canUseChildren && childPageCurrent && expanded[group.id] && <div className="customer-group-projects">
         {childNotices[group.id] && <p role="status" className="project-results-notice">{childNotices[group.id]}</p>}
         {childErrors[group.id] && <p role="alert">{childErrors[group.id]} <button type="button" onClick={() => loadGroupProjects(group, 0)}>Reload projects</button></p>}
@@ -377,7 +417,7 @@ function ProjectCard({ project, selectedNeedId, onNeed, nested = false }: { proj
   return <article className="project-card" aria-current={selectedNeedId && project.needs.some(need => need.id === selectedNeedId) ? 'true' : undefined}>
     <div className="project-card-top"><span>{project.asset_type?.replaceAll('_', ' ') ?? 'Project'}</span>{project.sector && <span>{project.sector === 'oil_gas' ? 'Oil & Gas' : 'Data Centers'}</span>}</div>
     {nested ? <h3>{displayName}</h3> : <h2>{displayName}</h2>}{(project.company || project.location) && <p className="project-company">{[project.company, project.location].filter(Boolean).join(' · ')}</p>}
-    {project.commercial_brief ? <CommercialBriefSummary project={project}/> : <>
+    {project.commercial_brief ? <CommercialBriefSummary project={project} contactProject={project}/> : <>
       {assessment?.why_now && <p className="project-next">{assessment.why_now}</p>}
       {assessment?.next_step && <p>{assessment.next_step}</p>}
     </>}
@@ -391,24 +431,27 @@ function FeaturedContact({ project, contactProject }: { project: ProjectResult; 
   if (!contactProject) return null
   const contacts = bestProjectContactRoutes(contactProject.contact)
   const general = generalCompanyContactRoutes(contactProject.contact, contacts)
-  if (!contacts.length && !general.length) return null
+  const people = verifiedContactPeople(contactProject)
+  if (!contacts.length && !general.length) return people.length ? <VerifiedContactPeople people={people}/> : null
   const best = contacts[0]?.contact ?? general[0].contact
   const companyLine = best.route_kind === 'company_route'
   const contactSource = safeContactSourceUrl(best.source_url)
   return <div className="customer-group-contact">{contactProject.project_id !== project.project_id && <small>Contact associated with {contactProject.name}</small>}<strong>{best.name ?? best.company ?? 'Business contact'}</strong>{best.title && <span> · {best.title}</span>}{best.responsibility && <small>{best.responsibility}. Authority needs confirmation.</small>}{companyLine && <span> · General company route</span>}{contacts.length > 0 && <span>{contacts.map(({ contact, href }) => <a key={`${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} {contact.name ?? (contact.route_kind === 'company_route' ? 'company' : 'contact')}</a>)}</span>}{general.length > 0 && <span>General company route · {general.map(({ contact, href }) => <a key={`general:${contact.kind}:${href}`} href={href}>{/^mailto:/i.test(href) ? 'Email' : 'Call'} company</a>)}</span>}{contactSource && <details><summary>Contact source</summary><a href={contactSource} target="_blank" rel="noreferrer">Open source</a></details>}</div>
 }
 
-function CommercialBriefSummary({ project }: { project: ProjectResult }) {
+function CommercialBriefSummary({ project, contactProject = project }: { project: ProjectResult; contactProject?: ProjectResult | null }) {
   const brief = project.commercial_brief
   if (!brief) return null
   const representativeNeeds = project.needs.filter(need => need.id === project.representative_need_id)
   const representativeNeedBrief = representativeNeeds.length === 1 ? representativeNeeds[0].commercial_brief : null
-  const contactCandidate = brief.best_contact ?? representativeNeedBrief?.best_contact ?? null
+  const contactCandidate = contactProject ? brief.best_contact ?? representativeNeedBrief?.best_contact ?? null : null
   const contactHref = contactCandidate?.href ? safeBriefHref(contactCandidate.kind, contactCandidate.href) : null
   const best = contactHref ? contactCandidate : null
+  const verifiedPeople = verifiedContactPeople(contactProject)
   const powerLimitations = meaningfulPowerLimitations(brief.power_need.limitations)
-  const hasDocumentedAmount = brief.power_need.amount_class !== 'unknown' && Boolean(brief.power_need.value)
-  const hasUsefulUnknownScope = !hasDocumentedAmount && Boolean(brief.power_need.scope?.trim()) && powerLimitations.length > 0
+  const unsupportedEstimate = ['estimated', 'inferred'].includes(brief.power_need.amount_class)
+  const hasDocumentedAmount = ['documented', 'calculated'].includes(brief.power_need.amount_class) && Boolean(brief.power_need.value)
+  const hasUsefulUnknownScope = !unsupportedEstimate && !hasDocumentedAmount && Boolean(brief.power_need.scope?.trim()) && powerLimitations.length > 0
   const showPowerNeed = hasDocumentedAmount || hasUsefulUnknownScope
   const powerText = hasDocumentedAmount
     ? `${briefPowerAmount(brief.power_need.value!, brief.power_need.unit)}${brief.power_need.scope ? ` · ${brief.power_need.scope}` : ''}`
@@ -424,7 +467,7 @@ function CommercialBriefSummary({ project }: { project: ProjectResult }) {
   return <div className="customer-commercial-brief">
     <div className="customer-brief-claim"><strong>Why now</strong><p>{brief.why_now.text ?? 'Why now is not established from current evidence.'}</p></div>
     {showPowerNeed && <div className="customer-brief-claim"><strong>Power need</strong><p>{powerText}</p>{hasDocumentedAmount && <small>{humanizeBriefStatus(brief.power_need.amount_class)}</small>}{powerLimitations.map((limitation, index) => <small key={`${index}:${limitation}`}>{limitation}</small>)}</div>}
-    {best && <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div>}
+    {contactProject && (best ? <div className="customer-group-contact" role="group" aria-label="Best contact"><strong>Best contact</strong>{contactHref && <a href={contactHref} target={best.kind === 'contact' ? '_blank' : undefined} rel={best.kind === 'contact' ? 'noreferrer' : undefined}>{best.kind === 'call' ? 'Call' : best.kind === 'email' ? 'Email' : 'Contact'} {best.contact}</a>}</div> : verifiedPeople.length ? <VerifiedContactPeople people={verifiedPeople}/> : null)}
     <div className="customer-brief-claim"><strong>Next action</strong><p>{brief.next_action.text}</p></div>
     <details className="customer-brief-sources"><summary>Sources</summary>{best?.authority && <p>Contact authority: {best.authority}</p>}{best?.deliverability && <p>Contact deliverability: {best.deliverability}</p>}{sourceRows.size ? [...sourceRows.values()].map(source => <p key={`${source.url}:${source.title}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>{source.date ? ` · ${source.date}` : ''}</p>) : <p>No current source citations are available.</p>}</details>
   </div>

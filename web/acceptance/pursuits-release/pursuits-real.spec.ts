@@ -122,13 +122,14 @@ test('real account-first pursuit journey persists through navigation, reload, an
   })
 
   const start = await signIn(page)
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'Shortlist' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Opportunity scope' }).getByRole('button', { name: 'All customers' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0)
   await expect(page.locator('.project-results-count')).toContainText(/\d+ accounts?/)
+  // Keep the historical metric key for result consumers; it now measures the first all-customer render.
   interactionTimes.loginToFirstShortlistReadyMs = Date.now() - start
   recordInteraction('loginToFirstShortlistReadyMs', interactionTimes.loginToFirstShortlistReadyMs)
-  await capture(page, testInfo, 'default-shortlist')
+  await capture(page, testInfo, 'default-customers')
 
   const searchStarted = Date.now()
   const search = page.getByRole('textbox', { name: 'Search accounts and projects' })
@@ -287,7 +288,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
   // Ten read-only warm iterations provide per-interaction samples on the
   // persisted 2,098-row corpus. These do not create further pursuits/tasks.
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
   const accountNamePattern = new RegExp(manifest.account_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   for (let iteration = 0; iteration < 10; iteration++) {
     const listSearch = page.getByRole('textbox', { name: 'Search accounts and projects' })
@@ -332,7 +333,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
     await warmDetail.getByRole('button', { name: /Back to account/ }).click()
     await expect(warmAccount.getByRole('heading', { name: 'Projects' })).toBeVisible()
     await warmAccount.getByRole('button', { name: 'Back to accounts' }).click()
-    await expect(page.getByRole('heading', { name: 'Customer accounts' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
     await listSearch.fill('')
     await expect(page.locator('.project-results[aria-busy="true"]')).toHaveCount(0)
   }
@@ -387,7 +388,7 @@ test('real account-first pursuit journey persists through navigation, reload, an
     repeated_read_only_iterations: 10,
     persistedJourneyElapsedMs,
     journeyPlusBenchmarkElapsedMs: elapsed,
-    coldScope: 'first full shortlist render after authenticated session in a fresh browser context; server/PostgreSQL cache state unknown',
+    coldScope: 'first full all-customer render after authenticated session in a fresh browser context; server/PostgreSQL cache state unknown',
     warmScope: '10 read-only account and Companies interaction repeats in the same browser context and backend process',
     interaction_samples: interactions,
     initial_interaction_ms: interactionTimes,

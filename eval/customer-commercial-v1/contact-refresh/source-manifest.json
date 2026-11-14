@@ -1,0 +1,551 @@
+{
+  "schema_version": "gridlens-contact-refresh-source-manifest-v1",
+  "sources": [
+    {
+      "source_id": "aligned-leadership",
+      "url": "https://aligneddc.com/leadership/",
+      "page_title": "The Aligned Leadership Team | Aligned Data Centers",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/aligned-leadership.json",
+      "source_text_sha256_utf8": "f7baea7bad6fe7ed320a66b058541be9b99ead4404a2b9e53ae34b2441f45147",
+      "source_text_chars": 21491
+    },
+    {
+      "source_id": "applied-digital-leadership",
+      "url": "https://ir.applieddigital.com/company-information/executive-team",
+      "page_title": "Executive Team :: Applied Digital Corporation (APLD)",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/applied-digital-leadership.json",
+      "source_text_sha256_utf8": "f7ed07aaddb24c424854b415f57fa289d8ee4095973174c7d6dda4b8ab371c72",
+      "source_text_chars": 12572
+    },
+    {
+      "source_id": "aws-madison-announcement",
+      "url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi",
+      "page_title": "AWS plans to invest $10 billion in Mississippi",
+      "observed_at": "2026-11-13",
+      "publication_date": "2024-01-25",
+      "publication_date_status": "explicit date in captured publisher text",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/aws-madison-announcement.json",
+      "publication_date_evidence_quote": "Published:January 25, 2024",
+      "source_text_sha256_utf8": "133357575792c96fc19c4a4f234d5468707cbce4895376d204ec5024314fc3dd",
+      "source_text_chars": 19672
+    },
+    {
+      "source_id": "compass-leadership",
+      "url": "https://www.compassdatacenters.com/about/leadership/",
+      "page_title": "Compass Datacenters Leadership",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/compass-leadership.json",
+      "source_text_sha256_utf8": "fedc0a46b74c968eb96822cfd2a71e0111216d52ce013dfc873b2972e041317b",
+      "source_text_chars": 20420
+    },
+    {
+      "source_id": "crusoe-leadership",
+      "url": "https://www.crusoe.ai/about/leadership",
+      "page_title": "Crusoe Leadership | Founders and Executive team",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/crusoe-leadership.json",
+      "source_text_sha256_utf8": "adab2fa0ff749e01bc9fd754ade7377d98443de3a14b029b78363ae9a0687422",
+      "source_text_chars": 60013
+    },
+    {
+      "source_id": "cyrusone-leadership",
+      "url": "https://www.cyrusone.com/company/leadership",
+      "page_title": "Leadership | CyrusOne",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/cyrusone-leadership.json",
+      "source_text_sha256_utf8": "2c65e7cbdf1fea7e820bf8f5f24e189898780d89714c9106e185edc462e6ac0c",
+      "source_text_chars": 62636
+    },
+    {
+      "source_id": "databank-leadership",
+      "url": "https://www.databank.com/about-databank/leadership-team/",
+      "page_title": "Leadership Team - DataBank | Data Center Evolved",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/databank-leadership.json",
+      "source_text_sha256_utf8": "6adf410f7c21a766e8afd066e06f7f7f5ed79785f8e3d793bd460b37b5695e36",
+      "source_text_chars": 72994
+    },
+    {
+      "source_id": "digital-realty-leadership",
+      "url": "https://www.digitalrealty.com/about/leadership",
+      "page_title": "Digital Realty Leadership & Executive Team | Digital Realty",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/digital-realty-leadership.json",
+      "source_text_sha256_utf8": "6d41a1d832546ac7a883454431c8a196812a40fe7246e3a69d7be8ed31f87b3e",
+      "source_text_chars": 31500
+    },
+    {
+      "source_id": "dominion-executive-leadership",
+      "url": "https://www.dominionenergy.com/About/Our-Company/Leadership-and-Governance/Executive-Leadership",
+      "page_title": "Executive Leadership | Dominion Energy",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/dominion-executive-leadership.json",
+      "source_text_sha256_utf8": "d28ed280e2a4ac19ec8e50bf64d08027628f4a2f1c071fede99d84d955562d22",
+      "source_text_chars": 24548
+    },
+    {
+      "source_id": "edgecore-dave-rezash",
+      "url": "https://edgecore.com/company/leadership-team/dave-rezash",
+      "page_title": "Dave Rezash, SVP, Design & Construction | EdgeCore",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/edgecore-dave-rezash.json",
+      "source_text_sha256_utf8": "5b3dcea2417361de4ce9efc5f44e4c741b2e08ebc50b49b1fdad0d42768a7a4e",
+      "source_text_chars": 8688
+    },
+    {
+      "source_id": "equinix-leadership",
+      "url": "https://www.equinix.com/about/leadership",
+      "page_title": "Equinix Leadership & Global Executive Team | Equinix",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/equinix-leadership.json",
+      "source_text_sha256_utf8": "1a215e80bdb204e3001ce29bccb9e031b3e061bd382ace02741f0530b166e9c6",
+      "source_text_chars": 22080
+    },
+    {
+      "source_id": "fervo-team",
+      "url": "https://fervoenergy.com/team/",
+      "page_title": "Team - Fervo Energy",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/fervo-team.json",
+      "source_text_sha256_utf8": "bfdb9ed3779b25279327c28dd0e0ed700a9827ac23edfd8d1c808d9b5894ef94",
+      "source_text_chars": 26213
+    },
+    {
+      "source_id": "google-data-center-careers",
+      "url": "https://datacenters.google/careers/",
+      "page_title": "Karriere und Beruf – Google-Rechenzentren",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/google-data-center-careers.json",
+      "source_text_sha256_utf8": "089e99e513b5c13c150f812872aa58b5d814d311bec864650b8380116930ee06",
+      "source_text_chars": 67506
+    },
+    {
+      "source_id": "meta-richland-project",
+      "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+      "page_title": "The largest Meta data center yet brings big impact to Louisiana - Meta Data Centers",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/meta-richland-project.json",
+      "source_text_sha256_utf8": "5c6f3c9bd28c4139aec2ce40f9d7929d7656d68189ac32c71e3601d5e03597b6",
+      "source_text_chars": 11725
+    },
+    {
+      "source_id": "microsoft-fairwater-announcement",
+      "url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/",
+      "page_title": "Made in Wisconsin: The world’s most powerful AI datacenter - Microsoft On the Issues",
+      "observed_at": "2026-11-13",
+      "publication_date": "2025-09-18",
+      "publication_date_status": "explicit date in captured publisher text",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/microsoft-fairwater-announcement.json",
+      "publication_date_evidence_quote": "Sep 18, 2025",
+      "source_text_sha256_utf8": "967743e60caa005c9976922a05ec69815d51428b57cee7bb186ba046dfd9e784",
+      "source_text_chars": 31487
+    },
+    {
+      "source_id": "microsoft-noelle-author",
+      "url": "https://blogs.microsoft.com/blog/author/nwalsh/",
+      "page_title": "President, Cloud Operations and Innovation",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl official Microsoft source scrape; complete Markdown retained",
+      "raw_file": "raw/microsoft-noelle-author.json",
+      "source_text_sha256_utf8": "c61034eb649668d9750d6e77d4ed2de11ecba058e6e2086e84cf42e290a282fc",
+      "source_text_chars": 12472
+    },
+    {
+      "source_id": "microsoft-pecos-datacenter-post",
+      "url": "https://blogs.microsoft.com/blog/2026/06/22/powering-the-next-wave-of-ai-expanding-capacity-with-our-new-datacenter-in-pecos/",
+      "page_title": "Powering the next wave of AI: Expanding capacity with our new datacenter in Pecos - The Official Microsoft Blog",
+      "observed_at": "2026-11-13",
+      "publication_date": "2026-06-22",
+      "publication_date_status": "explicit date in captured publisher text",
+      "retrieval": "Firecrawl official Microsoft source scrape; complete Markdown retained",
+      "raw_file": "raw/microsoft-pecos-datacenter-post.json",
+      "publication_date_evidence_quote": "Jun 22, 2026",
+      "source_text_sha256_utf8": "90f6fe4d4583175611d2360a99cb3040e9374925cbd880c237b4598c9dd6be2b",
+      "source_text_chars": 24085
+    },
+    {
+      "source_id": "qts-leadership",
+      "url": "https://q.com/our-leadership/",
+      "page_title": "Our Leadership - QTS Data Centers",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/qts-leadership.json",
+      "source_text_sha256_utf8": "c65955d181310e384a573a1dd2797737cd39dff2c620d91b6f38533db85ac87a",
+      "source_text_chars": 22944
+    },
+    {
+      "source_id": "sec-amazon-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-amazon-10k.json",
+      "source_text_mode": "verbatim excerpts from Firecrawl-rendered SEC Markdown",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "26b4576821fba9bdc9e01bd5794566b836b767653bc94e2f3cda2fb8e311bbea",
+          "chars": 27511
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "9b9aa93ed762e7bfc1de3111128f0cd5e3c732004dd954bd4b94ae69085ecda1",
+          "chars": 309
+        }
+      ]
+    },
+    {
+      "source_id": "sec-apld-index",
+      "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/0001144879-26-000048-index.htm",
+      "page_title": "EDGAR Filing Documents for 0001144879-26-000048",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl SEC filing-index scrape, complete Markdown",
+      "raw_file": "raw/sec-apld-index.json",
+      "filing_date": "2026-07-29",
+      "filing_date_status": "SEC filing index Filing Date field",
+      "filing_type": "10-K",
+      "source_text_sha256_utf8": "3a879edde051adca36bbb55e8ed76116c7a36488cdd2e3c1d30df149090e67ef",
+      "source_text_chars": 4822
+    },
+    {
+      "source_id": "sec-dlr-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/1297996/000155837025001424/dlr-20241231x10k.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-dlr-10k.json",
+      "source_text_mode": "verbatim excerpts from Firecrawl-rendered SEC Markdown",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "77823da3a0eb8287f3dc8d4c1362b97475ddda7a1f4b19319a9726ae6615f934",
+          "chars": 281
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "f2d56f6d832e89e0303a44ea9c11ba9a5175e0a32489471ad6f26e276289570f",
+          "chars": 438
+        },
+        {
+          "label": "website_statement",
+          "sha256_utf8": "74e95ab9413c8f8598f260e1cae5c7e8c19e58c5b304f5d600d2648c51653c25",
+          "chars": 1435
+        },
+        {
+          "label": "website_statement",
+          "sha256_utf8": "b942b44ae11e0267734a2a4669a76216cfe9a080721ca5409a28f84b066b5900",
+          "chars": 903
+        }
+      ]
+    },
+    {
+      "source_id": "sec-dominion-index",
+      "url": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/0001193125-26-115192-index.htm",
+      "page_title": "EDGAR Filing Documents for 0001193125-26-115192",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl SEC filing-index scrape, complete Markdown",
+      "raw_file": "raw/sec-dominion-index.json",
+      "filing_date": "2026-03-19",
+      "filing_date_status": "SEC filing index Filing Date field",
+      "filing_type": "ARS",
+      "source_text_sha256_utf8": "a4672077132a47f8aff5ed74872c7c325146cc92061b99266c51decf2f53f981",
+      "source_text_chars": 1819
+    },
+    {
+      "source_id": "sec-equinix-index",
+      "url": "https://www.sec.gov/Archives/edgar/data/1101239/000110123926000032/0001101239-26-000032-index.htm",
+      "page_title": "EDGAR Filing Documents for 0001101239-26-000032",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl SEC filing-index scrape, complete Markdown",
+      "raw_file": "raw/sec-equinix-index.json",
+      "filing_date": "2026-02-11",
+      "filing_date_status": "SEC filing index Filing Date field",
+      "filing_type": "10-K",
+      "source_text_sha256_utf8": "30dea6ba8c23f07ec576f4aa14998078f710db989b020f40838432f49cebe783",
+      "source_text_chars": 7685
+    },
+    {
+      "source_id": "sec-meta-index",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/0001628280-26-003942-index.htm",
+      "page_title": "EDGAR Filing Documents for 0001628280-26-003942",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl SEC filing-index scrape, complete Markdown",
+      "raw_file": "raw/sec-meta-index.json",
+      "filing_date": "2026-01-29",
+      "filing_date_status": "SEC filing index Filing Date field",
+      "filing_type": "10-K",
+      "source_text_sha256_utf8": "0c1cc988be4c8804c4754211df9c14cec37515670a47fd6990c6902537fb8b54",
+      "source_text_chars": 7428
+    },
+    {
+      "source_id": "sec-microsoft-index",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/0001193125-26-323660-index.htm",
+      "page_title": "EDGAR Filing Documents for 0001193125-26-323660",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl SEC filing-index scrape, complete Markdown",
+      "raw_file": "raw/sec-microsoft-index.json",
+      "filing_date": "2026-07-29",
+      "filing_date_status": "SEC filing index Filing Date field",
+      "filing_type": "10-K",
+      "source_text_sha256_utf8": "dfabc5ff40be999c257d786f331cc8cd262d69820adf34828b8c25793ee8d328",
+      "source_text_chars": 3799
+    },
+    {
+      "source_id": "stack-team",
+      "url": "https://www.stackinfra.com/about/meet-the-team/",
+      "page_title": "Meet Our Data Center Company Leaders | STACK Infrastructure",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/stack-team.json",
+      "source_text_sha256_utf8": "bdc60ab92331dbd260bf3884288a1077ad175e49f537482700f0b7874261ed8e",
+      "source_text_chars": 17855
+    },
+    {
+      "source_id": "switch-executive-team",
+      "url": "https://www.switch.com/executive-team/",
+      "page_title": "Switch is a Global Technology Solutions Company",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/switch-executive-team.json",
+      "source_text_sha256_utf8": "19ba5fab25c6d4d9d4e143781ad7aaeb986122d3be3436c200ba8d752918dffd",
+      "source_text_chars": 43429
+    },
+    {
+      "source_id": "terrapower-about",
+      "url": "https://www.terrapower.com/about/",
+      "page_title": "About TerraPower",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl web scrape, Markdown, onlyMainContent false, maxAge 0",
+      "raw_file": "raw/terrapower-about.json",
+      "source_text_sha256_utf8": "2a1f12779d0bfe37919849d7d8f21e2feabbe34999495f93b686b31f097b22e1",
+      "source_text_chars": 61413
+    },
+    {
+      "source_id": "vantage-leadership",
+      "url": "https://vantage-dc.com/company/leadership/",
+      "page_title": "Leadership - Vantage Data Centers",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in captured page",
+      "retrieval": "Firecrawl page scrape; full Markdown retained",
+      "raw_file": "raw/vantage-leadership.json",
+      "source_text_sha256_utf8": "edba53bc841c939f07c585a6305db88fa502defd9c03d32b769620af5e4355d4",
+      "source_text_chars": 95397
+    },
+    {
+      "source_id": "sec-apld-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/1144879/000114487926000048/apld-20260531.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in the SEC document; SEC filing date is separate",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-apld-10k.md",
+      "source_text_sha256_utf8": "a020ecb3efd2502acb561a6ad1446264b5585513ef07d5d21024c719c6c400a5",
+      "source_text_chars": 664286,
+      "source_text_bytes": 668630,
+      "source_text_mode": "complete Firecrawl-rendered SEC Markdown",
+      "filing_date": "2026-07-29",
+      "filing_type": "10-K",
+      "filing_date_source_id": "sec-apld-index",
+      "filing_date_status": "captured SEC index Filing Date field",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "c4160223bf79445a97a8637c0d20c1d260a9e6215ba3d864ed8f55abbd7febc5",
+          "chars": 231
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "72d374ed173b989eaea6fcb6f570057ed36b8a7b2193c3e2d47b4b30d94835ba",
+          "chars": 508
+        }
+      ]
+    },
+    {
+      "source_id": "sec-dominion-annual-report",
+      "url": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/dei-ars-12312025.pdf",
+      "page_title": "Dominion Energy 2025 Annual Report",
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in the SEC document; SEC filing date is separate",
+      "retrieval": "Firecrawl SEC PDF parser rendered as Markdown",
+      "raw_file": "raw/sec-dominion-annual-report.md",
+      "source_text_sha256_utf8": "46f298e2d3ae2017b5d5afa1e60cadc46a21461199b545443b3b084b24df8efc",
+      "source_text_chars": 928160,
+      "source_text_bytes": 933142,
+      "source_text_mode": "complete Firecrawl-rendered SEC Markdown",
+      "filing_date": "2026-03-19",
+      "filing_type": "ARS",
+      "filing_date_source_id": "sec-dominion-index",
+      "filing_date_status": "captured SEC index Filing Date field"
+    },
+    {
+      "source_id": "sec-equinix-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/1101239/000110123926000032/eqix-20251231.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in the SEC document; SEC filing date is separate",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-equinix-10k.md",
+      "source_text_sha256_utf8": "282596c67590f6c2b53ce253403d24640def1e6a2066b26b32ccd581a7232539",
+      "source_text_chars": 670614,
+      "source_text_bytes": 673349,
+      "source_text_mode": "complete Firecrawl-rendered SEC Markdown",
+      "filing_date": "2026-02-11",
+      "filing_type": "10-K",
+      "filing_date_source_id": "sec-equinix-index",
+      "filing_date_status": "captured SEC index Filing Date field",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "54769d0006cb3d7ac42b5e21b05b222c4bc65a0fc1193607b9ed16ef039d3d50",
+          "chars": 51326
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "12a2a7ed7339717daba560e8bb2fbf8857d0996ca50b7a05c5fa792685bc97be",
+          "chars": 290
+        },
+        {
+          "label": "website_statement",
+          "sha256_utf8": "7f923529346352363cfcc6f2bd18d34faad46660800e4384103a2cbeebd6bc11",
+          "chars": 810
+        }
+      ]
+    },
+    {
+      "source_id": "sec-meta-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026003942/meta-20251231.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in the SEC document; SEC filing date is separate",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-meta-10k.md",
+      "source_text_sha256_utf8": "8cf35ad03172b927b4cb25e9eedaf2fb56ca028a4f1b661fa0f32986310b3152",
+      "source_text_chars": 613946,
+      "source_text_bytes": 615484,
+      "source_text_mode": "complete Firecrawl-rendered SEC Markdown",
+      "filing_date": "2026-01-29",
+      "filing_type": "10-K",
+      "filing_date_source_id": "sec-meta-index",
+      "filing_date_status": "captured SEC index Filing Date field",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "e4f199672d0a0fb3954efb31eef0141f23fdec72eea8c4deb23b7697a2977a56",
+          "chars": 18687
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "022ff59f7eb9829adfcf70d79d87a3e817326d3c7233722f009a74a27011e027",
+          "chars": 272
+        }
+      ]
+    },
+    {
+      "source_id": "sec-microsoft-10k",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "page_title": null,
+      "observed_at": "2026-11-13",
+      "publication_date": null,
+      "publication_date_status": "not stated in the SEC document; SEC filing date is separate",
+      "retrieval": "Firecrawl web scrape; SEC HTML rendered as Markdown",
+      "raw_file": "raw/sec-microsoft-10k.md",
+      "source_text_sha256_utf8": "d88ee0d7ce516cc70736d7e851b1eaf9d357826badfe3661fedd390b3d4fdcd6",
+      "source_text_chars": 438271,
+      "source_text_bytes": 439419,
+      "source_text_mode": "complete Firecrawl-rendered SEC Markdown",
+      "filing_date": "2026-07-29",
+      "filing_type": "10-K",
+      "filing_date_source_id": "sec-microsoft-index",
+      "filing_date_status": "captured SEC index Filing Date field",
+      "excerpts": [
+        {
+          "label": "issuer_cover",
+          "sha256_utf8": "522d3e3245c900554c44f6484f2ee46dc97f04b7304dcacdffeb11d192cf26f6",
+          "chars": 32438
+        },
+        {
+          "label": "ein_alt",
+          "sha256_utf8": "cab646cfe88c545f832ba850f2155a8bf6cbbf13b1e927629976469806fe8698",
+          "chars": 178
+        },
+        {
+          "label": "website_statement",
+          "sha256_utf8": "ca2796b25e7ee6e708b2e8856b5159d9018008838011389502a08c2e08247493",
+          "chars": 665
+        }
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
@@ -125,6 +126,10 @@ _PRIVACY_METADATA_KEYS = frozenset(
         "supports",
     }
 )
+
+
+def _is_sec_url(url: str) -> bool:
+    return (urlsplit(url).hostname or "").casefold() in {"sec.gov", "www.sec.gov"}
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -993,6 +998,7 @@ def _retained(
     project: Project,
     *,
     target_evidence_id: UUID | None = None,
+    context_out: dict[UUID, tuple[Evidence, Observation, Interpretation, Source]] | None = None,
 ) -> list[Evidence]:
     observations = (
         select(NeedObservation.observation_id)
@@ -1042,21 +1048,51 @@ def _retained(
                 preloaded=True,
             ):
                 accepted.append(evidence)
+                if context_out is not None:
+                    assert (
+                        observation is not None
+                        and interpretation is not None
+                        and source is not None
+                    )
+                    context_out[evidence.id] = (evidence, observation, interpretation, source)
                 if len(accepted) == 4:
                     break
         cursor = (rows[-1][0].observed_at, rows[-1][0].id)
         if len(rows) < 24:
             break
     if target_evidence_id is not None:
-        target = session.get(Evidence, target_evidence_id)
+        target_row = session.execute(
+            select(Evidence, Observation, Interpretation, Source)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .outerjoin(Source, Source.id == Observation.source_id)
+            .where(Evidence.id == target_evidence_id)
+        ).first()
+        target = target_row[0] if target_row else None
         if (
             target is not None
             and target not in accepted
-            and _retained_evidence_current_for_project(session, project, target)
+            and target_row is not None
+            and _retained_evidence_current_for_project(
+                session,
+                project,
+                target,
+                observation=target_row[1],
+                interpretation=target_row[2],
+                source=target_row[3],
+                preloaded=True,
+            )
         ):
             # A per-evidence retained job must read its current target even when
             # it falls outside the usual four newest accepted documents.
             accepted = [*accepted[:3], target]
+            if context_out is not None:
+                assert (
+                    target_row[1] is not None
+                    and target_row[2] is not None
+                    and target_row[3] is not None
+                )
+                context_out[target.id] = (target, target_row[1], target_row[2], target_row[3])
     return accepted
 
 
@@ -1375,8 +1411,16 @@ def enrich_buying_chain(
     documents: list[tuple[PublicDocument, bool, str, UUID | None]] = []
     from gridlens.ingestion.adapters.retained_document import SOURCES as F17_SOURCES
 
-    for evidence in _retained(session, project, target_evidence_id=retained_target_evidence_id):
-        observation = session.get(Observation, evidence.observation_id)
+    retained_contexts: dict[UUID, tuple[Evidence, Observation, Interpretation, Source]] = {}
+    retained_evidence = _retained(
+        session,
+        project,
+        target_evidence_id=retained_target_evidence_id,
+        context_out=retained_contexts,
+    )
+    for evidence in retained_evidence:
+        retained_context = retained_contexts.get(evidence.id)
+        observation = retained_context[1] if retained_context else None
         structured: tuple[dict, ...] = ()
         if observation and observation.source_id in F17_SOURCES:
             retained = (evidence.provenance or {}).get("retained_document")
@@ -1403,8 +1447,10 @@ def enrich_buying_chain(
                     structured=structured,
                     retained_version=evidence.content_hash,
                 ),
-                True,
-                "Previously accepted evidence linked to this selected physical project.",
+                not _is_sec_url(evidence.url),
+                "SEC issuer identity evidence; no project relationship inferred."
+                if _is_sec_url(evidence.url)
+                else "Previously accepted evidence linked to this selected physical project.",
                 evidence.id,
             )
         )
@@ -1453,6 +1499,9 @@ def enrich_buying_chain(
                     doc = fetcher(url)
             validate_public_url(doc.url)
             matched, reason = project_document_match(project, doc)
+            if _is_sec_url(doc.url):
+                matched = False
+                reason = "SEC issuer identity evidence; no project relationship inferred."
             documents.append((doc, matched, reason, None))
             # Only same-host, relevant links found on a scoped document. No crawl expansion.
             if matched:
@@ -1551,12 +1600,33 @@ def enrich_buying_chain(
             )
             saved[document_key(doc)] = row
             if retained_id:
-                original = session.get(Evidence, retained_id)
-                observation = (
-                    session.get(Observation, original.observation_id) if original else None
+                retained_context = retained_contexts.get(retained_id)
+                original, observation, interpretation, retained_source_row = (
+                    retained_context if retained_context else (None, None, None, None)
                 )
                 if observation:
-                    if observation.source_id == "texas-tdlr-tabs-data-centers":
+                    if observation.source_id == "retained-company-project-evaluation":
+                        from gridlens.intelligence.retained_project_organizations import (
+                            extract_retained_project_organizations,
+                        )
+
+                        f17_source_id = observation.source_id
+                        if (
+                            original is not None
+                            and interpretation is not None
+                            and retained_source_row is not None
+                        ):
+                            organizations.extend(
+                                extract_retained_project_organizations(
+                                    doc,
+                                    project=project,
+                                    source=retained_source_row,
+                                    observation=observation,
+                                    evidence=original,
+                                    interpretation=interpretation,
+                                )
+                            )
+                    elif observation.source_id == "texas-tdlr-tabs-data-centers":
                         f17_source_id = observation.source_id
                         organizations.extend(
                             extract_retained_permit_organizations(
@@ -1574,8 +1644,27 @@ def enrich_buying_chain(
                 and "/ibi_apps/WFServlet.ibfs" in doc.url
             ):
                 organizations.extend(extract_retained_permit_organizations(doc, project.source_id))
-            if f17_source_id is None:
+            if f17_source_id is None and not _is_sec_url(doc.url):
                 organizations.extend(extract_organizations(doc, project))
+    regulatory_documents = [
+        doc for doc, _matched, _reason, _retained_id in documents if _is_sec_url(doc.url)
+    ]
+    if regulatory_documents:
+        from gridlens.intelligence.regulatory_project_organizations import (
+            extract_regulatory_project_organizations,
+        )
+
+        for doc, matched, _reason, _retained_id in documents:
+            if not matched or _is_sec_url(doc.url):
+                continue
+            organizations.extend(
+                extract_regulatory_project_organizations(
+                    project,
+                    doc,
+                    regulatory_documents,
+                    now=now,
+                )
+            )
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
     for doc, matched, reason, retained_id in documents:
@@ -1584,12 +1673,13 @@ def enrich_buying_chain(
         )
         results = (
             []
-            if f17_retained
+            if f17_retained or _is_sec_url(doc.url)
             else extract_people(
                 doc, organizations, project, project_scoped=matched, today=now.date()
             )
         )
-        results.extend(extract_company_contacts(doc, organizations))
+        if not _is_sec_url(doc.url):
+            results.extend(extract_company_contacts(doc, organizations))
         if results:
             row = _store_document(
                 session,
@@ -1603,7 +1693,7 @@ def enrich_buying_chain(
             )
             saved[document_key(doc)] = row
             people.extend(results)
-        elif not matched:
+        elif not matched and not _is_sec_url(doc.url):
             # A successfully rechecked known role page can retract a role. Retain
             # its changed version even when it now has no extractable relationship.
             known_source = session.scalar(
@@ -1748,10 +1838,218 @@ def enrich_buying_chain(
         )
         session.add(new_claim)
         session.flush()
-        # A contact-only revision must not split the canonical company account.
-        # Carry an identity only across the same project/entity and an identical
-        # supporting relationship quote on the same source URL.
-        for previous in buying_chain_baseline["candidates"]:
+        # Continue an existing project-local company identity across a same-role
+        # source revision. Native retained adapters may update non-identity facts
+        # (for example MW in the exact role quote) while preserving the exact
+        # organization, category, relationship, project, and source URL.
+        continuity_candidates = list(buying_chain_baseline["candidates"])
+        baseline_ids = {str(item["id"]) for item in continuity_candidates}
+        prior_run_ids = set(previous_run.claim_ids) if previous_run else set()
+        missing_receipt_ids = prior_run_ids - baseline_ids
+
+        def same_company_role(candidate: dict[str, Any], claim: BuyingChainClaim) -> bool:
+            return bool(
+                candidate.get("entity_key") == claim.entity_key
+                and candidate.get("organization") == claim.organization
+                and candidate.get("person_name") is None
+                and candidate.get("category") == claim.category
+                and candidate.get("organization_relationship") == claim.organization_relationship
+                and candidate.get("person_organization_relationship")
+                == claim.person_organization_relationship
+                and candidate.get("person_project_relationship")
+                == claim.person_project_relationship
+            )
+
+        live_role_candidates = [
+            item
+            for item in continuity_candidates
+            if same_company_role(item, new_claim)
+            and not item.get("stale")
+            and not item.get("suppressed")
+            and not item.get("correction_stale")
+            and item.get("company_identity_id")
+        ]
+        live_company_ids = {
+            str(item["company_identity_id"])
+            for item in live_role_candidates
+            if item.get("company_identity_id")
+        }
+        prior_role_claims = (
+            session.scalars(
+                select(BuyingChainClaim).where(
+                    BuyingChainClaim.id.in_([UUID(value) for value in prior_run_ids]),
+                    BuyingChainClaim.project_id == project.id,
+                    BuyingChainClaim.entity_key == new_claim.entity_key,
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            ).all()
+            if prior_run_ids
+            else []
+        )
+        prior_role_claims = [
+            item
+            for item in prior_role_claims
+            if item.organization == new_claim.organization
+            and item.category == new_claim.category
+            and item.organization_relationship == new_claim.organization_relationship
+            and item.person_organization_relationship == new_claim.person_organization_relationship
+            and item.person_project_relationship == new_claim.person_project_relationship
+        ]
+        prior_company_ids: set[str] = set()
+        ambiguous_prior_links = False
+        for receipt_claim in prior_role_claims:
+            receipt_links = session.scalars(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id == receipt_claim.id,
+                    BuyingChainIdentityLink.entity_type == "company",
+                    BuyingChainIdentityLink.state == "current",
+                )
+            ).all()
+            if len(receipt_links) > 1:
+                ambiguous_prior_links = True
+            elif len(receipt_links) == 1:
+                identity_id = receipt_links[0].company_identity_id
+                if identity_id is not None:
+                    prior_company_ids.add(str(identity_id))
+        ambiguous_live_lineage = (
+            len(live_company_ids | prior_company_ids) > 1 or ambiguous_prior_links
+        )
+        if ambiguous_live_lineage:
+            continuity_candidates = [
+                item for item in continuity_candidates if not same_company_role(item, new_claim)
+            ]
+        from gridlens.ingestion.adapters.retained_company_projects import (
+            RETRIEVAL_METHOD as RETAINED_COMPANY_PROJECTS_METHOD,
+        )
+        from gridlens.ingestion.adapters.retained_company_projects import (
+            SCHEMA_VERSION as RETAINED_COMPANY_PROJECTS_SCHEMA,
+        )
+        from gridlens.ingestion.adapters.retained_company_projects import (
+            SOURCE_ID as RETAINED_COMPANY_PROJECTS_SOURCE,
+        )
+
+        receipt_source_contract = session.get(Source, project.source_id)
+        native_receipt_contract = bool(
+            project.source_id == RETAINED_COMPANY_PROJECTS_SOURCE
+            and receipt_source_contract is not None
+            and receipt_source_contract.retrieval_method == RETAINED_COMPANY_PROJECTS_METHOD
+        )
+        if (
+            missing_receipt_ids
+            and not live_role_candidates
+            and not ambiguous_live_lineage
+            and native_receipt_contract
+        ):
+            # A retained observation can be superseded between runs, removing
+            # the old claim from the live view. Recover only the immediately
+            # prior run's project-scoped company link as identity lineage.
+            receipt_claims = session.scalars(
+                select(BuyingChainClaim).where(
+                    BuyingChainClaim.id.in_([UUID(value) for value in missing_receipt_ids]),
+                    BuyingChainClaim.project_id == project.id,
+                    BuyingChainClaim.entity_key == new_claim.entity_key,
+                    BuyingChainClaim.person_name.is_(None),
+                )
+            ).all()
+            matching_receipt_claims = [
+                receipt_claim
+                for receipt_claim in receipt_claims
+                if receipt_claim.organization == new_claim.organization
+                and receipt_claim.category == new_claim.category
+                and receipt_claim.organization_relationship == new_claim.organization_relationship
+                and receipt_claim.person_organization_relationship
+                == new_claim.person_organization_relationship
+                and receipt_claim.person_project_relationship
+                == new_claim.person_project_relationship
+            ]
+            valid_receipts: list[dict[str, Any]] = []
+            for receipt_claim in (
+                matching_receipt_claims if len(matching_receipt_claims) == 1 else []
+            ):
+                receipt_links = session.scalars(
+                    select(BuyingChainIdentityLink).where(
+                        BuyingChainIdentityLink.claim_id == receipt_claim.id,
+                        BuyingChainIdentityLink.entity_type == "company",
+                        BuyingChainIdentityLink.state == "current",
+                    )
+                ).all()
+                if len(receipt_links) != 1 or receipt_links[0].basis != "project_scoped":
+                    continue
+                receipt_link = receipt_links[0]
+                prior_citation = next(
+                    (
+                        row
+                        for row in receipt_claim.citations
+                        if row.get("supports") == "project_organization"
+                        and str(row.get("evidence_id")) == str(receipt_link.source_evidence_id)
+                    ),
+                    None,
+                )
+                if prior_citation is None:
+                    continue
+                receipt_source = session.get(
+                    BuyingChainEvidence, UUID(str(prior_citation["evidence_id"]))
+                )
+                prior_quote = prior_citation.get("quote")
+                if (
+                    receipt_source is None
+                    or receipt_source.project_id != project.id
+                    or receipt_link.source_version_hash != receipt_source.content_hash
+                    or not isinstance(prior_quote, str)
+                    or prior_quote not in receipt_source.excerpt
+                    or session.scalar(
+                        select(BuyingChainCorrection.id)
+                        .where(BuyingChainCorrection.claim_id == receipt_claim.id)
+                        .limit(1)
+                    )
+                    is not None
+                ):
+                    continue
+                valid_receipts.append(
+                    {
+                        "id": str(receipt_claim.id),
+                        "entity_key": receipt_claim.entity_key,
+                        "organization": receipt_claim.organization,
+                        "person_name": None,
+                        "title": receipt_claim.title,
+                        "category": receipt_claim.category,
+                        "organization_relationship": receipt_claim.organization_relationship,
+                        "person_organization_relationship": (
+                            receipt_claim.person_organization_relationship
+                        ),
+                        "person_project_relationship": receipt_claim.person_project_relationship,
+                        "stale": False,
+                        "suppressed": False,
+                        "correction_stale": False,
+                        "_prior_run_receipt": True,
+                        "company_identity_id": str(receipt_link.company_identity_id),
+                        "evidence": [
+                            {
+                                "id": str(receipt_source.id),
+                                "url": prior_citation["url"],
+                                "quote": prior_citation["quote"],
+                                "supports": "project_organization",
+                                # This is lineage metadata from a superseded
+                                # run, never current evidence support.
+                                "current_support": False,
+                            }
+                        ],
+                    }
+                )
+            if len(valid_receipts) == 1:
+                from gridlens.intelligence.identity_reconciliation import (
+                    _prior_run_receipt_scope_is_unambiguous,
+                )
+
+                valid_receipt = valid_receipts[0]
+                if _prior_run_receipt_scope_is_unambiguous(
+                    latest_run_claim_ids=prior_run_ids,
+                    matching_claim_ids={str(item.id) for item in matching_receipt_claims},
+                    selected_claim_id=valid_receipt["id"],
+                    company_identity_ids=live_company_ids | prior_company_ids,
+                ):
+                    continuity_candidates.append(valid_receipt)
+        for previous in continuity_candidates:
             prior = session.get(BuyingChainClaim, previous["id"])
             if prior is None or prior.entity_key != new_claim.entity_key:
                 continue
@@ -1769,7 +2067,7 @@ def enrich_buying_chain(
                     for e in previous["evidence"]
                     if e.get("current_support") and str(e["id"]) == str(link.source_evidence_id)
                 ]
-                replacement = next(
+                exact_replacement = next(
                     (
                         c
                         for c in citations
@@ -1782,8 +2080,164 @@ def enrich_buying_chain(
                     ),
                     None,
                 )
+                from gridlens.intelligence.identity_reconciliation import (
+                    _same_project_scoped_company_role_revision,
+                )
+
+                changed_quote_replacement = (
+                    next(
+                        (
+                            c
+                            for c in citations
+                            if c["supports"] == "project_organization"
+                            and any(
+                                c["url"] == e["url"]
+                                and e["supports"] == "project_organization"
+                                and c["quote"] != e["quote"]
+                                for e in old_support
+                            )
+                        ),
+                        None,
+                    )
+                    if not previous.get("_prior_run_receipt")
+                    and _same_project_scoped_company_role_revision(
+                        prior,
+                        new_claim,
+                        link,
+                        previous,
+                        old_support,
+                        citations,
+                    )
+                    else None
+                )
+                if changed_quote_replacement is None and previous.get("_prior_run_receipt"):
+                    from gridlens.intelligence.identity_reconciliation import (
+                        _same_prior_run_project_scoped_company_role_revision,
+                    )
+
+                    prior_source = session.get(BuyingChainEvidence, link.source_evidence_id)
+                    prior_citation = next(
+                        (
+                            row
+                            for row in prior.citations
+                            if row.get("supports") == "project_organization"
+                            and str(row.get("evidence_id")) == str(link.source_evidence_id)
+                        ),
+                        None,
+                    )
+                    if (
+                        prior_source is not None
+                        and prior_citation is not None
+                        and _same_prior_run_project_scoped_company_role_revision(
+                            prior,
+                            new_claim,
+                            link,
+                            prior_claim_ids=prior_run_ids,
+                            prior_source=prior_source,
+                            prior_citation=prior_citation,
+                            current_citations=citations,
+                        )
+                    ):
+                        changed_quote_replacement = next(
+                            (
+                                citation
+                                for citation in citations
+                                if citation.get("supports") == "project_organization"
+                                and citation.get("url") == prior_source.url
+                            ),
+                            None,
+                        )
+                        replacement_source = (
+                            session.get(
+                                BuyingChainEvidence,
+                                UUID(str(changed_quote_replacement["evidence_id"])),
+                            )
+                            if changed_quote_replacement
+                            else None
+                        )
+                        accepted = (
+                            session.get(Evidence, replacement_source.retained_evidence_id)
+                            if replacement_source and replacement_source.retained_evidence_id
+                            else None
+                        )
+                        prior_retained = (
+                            session.get(Evidence, prior_source.retained_evidence_id)
+                            if prior_source and prior_source.retained_evidence_id
+                            else None
+                        )
+                        contiguous_versions = False
+                        if (
+                            accepted is not None
+                            and prior_retained is not None
+                            and accepted.observation_id == prior_retained.observation_id
+                            and accepted.observed_at > prior_retained.observed_at
+                        ):
+                            adjacent_versions = session.scalars(
+                                select(Evidence)
+                                .where(Evidence.observation_id == accepted.observation_id)
+                                .order_by(Evidence.observed_at.desc(), Evidence.id.desc())
+                                .limit(2)
+                            ).all()
+                            from gridlens.intelligence.identity_reconciliation import (
+                                _adjacent_prior_retained_evidence_versions,
+                            )
+
+                            contiguous_versions = _adjacent_prior_retained_evidence_versions(
+                                prior_retained, accepted, adjacent_versions
+                            )
+                            if contiguous_versions:
+                                from gridlens.intelligence.identity_reconciliation import (
+                                    _retained_company_project_history_is_safe,
+                                )
+
+                                observation = session.get(Observation, accepted.observation_id)
+                                evidence_history = session.scalars(
+                                    select(Evidence)
+                                    .where(Evidence.observation_id == accepted.observation_id)
+                                    .order_by(Evidence.observed_at.desc(), Evidence.id.desc())
+                                    .limit(65)
+                                ).all()
+                                contiguous_versions = bool(
+                                    observation is not None
+                                    and observation.source_id == RETAINED_COMPANY_PROJECTS_SOURCE
+                                    and accepted.url == prior_retained.url
+                                    and _retained_company_project_history_is_safe(
+                                        evidence_history,
+                                        source_id=RETAINED_COMPANY_PROJECTS_SOURCE,
+                                        schema_version=RETAINED_COMPANY_PROJECTS_SCHEMA,
+                                    )
+                                )
+                        replacement_quote = (
+                            changed_quote_replacement.get("quote")
+                            if changed_quote_replacement
+                            else None
+                        )
+                        if (
+                            replacement_source is None
+                            or not isinstance(replacement_quote, str)
+                            or replacement_quote not in replacement_source.excerpt
+                            or accepted is None
+                            or not contiguous_versions
+                            or not _retained_evidence_current_for_project(
+                                session, project, accepted
+                            )
+                        ):
+                            changed_quote_replacement = None
+                replacement = exact_replacement or changed_quote_replacement
                 if replacement is None:
                     continue
+                if changed_quote_replacement is not None:
+                    from gridlens.intelligence.identity_reconciliation import (
+                        _automatic_identity_mutation_allowed,
+                    )
+
+                    company_identity_id = link.company_identity_id
+                    if company_identity_id is None or not _automatic_identity_mutation_allowed(
+                        session,
+                        [prior, new_claim],
+                        proposed_company_ids={company_identity_id},
+                    ):
+                        continue
                 replacement_source = session.get(
                     BuyingChainEvidence, UUID(replacement["evidence_id"])
                 )
@@ -1796,7 +2250,11 @@ def enrich_buying_chain(
                         company_identity_id=link.company_identity_id,
                         person_identity_id=link.person_identity_id,
                         basis=link.basis,
-                        reason="Unchanged source-cited relationship across contact revision.",
+                        reason=(
+                            "Same project-scoped company role continues across a source revision."
+                        )
+                        if changed_quote_replacement is not None
+                        else "Unchanged source-cited relationship across contact revision.",
                         reviewed_by=link.reviewed_by,
                         source_evidence_id=replacement_source.id,
                         source_version_hash=replacement_source.content_hash,
@@ -1805,6 +2263,45 @@ def enrich_buying_chain(
                 )
         current_claim_ids.append(str(new_claim.id))
         added += 1
+    # SEC filings are identity evidence, not project evidence. Retain a filing
+    # already retrieved in this pass when it proves an exact current company
+    # candidate; do not use it to create a project relationship claim.
+    sec_identity_evidence_ids: list[UUID] = []
+    from gridlens.intelligence.company_domain_proof import parse_sec_domain_assertion
+
+    current_company_names = {
+        claim.organization
+        for claim_id in current_claim_ids
+        if (claim := session.get(BuyingChainClaim, UUID(claim_id))) is not None
+        and claim.person_name is None
+        and claim.organization.strip()
+    }
+    for doc, _matched, _reason, retained_id in documents:
+        if retained_id is not None:
+            continue
+        sec_candidate = SimpleNamespace(
+            url=doc.url,
+            excerpt=doc.text,
+            content_hash=document_content_hash(doc),
+        )
+        if not any(
+            parse_sec_domain_assertion(
+                sec_candidate,
+                organization=organization,
+            )
+            for organization in current_company_names
+        ):
+            continue
+        sec_row = _store_document(
+            session,
+            project,
+            doc,
+            "SEC issuer identity evidence; no project relationship inferred.",
+            None,
+            seen_at=now,
+        )
+        saved[document_key(doc)] = sec_row
+        sec_identity_evidence_ids.append(sec_row.id)
     if not candidates:
         unresolved.append("No explicit buying-chain relationship found; buyer remains UNKNOWN.")
     if not any(item.person_project_relationship == "DIRECT" for item in candidates):
@@ -1870,6 +2367,18 @@ def enrich_buying_chain(
             )
         )
     session.flush()
+    if sec_identity_evidence_ids:
+        from gridlens.intelligence.regulatory_company_identity import (
+            bind_sec_domain_proofs_to_current_claims,
+        )
+
+        bind_sec_domain_proofs_to_current_claims(
+            session,
+            project_id=project.id,
+            claim_ids=current_claim_ids,
+            sec_evidence_ids=sec_identity_evidence_ids,
+            now=now,
+        )
     from gridlens.intelligence.identity_reconciliation import ensure_project_scoped_identity_links
 
     ensure_project_scoped_identity_links(session, current_claim_ids)

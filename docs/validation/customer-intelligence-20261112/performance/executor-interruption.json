@@ -1,0 +1,15 @@
+{
+  "recovery_verified_at": "2026-11-13T00:04:54.266842+00:00",
+  "interruption": "write_stdin transport disconnected; executor reported recovery timed out after 45 seconds. Fresh exec then rejected no usable execution environment. Cloud status simultaneously reported running/connected.",
+  "recovery_evidence": "Fresh exec succeeded; both ingestion JSON reports and sanitized logs existed; ingestion metadata had finished_at and two zero-exit command records. No benchmark duplication occurred.",
+  "ingestion_finished_at": "2026-11-13T00:03:01.268752+00:00",
+  "ingestion_command_exits": {
+    "base": 0,
+    "candidate": 0
+  },
+  "source_unchanged_checks": {
+    "base": true,
+    "candidate": true
+  },
+  "continuation": "Rollup measurement started only after existing ingestion completion was verified."
+}

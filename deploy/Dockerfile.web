@@ -3,7 +3,15 @@ WORKDIR /app
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web ./
-RUN npm run build
+ARG GRIDLENS_BUILD_SHA
+ARG GRIDLENS_DEPLOYMENT_ENVIRONMENT
+ARG GRIDLENS_DEPLOYED_AT
+ENV VITE_GIT_SHA=$GRIDLENS_BUILD_SHA \
+    VITE_DEPLOYMENT_ENVIRONMENT=$GRIDLENS_DEPLOYMENT_ENVIRONMENT \
+    VITE_DEPLOYED_AT=$GRIDLENS_DEPLOYED_AT
+COPY deploy/validate-web-build.sh /usr/local/bin/validate-web-build.sh
+COPY deploy/validate-web-build.mjs /usr/local/bin/validate-web-build.mjs
+RUN sh /usr/local/bin/validate-web-build.sh pre && npm run build && sh /usr/local/bin/validate-web-build.sh post /app/dist
 
 FROM nginx:1.28-alpine
 RUN apk upgrade --no-cache

@@ -1,0 +1,296 @@
+{
+  "date": "2026-11-13",
+  "baseline_commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+  "optimized_commit": "e653c78f11b48dad2926d37c72a5d35f5b1512fc",
+  "source_manifests": {
+    "baseline": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+    "optimized": "08b731418fd83c707fc6264b37bdac0bf777c9400a070fe019d9c947d1d57cb1",
+    "baseline_stable_during_runs": true,
+    "optimized_stable_during_runs": true
+  },
+  "runtime": {
+    "postgres": "PostgreSQL 16.2, local loopback port 55439",
+    "python": "3.11.16",
+    "sqlalchemy": "2.0.41",
+    "beautifulsoup4": "4.13.4",
+    "soupsieve": "4.0",
+    "psycopg": "3.2.9",
+    "paid_or_external_providers_used": false
+  },
+  "ingestion": {
+    "baseline_database": "gl3_mission_ingest_recheck_base_test",
+    "optimized_database": "gl3_mission_ingest_repro_candidate_test",
+    "baseline_recheck_same_day": true,
+    "optimized_run_instrumented": true,
+    "observer_samples": 411,
+    "active_samples": 77,
+    "active_wait_event_samples": {
+      "none/none": 72,
+      "IO/DataFileExtend": 1,
+      "Client/ClientRead": 3,
+      "IO/WALSync": 1
+    },
+    "blocking_pid_samples": 0,
+    "max_active_query_age_ms": 520.5,
+    "host_pressure_samples": 447,
+    "cpu_io_pressure_files_available": false,
+    "cpu_throttled_usec_delta": 13562753,
+    "host_loadavg_before": "0.22 0.60 0.46 1/797 90092",
+    "host_loadavg_after": "1.49 0.88 0.57 1/797 90167",
+    "same_day_phases": {
+      "a_all_new": {
+        "baseline": {
+          "records": 300,
+          "wall_seconds": 50.50869770999998,
+          "statements": 27067,
+          "project_scan_statements": 2100,
+          "project_scan_seconds": 3.027896724997845,
+          "explicit_lock_statements": 4210,
+          "commits": 5
+        },
+        "optimized": {
+          "records": 300,
+          "wall_seconds": 48.08477913800016,
+          "statements": 27667,
+          "project_scan_statements": 2100,
+          "project_scan_seconds": 1.9410943711554864,
+          "explicit_lock_statements": 4210,
+          "commits": 5
+        },
+        "deltas": {
+          "wall_seconds": -2.424,
+          "wall_percent": -4.8,
+          "sql_statements": 600,
+          "project_scan_statements": 0,
+          "project_scan_seconds": -1.087
+        }
+      },
+      "b_all_unchanged": {
+        "baseline": {
+          "records": 300,
+          "wall_seconds": 3.8965876549991663,
+          "statements": 3927,
+          "project_scan_statements": 300,
+          "project_scan_seconds": 0.10769852101293509,
+          "explicit_lock_statements": 1510,
+          "commits": 5
+        },
+        "optimized": {
+          "records": 300,
+          "wall_seconds": 3.629394094001327,
+          "statements": 3927,
+          "project_scan_statements": 300,
+          "project_scan_seconds": 0.0924601009755861,
+          "explicit_lock_statements": 1510,
+          "commits": 5
+        },
+        "deltas": {
+          "wall_seconds": -0.267,
+          "wall_percent": -6.9,
+          "sql_statements": 0,
+          "project_scan_statements": 0,
+          "project_scan_seconds": -0.015
+        }
+      },
+      "c_5%_changed": {
+        "baseline": {
+          "records": 300,
+          "wall_seconds": 4.698293318000651,
+          "statements": 4887,
+          "project_scan_statements": 375,
+          "project_scan_seconds": 0.1221987129720219,
+          "explicit_lock_statements": 1660,
+          "commits": 5
+        },
+        "optimized": {
+          "records": 300,
+          "wall_seconds": 4.616881540001486,
+          "statements": 4917,
+          "project_scan_statements": 375,
+          "project_scan_seconds": 0.11110906698377221,
+          "explicit_lock_statements": 1660,
+          "commits": 5
+        },
+        "deltas": {
+          "wall_seconds": -0.081,
+          "wall_percent": -1.7,
+          "sql_statements": 30,
+          "project_scan_statements": 0,
+          "project_scan_seconds": -0.011
+        }
+      }
+    },
+    "interpretation": "Project scan counts match same-day baseline in all three phases. Remaining SQL delta is +2 statements per new/changed record in the typed-fact validation path; unchanged replay has no SQL delta. The candidate all-new phase ran under an external activity observer, so wall time is diagnostic and not a causal speedup claim.",
+    "initial_uninstrumented_failure": {
+      "database": "gl3_mission_ingest_recheck_candidate_test",
+      "stage": "process_records autoflush inserting need_observations",
+      "cancelled_statement": "trigger invalidate_browse_generation UPDATE browse_state WHERE id=1",
+      "setting": "SET LOCAL statement_timeout = 2500ms; this is a per-statement deadline, not a cumulative transaction deadline",
+      "cause": "unresolved",
+      "post_failure_pg_stat_activity": "No active session or lock remained when sampled; no historical pg_stat_statements extension was installed.",
+      "reproduction": "One instrumented fresh-candidate reproduction completed without timeout; this does not establish the first timeout as a flake."
+    }
+  },
+  "rollup": {
+    "baseline_database": "gl3_mission_rollup_scale_base_test",
+    "optimized_database": "gl3_mission_rollup_scale_recheck_candidate_test",
+    "corpus": {
+      "projects": 40000,
+      "needs": 48,
+      "evidence": 48,
+      "company_groups": 38319,
+      "companies": 16
+    },
+    "read_context": "Ten read-only samples per page size; 15-second statement timeout; SET LOCAL jit = off; direct service calls.",
+    "page_sizes": {
+      "1": {
+        "baseline": {
+          "p50_ms": 2617.0905000000002,
+          "p95_ms": 7357.406,
+          "sql_statements": [
+            55,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 5475,
+          "account_total": 38319
+        },
+        "optimized": {
+          "p50_ms": 2725.441,
+          "p95_ms": 7853.802,
+          "sql_statements": [
+            55,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 7180,
+          "account_total": 38319
+        },
+        "deltas": {
+          "p50_percent": 4.1,
+          "p95_percent": 6.7,
+          "payload_bytes": 1705,
+          "payload_multiple": 1.31,
+          "sql_count_sets_equal": true
+        }
+      },
+      "25": {
+        "baseline": {
+          "p50_ms": 2553.593,
+          "p95_ms": 3008.182,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 15760,
+          "account_total": 38319
+        },
+        "optimized": {
+          "p50_ms": 2863.4085,
+          "p95_ms": 4282.299,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 57128,
+          "account_total": 38319
+        },
+        "deltas": {
+          "p50_percent": 12.1,
+          "p95_percent": 42.4,
+          "payload_bytes": 41368,
+          "payload_multiple": 3.62,
+          "sql_count_sets_equal": true
+        }
+      },
+      "50": {
+        "baseline": {
+          "p50_ms": 2573.2309999999998,
+          "p95_ms": 3035.948,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 26360,
+          "account_total": 38319
+        },
+        "optimized": {
+          "p50_ms": 2870.1459999999997,
+          "p95_ms": 3739.911,
+          "sql_statements": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "payload_utf8_bytes": 109378,
+          "account_total": 38319
+        },
+        "deltas": {
+          "p50_percent": 11.5,
+          "p95_percent": 23.2,
+          "payload_bytes": 83018,
+          "payload_multiple": 4.15,
+          "sql_count_sets_equal": true
+        }
+      }
+    },
+    "provider_ledger_rows": {
+      "logical_calls": 0,
+      "logical_call_budgets": 0,
+      "logical_call_settlements": 0
+    },
+    "interpretation": "SQL counts remain flat across page sizes 25 and 50. Ten-sample nearest-rank p95 is the maximum and is unstable. Candidate payload includes the new commercial intelligence projection."
+  },
+  "limitations": [
+    "Synthetic sources and local PostgreSQL only; no production or retained data used.",
+    "Ingestion is one run per side; instrumented candidate wall time has observer overhead, and the two same-day wall results are diagnostic rather than an SLA comparison.",
+    "The initial candidate timeout cause is unresolved despite one successful instrumented reproduction.",
+    "Rollup baseline reads an existing synthetic corpus; candidate reads a fresh seeded corpus with matching row counts.",
+    "The comparison does not prove absence of N+1 queries for other account/contact shapes."
+  ]
+}

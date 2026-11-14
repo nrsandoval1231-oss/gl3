@@ -100,7 +100,20 @@ function parseDemandSummary(value: unknown, requestedSector: DemandSummary['sect
       !Array.isArray(body.limitations) || !body.limitations.every(item => typeof item === 'string')) invalid()
   return body as unknown as DemandSummary
 }
-export type OpportunityGroup = { pursued_eligible_need_count?: number; matched_need_id?: string | null; matched_project_id?: string | null; eligible_need_count?: number; featured_project?: ProjectResult | null; account_contact_project?: ProjectResult | null; relevant_project_count?: number; total_known_project_count?: number; id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
+export type CommercialCustomerIntelligence = {
+  version: string
+  capacity: { status: string; totals: Array<{ basis: string; value_mw: string | null; status: string; qualifier?: string; complete?: boolean; claim_ids?: string[] }>; coverage?: Record<string, unknown>; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
+  timelines: { construction_start?: { label: string; precision?: string; event_type?: string } | null; expected_energization?: { label: string; precision?: string; event_type?: string } | null; reported_target?: { event_type: string; label: string }; claims?: Array<Record<string, unknown>>; conflicts?: unknown[]; conflict_count?: number }
+  commissioning?: { status: string; version?: string; base_mw?: string | null; low_mw?: string | null; high_mw?: string | null; assumptions?: string[]; limitations?: string[]; [key: string]: unknown }
+  recent_developments: Array<Record<string, unknown>>
+  priority: { potential: number; confidence: number; score: number; components?: Record<string, unknown>; version: string; priority_basis?: { timing?: { kind: string; event_type?: string; label?: string } } }
+  recommended_next_action: string
+  source_count?: number
+  details_available?: boolean
+  sources?: Array<Record<string, unknown>>
+  limitations: string[]
+}
+export type OpportunityGroup = { commercial_intelligence?: CommercialCustomerIntelligence; pursued_eligible_need_count?: number; matched_need_id?: string | null; matched_project_id?: string | null; eligible_need_count?: number; featured_project?: ProjectResult | null; account_contact_project?: ProjectResult | null; relevant_project_count?: number; total_known_project_count?: number; id: string; name: string; role: 'operator' | 'customer' | 'unresolved'; group_kind?: 'resolved_identity' | 'same_name_unconfirmed' | 'unresolved'; identity_count?: number; operator_number?: string | null; project_count: number; need_count: number; priority_score?: number | null; sectors: string[] }
 export type OpportunityGroupsPage = BrowseGenerationMetadata & { totals?: { accounts: number; projects: number; needs: number }; items: OpportunityGroup[]; total: number; count_unit: 'groups'; limit: number; offset: number; cohort_token: string; generation: string; facets?: { regions: string[]; stages: string[] } }
 export type CustomerRollupFilters = { region?: string; stage?: string; priority?: 'ranked' | 'unranked' | '' }
 export type CustomerRollupSort = 'priority' | 'priority_asc' | 'company' | 'updated'
@@ -337,7 +350,7 @@ export const client = {
     if (!response.ok) throw new Error(`Could not load identified power demand (${response.status}).`)
     return parseDemandSummary(await response.json() as unknown, sector)
   },
-  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
+  opportunityGroups: async (query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean; canonical_only?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupsPage> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups?${params}`, { credentials: 'same-origin', signal })
@@ -349,7 +362,7 @@ export const client = {
     requireCurrentBrowseGeneration(value)
   return value
   },
-  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
+  groupProjects: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; offset?: number; cohort_token?: string; parent_cohort_token?: string; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean; canonical_only?: boolean }, signal?: AbortSignal): Promise<ProjectResultsPage & { group?: Pick<OpportunityGroup, 'id' | 'name' | 'role'> }> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/projects?${params}`, { credentials: 'same-origin', signal })
@@ -362,7 +375,7 @@ export const client = {
     requireCurrentBrowseGeneration(value)
     return value
   },
-  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
+  openOpportunityGroup: async (groupId: string, query: { search?: string; sector?: 'all' | 'oil_gas' | 'data_centers'; limit?: number; sort?: CustomerRollupSort; region?: string; stage?: string; priority?: CustomerRollupFilters['priority']; shortlist?: boolean; canonical_only?: boolean }, signal?: AbortSignal): Promise<OpportunityGroupOpen> => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     const response = await sessionFetch(`/api/opportunities/groups/${encodeURIComponent(groupId)}/open?${params}`, { credentials: 'same-origin', signal })

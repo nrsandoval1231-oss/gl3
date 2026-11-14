@@ -36,6 +36,7 @@ def _cohort(
     priority: str | None = None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
     route: str | None = None,
 ):
     generation = selected_generation or current_generation(session, allow_stale=True, route=route)
@@ -53,7 +54,7 @@ def _cohort(
         else []
     )
     payload: list[Any] = [
-        "customer-rollup-v2-tdlr-owner-namebucket",
+        "customer-rollup-v3-commercial-facts",
         str(generation.id),
         generation.digest,
         sector,
@@ -77,6 +78,8 @@ def _cohort(
             ).encode()
         ).hexdigest(),
     ]
+    if canonical_only:
+        payload.append("canonical-only-v1")
     token = "p1_" + hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
     return generation, term, token
 
@@ -164,6 +167,11 @@ def _current_graph_alias_projects(session, generation, term: str) -> list[UUID]:
                     WHERE own.generation_id=:generation AND own.project_id=be.project_id
                       AND own.role = ANY(CAST(:owner_roles AS text[]))
                   ) THEN cm.role = ANY(CAST(:owner_roles AS text[]))
+                  WHEN EXISTS (
+                    SELECT 1 FROM browse_customer_memberships pc
+                    WHERE pc.generation_id=:generation AND pc.project_id=be.project_id
+                      AND pc.role='project_customer'
+                  ) THEN cm.role='project_customer'
                   ELSE cm.role='asset_operator' END
                 ELSE true END
               AND NOT EXISTS (
@@ -345,6 +353,9 @@ def _group_filter(*, term, region, stage, priority, alias="g", session=None, gen
             "WHERE own.generation_id=sb.generation_id AND own.project_id=sb.project_id "
             "AND own.role = ANY(CAST(:owner_roles AS text[]))) "
             "THEN cm.role = ANY(CAST(:owner_roles AS text[])) "
+            "WHEN EXISTS (SELECT 1 FROM browse_customer_memberships pc "
+            "WHERE pc.generation_id=sb.generation_id AND pc.project_id=sb.project_id "
+            "AND pc.role='project_customer') THEN cm.role='project_customer' "
             "ELSE cm.role='asset_operator' END ELSE true END "
             "AND NOT EXISTS (SELECT 1 FROM browse_unresolved_customers conflict "
             "WHERE conflict.generation_id=sb.generation_id AND conflict.project_id=sb.project_id "
@@ -361,19 +372,46 @@ def _group_filter(*, term, region, stage, priority, alias="g", session=None, gen
     return " AND ".join(clauses), params
 
 
-def _facets(session, generation, sector):
+def _facets(session, generation, sector, canonical_only=False):
     where, params = _query_parts(generation, "", sector)
+    ctes = ""
+    source = "browse_rows b"
+    if canonical_only:
+        shortlist_state = assignment_context(session, generation, False)
+        ctes = _ctes(
+            where,
+            shortlist_state["data"],
+            include_commercial_projects=False,
+        )
+        params.update(
+            {
+                key: shortlist_state[key]
+                for key in (
+                    "eligible_need_ids",
+                    "priority_map",
+                    "shortlist_enabled",
+                    "pursued_need_ids",
+                    "need_alias_map",
+                )
+            }
+        )
+        params.update(shortlist_state["asset_params"])
+        source = (
+            "all_rows b JOIN assigned a ON a.asset_key=b.asset_key "
+            "JOIN grouped g ON g.group_key=a.group_key"
+        )
+        where = "g.group_kind='resolved_identity'"
     row = (
         session.execute(
             text(
-                "SELECT coalesce(array_agg(DISTINCT nullif(b.compact->>'location','') "
+                ctes + "SELECT coalesce(array_agg(DISTINCT nullif(b.compact->>'location','') "
                 "ORDER BY nullif(b.compact->>'location','')) FILTER "
                 "(WHERE nullif(b.compact->>'location','') IS NOT NULL), ARRAY[]::text[]) regions, "
                 "coalesce(array_agg(DISTINCT nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','') ORDER BY nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','')) FILTER (WHERE nullif(b.compact #>> "
                 "'{project_metadata,event,kind}','') IS NOT NULL), ARRAY[]::text[]) stages "
-                "FROM browse_rows b WHERE " + where
+                "FROM " + source + " WHERE " + where
             ),
             params,
         )
@@ -433,7 +471,13 @@ def assignment_context(session, generation, shortlist: bool = False) -> dict[str
     }
 
 
-def _ctes(where: str, shortlist_data=None) -> str:
+def _ctes(
+    where: str,
+    shortlist_data=None,
+    *,
+    include_commercial_projects=True,
+    narrow_compact: bool | None = None,
+) -> str:
     asset_expr = _ASSET_B
     if shortlist_data and shortlist_data["duplicate_project_map"]:
         duplicate_cases = " ".join(
@@ -444,6 +488,30 @@ def _ctes(where: str, shortlist_data=None) -> str:
         asset_expr = f"CASE {duplicate_cases} ELSE ({_ASSET_B}) END"
     customer_roles = ",".join(f"'{role}'" for role in CUSTOMER_ROLE_ORDER)
     owner_roles = ",".join(f"'{role}'" for role in OWNER_ROLES)
+    commercial_projects_aggregate = (
+        """
+        , jsonb_agg(DISTINCT jsonb_build_object(
+          'project_id', ar.project_id, 'company_id', a.company_id,
+          'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb),
+          'priority', ar.compact->'customer_priority',
+          'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)
+        )) AS commercial_projects
+    """
+        if include_commercial_projects
+        else ""
+    )
+    commercial_projects_field = ", gnc.commercial_projects" if include_commercial_projects else ""
+    commercial_projects_group_by = (
+        ", gnc.commercial_projects" if include_commercial_projects else ""
+    )
+    if narrow_compact is None:
+        narrow_compact = not include_commercial_projects
+    matched_compact = (
+        "b.compact - ARRAY['customer_facts', 'customer_developments', "
+        "'customer_priority', 'contact_actions', 'contact_people']::text[]"
+        if narrow_compact
+        else "b.compact"
+    )
     # Both relations use the same cohort predicate, so the asset self-join
     # cannot add rows beyond those already in matched.
     return (
@@ -452,7 +520,16 @@ def _ctes(where: str, shortlist_data=None) -> str:
       SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id,
              coalesce((CAST(:need_alias_map AS jsonb)->>b.need_id::text)::uuid, b.need_id)
                AS canonical_need_id,
-             b.compact,
+             %%MATCHED_COMPACT%% AS compact,
+             (CASE WHEN jsonb_typeof(b.compact->'contact_actions')='array'
+                     THEN jsonb_array_length(b.compact->'contact_actions') > 0 ELSE false END
+               OR CASE WHEN jsonb_typeof(b.compact->'contact_people')='array'
+                     THEN jsonb_array_length(b.compact->'contact_people') > 0 ELSE false END)
+               AS has_contact_actions,
+             CASE WHEN b.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
+                    AND b.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
+                  THEN least(100, (b.compact #>> '{customer_priority,score}')::integer)
+                  ELSE NULL END AS commercial_score,
              b.rank_score, b.updated_at
       FROM browse_rows b WHERE %%WHERE%%
     ), candidate_assets AS (
@@ -491,25 +568,27 @@ def _ctes(where: str, shortlist_data=None) -> str:
         ON bcm.generation_id = :generation AND bcm.project_id = r.project_id
       LEFT JOIN company_identities ci ON ci.id = bcm.company_identity_id
       WHERE bcm.role = ANY(ARRAY[%%CUSTOMER_ROLES%%]::text[])
-    ), membership_project_roles AS (
-      SELECT mc.*
+    ), membership_role_families AS (
+      SELECT mc.*,
+        CASE
+          WHEN mc.sector = 'oil_gas' THEN
+            CASE WHEN mc.role='asset_operator' THEN 0
+                 WHEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) THEN 1
+                 ELSE 99 END
+          WHEN mc.sector = 'data_centers' THEN
+            CASE WHEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) THEN 0
+                 WHEN mc.role='project_customer' THEN 1
+                 ELSE 2 END
+          ELSE 0
+        END AS family_priority
       FROM membership_candidates mc
-      WHERE CASE
-        WHEN mc.sector = 'oil_gas' THEN
-          CASE WHEN EXISTS (
-            SELECT 1 FROM membership_candidates preferred
-            WHERE preferred.project_id=mc.project_id AND preferred.role='asset_operator'
-          ) THEN mc.role='asset_operator'
-          ELSE mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[]) END
-        WHEN mc.sector = 'data_centers' THEN
-          CASE WHEN EXISTS (
-            SELECT 1 FROM membership_candidates preferred
-            WHERE preferred.project_id=mc.project_id
-              AND preferred.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[])
-          ) THEN mc.role = ANY(ARRAY[%%OWNER_ROLES%%]::text[])
-          ELSE mc.role='asset_operator' END
-        ELSE true
-      END
+    ), membership_role_priorities AS (
+      SELECT mf.*,
+             min(family_priority) OVER (PARTITION BY project_id) AS preferred_family
+      FROM membership_role_families mf
+    ), membership_project_roles AS (
+      SELECT * FROM membership_role_priorities
+      WHERE family_priority=preferred_family AND family_priority < 99
     ), memberships AS (
       SELECT DISTINCT asset_key, company_id, rrc_operator_number,
              organization_name, role, role_priority
@@ -685,9 +764,8 @@ def _ctes(where: str, shortlist_data=None) -> str:
         count(DISTINCT ar.canonical_need_id) FILTER (
           WHERE ar.canonical_need_id = ANY(CAST(:pursued_need_ids AS uuid[]))
         )::integer AS pursued_eligible_need_count,
-        bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_actions')='array'
-          THEN jsonb_array_length(ar.compact->'contact_actions') > 0 ELSE false END)
-          AS has_contact_actions
+        bool_or(ar.has_contact_actions) AS has_contact_actions,
+        max(ar.commercial_score) AS commercial_score%%COMMERCIAL_PROJECTS_AGGREGATE%%
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -704,7 +782,7 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(priority_score)::integer AS priority_score,
         count(*)::integer AS project_count,
         gnc.need_count, gnc.eligible_need_count, gnc.pursued_eligible_need_count,
-        gnc.has_contact_actions,
+        gnc.has_contact_actions, gnc.commercial_score%%COMMERCIAL_PROJECTS_FIELD%%,
         count(*) FILTER (
           WHERE asset_key IN (SELECT asset_key FROM eligible_assets)
         )::integer AS relevant_project_count,
@@ -712,13 +790,18 @@ def _ctes(where: str, shortlist_data=None) -> str:
         max(updated_at) AS updated_at
       FROM assigned JOIN grouped_need_counts gnc USING (group_key)
       GROUP BY group_key, gnc.need_count, gnc.eligible_need_count,
-               gnc.pursued_eligible_need_count, gnc.has_contact_actions
+               gnc.pursued_eligible_need_count, gnc.has_contact_actions, gnc.commercial_score
+               %%COMMERCIAL_PROJECTS_GROUP_BY%%
     )
     """.replace("%%ASSET%%", asset_expr)
+        .replace("%%MATCHED_COMPACT%%", matched_compact)
         .replace("%%WHERE%%", where)
         .replace("%%CUSTOMER_ROLE_ORDER%%", customer_roles)
         .replace("%%CUSTOMER_ROLES%%", customer_roles)
         .replace("%%OWNER_ROLES%%", owner_roles)
+        .replace("%%COMMERCIAL_PROJECTS_AGGREGATE%%", commercial_projects_aggregate)
+        .replace("%%COMMERCIAL_PROJECTS_FIELD%%", commercial_projects_field)
+        .replace("%%COMMERCIAL_PROJECTS_GROUP_BY%%", commercial_projects_group_by)
     )
 
 
@@ -777,7 +860,9 @@ def _account_contact_projects(
     if not group_keys:
         return {}
     shortlist_state = shortlist_data
-    sql = _ctes(where, shortlist_state)
+    # Contact selection needs assignment and compact contact rows from browse_rows,
+    # not full customer fact/development JSON on every row in the cohort.
+    sql = _ctes(where, shortlist_state, include_commercial_projects=False)
     candidate_rows = (
         session.execute(
             text(
@@ -800,12 +885,21 @@ def _account_contact_projects(
                 AND b.project_id=ar.project_id AND b.need_id=ar.need_id
               WHERE a.group_key = ANY(CAST(:contact_group_keys AS text[]))
                 AND a.group_kind='resolved_identity' AND a.company_id IS NOT NULL
-                AND jsonb_typeof(b.compact->'contact_actions')='array'
-                AND EXISTS (
-                  SELECT 1 FROM jsonb_array_elements(b.compact->'contact_actions') action
+                AND (EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(CASE
+                    WHEN jsonb_typeof(b.compact->'contact_actions')='array'
+                    THEN b.compact->'contact_actions' ELSE '[]'::jsonb END) action
                   WHERE action->>'company_identity_id'=a.company_id
                     AND action->>'kind' IN ('email','call')
-                )
+                ) OR EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(CASE
+                    WHEN jsonb_typeof(b.compact->'contact_people')='array'
+                    THEN b.compact->'contact_people' ELSE '[]'::jsonb END) person
+                  WHERE person->>'company_identity_id'=a.company_id
+                    AND person->>'record_type'='contact_person'
+                    AND person->>'responsibility' IN (
+                      'Verified project responsibility', 'Verified organizational responsibility')
+                ))
               ORDER BY a.group_key, a.asset_key, b.rank_score DESC,
                        b.updated_at DESC, b.project_id, b.need_id
             """
@@ -828,6 +922,16 @@ def _account_contact_projects(
             if str(action.get("company_identity_id") or "") == primary_id
             and action.get("kind") in {"email", "call"}
         ]
+        actions.extend(
+            person
+            for person in ((row["compact"] or {}).get("contact_people") or [])
+            if isinstance(person, dict)
+            and str(person.get("company_identity_id") or "") == primary_id
+            and person.get("record_type") == "contact_person"
+            and person.get("name")
+            and person.get("responsibility")
+            in {"Verified project responsibility", "Verified organizational responsibility"}
+        )
         if not actions:
             continue
         candidates[id(row)] = {"row": row, "actions": actions}
@@ -855,7 +959,13 @@ def _account_contact_projects(
                 safe_href = _safe_href(href, kind)
             except (TypeError, ValueError):
                 safe_href = None
-            if not safe_href:
+            named_professional = (
+                action.get("record_type") == "contact_person"
+                and action.get("name")
+                and action.get("responsibility")
+                in {"Verified project responsibility", "Verified organizational responsibility"}
+            )
+            if not safe_href and not named_professional:
                 continue
             responsibility = action.get("responsibility")
             responsibility_rank = {
@@ -868,7 +978,7 @@ def _account_contact_projects(
                 responsibility_rank,
                 not bool(action.get("name")),
                 not bool(action.get("title")),
-                0 if kind == "email" else 1,
+                0 if kind == "email" else 1 if kind == "call" else 2,
                 -int(row["priority_score"] or 0),
                 -(row["updated_at"].timestamp() if row["updated_at"] else 0),
                 str(row["project_id"]),
@@ -916,7 +1026,7 @@ def _account_contact_projects(
             ),
             None,
         )
-        if candidate_group and item.get("contact"):
+        if candidate_group and (item.get("contact") or item.get("contact_people")):
             item["customer_identity_id"] = str(chosen[candidate_group]["company_id"])
             result[candidate_group] = item
     return result
@@ -943,6 +1053,7 @@ def groups(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
@@ -960,6 +1071,7 @@ def groups(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="groups",
     )
     _validate_token(token, cohort, offset)
@@ -968,8 +1080,14 @@ def groups(
     # so counts and child serialization remain complete when one project hits.
     where, params = _query_parts(generation, "", sector)
     order = {
-        "priority": "priority_score DESC NULLS LAST, name, group_key",
-        "priority_asc": "priority_score ASC NULLS LAST, name, group_key",
+        "priority": (
+            "(commercial_score IS NOT NULL) DESC, commercial_score DESC NULLS LAST, "
+            "priority_score DESC NULLS LAST, name, group_key"
+        ),
+        "priority_asc": (
+            "(commercial_score IS NOT NULL) DESC, commercial_score ASC NULLS LAST, "
+            "priority_score ASC NULLS LAST, name, group_key"
+        ),
         "company": "lower(name), group_key",
         "updated": "updated_at DESC NULLS LAST, group_key",
     }[sort]
@@ -1007,34 +1125,53 @@ def groups(
         }
     )
     params.update(shortlist_state["asset_params"])
-    sql = _ctes(where, shortlist_state["data"])
+    sql = _ctes(where, shortlist_state["data"], include_commercial_projects=False)
+    page_query = (
+        sql
+        + ", page_rows AS MATERIALIZED (SELECT g.*, count(*) OVER() AS total, "
+        + "count(*) FILTER (WHERE g.group_kind='resolved_identity') "
+        + "OVER() AS account_total, "
+        + "coalesce(sum(g.project_count) OVER(),0) AS project_total, "
+        + "(SELECT count(DISTINCT ar.canonical_need_id) "
+        + "FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key "
+        + "WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE "
+        + selected_totals
+        + (
+            " AND g2.group_kind='resolved_identity' AND g2.relevant_project_count>0"
+            if shortlist
+            else ""
+        )
+        + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
+        + ")) AS need_total FROM grouped g WHERE "
+        + selected
+        + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
+        + (
+            " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
+            if shortlist
+            else ""
+        )
+        + f" ORDER BY {order} LIMIT :limit OFFSET :offset), "
+        + "page_project_rows AS MATERIALIZED ("
+        + "SELECT DISTINCT p.group_key, ar.project_id, a.company_id, ar.need_id "
+        + "FROM page_rows p JOIN assigned a ON a.group_key=p.group_key "
+        + "JOIN all_rows ar ON ar.asset_key=a.asset_key), "
+        + "page_commercial_projects AS ("
+        + "SELECT p.group_key, jsonb_agg(DISTINCT jsonb_build_object("
+        + "'project_id', p.project_id, 'company_id', p.company_id, "
+        + "'facts', coalesce(b.compact->'customer_facts', '[]'::jsonb), "
+        + "'priority', b.compact->'customer_priority', "
+        + "'developments', coalesce(b.compact->'customer_developments', '[]'::jsonb)"
+        + ")) AS commercial_projects FROM page_project_rows p "
+        + "JOIN browse_rows b ON b.generation_id=:generation "
+        + "AND b.project_id=p.project_id AND b.need_id=p.need_id "
+        + "GROUP BY p.group_key) "
+        + "SELECT p.*, cp.commercial_projects FROM page_rows p "
+        + "LEFT JOIN page_commercial_projects cp USING (group_key) "
+        + f"ORDER BY {order}"
+    )
     rows = (
         session.execute(
-            text(
-                sql
-                + " SELECT g.*, count(*) OVER() AS total, "
-                + "count(*) FILTER (WHERE g.group_kind='resolved_identity') "
-                + "OVER() AS account_total, "
-                + "coalesce(sum(g.project_count) OVER(),0) AS project_total, "
-                + "(SELECT count(DISTINCT ar.canonical_need_id) "
-                + "FROM assigned na JOIN all_rows ar ON ar.asset_key=na.asset_key "
-                + "WHERE na.group_key IN (SELECT g2.group_key FROM grouped g2 WHERE "
-                + selected_totals
-                + (
-                    " AND g2.group_kind='resolved_identity' AND g2.relevant_project_count>0"
-                    if shortlist
-                    else ""
-                )
-                + ")) AS need_total FROM grouped g WHERE "
-                + selected
-                + (
-                    " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
-                    if shortlist
-                    else ""
-                )
-                + " "
-                + f"ORDER BY {order} LIMIT :limit OFFSET :offset"
-            ),
+            text(page_query),
             {**params, "limit": limit, "offset": min(offset, generation.row_count)},
         )
         .mappings()
@@ -1069,9 +1206,11 @@ def groups(
                         if shortlist
                         else ""
                     )
+                    + (" AND g2.group_kind='resolved_identity'" if canonical_only else "")
                     + ")) AS needs "
                     + "FROM grouped g WHERE "
                     + selected
+                    + (" AND g.group_kind='resolved_identity'" if canonical_only else "")
                     + (
                         " AND g.group_kind='resolved_identity' AND g.relevant_project_count > 0"
                         if shortlist
@@ -1114,7 +1253,7 @@ def groups(
         featured_rows = (
             session.execute(
                 text(
-                    _ctes(where, shortlist_state["data"])
+                    _ctes(where, shortlist_state["data"], include_commercial_projects=False)
                     + """
                 SELECT DISTINCT ON (a.group_key) a.group_key, ar.project_id AS anchor_project_id,
                        a.asset_key, a.company_id, a.group_kind,
@@ -1233,6 +1372,14 @@ def groups(
     )
     for item, row in zip(items, rows, strict=True):
         item["account_contact_project"] = account_contact_by_group.get(row["group_key"])
+    intelligence = _commercial_by_groups(
+        session,
+        generation=generation,
+        group_rows=rows,
+        compact=True,
+    )
+    for item, row in zip(items, rows, strict=True):
+        item["commercial_intelligence"] = intelligence.get(row["group_key"])
     return {
         "items": items,
         "count_unit": "groups",
@@ -1242,9 +1389,208 @@ def groups(
         "offset": offset,
         "cohort_token": cohort,
         "generation": str(generation.id),
-        "facets": _facets(session, generation, sector),
+        "facets": _facets(session, generation, sector, canonical_only),
         **_snapshot_metadata(generation),
     }
+
+
+def _commercial_by_groups(session, *, generation, group_rows, compact=False):
+    """Consume facts already selected by the canonical grouped query.
+
+    Frozen project facts/developments share the existing cohort query. Only
+    nonempty intelligence needs the batched current history privacy guard.
+    """
+    if not group_rows:
+        return {}
+    from gridlens.domain.customer_intelligence import resolve_customer_intelligence
+    from gridlens.intelligence.saved_history_privacy import (
+        _redact_all_contact_tokens,
+        project_saved_history_privacy,
+    )
+
+    updating = _refresh_state(generation) == "updating"
+    by_group = {}
+    for group_row in group_rows:
+        key = group_row["group_key"]
+        if key in by_group:
+            continue
+        by_group[key] = [
+            {**member, "group_kind": group_row["group_kind"]}
+            for member in group_row.get("commercial_projects", [])
+            if isinstance(member, dict) and member.get("project_id")
+        ]
+    developments = {
+        str(row["project_id"]): row.get("developments", [])
+        for members in by_group.values()
+        for row in members
+    }
+    cards = []
+    keys = []
+    for key, members in by_group.items():
+        if not members:
+            continue
+        resolved = all(row["group_kind"] == "resolved_identity" for row in members)
+        projects = (
+            [
+                {
+                    "project_id": str(row["project_id"]),
+                    "facts": row["facts"]
+                    if not updating and isinstance(row["facts"], list)
+                    else [],
+                }
+                for row in members
+            ]
+            if resolved
+            else []
+        )
+        summary = resolve_customer_intelligence(projects, as_of=generation.built_at.date())
+        frozen_events = (
+            {
+                event["id"]: event
+                for row in members
+                for event in developments.get(str(row["project_id"]), [])
+                if isinstance(event, dict) and event.get("id")
+            }
+            if resolved
+            else {}
+        )
+        summary["recent_developments"] = sorted(
+            frozen_events.values(),
+            key=lambda event: (
+                event.get("observed_at") or "",
+                int(event["id"]) if str(event["id"]).isdigit() else 0,
+                str(event["id"]),
+            ),
+            reverse=True,
+        )[:3]
+        if summary["recent_developments"]:
+            summary["recommended_next_action"] = (
+                "Review the revised capacity or schedule evidence and confirm the "
+                "commissioning plan with the verified project owner."
+            )
+        if updating:
+            summary["recent_developments"] = []
+            summary["limitations"].append(
+                "Commercial facts are refreshing; source changes require a new snapshot. "
+                "Account ordering retains the prior published snapshot."
+            )
+        if not resolved:
+            summary["limitations"].append(
+                "Company identity is unresolved; portfolio totals withheld."
+            )
+        ranked = [row["priority"] for row in members if isinstance(row["priority"], dict)]
+        if ranked and not updating:
+            best = max(ranked, key=lambda value: value.get("score", 0))
+            summary["priority"] = {
+                **summary["priority"],
+                **best,
+                "ranking_method": "maximum supported project score before account pagination",
+            }
+        summary["canonical_company_identity_ids"] = sorted(
+            {str(row["company_id"]) for row in members if resolved and row["company_id"]}
+        )
+        summary["scope"] = (
+            "all account projects in selected sector; independent of child pagination"
+        )
+        cards.append(
+            {
+                "saved_card": {
+                    "project_id": str(members[0]["project_id"]),
+                    "related_project_ids": [str(row["project_id"]) for row in members],
+                    "commercial_intelligence": summary,
+                }
+            }
+        )
+        keys.append(key)
+    needs_privacy = any(
+        row.get("developments")
+        or any(
+            isinstance(package, dict)
+            and any(
+                package.get(field)
+                for field in ("capacity_claims", "timeline_claims", "commissioning_inputs")
+            )
+            for package in row.get("facts", [])
+            if isinstance(row.get("facts"), list)
+        )
+        for members in by_group.values()
+        for row in members
+    )
+    projected = (
+        project_saved_history_privacy(session, {"versions": cards})["versions"]
+        if needs_privacy
+        else cards
+    )
+    result = {
+        key: _redact_all_contact_tokens(item["saved_card"]["commercial_intelligence"])
+        for key, item in zip(keys, projected, strict=True)
+    }
+    return {key: _compact_commercial(value) for key, value in result.items()} if compact else result
+
+
+def _compact_commercial(value: dict) -> dict:
+    """Keep five-second card facts; source quotes and analysis belong in detail."""
+    result = dict(value)
+    result["source_count"] = len(value.get("sources", []))
+    result["details_available"] = True
+    result.pop("sources", None)
+    allowed = {
+        "capacity": {"status", "total_mw", "totals", "coverage"},
+        "timelines": {"construction_start", "expected_energization"},
+        "commissioning": {
+            "status",
+            "low_mw",
+            "base_mw",
+            "high_mw",
+            "confidence",
+            "version",
+            "calculation_version",
+            "demand_class",
+            "verified_customer_demand",
+            "limitations",
+        },
+    }
+    for field, permitted in allowed.items():
+        section = {key: item for key, item in (value.get(field) or {}).items() if key in permitted}
+        if field == "capacity":
+            section["totals"] = [
+                {k: v for k, v in row.items() if k != "claim_ids"}
+                for row in section.get("totals", [])
+            ]
+        if field == "timelines":
+            for key in ("construction_start", "expected_energization"):
+                if isinstance(section.get(key), dict):
+                    section[key] = {
+                        k: v for k, v in section[key].items() if k not in {"quote", "source"}
+                    }
+        if field in {"capacity", "timelines"}:
+            section["conflict_count"] = len((value.get(field) or {}).get("conflicts", []))
+        result[field] = section
+    timing_basis = ((value.get("priority") or {}).get("priority_basis") or {}).get("timing")
+    if (
+        isinstance(timing_basis, dict)
+        and timing_basis.get("kind") == "reported_timing_proxy"
+        and timing_basis.get("event_type")
+        in {"operational_target", "full_operational_target", "ready_for_service"}
+        and isinstance(timing_basis.get("label"), str)
+        and 0 < len(timing_basis["label"]) <= 200
+    ):
+        result["timelines"]["reported_target"] = {
+            "event_type": timing_basis["event_type"],
+            "label": timing_basis["label"],
+        }
+    if isinstance(value.get("priority"), dict):
+        result["priority"] = {
+            key: item
+            for key, item in value["priority"].items()
+            if key in {"version", "potential", "confidence", "score", "ranking_method"}
+        }
+    result.pop("scope", None)
+    result["recent_developments"] = [
+        {k: v for k, v in event.items() if k not in {"before", "after"}}
+        for event in value.get("recent_developments", [])
+    ]
+    return result
 
 
 def group_metadata(
@@ -1259,6 +1605,7 @@ def group_metadata(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     """Resolve one group against the entire filtered cohort without paging headers."""
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -1273,6 +1620,7 @@ def group_metadata(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
     )
     where, params = _query_parts(generation, "", sector)
     shortlist_state = assignment_context(session, generation, shortlist)
@@ -1306,7 +1654,7 @@ def group_metadata(
                 SELECT group_key, name, role, group_kind, identity_count, project_count,
                        relevant_project_count, eligible_need_count,
                        pursued_eligible_need_count, need_count,
-                       priority_score, sectors
+                       priority_score, sectors, commercial_projects
                 FROM grouped g WHERE 'cg_' || md5(group_key) = :id AND """
                 + selected
                 + (
@@ -1314,6 +1662,7 @@ def group_metadata(
                     if shortlist
                     else ""
                 )
+                + (" AND group_kind='resolved_identity'" if canonical_only else "")
             ),
             {**params, "id": group_id, "generation": generation.id, **selected_params},
         )
@@ -1322,7 +1671,7 @@ def group_metadata(
     )
     if row is None:
         raise HTTPException(404, "Customer group not found in this cohort")
-    return {
+    result = {
         "id": _group_id(row["group_key"]),
         "name": row["name"],
         "role": row["role"],
@@ -1337,6 +1686,13 @@ def group_metadata(
         "priority_score": row["priority_score"],
         "sectors": row["sectors"],
     }
+
+    result["commercial_intelligence"] = _commercial_by_groups(
+        session,
+        generation=generation,
+        group_rows=[row],
+    ).get(row["group_key"])
+    return result
 
 
 def group_projects(
@@ -1355,6 +1711,7 @@ def group_projects(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     if sector not in {"all", "oil_gas", "data_centers"}:
         raise HTTPException(422, "sector must be all, oil_gas, or data_centers")
@@ -1372,6 +1729,7 @@ def group_projects(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="group_projects",
     )
     if parent_token is None:
@@ -1430,6 +1788,7 @@ def group_projects(
                  count(*) OVER() AS total
           FROM assigned a
           WHERE 'cg_' || md5(a.group_key) = :id AND {selected}
+            {"AND a.group_kind='resolved_identity'" if canonical_only else ""}
           ORDER BY {child_order}, a.asset_key
           LIMIT :limit OFFSET :offset
         """
@@ -1450,6 +1809,7 @@ def group_projects(
                 + "SELECT count(*) FROM assigned a "
                 + "WHERE 'cg_' || md5(a.group_key) = :id AND "
                 + selected
+                + (" AND a.group_kind='resolved_identity'" if canonical_only else "")
             ),
             {**params, "id": group_id},
         ).scalar_one()
@@ -1538,6 +1898,7 @@ def group_open(
     priority=None,
     selected_generation=None,
     shortlist=False,
+    canonical_only=False,
 ):
     """Load a group header and its first project page in one cohort pass."""
     if sector not in {"all", "oil_gas", "data_centers"}:
@@ -1556,6 +1917,7 @@ def group_open(
         priority=priority,
         selected_generation=selected_generation,
         shortlist=shortlist,
+        canonical_only=canonical_only,
         route="group_open",
     )
     _disable_jit_for_search(session, term)
@@ -1603,7 +1965,7 @@ def group_open(
                  g.project_count, g.relevant_project_count, g.eligible_need_count,
                  g.pursued_eligible_need_count,
                  g.need_count, g.has_contact_actions,
-                 g.priority_score, g.sectors,
+                 g.priority_score, g.sectors, g.commercial_projects,
                  a.anchor_project_id, a.asset_key, a.company_id, a.group_name,
                  ARRAY(SELECT ar2.project_id FROM all_rows ar2
                        WHERE ar2.asset_key=a.asset_key GROUP BY ar2.project_id
@@ -1615,6 +1977,7 @@ def group_open(
                  count(*) OVER() AS child_total
           FROM grouped g JOIN assigned a ON a.group_key = g.group_key
           WHERE 'cg_' || md5(g.group_key) = :id AND {selected}
+            {"AND g.group_kind='resolved_identity'" if canonical_only else ""}
             {
                     "AND g.group_kind='resolved_identity' AND g.relevant_project_count>0"
                     if shortlist
@@ -1774,6 +2137,11 @@ def group_open(
         "priority_score": first["priority_score"],
         "sectors": first["sectors"],
     }
+    group["commercial_intelligence"] = _commercial_by_groups(
+        session,
+        generation=generation,
+        group_rows=[first],
+    ).get(first["group_key"])
     if shortlist:
         group["featured_project"] = featured_project
     contact_projects = (

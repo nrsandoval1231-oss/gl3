@@ -1,0 +1,1914 @@
+{
+  "phase": "matched_interleaved_40k_read_profile",
+  "samples_per_route_page": 20,
+  "database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "generation_id_sha256": "d28fa7da386b6b719afacd9efb12bff5dee0456849d61b66e1c7b55c3c075bc6",
+  "generation_row_count": 40000,
+  "fixture_and_session": {
+    "statement_timeout": "15s",
+    "jit": "off",
+    "selected_generation": true,
+    "data_mutation": false
+  },
+  "source_versions": {
+    "main": {
+      "root": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3",
+      "commit": "c5cb4c484ae84fa888f86b5f4747611fca18e65e",
+      "backend_source_manifest_sha256": "cddc77648a68599a5541a575ab2aba0007d2bafed8b0d390ec41651bb00f9cf4",
+      "backend_source_dirty": false,
+      "execution_scope": "Main c5 customer_results.py file loaded by importlib into the candidate package; transitive gridlens dependencies resolve from the candidate source tree. This is a main-file control, not a full main checkout execution."
+    },
+    "candidate": {
+      "root": "C:\\Users\\nrsan\\.codex\\worktrees\\gl3-native-validation\\gl3",
+      "commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+      "backend_source_manifest_sha256": "49e0a5cd31924d87c80c9e4501157b6c17fd268810f5cb3424f326c23ebdcf3e",
+      "backend_source_dirty": true,
+      "execution_scope": "Candidate customer_results.py and candidate package dependencies."
+    }
+  },
+  "route_contract": {
+    "main_legacy": "Main-file control: c5 customer_results.groups default policy; candidate package dependencies.",
+    "candidate_legacy": "candidate groups(canonical_only=False), matched explicit legacy path",
+    "candidate_default": "candidate groups(canonical_only=True), current default path",
+    "limits": [
+      1,
+      25,
+      50
+    ],
+    "round_order": "main/candidate legacy pair alternates first position; candidate default alternates before/after pair"
+  },
+  "timing_definitions": {
+    "total_ms": "Wall time around direct groups() call; includes all SQL and deterministic projection.",
+    "sql_execute_ms": "Summed DBAPI cursor execute/fetch-call time for SQL issued during groups().",
+    "payload_bytes": "Compact JSON byte count of the returned response body.",
+    "payload_sha256": "SHA-256 of returned compact JSON body; raw body omitted."
+  },
+  "pages": {
+    "1": {
+      "main_legacy": {
+        "samples": [
+          {
+            "total_ms": 1554.611,
+            "sql_execute_ms": 1529.698,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "58815a71f6c5c0c0ace589c9c9b34ab439b838c371da10cd262ee4390ede247d",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1593.454,
+            "sql_execute_ms": 1568.196,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "a9e9c3745c8cc02de726198510fb6ea0dab030e0849d585f81f3b3b200ee01e9",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1574.872,
+            "sql_execute_ms": 1547.285,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "d228b89b29cd051d4705949fbd2ba0dc536b26a564e26335251be96fade74290",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1566.885,
+            "sql_execute_ms": 1542.08,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "ff2d98ffe04e0ea46beaaa458019cfdf19fd9830be61ba7af061e3a5a37bb8e0",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1565.505,
+            "sql_execute_ms": 1539.46,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "6e187e76c9e2e75c74c3e44d8de3fc45971d782ac291ad98ea4ef865249d02ce",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1609.342,
+            "sql_execute_ms": 1582.937,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "f8cf8ea00cfbeff5671b1b16d35c77768f48fd6e08862896f92ae3dc1dfab76c",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1597.301,
+            "sql_execute_ms": 1571.067,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "9127db1c8b249fdf17af780f160462896d4ea8442a6f0fcb01be6b4f32a05e6f",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1615.168,
+            "sql_execute_ms": 1589.967,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "fa2de7c148b82d0e6ffd22c5aa1df5af1eaf291124f5f0d395061fca456c6137",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1589.767,
+            "sql_execute_ms": 1561.694,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "b0827acb4e5c359bb32d0d6b1afd2b3ccf78cd2832d39c8c704def621da5c775",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1535.346,
+            "sql_execute_ms": 1509.063,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "14a854ec09b7e525750b87cadd91bc115567af8af2f17b35b76723bc1e24cb70",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1572.878,
+            "sql_execute_ms": 1545.785,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "b7ebf2ac7b6401921f01259caa03ccdab1d11b688842b53dfafe96412a800581",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1585.573,
+            "sql_execute_ms": 1557.314,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "d5345a5ed0cbfd93487c8a1481c1c0404a13fc61497fa511f3edcc204e9f0c89",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1566.328,
+            "sql_execute_ms": 1541.169,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "c9799f6b4693185115071a5d2942a85ee4fc3ed505193191d75e730aa7f77b09",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1599.303,
+            "sql_execute_ms": 1574.053,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "73bb7ef10c99f33d51f1aa709174e0cdd41df03a8932f038812d8ef9bc770a97",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1579.433,
+            "sql_execute_ms": 1553.431,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "8cdb219295482aacc062a821ea52c5ef5b640378f235a76658c02b58d580bf03",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1600.289,
+            "sql_execute_ms": 1574.467,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "64feaaba14b7e883d00ab8611cf45a93b8c38ac5ab1f80f8f044e119399b3bb7",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1565.544,
+            "sql_execute_ms": 1539.577,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "2237ab37055627dc24a793ee387a243398fa953df8df666bd34c6023422e1547",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1565.721,
+            "sql_execute_ms": 1540.641,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "f1d3c9ecaf2a2182b341d82c1628c0c019047f35e2c49b3e87b4a816838e0cc9",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1572.629,
+            "sql_execute_ms": 1546.964,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "e50405f61ebbc8e9b3ef5b0517ee4522f79db306cb81d7be0348bc726ff64d5a",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1579.433,
+            "sql_execute_ms": 1551.225,
+            "sql_statements": 55,
+            "payload_bytes": 5475,
+            "payload_sha256": "20d9ad1bb2e767b1cb3992e511238b0aa20ae900c3c7ac0bb4645ca8d704d4be",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1577.1525000000001,
+        "p95_total_ms_nearest_rank": 1609.342
+      },
+      "candidate_legacy": {
+        "samples": [
+          {
+            "total_ms": 1664.566,
+            "sql_execute_ms": 1633.727,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "4eb80a615d479dfd0f74d143a40601988877577cdea2352a6b0e757e123e0e3e",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1703.195,
+            "sql_execute_ms": 1671.414,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "d644501dec553172749f204f7d34d0a2c779c3ac9f69a78312ce667dd1c1ebd1",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1702.978,
+            "sql_execute_ms": 1670.417,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "1b66f95e8e6a0449819704e9dab1b33d6e76cbc3ff17d53d84c9d7d06adf64aa",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1667.977,
+            "sql_execute_ms": 1638.873,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "49bbea923ece61fc7bf722b26e79d5806cd3284f612b01a52786b983ba0945d6",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1755.066,
+            "sql_execute_ms": 1719.879,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "7c64463da11144663a60f4401b585d6f87a1101e9627a9b086791ca9f8ee9360",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1660.409,
+            "sql_execute_ms": 1630.855,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "1bb4866925f4a6e4d6fb4f5c7be9310c8d844c413893a997406caf35ab550ddf",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1637.086,
+            "sql_execute_ms": 1604.917,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "b52abb8862da40087c8a4376395c8f89f8fccb2fc1beff637c8ad02c6360ec03",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1655.264,
+            "sql_execute_ms": 1625.45,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "0b7b49fe13585272bf71533612bc91c850c2127dac9576cca247cc884eb6ee6e",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1690.104,
+            "sql_execute_ms": 1658.202,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "73a5d7ece0b43795f8b609d49b1964a7db4927cc0af359ae8deb42fee2736d86",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1661.244,
+            "sql_execute_ms": 1630.252,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "7e27999a17bbf86fbfd5cfe75c30c0f146be9b9c3e562050d1c82b71c1aa3cc1",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1692.304,
+            "sql_execute_ms": 1661.618,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "64305335a5ebd09a700d1b0e00409907706acbf7988e673bf2cccbc120987b40",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1676.869,
+            "sql_execute_ms": 1647.382,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "c5ffac9c3038973a9bf2b0d010a74c6adadb90350e181456ef0a39f36c02205c",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1662.458,
+            "sql_execute_ms": 1631.405,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "9b07a25c64e18e0e7ad6444b8b8ad88c27228e20ec965855871e3c24ab7a8b6f",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1699.699,
+            "sql_execute_ms": 1667.916,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "67b010541f9038772a437e9b02c32a969aba3515241e9f0d2a675d9988e10be2",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1661.028,
+            "sql_execute_ms": 1629.45,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "11e85a000ee731767679a1bda6d7c7ddccf7df9f82bf995788ed35e5a58a08eb",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1713.299,
+            "sql_execute_ms": 1683.687,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "d2875b1a189f27b0e46992b91989ff8913daeae4b3b7e7b1d8cdcf54ddbbb55b",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1673.971,
+            "sql_execute_ms": 1639.677,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "f2ce26bab3578ca9eae1a8c208b512f376ed83e862c25fb882891be78959f40d",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1672.041,
+            "sql_execute_ms": 1641.649,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "a9e81b18dc8ba1f2ccde61aba2a5bd68238b6e19efbe0d222bc94014c9d26c08",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1733.762,
+            "sql_execute_ms": 1703.808,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "aa5fcefd5de62658f5a51fb4bba4ba651ecc94293ea40588a1568debeb2eba7a",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1624.644,
+            "sql_execute_ms": 1596.185,
+            "sql_statements": 55,
+            "payload_bytes": 7180,
+            "payload_sha256": "c9ba157c2ff422ab5467f4863e661f5e9d892e1d0212ca73c419756130bc39d9",
+            "groups_returned": 1,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1673.0059999999999,
+        "p95_total_ms_nearest_rank": 1733.762
+      },
+      "candidate_default": {
+        "samples": [
+          {
+            "total_ms": 2501.251,
+            "sql_execute_ms": 2471.079,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "99d528821b92035ac875f8e1c2c218726f6765e6a4e6e7d6371627710315389c",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2539.4,
+            "sql_execute_ms": 2509.573,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "943cafdf4688b75e96f6d60c83aaaa1287ee40f7aa5fbe81819f8ba98bb1d362",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2536.376,
+            "sql_execute_ms": 2505.862,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "d4719a328fedfce3b3d3e6c686bdcd635b5d22142e17267a9d0824931094e6d4",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2482.388,
+            "sql_execute_ms": 2451.041,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "d93d7e21e5c88cebba24c9e07a3945c8b25c17393f314123bece476aeb6f09ee",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2498.7,
+            "sql_execute_ms": 2464.046,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "a88f497c65191f7e74e3ab068f2ddf9f167b5714e33e8003e21c4a4e9df1911e",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2475.903,
+            "sql_execute_ms": 2444.688,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "309f94a136617a1234dd290f5637b6c6f0b603098dd352794fa0df02953849b6",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2461.071,
+            "sql_execute_ms": 2429.352,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "50ab1b1dbd3f18aa04fb12819fd9b4659bcb6e7cbc9541c142b11f384657d950",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2529.605,
+            "sql_execute_ms": 2496.467,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "e808ac37a69bd58d8aa213cd5b4801c5c80ef829b48b49b94fa7d986f4c686c0",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2472.401,
+            "sql_execute_ms": 2441.008,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "7428f0d3e0689e334ce3a344899023dec817218e73bc7747b83b06b899196d73",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2426.03,
+            "sql_execute_ms": 2396.068,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "77de0b836486041fe936aeef604bf18353e1aa667334537739834f82791b29a0",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2475.807,
+            "sql_execute_ms": 2444.052,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "63aaf735e3f263376b0fbe18bf91ac1f60e17b2ff4bc59672061ef8e16a7b877",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2508.982,
+            "sql_execute_ms": 2479.093,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "37d476a9fe2bfd8163dca731da4136877220f59edb3b058cbdc78fb665cd882a",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2471.85,
+            "sql_execute_ms": 2440.216,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "ac862d3364b8e47c8538c0017267daf0b43f2d63d7829cd5e103e5011ae8abc7",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2528.598,
+            "sql_execute_ms": 2498.574,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "a1fd33084b5b6162b00c7764ae01b15e5ca127e58e952a81babaf02bfbc90cb5",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2515.747,
+            "sql_execute_ms": 2486.12,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "30b16732b689c2b2dd1808c1fc99a1d7f583fb06cfb9e9fbc6cf77178dcb5a3b",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2562.562,
+            "sql_execute_ms": 2527.761,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "601a643a51deafd2c9c35e0453b596a53b837d5902fdbe8e749dd1de0d82eb74",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2581.566,
+            "sql_execute_ms": 2550.948,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "c575378587c595a91796c60d6027317ce9fe7c188f947e109a44840c3834b036",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2491.821,
+            "sql_execute_ms": 2460.839,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "3fc3ed5c69d6430d159e59275afc5cc1c6226556b85ca0e889b0a4fe1d513737",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2478.8,
+            "sql_execute_ms": 2447.587,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "f9301ef81e97aee37ee3ce11b36c958be77a043688dbe43c89c460061a76d693",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2434.471,
+            "sql_execute_ms": 2403.616,
+            "sql_statements": 57,
+            "payload_bytes": 7176,
+            "payload_sha256": "7e4a3982d5b4684c223f18063f0a1199b4eab5b6028b755e54941627d8394a4d",
+            "groups_returned": 1,
+            "total_groups": 316,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 2495.2605,
+        "p95_total_ms_nearest_rank": 2562.562
+      }
+    },
+    "25": {
+      "main_legacy": {
+        "samples": [
+          {
+            "total_ms": 1632.386,
+            "sql_execute_ms": 1603.975,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "606220390e9e3f4bfe2258313602fc5705e8b72dcb8948127a65e641d94015a7",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1600.843,
+            "sql_execute_ms": 1513.979,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "2cdf163212ae941de14f2af75a13911a2ae4a7759b078aedea0ea4eee2b65654",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1572.058,
+            "sql_execute_ms": 1545.645,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "87883d3c7d567f4b73255bb68323f6411038787a35a5376fff8a5b4fd926a834",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1586.264,
+            "sql_execute_ms": 1560.226,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "bb861522acc8e1e8ba6fe1feb768e35f3933cbac81d756ddd13a97acf0a5a041",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1634.87,
+            "sql_execute_ms": 1607.847,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "49da0ca743f7bc98553877ec935dc31bbab79011550d3baf98c35ec857c91f02",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1669.355,
+            "sql_execute_ms": 1643.519,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "67f22dec5341c197f1b9e87ee931af2ea6e2290d059d9ed79d63bdf51cadd434",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1604.439,
+            "sql_execute_ms": 1579.159,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "03401f23a655f8970d77c47ee2aad0a0d80eeeff5a6c97fda7a6a56561a70101",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1566.127,
+            "sql_execute_ms": 1541.349,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "dce6f589222220f32d66bcbbd74885539dd25e5cdea131e369f58d1a3e0dc84a",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1573.542,
+            "sql_execute_ms": 1546.216,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "591f7a3b8aafa1d059a1895b8f7500b9cff69d9cd664d82b1ab2ce69b974a036",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1585.509,
+            "sql_execute_ms": 1559.734,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "e4a92730a6a5fe8533cdd62a707ebf021dd622a20f7df8a1705a23d2dc866233",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1572.845,
+            "sql_execute_ms": 1547.449,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "3babab7ea37361fbaff6c3a99de310741fba8328450d244057131c33466439ad",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1576.383,
+            "sql_execute_ms": 1549.879,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "b5f9b156b6db1e8e8b5696050a44bccf8b8c1151b912d1cdb4a05d85b5694204",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1589.014,
+            "sql_execute_ms": 1560.331,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "f10e80d66d7b5bdf332b00aaf0aa807baeb532183a6f324cc84d730aec184026",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1750.816,
+            "sql_execute_ms": 1718.447,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "c299d683d91d73f26707a6f005e165df2e6adbd0e7ccb5508d06bb99c4f1f79d",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1661.06,
+            "sql_execute_ms": 1634.044,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "87337695f44e73533d6b44972c04c5ac8709f0a7ae3275027aede9ebec482c0b",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1596.688,
+            "sql_execute_ms": 1571.046,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "b76dfb170f8685cc5e317794a4a05247c82e27bd67756ac75cd6a2660db21a47",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1576.493,
+            "sql_execute_ms": 1551.157,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "2742bfcbadb441308494611f71c7a44ec90cb3b043a3fcacd9eceda01621ae0e",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1602.778,
+            "sql_execute_ms": 1576.187,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "f9523fee9719e37be157ee1c2aa95195fb87b3c2ab575ef08f57c7965a49cb1d",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1571.714,
+            "sql_execute_ms": 1544.504,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "fb6d9a3c55088b422fdedd75942f2043b8a08f13f9975ef46504981ebd581b4c",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1558.408,
+            "sql_execute_ms": 1534.173,
+            "sql_statements": 55,
+            "payload_bytes": 15760,
+            "payload_sha256": "aa08908e8c4f396f586992109b8734d58e61838aa461f05b82144b172953e881",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1587.639,
+        "p95_total_ms_nearest_rank": 1669.355
+      },
+      "candidate_legacy": {
+        "samples": [
+          {
+            "total_ms": 1779.936,
+            "sql_execute_ms": 1723.625,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "8d83ca241ac5d53f86dd109682db7073c1520b329a98b6025fae3ce79fca3b24",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1744.767,
+            "sql_execute_ms": 1692.628,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "50de04694de0ceead23d24ce59f5b9a1dc82f3552ad37ff1e922c768fc77fcf8",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1808.938,
+            "sql_execute_ms": 1755.289,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "899be40f3171adb37f630d39ba22609fa63e06fbd160db656544a57392427132",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1799.242,
+            "sql_execute_ms": 1745.968,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "26c40116d2e6c341200d3419f3b1b5aa7321d722e41a0721149adea3d6f06ed4",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1769.699,
+            "sql_execute_ms": 1717.597,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "430f75eebb0048d8938fb40ed62fc129f8c5417d4ee567846b84a81b27fb7330",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 2006.963,
+            "sql_execute_ms": 1928.443,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "9a07671e92d5e3f2353d9bae35eaa3aa93ececfbc0bc9899a262d0417ff2ad87",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1773.891,
+            "sql_execute_ms": 1720.533,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "91d7ed7d1a3788e528596992add5dcabbd0584daf303243b1a4bda944b72afd0",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1776.674,
+            "sql_execute_ms": 1722.326,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "e5fa423dc0bb96b3c12dcb904e366bcf2ef495c5716c3671450f16cd05269152",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1755.594,
+            "sql_execute_ms": 1702.403,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "be0a366578f8491c923cdd9357f350af192408ad3b477c5122e9fecbae34e792",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1749.653,
+            "sql_execute_ms": 1696.601,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "36cb11b97ac8c9a9760194a635e272b019e96b49bee041c27a5d6967bfc8a728",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1737.573,
+            "sql_execute_ms": 1684.169,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "2e75705815cbaa1c7a445384d7e0dbfc3fd3c7edb72d82be36be1c6acf47ab12",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1755.26,
+            "sql_execute_ms": 1703.042,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "0d075f436fefdf5f5fe87f605741ea0883f1c150e94074a42cafb24bf6f9d669",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 2407.061,
+            "sql_execute_ms": 2349.844,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "151d75359101ee898cb39073a2a88449b3e1e5d8f19d10f28cbed8cd0add7d92",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1811.536,
+            "sql_execute_ms": 1757.795,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "e53087c5ae42b7507017ef8e3c1c9163f2f5c10571ffc7a113856d1fe1c9b357",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1788.782,
+            "sql_execute_ms": 1730.473,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "a63ede639412d5a7ae60e1b1ff2ec5d0a588356c833d674cd0257cf1ea0eacc0",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1890.859,
+            "sql_execute_ms": 1836.326,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "389b92e87000324a7a47eed8f2ec56c649b97785d976f975830c67cc2836fc5f",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1778.756,
+            "sql_execute_ms": 1725.116,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "affb4813bd19eaf103b1ecb697af8001e63d05c4589b9c882fceed9c9b5d9beb",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1806.554,
+            "sql_execute_ms": 1751.43,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "408b53915024c9936685ac36bc197add1e19ab2acb2905fe665c199852d69a9c",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1784.266,
+            "sql_execute_ms": 1729.95,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "77e812b17fc1d276090b7609562b4f9298e46ae1b574a6672c722c8fcb0bce3c",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1762.594,
+            "sql_execute_ms": 1708.907,
+            "sql_statements": 55,
+            "payload_bytes": 57128,
+            "payload_sha256": "6011a44c698e9ae3bf8d867ef849282e16a20aa9644e49682928351c50ca1818",
+            "groups_returned": 25,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1779.346,
+        "p95_total_ms_nearest_rank": 2006.963
+      },
+      "candidate_default": {
+        "samples": [
+          {
+            "total_ms": 2625.359,
+            "sql_execute_ms": 2570.906,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "8f3a617459f8a4299b3b9761153e19fff8dd2b46f1b45fdb7ecef242084cbf9b",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2566.661,
+            "sql_execute_ms": 2513.409,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "f5a82120ba872e257774e56ebbee7105efeb23456517d2c510458e32c032c2b3",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2573.549,
+            "sql_execute_ms": 2519.694,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "224a6616de2f8da41268d35ab5de626a908421a10ca2e213c7cf595fe179fd04",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2640.48,
+            "sql_execute_ms": 2582.296,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "bb6c55aeecc0f68bc42b537ea2b4957b02b012f92dc98d3563916b102e285b69",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2567.501,
+            "sql_execute_ms": 2514.028,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "ca2ab2916a4962b2a89af1083f723f6af08a9bc1b5a22198583c11863a6afaf6",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2513.676,
+            "sql_execute_ms": 2461.229,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "eb8ddd07ffd9df78e3c79db33acb7b95f80fa9d6176a4266ff510e4814c9e1cc",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2601.858,
+            "sql_execute_ms": 2544.568,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "fc8ddb9f586cf9e794eb37480cf622f24fc0bca9a6d1cb2746e674441ffb8040",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2588.231,
+            "sql_execute_ms": 2535.594,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "2d997fac2e01ab0cae28d5190dded17121f087f97f961fc65253abf9196eae14",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2602.132,
+            "sql_execute_ms": 2547.727,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "17fa28f73d1a3e613147d527dc5a8ae2e0f2e76b8496ee273b299f9111a256d5",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2623.747,
+            "sql_execute_ms": 2569.171,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "f7dc94ca9407bfbe56eede1f89c53097a44284013575d6298644ef8626ce74eb",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2639.499,
+            "sql_execute_ms": 2585.216,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "7b0f4d2d133ea93863cabc58419b3739ac80efe16e2c58fdbb2647bf56c1508b",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2558.21,
+            "sql_execute_ms": 2505.696,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "6d36a478fe918ec7d1c28a8b20f1b23f9b957a11989c81d5803f100c893061bc",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2631.67,
+            "sql_execute_ms": 2575.43,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "25b80172a57845ccd464710572c8d58133d9ba58694bc42667c4ad48c40dd0cf",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2687.734,
+            "sql_execute_ms": 2629.851,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "30fd1a91241f3307c3ce699fb62c6046dc7a4094dad72df15c8b842ac4f8f10c",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2719.291,
+            "sql_execute_ms": 2661.318,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "fee0321900d35ba812a97d92cd2c7e7289910081d0c79020d9dcf45468d48e98",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2644.077,
+            "sql_execute_ms": 2586.467,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "e34e610e67982d1b58d17eae4f0f61c045908463601ff84953862b0b95c88119",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2566.092,
+            "sql_execute_ms": 2511.773,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "33ea7ec7e933f15ae29d314197ba11ffe6565553a8259349e10e8373d62bd77c",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2618.749,
+            "sql_execute_ms": 2564.642,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "43f36c3eadf06695fd8b6535513e1e2bd908fec1a507268719df1b0103e56730",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2639.338,
+            "sql_execute_ms": 2574.335,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "d653ad203f7edb6babc1cc2a00e409dbe8491df95f75d43475e3969f90ec856b",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2576.301,
+            "sql_execute_ms": 2521.496,
+            "sql_statements": 57,
+            "payload_bytes": 57141,
+            "payload_sha256": "2a837a52610f5f1ad9cd186b6cba8f8be3e9693053928ce422d07911c9deff26",
+            "groups_returned": 25,
+            "total_groups": 316,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 2610.4404999999997,
+        "p95_total_ms_nearest_rank": 2687.734
+      }
+    },
+    "50": {
+      "main_legacy": {
+        "samples": [
+          {
+            "total_ms": 1583.53,
+            "sql_execute_ms": 1558.951,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "57918a557f9f6075874d41f60b63d4a01df9d1d38bdc3f49204aa300c3565d0f",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1535.876,
+            "sql_execute_ms": 1511.159,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "4b359294676d84dc4f0cdd9804f55e4391aca08fc86c2886dbcf64c058c640b9",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1653.923,
+            "sql_execute_ms": 1625.382,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "5d3f98aacfc0037719db733a13ff0086e28357ca48c50a22f3ecc5ae44e6b9a1",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1607.127,
+            "sql_execute_ms": 1582.072,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "a9c6f0402fb371d5531cb017269d0dc1799e12a56a67df5169b71859edc1ea8e",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1594.891,
+            "sql_execute_ms": 1568.858,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "3e4ab0c6d89e80534aa0625ebf98b7e79921c2750b0f2bf95bad34e2aa346706",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1632.443,
+            "sql_execute_ms": 1602.494,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "dfc7a0e00a825138ddb95ed1d31d82722322c6f8b57a8916eb3afcfc60572da6",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1636.406,
+            "sql_execute_ms": 1611.05,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "9910077540cfabd5141a225f43ecad0c4650117f3c4bfc629d6618c070d2d4ab",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1629.734,
+            "sql_execute_ms": 1601.126,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "d0e593e49b213517fa7f0c8850a3b6743530795252e6359bd152d416e056cf4a",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1606.669,
+            "sql_execute_ms": 1580.435,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "901e961ae003ce510a62a504597679717b8da639e903e5020b8c2f26b9eb0b85",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1590.775,
+            "sql_execute_ms": 1564.103,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "22467de4f067bf788187af628e09b48f9d678825e609a8876c5c572f572a8610",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1578.214,
+            "sql_execute_ms": 1552.718,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "28f567b06cc2a3aa126acd91b2a76201979ad10fa9a6692f45ddafc7337acd05",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1573.867,
+            "sql_execute_ms": 1548.052,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "ba18e340eacd425ce07bcf9b8babb0bc2b49e33428fc9a49a1459f68880416b2",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1581.31,
+            "sql_execute_ms": 1552.235,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "53a81f0b6f2ca8267f2ae6cc2456fd3fb779001604646bd8f01f1c5b60c5daae",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1590.499,
+            "sql_execute_ms": 1563.314,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "8d82de06e3a55d3503d3e550e06134b9d273333becb952d4ba3bf3df4878bdae",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1577.643,
+            "sql_execute_ms": 1550.829,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "1446e16b735a28cd80448798041dfbd7d5deac2302f458183500024b4bdac2c9",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1608.218,
+            "sql_execute_ms": 1581.475,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "c54b3c74931387a852c82b6c49704cbeb44fd0baec9a910f64daa96b683d1c5a",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1651.661,
+            "sql_execute_ms": 1625.487,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "250111392335376a4e75dce8f5c3155e5db1db481fa4d332d3483ab5ad7a12b0",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1647.624,
+            "sql_execute_ms": 1621.338,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "d4ad44fff2a1737fe4da8ccacab96074a8b2fded2db33fa1f94e49483e7bfca0",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1593.749,
+            "sql_execute_ms": 1568.831,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "8aa21a8c818d4f0b3c33fb9b2442d9276ef59da16f840b19b0d7740630af754f",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1643.953,
+            "sql_execute_ms": 1617.597,
+            "sql_statements": 55,
+            "payload_bytes": 26360,
+            "payload_sha256": "854dc82524575730938d6b1eb0aeac2a5d837833d1631dd5431dc8c18a56ba13",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1600.7800000000002,
+        "p95_total_ms_nearest_rank": 1651.661
+      },
+      "candidate_legacy": {
+        "samples": [
+          {
+            "total_ms": 1845.96,
+            "sql_execute_ms": 1706.913,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "cedbd6a81db2ff36b32c95c5104a28eff76fac1676c91d0f45a65be67749733a",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1776.472,
+            "sql_execute_ms": 1707.607,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "30280decc83355a6c063fafb11193ade9101a9c9067b1b178d9d0022fc0c6b63",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1828.973,
+            "sql_execute_ms": 1755.486,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "faa506a28a7afb4c21f90d9b6921a59f7450abf3d1a2670ff21c3f4b247b91d8",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1817.625,
+            "sql_execute_ms": 1743.93,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "3d5bfe56f67707e4b4bc22eaffc58b191f9bdcab324033e027f27b6c57926b45",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1845.351,
+            "sql_execute_ms": 1774.37,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "434434748f3289d87ab9abcc52cc9a042bb07b44b3c7221e9e94c73e51aea1bb",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1789.407,
+            "sql_execute_ms": 1719.181,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "ec6dc4ed761e20f1d6668320cb6fe1360543bb378b63d6d9ab0c5463d6fb0d4b",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1790.881,
+            "sql_execute_ms": 1720.089,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "946c8383a5b78c44c9504b31490a08da41211af352c3377a793d324736970fbb",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1765.672,
+            "sql_execute_ms": 1696.658,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "176d159545fee4caf3d3b59cc2b9ab99db06734386abdf088e1ae7e259aa698d",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1774.962,
+            "sql_execute_ms": 1705.07,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "09cbc81453b1bd1089feed0bb4c05570ddfb6b7d0ba47eb7c6563ec15bb19cd6",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1800.072,
+            "sql_execute_ms": 1726.897,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "ac4f7709feb084d3a0424ee430c680397f088eff9484f439bc5c89abe3d7a649",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1767.756,
+            "sql_execute_ms": 1697.44,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "6fddf9b1d6f1399a349ccd16d6fda80c30ef3a9e1cf8c85a08deab7f6bb91b4b",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1780.114,
+            "sql_execute_ms": 1709.062,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "33a51fe69c445c11bbb90026e771ad566a8f2a0694e5420cd76a83d0ec46369a",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1822.661,
+            "sql_execute_ms": 1752.593,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "a9ef1a905da76690c556dd66181baa715e3c4568c39583c33ce3062e9cc859a6",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1780.187,
+            "sql_execute_ms": 1708.72,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "901407f9111ad45f80b819a726624328087b45063955d912500b803ad6de7679",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1836.386,
+            "sql_execute_ms": 1765.027,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "b109fa3ec7fee0e77b678ed87893f58561ce8a9e7a9420cf09e6cc93788c6587",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1833.789,
+            "sql_execute_ms": 1762.24,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "b54d6d5f2dbe8d3dd841addd3f10a7f623e05674c48e487a3ba52a64d83f587f",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1825.97,
+            "sql_execute_ms": 1750.785,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "a4042eac2328276e80e791cb1fb979ff235727b5047649486f5aace05980ed45",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 2181.981,
+            "sql_execute_ms": 2102.813,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "06794a4586f09a34677f9779fd8e0f36b0efd4e940c13d53acadbca972341925",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1776.072,
+            "sql_execute_ms": 1705.201,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "e5dc4d13ac114c5ad2f573bc91ba1ed6f51eb600c4d181987446219275a3763a",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          },
+          {
+            "total_ms": 1827.824,
+            "sql_execute_ms": 1754.414,
+            "sql_statements": 55,
+            "payload_bytes": 109378,
+            "payload_sha256": "690c7506651ea99da8c51f6a5ec631eb9a81a5700dcb8906b0252dbcdab753be",
+            "groups_returned": 50,
+            "total_groups": 38319,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 1808.8485,
+        "p95_total_ms_nearest_rank": 1845.96
+      },
+      "candidate_default": {
+        "samples": [
+          {
+            "total_ms": 2619.376,
+            "sql_execute_ms": 2548.309,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "bd8e20ba3ad53c6ef75da83205fe68cdecb1ab1634618db67ad8f7d310aacb61",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2640.603,
+            "sql_execute_ms": 2569.915,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "876e09104e1dc484dca2fd22189fec248c472d9ae1eabe58bd72d374fd0d6b2d",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2658.657,
+            "sql_execute_ms": 2582.676,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "dfb89e4ed578d2f5aa99a1658147879d74ef086fa629254bf3490f58d9226c46",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2605.541,
+            "sql_execute_ms": 2534.323,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "cbc443e422eaa672e983f2a874be842939c6065a1f1f4b59ed44cee6092c2166",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2673.484,
+            "sql_execute_ms": 2595.322,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "9999638e771977a12bd83365fe047fce170b221f857ce064eb71848da81cb792",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2597.329,
+            "sql_execute_ms": 2525.766,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "3ac4f280b209ed056bb1550045f1e34f5fa169f844f843ea28a069e04ec4d26e",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2592.967,
+            "sql_execute_ms": 2522.069,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "0ad5020e7ecf01267e90e695da18f3f54feec9d3ca832eef85ce74d7805d1730",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2590.132,
+            "sql_execute_ms": 2519.567,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "fc23227bdce76e65eeb29cadb50f6b64dd6109beef91049b86359594b3e71491",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2602.529,
+            "sql_execute_ms": 2533.945,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "c801f2adc351ff970865213d96cb4b382015a9cbdf162eb247311e1ceb668350",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2781.204,
+            "sql_execute_ms": 2631.839,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "b2efe521438ef87bd31853b4fb31f89688e602b96d6a84c2bcec4da0243b6d1e",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2573.458,
+            "sql_execute_ms": 2502.697,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "0d8382490724902cb7d83a8d77b80752bed4db368c410113abedb65b1472687d",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2633.439,
+            "sql_execute_ms": 2562.223,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "c6e3da53933bb0220269e12e932fb1df3a84dd45b8381e9dcc91057f0472d56a",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2668.553,
+            "sql_execute_ms": 2597.874,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "ee555ceae3960f5228293b755390bb2fcb5363b5ead562ee51ffb67d6758e3f5",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2587.78,
+            "sql_execute_ms": 2519.308,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "7d4b4c4d414d26879b4182320d6451b34b8163d1539077ea2a4d0db4f0c3257e",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2607.639,
+            "sql_execute_ms": 2536.156,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "761c34bd78dfba06e5fd9c228bfcb64056f38fbe1c24c8f1a53b81e05180d24b",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2588.824,
+            "sql_execute_ms": 2517.54,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "03065c236fb8ae7e5b3044b62d8eac58c997c0e9b707605b63a69a5e48794052",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2722.614,
+            "sql_execute_ms": 2645.593,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "0d548285aa68d2f605bea2ab9befca528785b958b80d4e0fbb8ce2397ca1335c",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2923.9,
+            "sql_execute_ms": 2766.784,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "90bef46bdc891d4673b58b84a2cb275557963d54bc1dcbc8bb81299bec46a8ad",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2612.552,
+            "sql_execute_ms": 2542.273,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "19926973c39b52f3e829d9dbf52f18cbcff93ae6a0e50a02cc620a03e755499c",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          },
+          {
+            "total_ms": 2672.686,
+            "sql_execute_ms": 2601.098,
+            "sql_statements": 57,
+            "payload_bytes": 109391,
+            "payload_sha256": "bde0d2a8073c701bb363e18a16570773f45c6bfd15960c4f76995aa6fe014276",
+            "groups_returned": 50,
+            "total_groups": 316,
+            "account_total": null
+          }
+        ],
+        "p50_total_ms": 2615.964,
+        "p95_total_ms_nearest_rank": 2781.204
+      }
+    }
+  },
+  "limitations": [
+    "One local synthetic 40k fixture, one database clone, and one execution environment.",
+    "selected_generation pins one already-published synthetic snapshot to compare query implementations; it bypasses the live current-generation qualification lookup.",
+    "This is a diagnostic comparison, not a service-level objective or production latency claim.",
+    "Historical account_total samples are null because the runner read totals.account_total rather than totals.accounts; those nulls are invalid account-count evidence and were not backfilled."
+  ]
+}

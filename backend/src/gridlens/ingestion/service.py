@@ -210,6 +210,9 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
     retained = record.get("retained_document")
     if isinstance(retained, dict):
         provenance["retained_document"] = retained
+    retained_company = record.get("retained_company_project")
+    if isinstance(retained_company, dict):
+        provenance["retained_company_project"] = retained_company
     application_document = record.get("application_document")
     if isinstance(application_document, dict):
         provenance["application_document"] = application_document
@@ -238,6 +241,19 @@ def _interpret_retained_document(source_id: str, record: dict[str, Any]) -> dict
         "rationale": claim.rationale,
         "location": claim.location,
     }
+
+
+def _interpret_retained_company_project(
+    source_id: str, record: dict[str, Any]
+) -> dict[str, str] | None:
+    from gridlens.ingestion.adapters.retained_company_projects import (
+        SOURCE_ID,
+        interpret_retained_company_project,
+    )
+
+    if source_id != SOURCE_ID:
+        return None
+    return interpret_retained_company_project(record)
 
 
 def _merge_source_link_provenance(
@@ -4507,6 +4523,16 @@ def process_records(
                             interpretation,
                             current_source,
                         )
+                        from gridlens.intelligence.customer_intelligence import (
+                            persist_customer_facts,
+                        )
+
+                        persist_customer_facts(
+                            session,
+                            project_id=project.id,
+                            evidence_id=current_evidence.id,
+                            source_text=current_evidence.abstract or "",
+                        )
             regional_scope = (interpretation.assessment or {}).get("regional_scope")
             if isinstance(regional_scope, dict) and regional_scope.get("status") != "ELIGIBLE":
                 counts[
@@ -4556,7 +4582,9 @@ def process_records(
                 )
             else:
                 interpreted = (
-                    _interpret_retained_document(source.id, record)
+                    _interpret_retained_company_project(source.id, record)
+                    if source_definition.get("retrieval_method") == "retained-company-projects"
+                    else _interpret_retained_document(source.id, record)
                     if source_definition.get("retrieval_method") == "retained-document"
                     else {
                         "name": permit_assessment["subject"],
@@ -4614,6 +4642,11 @@ def process_records(
                     citation_url=record.get("html_url"),
                     identified_project=bool(
                         interpreted.get("name") and interpreted.get("location")
+                    ),
+                    **(
+                        {"retained_record": record}
+                        if source.retrieval_method == "retained-company-projects"
+                        else {}
                     ),
                 )
             if not admission.admitted and not native_ferc_title:
@@ -5396,6 +5429,30 @@ def process_records(
                 project.name = project_name
                 if project_location and project.location != project_location:
                     project.location = project_location
+            if source.retrieval_method == "retained-company-projects":
+                # The native interpreter has replayed the complete retained
+                # text and validated every alias span. Preserve those names in
+                # the established identity field rather than creating a second
+                # project model or relying on evaluation labels.
+                native_context = record.get("retained_company_project") or {}
+                native_aliases = native_context.get("project_aliases", [])
+                if isinstance(native_aliases, list) and native_aliases:
+                    identity_facts = dict(project.identity_facts or {})
+                    aliases = [
+                        alias
+                        for alias in identity_facts.get("project_aliases", [])
+                        if isinstance(alias, str)
+                    ]
+                    seen_aliases = {normalized_identity(alias) for alias in aliases}
+                    for alias in native_aliases:
+                        if (
+                            isinstance(alias, str)
+                            and normalized_identity(alias) not in seen_aliases
+                        ):
+                            aliases.append(alias)
+                            seen_aliases.add(normalized_identity(alias))
+                    identity_facts["project_aliases"] = aliases
+                    project.identity_facts = identity_facts
             # The model hook classifies site changes before this admission gate.
             session.flush()
             if project.region_status != "ELIGIBLE":
@@ -5545,7 +5602,10 @@ def process_records(
             )
             material_change = False
             reopened = need is not None and not need.active
-            retained_document = source.retrieval_method == "retained-document"
+            retained_document = source.retrieval_method in {
+                "retained-document",
+                "retained-company-projects",
+            }
             if need is None:
                 need = PowerNeed(
                     project_id=project.id,
@@ -5568,7 +5628,7 @@ def process_records(
                 if not retained_document:
                     need.rationale = rationale
             incoming_basis = admission.as_basis(source.id, evidence_digest)
-            if source.retrieval_method != "retained-document":
+            if not retained_document:
                 need.admission_basis = incoming_basis
             if (
                 session.scalar(
@@ -5666,6 +5726,12 @@ def process_records(
                         "url": lifecycle_evidence.url if lifecycle_evidence else observation.url,
                     },
                 }
+                if source.retrieval_method == "retained-company-projects":
+                    from gridlens.ingestion.adapters.retained_company_projects import (
+                        SCHEMA_VERSION,
+                    )
+
+                    interpretation.evaluator_version = SCHEMA_VERSION
             if (
                 native_ferc_assessment
                 and native_ferc_assessment.get("decision") == "accepted"
@@ -5764,6 +5830,14 @@ def process_records(
                     lifecycle_evidence,
                     interpretation,
                     source,
+                )
+                from gridlens.intelligence.customer_intelligence import persist_customer_facts
+
+                persist_customer_facts(
+                    session,
+                    project_id=project.id,
+                    evidence_id=lifecycle_evidence.id,
+                    source_text=lifecycle_evidence.abstract or "",
                 )
 
         # TDLR's primary registration is direct evidence for the exact project

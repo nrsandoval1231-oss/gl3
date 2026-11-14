@@ -1,0 +1,25 @@
+{
+  "captured_at": "2026-11-13T05:49:20.942807+00:00",
+  "head": "8c299dbb6cbe7ff87cb333c903aed8505609357f",
+  "source_dirty": true,
+  "command": "npx playwright test --project=regression --workers=2 --retries=0 --reporter=line",
+  "result": "339 passed (5.2m)",
+  "fixture": "synthetic; these images do not demonstrate real customer or contact coverage",
+  "source_hashes": {
+    "web/src/api/client.ts": "4ea3133b57460102a86c160641011b1c6f7ab9212c57662ed8dd4d6a7856b23a",
+    "web/src/features/companies/CompanyView.tsx": "3b7d58ddef9ce18ba6e5fe4a7c1e227a191fdf0900c4c0eda4cd1164700c4de7",
+    "web/src/features/workspace/ProjectResults.tsx": "4778e7909661c6163e1dde313deb566ec85d86d028bf09e24e0bc8d7d7753847",
+    "web/src/features/companies/companies.css": "d5372ce5187e33e91233eeaed8d171aa8e7c624149df424362081832daba0e7b",
+    "web/src/components/canonical-header.css": "611423c9ba1e4593da71b40a59d8eed61cd9efe92914ffe2dba8768a670013e8",
+    "web/src/styles/workspace.css": "0c18eb0c8d1c5d536b63ee02bd954c852203d57f310f86b634560d9af5a85491",
+    "web/tests/customer_commercial_acceptance.spec.ts": "d61aefe3f9c61f2a235c0449a42d9c599a4868baf3697d5637052aa4be676d7f"
+  },
+  "screenshots": {
+    "after-account-detail.png": "c103e140e9055630b14e7931b2c302844f7a2930400d5e32f29535c1fde9bc91",
+    "after-desktop-compact.png": "c14e0d19db19b09ff94db13a557d1f4a9b32b0e40ce766990f369cec29c66cac",
+    "after-desktop-wide.png": "55f4129883612a6541ef9374d601edd3a056463c1a3f0d2b97f62bd50443003b",
+    "after-mobile.png": "5122322cb7c760b093f4641eafd2c217d6e20403553c133c34a27cfdfa366bc0",
+    "after-tablet-landscape.png": "cf1db4b131b28be57beab4acc7a12337de4840e1040422698eda2423ad706126",
+    "after-tablet-portrait.png": "28bce410f187cb62b3598041f9f5d492a3288994dc0a0cda2cd96221a6028b18"
+  }
+}

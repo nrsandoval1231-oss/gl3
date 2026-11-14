@@ -1,0 +1,19 @@
+{
+  "source_id": "stack",
+  "url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/",
+  "title": "STACK Expands 100MW Silicon Valley Campus | STACK",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": "2025-01-13T08:17:02+00:00",
+  "excerpts": [
+    "**Denver, COLORADO** — March 26, 2024 — [STACK Infrastructure](https://www.stackinfra.com/) (“STACK”), the digital infrastructure partner to the world’s most innovative companies and a leading global developer and operator of data centers, today announced a groundbreaking and expansion of its 100MW campus in San Jose, SVY01. The 60MW data center expansion will provide critical capacity and scale to one of the largest and most desired data center markets in the world. Working alongside the City of San Jose, the expansion will also extend regional benefits through added local investment and employment opportunities.",
+    "Data centers play a crucial role in advancing the economies of Silicon Valley and encourage some of the world’s largest and most forward-looking companies to continue their investments in the region. STACK’s expansion of its San Jose campus demonstrates its commitment to supporting the local economy while also enabling the greater digital economy. Working alongside the City of San Jose, STACK’s continued growth will pave the way for hundreds of construction jobs to support the new development and long-term mixed-use jobs upon completion of the new facilities. In addition to its continued long-term investments in North San Jose, STACK will deliver this expansion in adherence to environmental standards as part of its responsible development practices and dedication to supporting community success.",
+    "“This expansion stands as an example of STACK’s dedication to building lasting local partnerships and stimulating overall community growth,” said Matt VanderZanden, Chief Operating Officer, STACK Americas. “Delivering responsible scale to our clients while positively impacting the region is paramount to our mission of contributing to a broad based, sustainable economic future.”",
+    "STACK’s comprehensive portfolio of data center solutions now includes 4.0+GW built or under development, with an additional 2.5+GW of planned and potential development across the Americas, EMEA, and APAC, featuring multi-hundred-megawatt campus developments across 23 major data center markets, including:"
+  ]
+}
+

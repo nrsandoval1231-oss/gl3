@@ -1,0 +1,98 @@
+{
+  "commits": {
+    "base": "bf75d32746d28ac44effcb65989d53fdeaa765e4",
+    "repair": "1de298af047f09a32e9a0349f41410a55bc1791e"
+  },
+  "corpus": {
+    "projects": 2098,
+    "needs": 48,
+    "evidence": 48
+  },
+  "canonical": {
+    "1": {
+      "baseline_p50_ms": 192.1205,
+      "repair_p50_ms": 286.0075,
+      "baseline_p95_ms": 305.084,
+      "repair_p95_ms": 399.944,
+      "baseline_sql_counts": [
+        53,
+        55
+      ],
+      "repair_sql_counts": [
+        53,
+        55
+      ],
+      "baseline_json_bytes": 5471,
+      "repair_json_bytes": 7176
+    },
+    "25": {
+      "baseline_p50_ms": 241.51100000000002,
+      "repair_p50_ms": 375.371,
+      "baseline_p95_ms": 261.45,
+      "repair_p95_ms": 836.131,
+      "baseline_sql_counts": [
+        53
+      ],
+      "repair_sql_counts": [
+        53
+      ],
+      "baseline_json_bytes": 15756,
+      "repair_json_bytes": 57126
+    },
+    "50": {
+      "baseline_p50_ms": 187.575,
+      "repair_p50_ms": 360.32500000000005,
+      "baseline_p95_ms": 243.948,
+      "repair_p95_ms": 458.946,
+      "baseline_sql_counts": [
+        53
+      ],
+      "repair_sql_counts": [
+        53
+      ],
+      "baseline_json_bytes": 26356,
+      "repair_json_bytes": 109376
+    }
+  },
+  "api_setup": {
+    "1": {
+      "baseline_p50_ms": 200.08350000000002,
+      "repair_p50_ms": 249.977,
+      "baseline_p95_ms": 439.621,
+      "repair_p95_ms": 297.834,
+      "baseline_sql_counts": [
+        55,
+        57
+      ],
+      "repair_sql_counts": [
+        56,
+        58
+      ]
+    },
+    "25": {
+      "baseline_p50_ms": 208.4965,
+      "repair_p50_ms": 322.40700000000004,
+      "baseline_p95_ms": 290.62,
+      "repair_p95_ms": 525.532,
+      "baseline_sql_counts": [
+        55
+      ],
+      "repair_sql_counts": [
+        56
+      ]
+    },
+    "50": {
+      "baseline_p50_ms": 185.0405,
+      "repair_p50_ms": 513.373,
+      "baseline_p95_ms": 270.328,
+      "repair_p95_ms": 826.759,
+      "baseline_sql_counts": [
+        55
+      ],
+      "repair_sql_counts": [
+        56
+      ]
+    }
+  },
+  "assessment": "Baseline SQL count restored and historical candidate payload reduced; latency remains above baseline under shared live test/PostgreSQL load. No latency regression pass claimed."
+}

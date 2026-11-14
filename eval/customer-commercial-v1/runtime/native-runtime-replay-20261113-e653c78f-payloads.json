@@ -1,0 +1,1166 @@
+{
+  "captured_at": "2026-11-13T08:04:10.703358+00:00",
+  "immutable_inputs": {
+    "gold_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+    "gold_used_as_runtime_input": false,
+    "source_artifacts_verified": 29,
+    "source_manifest_sha256": "4b8831df9e94261806d2df7d51a4df1fd4299fe3b4daf862fdc64b99f192c5fb"
+  },
+  "runtime": {
+    "disposable_database": "gl3_customer_runtime_20261113080404_fdde1997_test",
+    "evaluation_limits": {
+      "contacts": "unavailable_unverified; no current contact evidence was acquired",
+      "cross_customer_grouping": "not_measured; no independently proven global IDs",
+      "dedupe": "only native ingestion replay keys observed; no identity oracle",
+      "identity_accuracy": "not_measured; reference labels were never seeded",
+      "portfolio_mw_rollup": "not_evaluated; source MW facts do not populate required_mw",
+      "ranking_usefulness": "not_evaluated; browse generation publication is plumbing only"
+    },
+    "native_runtime": {
+      "accepted_interpretations": 2,
+      "account_projection": {
+        "account_api_rows": 2,
+        "account_cards": [
+          {
+            "aliases": [
+              "CyrusOne"
+            ],
+            "contact_state": "unavailable_unverified",
+            "highest_priority_need": {
+              "commercial_disposition": "WATCH",
+              "location": "Bosque County, TX",
+              "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+              "project_title": "new data center adjacent to the Thad Hill Energy Center",
+              "qualification_tier": "Signal",
+              "required_mw": null
+            },
+            "name": "CyrusOne",
+            "need_count": 1,
+            "project_count": 1,
+            "supporting_evidence_count": 1
+          },
+          {
+            "aliases": [
+              "DataBank"
+            ],
+            "contact_state": "unavailable_unverified",
+            "highest_priority_need": {
+              "commercial_disposition": "WATCH",
+              "location": "Red Oak, TX",
+              "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+              "project_title": "Red Oak, TX data center campus",
+              "qualification_tier": "Signal",
+              "required_mw": null
+            },
+            "name": "DataBank",
+            "need_count": 1,
+            "project_count": 1,
+            "supporting_evidence_count": 1
+          }
+        ],
+        "browse_membership_rows": 2
+      },
+      "current_project_scoped_company_links": 2,
+      "customer_results_ui": {
+        "api_payloads": {
+          "opened_group": {
+            "generation": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+            "group": {
+              "account_contact_project": null,
+              "commercial_intelligence": {
+                "as_of": "2026-11-13",
+                "canonical_company_identity_ids": [
+                  "ef1af432-a7fa-4db2-bf16-3cbfb3b46ff4"
+                ],
+                "capacity": {
+                  "claims": [
+                    {
+                      "basis": "it_load",
+                      "capacity_type": "individual_phase",
+                      "disjoint_scope_ids": [],
+                      "explicit_revision": false,
+                      "extraction_method": "customer-facts-v1",
+                      "fact_id": "cf_d3feb4a2229219075c7897df7c3a9506",
+                      "includes_scope_ids": [],
+                      "phase_id": "1",
+                      "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                      "qualifier": "up_to",
+                      "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                      "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:1",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                        "current": true,
+                        "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-13T08:04:07.598105+00:00",
+                        "published_at": "2024-09-10",
+                        "semantic_hash": "366ff98210fadb4e7d973b832e52d5894829831e3fd7f32fa586cab3bfae9abf",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                        "verification_status": "reported"
+                      },
+                      "status": "reported",
+                      "subject_binding": {
+                        "alias": "Red Oak Campus",
+                        "occurrences": [
+                          {
+                            "alias": "Red Oak Campus",
+                            "antecedent_span": [
+                              410,
+                              597
+                            ],
+                            "predicate": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                            "predicate_span": [
+                              598,
+                              828
+                            ],
+                            "quote_span": [
+                              598,
+                              828
+                            ],
+                            "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                            "subject_kind": "adjacent_anaphora",
+                            "subject_span": [
+                              461,
+                              475
+                            ]
+                          }
+                        ],
+                        "predicate": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                        "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                        "subject_kind": "adjacent_anaphora"
+                      },
+                      "value_mw": "240"
+                    },
+                    {
+                      "basis": "it_load",
+                      "capacity_type": "it_load",
+                      "disjoint_scope_ids": [],
+                      "explicit_revision": false,
+                      "extraction_method": "customer-facts-v1",
+                      "fact_id": "cf_3ed3072bb813d693490ed74b1a031c8c",
+                      "includes_scope_ids": [
+                        "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:1",
+                        "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:2"
+                      ],
+                      "phase_id": null,
+                      "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                      "qualifier": "up_to",
+                      "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                      "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:site",
+                      "source": {
+                        "authority": "unknown",
+                        "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                        "current": true,
+                        "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                        "extracted_at": null,
+                        "extraction_location": "retained excerpt text",
+                        "extraction_method": "deterministic",
+                        "observed_at": "2026-11-13T08:04:07.598105+00:00",
+                        "published_at": "2024-09-10",
+                        "semantic_hash": "366ff98210fadb4e7d973b832e52d5894829831e3fd7f32fa586cab3bfae9abf",
+                        "source_id": "retained-company-project-evaluation",
+                        "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                        "verification_status": "reported"
+                      },
+                      "status": "reported",
+                      "subject_binding": {
+                        "alias": "Red Oak Campus",
+                        "occurrences": [
+                          {
+                            "alias": "Red Oak Campus",
+                            "antecedent_span": [
+                              410,
+                              597
+                            ],
+                            "predicate": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                            "predicate_span": [
+                              598,
+                              828
+                            ],
+                            "quote_span": [
+                              598,
+                              828
+                            ],
+                            "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                            "subject_kind": "adjacent_anaphora",
+                            "subject_span": [
+                              461,
+                              475
+                            ]
+                          }
+                        ],
+                        "predicate": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                        "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                        "subject_kind": "adjacent_anaphora"
+                      },
+                      "value_mw": "480"
+                    }
+                  ],
+                  "conflicts": [],
+                  "coverage": {
+                    "projects_total": 1,
+                    "projects_with_capacity": 1
+                  },
+                  "excluded_claim_ids": [
+                    "cf_d3feb4a2229219075c7897df7c3a9506"
+                  ],
+                  "limitations": [
+                    "Different electrical bases are never added together.",
+                    "Partial supported amounts are not a complete company total.",
+                    "Mixed upper and lower bounds cannot establish an aggregate bound."
+                  ],
+                  "selected_claim_ids": [
+                    "cf_3ed3072bb813d693490ed74b1a031c8c",
+                    "cf_d3feb4a2229219075c7897df7c3a9506"
+                  ],
+                  "status": "supported",
+                  "superseded_claim_ids": [],
+                  "total_mw": null,
+                  "totals": [
+                    {
+                      "basis": "it_load",
+                      "claim_ids": [
+                        "cf_3ed3072bb813d693490ed74b1a031c8c"
+                      ],
+                      "complete": true,
+                      "qualifier": "up_to",
+                      "status": "upper_bound",
+                      "value_mw": "480"
+                    }
+                  ]
+                },
+                "commissioning": {
+                  "assumptions": [],
+                  "base_mw": null,
+                  "calculation_version": "commissioning-test-plan-v1.0.0",
+                  "confidence": "insufficient",
+                  "config": {
+                    "decimal_places": 6,
+                    "max_blocks": 1000
+                  },
+                  "config_digest": "e23e80c2473db65b705ebf77ba23ca83994c37a2d83a229ad0cdd33b245ae2b6",
+                  "demand_class": "engineering_scenario",
+                  "high_mw": null,
+                  "input_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                  "input_evidence": [],
+                  "limitations": [
+                    "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                    "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                    "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                    "Supply source and customer procurement intent are unknown unless independently verified.",
+                    "A nonempty bounded, project-specific commissioning test plan is required."
+                  ],
+                  "low_mw": null,
+                  "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                  "stage_demands": [],
+                  "status": "insufficient_data",
+                  "verified_customer_demand": false,
+                  "version": "commissioning-test-plan-v1.0.0"
+                },
+                "limitations": [
+                  "Engineering scenarios are not verified customer demand.",
+                  "Only explicit supported source facts are included; missing values remain unknown."
+                ],
+                "priority": {
+                  "components": {
+                    "announced_upper_bound": 8,
+                    "capacity": 0,
+                    "freshness": 0,
+                    "geographic_fit": 0,
+                    "material_changes": 10,
+                    "phase": 0,
+                    "timing": 0,
+                    "verified_contacts": 0
+                  },
+                  "confidence": 20,
+                  "limitations": [
+                    "Geographic fit and contact availability require separately verified account context.",
+                    "Facility capacity indicates project scale, not rental demand.",
+                    "Announced upper-bound capacity is a research signal, not verified buildout or demand."
+                  ],
+                  "potential": 18,
+                  "priority_basis": {
+                    "capacity": {
+                      "basis": "it_load",
+                      "claim_ids": [
+                        "cf_3ed3072bb813d693490ed74b1a031c8c"
+                      ],
+                      "complete": true,
+                      "kind": "announced_upper_bound",
+                      "sources": [
+                        {
+                          "fact_id": "cf_3ed3072bb813d693490ed74b1a031c8c",
+                          "qualifier": "up_to",
+                          "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+                          "source": {
+                            "authority": "unknown",
+                            "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                            "current": true,
+                            "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                            "extracted_at": null,
+                            "extraction_location": "retained excerpt text",
+                            "extraction_method": "deterministic",
+                            "observed_at": "2026-11-13T08:04:07.598105+00:00",
+                            "published_at": "2024-09-10",
+                            "semantic_hash": "366ff98210fadb4e7d973b832e52d5894829831e3fd7f32fa586cab3bfae9abf",
+                            "source_id": "retained-company-project-evaluation",
+                            "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                            "verification_status": "reported"
+                          }
+                        }
+                      ],
+                      "value_mw": "480"
+                    },
+                    "timing": {
+                      "claim_id": null,
+                      "event_type": null,
+                      "kind": "unknown",
+                      "label": null,
+                      "source": null
+                    }
+                  },
+                  "ranking_method": "maximum supported project score before account pagination",
+                  "score": 3,
+                  "version": "customer-commercial-priority-v2"
+                },
+                "recent_developments": [
+                  {
+                    "after": {
+                      "evidence_refs": [
+                        {
+                          "authority": "unknown",
+                          "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                          "current": true,
+                          "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                          "extracted_at": null,
+                          "extraction_location": "retained excerpt text",
+                          "extraction_method": "deterministic",
+                          "observed_at": "2026-11-13T08:04:07.598105+00:00",
+                          "published_at": "2024-09-10",
+                          "semantic_hash": "366ff98210fadb4e7d973b832e52d5894829831e3fd7f32fa586cab3bfae9abf",
+                          "source_id": "retained-company-project-evaluation",
+                          "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                          "verification_status": "reported"
+                        }
+                      ],
+                      "value": {
+                        "claims": [
+                          {
+                            "basis": "it_load",
+                            "capacity_type": "individual_phase",
+                            "conflicted": false,
+                            "disjoint_scope_ids": [],
+                            "includes_scope_ids": [],
+                            "phase_id": "1",
+                            "qualifier": "up_to",
+                            "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:1",
+                            "value_mw": "240"
+                          },
+                          {
+                            "basis": "it_load",
+                            "capacity_type": "it_load",
+                            "conflicted": false,
+                            "disjoint_scope_ids": [],
+                            "includes_scope_ids": [
+                              "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:1",
+                              "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:2"
+                            ],
+                            "phase_id": null,
+                            "qualifier": "up_to",
+                            "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:site",
+                            "value_mw": "480"
+                          }
+                        ]
+                      }
+                    },
+                    "before": {
+                      "evidence_refs": [],
+                      "value": {
+                        "claims": []
+                      }
+                    },
+                    "buying_chain_evidence_id": null,
+                    "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                    "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                    "id": "7",
+                    "observation_id": "243d4bb1-51dc-43e2-82e2-78cd91fdab22",
+                    "observed_at": "2026-11-13T08:04:07.619889+00:00",
+                    "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                    "source_date": "2024-09-10",
+                    "summary": "Build capacity revised"
+                  }
+                ],
+                "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+                "scope": "all account projects in selected sector; independent of child pagination",
+                "sources": [
+                  {
+                    "authority": "unknown",
+                    "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                    "current": true,
+                    "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                    "extracted_at": null,
+                    "extraction_location": "retained excerpt text",
+                    "extraction_method": "deterministic",
+                    "observed_at": "2026-11-13T08:04:07.598105+00:00",
+                    "published_at": "2024-09-10",
+                    "semantic_hash": "366ff98210fadb4e7d973b832e52d5894829831e3fd7f32fa586cab3bfae9abf",
+                    "source_id": "retained-company-project-evaluation",
+                    "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/",
+                    "verification_status": "reported"
+                  }
+                ],
+                "timelines": {
+                  "claims": [],
+                  "conflicts": [],
+                  "construction_start": null,
+                  "expected_energization": null,
+                  "selected_claim_ids": [],
+                  "superseded_claim_ids": []
+                },
+                "version": "customer-intelligence-v1"
+              },
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_d5ffb3fc9777d808e812f640181b4fd5",
+              "identity_count": 1,
+              "matched_need_id": null,
+              "matched_project_id": null,
+              "name": "DataBank",
+              "need_count": 1,
+              "priority_score": 45,
+              "project_count": 1,
+              "pursued_eligible_need_count": 0,
+              "relevant_project_count": 0,
+              "role": "customer",
+              "sectors": [
+                "data_centers"
+              ],
+              "total_known_project_count": 1
+            },
+            "parent_cohort_token": "p1_48270c2552740962ef63d8be8ea875c3cc5cd955712dad548151bc015e506fdf",
+            "projects": {
+              "as_of": "2026-11-13T08:04:09.904503+00:00",
+              "cohort_token": "p1_48270c2552740962ef63d8be8ea875c3cc5cd955712dad548151bc015e506fdf.group.04c4824dd0f28dad",
+              "count_unit": "projects",
+              "generation": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+              "generation_id": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+              "items": [
+                {
+                  "asset_identity": null,
+                  "asset_type": "data_center",
+                  "commercial_brief": {
+                    "best_contact": null,
+                    "freshness": {
+                      "as_of": "2026-11-13T08:04:10.682771+00:00",
+                      "source_age_days": 794,
+                      "source_date": "2024-09-10",
+                      "status": "stale_source"
+                    },
+                    "limitations": [
+                      "No current source-backed event is available to explain why now.",
+                      "Activity-specific power amount is unknown; unknown is not zero.",
+                      "No privacy-filtered contact route is available.",
+                      "Next action is a research prompt; no buyer or purchase authority is established."
+                    ],
+                    "next_action": {
+                      "kind": "research",
+                      "source": null,
+                      "text": "Research the activity-specific temporary power requirement using current project sources."
+                    },
+                    "power_need": {
+                      "amount_class": "unknown",
+                      "limitations": [
+                        "Activity-specific power amount is unknown; unknown is not zero."
+                      ],
+                      "scope": "facility-expansion",
+                      "status": "unknown",
+                      "unit": null,
+                      "value": null
+                    },
+                    "sources": [
+                      {
+                        "date": "2024-09-10",
+                        "event_date_label": null,
+                        "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                        "title": "DataBank Develops 480MW South Dallas Data Campus",
+                        "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+                      }
+                    ],
+                    "version": "commercial-brief-v1",
+                    "why_now": {
+                      "scope": null,
+                      "source_date": null,
+                      "sources": [],
+                      "text": null
+                    }
+                  },
+                  "company": null,
+                  "contact": [],
+                  "contact_people": [],
+                  "customer_identity_id": "ef1af432-a7fa-4db2-bf16-3cbfb3b46ff4",
+                  "eligible_need_ids": [],
+                  "event": null,
+                  "id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                  "location": "Red Oak, TX",
+                  "name": "Red Oak, TX data center campus",
+                  "need_count": 1,
+                  "needs": [
+                    {
+                      "activity": "facility-expansion",
+                      "asset_type": "data_center",
+                      "browse_title": "Red Oak, TX data center campus",
+                      "commercial_brief": {
+                        "best_contact": null,
+                        "freshness": {
+                          "as_of": "2026-11-13T08:04:10.682839+00:00",
+                          "source_age_days": 794,
+                          "source_date": "2024-09-10",
+                          "status": "stale_source"
+                        },
+                        "limitations": [
+                          "No current source-backed event is available to explain why now.",
+                          "Activity-specific power amount is unknown; unknown is not zero.",
+                          "No privacy-filtered contact route is available.",
+                          "Next action is a research prompt; no buyer or purchase authority is established."
+                        ],
+                        "next_action": {
+                          "kind": "research",
+                          "source": null,
+                          "text": "Research the activity-specific temporary power requirement using current project sources."
+                        },
+                        "power_need": {
+                          "amount_class": "unknown",
+                          "limitations": [
+                            "Activity-specific power amount is unknown; unknown is not zero."
+                          ],
+                          "scope": "facility-expansion",
+                          "status": "unknown",
+                          "unit": null,
+                          "value": null
+                        },
+                        "sources": [
+                          {
+                            "date": "2024-09-10",
+                            "event_date_label": null,
+                            "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                            "title": "DataBank Develops 480MW South Dallas Data Campus",
+                            "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+                          }
+                        ],
+                        "version": "commercial-brief-v1",
+                        "why_now": {
+                          "scope": null,
+                          "source_date": null,
+                          "sources": [],
+                          "text": null
+                        }
+                      },
+                      "commercial_preview": {
+                        "disposition": "WATCH",
+                        "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                        "next_question": "What suitable utility supply is committed to this specific activity, and what evidence identifies any shortfall?",
+                        "organization": "DataBank",
+                        "reason": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award."
+                      },
+                      "contact_actions": [],
+                      "contact_people": [],
+                      "evidence_count": 1,
+                      "id": "2fcbcf60-dd99-40d8-a4f1-0a2c93252992",
+                      "location": "Red Oak, TX",
+                      "name": "Red Oak, TX data center campus",
+                      "priority_label": "Data center",
+                      "priority_segment": 6,
+                      "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                      "project_metadata": {
+                        "asset_identity": null,
+                        "data_center": {
+                          "campus": "Red Oak, TX data center campus"
+                        },
+                        "event": null,
+                        "location": "Red Oak, TX",
+                        "name": "Red Oak, TX data center campus",
+                        "oil_gas": null,
+                        "operator": null,
+                        "owner": null,
+                        "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                        "power_summary_kind": "unknown",
+                        "sector": "data_centers",
+                        "title": "Red Oak, TX data center campus"
+                      },
+                      "tier": "Signal"
+                    }
+                  ],
+                  "next_action": "Current data-center evidence is formation or standby-generation scope; wait for a dated construction-mobilization or electrical-package award.",
+                  "power_amount_class": "unknown",
+                  "power_summary": "Data center project identified; temporary load and any residual power gap are not established.",
+                  "power_summary_kind": "unknown",
+                  "priority_score": 45,
+                  "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                  "project_ids": [
+                    "2b242be4-e905-4942-8a6f-139e7812d5fe"
+                  ],
+                  "representative_need_id": "2fcbcf60-dd99-40d8-a4f1-0a2c93252992",
+                  "sector": "data_centers",
+                  "updated_at": "2026-11-13T08:04:07.619889+00:00"
+                }
+              ],
+              "limit": 25,
+              "offset": 0,
+              "qualification_state": "current",
+              "refresh_state": "current",
+              "total": 1,
+              "valid_until": "2026-11-14T00:00:00+00:00"
+            }
+          },
+          "ordinary_groups": {
+            "as_of": "2026-11-13T08:04:09.904503+00:00",
+            "cohort_token": "p1_48270c2552740962ef63d8be8ea875c3cc5cd955712dad548151bc015e506fdf",
+            "count_unit": "groups",
+            "facets": {
+              "regions": [
+                "Bosque County, TX",
+                "Red Oak, TX"
+              ],
+              "stages": []
+            },
+            "generation": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+            "generation_id": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+            "items": [
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-13",
+                  "canonical_company_identity_ids": [
+                    "ef1af432-a7fa-4db2-bf16-3cbfb3b46ff4"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 1
+                    },
+                    "status": "supported",
+                    "total_mw": null,
+                    "totals": [
+                      {
+                        "basis": "it_load",
+                        "complete": true,
+                        "qualifier": "up_to",
+                        "status": "upper_bound",
+                        "value_mw": "480"
+                      }
+                    ]
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 20,
+                    "potential": 18,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 3,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [
+                    {
+                      "buying_chain_evidence_id": null,
+                      "content_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+                      "evidence_id": "a00ea0a7-d423-4101-964f-745b9e8532cd",
+                      "id": "7",
+                      "observation_id": "243d4bb1-51dc-43e2-82e2-78cd91fdab22",
+                      "observed_at": "2026-11-13T08:04:07.619889+00:00",
+                      "project_id": "2b242be4-e905-4942-8a6f-139e7812d5fe",
+                      "source_date": "2024-09-10",
+                      "summary": "Build capacity revised"
+                    }
+                  ],
+                  "recommended_next_action": "Review the revised capacity or schedule evidence and confirm the commissioning plan with the verified project owner.",
+                  "source_count": 1,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_d5ffb3fc9777d808e812f640181b4fd5",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "DataBank",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              },
+              {
+                "account_contact_project": null,
+                "commercial_intelligence": {
+                  "as_of": "2026-11-13",
+                  "canonical_company_identity_ids": [
+                    "79669ef3-8b86-410a-9ad5-50d0ed8a7698"
+                  ],
+                  "capacity": {
+                    "conflict_count": 0,
+                    "coverage": {
+                      "projects_total": 1,
+                      "projects_with_capacity": 0
+                    },
+                    "status": "insufficient_data",
+                    "total_mw": null,
+                    "totals": []
+                  },
+                  "commissioning": {
+                    "base_mw": null,
+                    "calculation_version": "commissioning-test-plan-v1.0.0",
+                    "confidence": "insufficient",
+                    "demand_class": "engineering_scenario",
+                    "high_mw": null,
+                    "limitations": [
+                      "Engineering scenario, not verified customer demand or a temporary/bridge-power rental requirement.",
+                      "Scope is the supplied test plan; installed capacity and campus capacity are not commissioning demand.",
+                      "No allowance for unreported auxiliaries, transients, power quality, cabling or redundant test banks.",
+                      "Supply source and customer procurement intent are unknown unless independently verified.",
+                      "A nonempty bounded, project-specific commissioning test plan is required."
+                    ],
+                    "low_mw": null,
+                    "status": "insufficient_data",
+                    "verified_customer_demand": false,
+                    "version": "commissioning-test-plan-v1.0.0"
+                  },
+                  "details_available": true,
+                  "limitations": [
+                    "Engineering scenarios are not verified customer demand.",
+                    "Only explicit supported source facts are included; missing values remain unknown."
+                  ],
+                  "priority": {
+                    "confidence": 0,
+                    "potential": 10,
+                    "ranking_method": "maximum supported project score before account pagination",
+                    "score": 0,
+                    "version": "customer-commercial-priority-v2"
+                  },
+                  "recent_developments": [],
+                  "recommended_next_action": "Research construction and energization timing, then identify a verified project decision-maker.",
+                  "source_count": 0,
+                  "timelines": {
+                    "conflict_count": 0,
+                    "construction_start": null,
+                    "expected_energization": null
+                  },
+                  "version": "customer-intelligence-v1"
+                },
+                "eligible_need_count": 0,
+                "group_kind": "resolved_identity",
+                "id": "cg_1c85e777bc6cd3dcb1cb03fff2220a96",
+                "identity_count": 1,
+                "matched_need_id": null,
+                "matched_project_id": null,
+                "name": "CyrusOne",
+                "need_count": 1,
+                "priority_score": 45,
+                "project_count": 1,
+                "pursued_eligible_need_count": 0,
+                "relevant_project_count": 0,
+                "role": "customer",
+                "sectors": [
+                  "data_centers"
+                ],
+                "total_known_project_count": 1
+              }
+            ],
+            "limit": 25,
+            "offset": 0,
+            "qualification_state": "current",
+            "refresh_state": "current",
+            "total": 2,
+            "totals": {
+              "accounts": 2,
+              "needs": 2,
+              "projects": 2
+            },
+            "valid_until": "2026-11-14T00:00:00+00:00"
+          },
+          "shortlist_groups": {
+            "as_of": "2026-11-13T08:04:09.904503+00:00",
+            "cohort_token": "p1_720698778eb990a0fcf3d512a5f8ee84d73627c95fd6c962c01f284e2d2b39ba",
+            "count_unit": "groups",
+            "facets": {
+              "regions": [
+                "Bosque County, TX",
+                "Red Oak, TX"
+              ],
+              "stages": []
+            },
+            "generation": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+            "generation_id": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+            "items": [],
+            "limit": 25,
+            "offset": 0,
+            "qualification_state": "current",
+            "refresh_state": "current",
+            "total": 0,
+            "totals": {
+              "accounts": 0,
+              "needs": 0,
+              "projects": 0
+            },
+            "valid_until": "2026-11-14T00:00:00+00:00"
+          }
+        },
+        "opened_group": {
+          "eligible_need_count": 0,
+          "group_kind": "resolved_identity",
+          "id": "cg_d5ffb3fc9777d808e812f640181b4fd5",
+          "name": "DataBank",
+          "projects": [
+            {
+              "location": "Red Oak, TX",
+              "name": "Red Oak, TX data center campus",
+              "qualification_tier": null,
+              "required_mw": null
+            }
+          ],
+          "role": "customer"
+        },
+        "opened_group_source": "ordinary_groups",
+        "ordinary_groups": {
+          "items": [
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_d5ffb3fc9777d808e812f640181b4fd5",
+              "identity_count": 1,
+              "name": "DataBank",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            },
+            {
+              "eligible_need_count": 0,
+              "group_kind": "resolved_identity",
+              "id": "cg_1c85e777bc6cd3dcb1cb03fff2220a96",
+              "identity_count": 1,
+              "name": "CyrusOne",
+              "priority_score": 45,
+              "project_count": 1,
+              "relevant_project_count": 0,
+              "role": "customer"
+            }
+          ],
+          "total": 2
+        },
+        "sector": "data_centers",
+        "shortlist_groups": {
+          "items": [],
+          "total": 0
+        }
+      },
+      "evidence_rows": 2,
+      "needs_with_unknown_mw": 2,
+      "power_need_rows": 2,
+      "project_rows": 2,
+      "projects": [
+        {
+          "location": "Red Oak, TX",
+          "name": "Red Oak, TX data center campus",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Bosque County, TX",
+          "name": "new data center adjacent to the Thad Hill Energy Center",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        }
+      ],
+      "saved_browse_generation": {
+        "generation_id": "2a11cc97-7b69-4371-8d4c-e312060b1732",
+        "rows": 2,
+        "status": "published"
+      },
+      "source_backed_fact_packages": [
+        {
+          "capacity_claims": [
+            {
+              "basis": "it_load",
+              "phase_id": "1",
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:phase:1",
+              "value_mw": "240"
+            },
+            {
+              "basis": "it_load",
+              "phase_id": null,
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "2b242be4-e905-4942-8a6f-139e7812d5fe:site",
+              "value_mw": "480"
+            }
+          ],
+          "commissioning_inputs": 0,
+          "required_mw": null,
+          "timeline_claims": [],
+          "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        }
+      ]
+    },
+    "source_admission": {
+      "accepted_source_records": [
+        {
+          "activity_key": "construction",
+          "activity_quote": "currently under construction",
+          "alias_spans": {},
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [],
+          "project_location": "Bosque County, TX",
+          "project_name": "new data center adjacent to the Thad Hill Energy Center",
+          "publication_date": "2025-07-30",
+          "source_files": [
+            "sources/cyrusone.json",
+            "sources/cyrusone_supplement.json"
+          ],
+          "source_hash": "585fa362e7abdaf4ef5104450f50451da103a2742f93f51ea6e58daee6319e5a",
+          "source_url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+        },
+        {
+          "activity_key": "facility-expansion",
+          "activity_quote": "development of a 480MW data center campus on 292 acres of land in Red Oak",
+          "alias_spans": {
+            "Red Oak Campus": [
+              460,
+              477
+            ]
+          },
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [
+            "Red Oak Campus"
+          ],
+          "project_location": "Red Oak, TX",
+          "project_name": "Red Oak, TX data center campus",
+          "publication_date": "2024-09-10",
+          "source_files": [
+            "sources/databank.json"
+          ],
+          "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+          "source_url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        }
+      ],
+      "candidate_records": 2,
+      "held_documents": 20,
+      "hold_reasons": [
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation"
+      ],
+      "hold_receipts": [
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/aligned.json"
+          ],
+          "source_url": "https://aligneddc.com/press-release/aligned-data-centers-expands-in-ohio-with-new-mega-scale-ai-campus/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/microsoft.json"
+          ],
+          "source_url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion_project_supplement.json"
+          ],
+          "source_url": "https://coastalvawind.com/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/meta.json"
+          ],
+          "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/google.json",
+            "sources/google_supplement.json"
+          ],
+          "source_url": "https://datacenters.google/locations/indiana/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/edgecore_press.json"
+          ],
+          "source_url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/fervo.json",
+            "sources/fervo_supplement.json"
+          ],
+          "source_url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/applied.json"
+          ],
+          "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/equinix.json"
+          ],
+          "source_url": "https://newsroom.equinix.com/2025-11-10-Equinix-Tops-Out-Its-Second-Data-Center-in-Johor"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/vantage.json"
+          ],
+          "source_url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/amazon.json",
+            "sources/amazon_supplement.json"
+          ],
+          "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass_markets.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/data-center-markets/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass.json",
+            "sources/compass_supplement.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/crusoe.json"
+          ],
+          "source_url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/digitalrealty.json"
+          ],
+          "source_url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion.json"
+          ],
+          "source_url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/qts.json"
+          ],
+          "source_url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/stack.json",
+            "sources/stack_supplement.json"
+          ],
+          "source_url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/switch.json"
+          ],
+          "source_url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/terrapower.json",
+            "sources/terrapower_supplement.json"
+          ],
+          "source_url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant"
+        }
+      ],
+      "native_signals": 2,
+      "retrieved_records": 2
+    }
+  },
+  "schema_version": "gridlens-customer-commercial-runtime-v2"
+}

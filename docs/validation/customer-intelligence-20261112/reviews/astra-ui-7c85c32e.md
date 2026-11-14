@@ -1,0 +1,30 @@
+# Independent frozen UI repair review
+
+Reviewed source: `7c85c32e3c96627971d706dae863089e92818a10`, isolated from the moving integration branch in `/workspace/task-runtime/astra-ui-7c85c32e`. `git diff 7c85c32e c0063c7f -- web/src web/tests web/vite.config.ts` is empty. This is a scoped UI repair receipt, not overall commercial acceptance or deployment approval.
+
+## Disposition
+
+The material findings in `/workspace/astra-ui-review-953b63d4.md` are closed in the reviewed UI paths. No remaining blocking defect was demonstrated in these bounded checks. Full generic browser/remote CI is separate and was still pending when this receipt was written. Earlier failing and moving-source runs must remain identified as such.
+
+- Verified, employer-matched name-only professionals render when a commercial brief exists, without inventing email/phone methods. Authoritative null and malformed account selections suppress both contact controls and contact-only authority, deliverability and source metadata. The early `contactCandidate` gate precedes `best` and source aggregation. Missing exact representative needs do not borrow another need's contact; the exact representative positive still works.
+- Capacity conflicts now show scoped alternatives, reason, quotes and citations. Timeline claims/conflicts distinguish event type, phase, expected/actual status, precision and source; operational target and ready-for-service labels are explicit. Unknown overlap and mixed upper/lower bounds explain why no combined total is supported.
+- Positive commissioning scenarios disclose inputs, source links, assumptions and calculation version. A base-only scenario is labeled as a base engineering scenario. The detail fixture explicitly says it is not verified customer demand.
+- The stray numeric zero and contact text-spacing defects are corrected. Source links retain HTTP(S) filtering; raw search ranking scores remain hidden. Native account/project hierarchy, navigation and existing contact-selection safeguards remain intact in inspected source.
+
+## Independent checks actually run
+
+An exact `git archive` of the reviewed web and validation files was used with the installed node_modules symlink. The temporary review Playwright configuration uses Chromium, one worker, no retries and an isolated Vite server on loopback port 32771. All API/authentication responses are synthetic mocks; no backend or retained database was used. Existing screenshot tests write only inside the isolated archive, preserving the repository's before images.
+
+1. `npx playwright test --config playwright.review.config.ts --reporter line`, selecting unchanged `customer_intelligence.spec.ts`, `account_search_target.spec.ts` and `customer-accounts.spec.ts`: **25 passed in 59.1 seconds**. Receipt: `/workspace/task-runtime/astra-ui-7c85c32e-test.log`. This includes name-only positive display, exact representative positive/missing-negative, account search beyond page one, selected-account contacts, same-name separation, null/malformed selections, Back/Forward/reload, cohort recovery and current-account changes. The commercial fixture also checks five viewport widths for horizontal overflow and the repaired conflict/input disclosures.
+2. A reviewer-authored test retained only in the archive, `web/tests/astra_contact_metadata.spec.ts`: **1 passed in 10.0 seconds**. Receipt: `/workspace/task-runtime/astra-ui-7c85c32e-metadata.log`. For explicit null, a null contact entry and malformed object-valued contact name, it opens the card's Sources disclosure and checks absence of the legacy person, Best contact wrapper, sensitive authority/deliverability text and contact-only citation URL. Product code was not edited.
+3. Final mobile and expanded account-detail captures produced by this exact run were visually inspected. Earlier review inspected all twelve original before/after captures and all six revised after captures. The final mobile shows readable contact blocks, uncertainty and partial coverage, without horizontal overflow. Expanded detail exposes the conflict alternatives and commissioning evidence. Its full-page capture places the sticky header mid-image because the page was scrolled; this is a capture-quality limitation, not a demonstrated interactive layout defect.
+
+Prior independent typecheck and earlier diagnostic results belong to their recorded revisions; no new final-head typecheck, full generic suite, real authentication, persistent Pursuits, keyboard-only journey, screen reader, automated accessibility scan, measured contrast or zoom audit was run by this reviewer. Native semantic controls and accessible labels are preserved, but this is not an accessibility compliance certification.
+
+## Remaining product and evidence limitations
+
+The UI is an incremental improvement, not evidence that the complete compact redesign is finished. Two search fields, several toolbar rows, repeated Next action text and repeated unknown-fact blocks remain. The first mobile customer card is long, and account detail combines new analysis with the existing structure. These materially limit scanability even though the repaired facts are legible.
+
+The expanded after fixture adds conflicts, engineering evidence and a positive scenario that are absent from the original before fixture. The pair therefore is **not a matched-input visual comparison**. Synthetic Northstar has two projects and one supported capacity project; unrelated Cedar has one project. Cedar's overlap label is a synthetic state exercise, not an observed real-source overlap. Screenshot data and mock contacts do not prove actual intelligence acquisition.
+
+Real commercial readiness remains blocked by zero published scoped claims in the retained real customer cohort and unestablished verified-contact acquisition. The UI cannot establish useful recall, source authority or salesperson acceptance. Performance, complete CI, merged-candidate compatibility and release decisions remain separate gates. No merge, deployment or mission-complete approval is issued.

@@ -38,6 +38,7 @@ from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
     extract_company_contacts,
     extract_people,
+    native_company_roster_capture,
 )
 from gridlens.intelligence.company_contact_attribution import (
     document_claims_operator_identity,
@@ -85,6 +86,7 @@ CONTACT_PLANNER_RETRY_DAYS = 7
 CONTACT_PLANNER_REFRESH_DAYS = 30
 POLICY_VERSION = "company-contact-discovery-v13-adaptive"
 NATIVE_RRC_DIRECTORY_POLICY = "rrc-p5-directory-v1"
+NATIVE_COMPANY_ROLE_SOURCE_REASON = "Exact actor-name company-domain roster; roles only."
 
 
 def _projects(session: Session, company_identity_id: UUID) -> list[Project]:
@@ -273,6 +275,41 @@ def _contact_yield_keys(
             )[1:]
             keys.add(("person_method", person_key, kind, value, document.url))
     return keys
+
+
+def _named_role_discovery_hints(
+    document: PublicDocument, organization: str, project: Project | None, now: datetime
+) -> set[tuple[str, str]]:
+    """Keep a promising named-role lead in bounded research, never authenticate it.
+
+    This affects only the depth heuristic after same-host/self-identification
+    checks. Canonical attribution and contact publication remain independent.
+    A repeated role on another URL is the same hint, not additional yield.
+    """
+    if project is None:
+        return set()
+    observed = document.observed_at
+    if observed.tzinfo is None:
+        observed = observed.replace(tzinfo=UTC)
+    age = now - observed
+    if age < -timedelta(minutes=5) or age > timedelta(days=30):
+        return set()
+    org = Extracted(organization, "unknown", organization_relationship="DIRECT")
+    people = extract_people(
+        document,
+        [org],
+        project,
+        project_scoped=False,
+        today=now.date(),
+        verified_official_roster=True,
+    )
+    return {
+        (_normal(person.person_name), _normal(person.title))
+        for person in people
+        if person.person_name
+        and person.title
+        and person.person_organization_relationship == "CURRENT"
+    }
 
 
 def _current_contact_yield_keys(contacts: list) -> set[tuple[str, ...]]:
@@ -1389,6 +1426,11 @@ def process_company_contact_discovery(
 
     checked: set[str] = set()
     consecutive_low_yield = 0
+    seen_named_hints: set[tuple[str, str]] = {
+        (_normal(contact.name), _normal(contact.title))
+        for contact in current.contacts
+        if contact.name and contact.title and relevant_named_contact(contact)
+    }
     seen_yield_keys = _current_contact_yield_keys(current.contacts)
     new_contact_yield_count = 0
     depth_stop_reason: str | None = None
@@ -1422,8 +1464,15 @@ def process_company_contact_discovery(
                     )
                     new_yield = page_yield - seen_yield_keys
                     seen_yield_keys.update(page_yield)
+                    named_hints = _named_role_discovery_hints(document, organization, anchor, now)
+                    new_named_hints = named_hints - seen_named_hints
+                    seen_named_hints.update(named_hints)
                     if new_yield:
                         new_contact_yield_count += len(new_yield)
+                        consecutive_low_yield = 0
+                    elif new_named_hints:
+                        # A concrete professional role warrants the remaining
+                        # bounded research, but is not verified contact yield.
                         consecutive_low_yield = 0
                     else:
                         consecutive_low_yield += 1
@@ -1997,13 +2046,36 @@ def _discover_anchor(
             else "Paid discovery is not enabled for this contact job",
         }
     org = old.organization
+    current_actor_candidates = [
+        candidate
+        for candidate in view.get("candidates", [])
+        if not candidate.get("person_name")
+        and not candidate.get("stale")
+        and not candidate.get("correction_stale")
+        and not candidate.get("retracted")
+        and not candidate.get("suppressed")
+        and candidate.get("organization_relationship") == "DIRECT"
+        and str(candidate.get("company_identity_id")) == str(company_id)
+    ]
+    native_company_source_urls = [
+        str(citation.get("url"))
+        for candidate in current_actor_candidates
+        for citation in candidate.get("evidence", [])
+        if citation.get("supports") == "project_organization"
+        and citation.get("current_support")
+        and citation.get("url")
+    ]
     documents = []
+    role_only_documents = []
     for doc in fetched.values():
-        if not _self_identified_company_site(doc, org) or not document_matches_company_identity(
+        if _self_identified_company_site(doc, org) and document_matches_company_identity(
             session, doc, company_id=company_id, organization=org
         ):
-            continue
-        documents.append(doc)
+            documents.append(doc)
+        elif native_company_roster_capture(
+            doc, org, native_company_source_urls=native_company_source_urls
+        ):
+            role_only_documents.append(doc)
     identity = session.get(CompanyIdentity, company_id)
     registry_method = (
         _rrc_public_method(registry_doc, operator_number, org)
@@ -2024,7 +2096,7 @@ def _discover_anchor(
             and candidate_method.get("source_url") == candidate_doc.url
         ):
             directory_doc, directory_method = candidate_doc, candidate_method
-    if not documents and not registry_method and not directory_method:
+    if not documents and not role_only_documents and not registry_method and not directory_method:
         return {"status": "unresolved", "reason": "official_identity_unverified"}
     contacts = []
     # JSON columns return mutable nested objects; copy each row so rebinding an
@@ -2032,19 +2104,41 @@ def _discover_anchor(
     citations = [dict(item) for item in old.citations]
     evidence_ids = []
     sources_by_url: dict[str, BuyingChainEvidence] = {}
-    for doc in documents:
+    for doc in [*documents, *role_only_documents]:
         source = _store_document(
             session,
             project,
             doc,
-            "Self-identified official organization contact page.",
-            seen_at=now,
+            NATIVE_COMPANY_ROLE_SOURCE_REASON
+            if doc in role_only_documents
+            else "Self-identified official organization contact page.",
+            seen_at=doc.observed_at if doc in role_only_documents else now,
         )
         evidence_ids.append(str(source.id))
         sources_by_url[doc.url] = source
     named_count, named_method_keys = _store_named_professionals(
         session, project, company_id, old, documents, sources_by_url, now
     )
+    # Company roster roles stay in a separate company-scoped read projection.
+    # Do not persist them as project BuyingChainClaims: a general roster does
+    # not establish project responsibility, project freshness, or assignment.
+    from gridlens.intelligence.buying_chain_extraction import extract_people
+
+    role_count = sum(
+        len(
+            extract_people(
+                doc,
+                [Extracted(org, old.category, organization_relationship="DIRECT")],
+                project,
+                project_scoped=False,
+                today=now.date(),
+                verified_official_roster=True,
+                company_only_role=True,
+            )
+        )
+        for doc in role_only_documents
+    )
+    named_count += role_count
     generic_method_blocklist = named_method_keys | _person_card_method_keys(documents)
     for doc in documents:
         source = sources_by_url[doc.url]
@@ -2319,7 +2413,9 @@ def _discover_anchor(
             if generic_method_keys
             else "person_card_methods_not_promoted"
         ),
-        "source_class": "official_company_site" if documents else "public_registry",
+        "source_class": "official_company_site"
+        if documents or role_only_documents
+        else "public_registry",
     }
 
 

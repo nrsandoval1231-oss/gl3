@@ -1,0 +1,133 @@
+{
+  "mode": "after",
+  "database": "gl3_ui_followup_after_1ac481e0_test",
+  "api_mocking": false,
+  "retained_native_sources": [
+    "DataBank",
+    "CyrusOne"
+  ],
+  "source_artifact_sha256": {
+    "eval/customer-commercial-v1/sources/cyrusone.json": "e19ad67c6185975f70c6a7b92e031edc133644d2f21958e399a22027612e408e",
+    "eval/customer-commercial-v1/sources/databank.json": "7588dd65e94ac93b3fc6e9bdb7e37a6a81d84e2ba37400064263b3b182bbde6b"
+  },
+  "saved_browse_generation": "b92eb643-1d27-436f-8405-3d24c1ce5f55",
+  "accounts": [
+    {
+      "name": "CyrusOne",
+      "group_kind": "resolved_identity",
+      "capacity_totals": [],
+      "power_amount_class": "unknown",
+      "permitted_contact_route_count": 0,
+      "recent_developments": []
+    },
+    {
+      "name": "DataBank",
+      "group_kind": "resolved_identity",
+      "capacity_totals": [
+        {
+          "basis": "it_load",
+          "qualifier": "up_to",
+          "status": "upper_bound",
+          "value_mw": "480"
+        }
+      ],
+      "power_amount_class": "unknown",
+      "permitted_contact_route_count": 0,
+      "recent_developments": []
+    }
+  ],
+  "group_responses": [
+    {
+      "status": 200,
+      "query": {
+        "sector": "all",
+        "limit": "25",
+        "offset": "0",
+        "sort": "priority",
+        "shortlist": "false",
+        "canonical_only": "true"
+      },
+      "total": 2,
+      "generation_id": "b92eb643-1d27-436f-8405-3d24c1ce5f55",
+      "items": [
+        {
+          "name": "CyrusOne",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": []
+        },
+        {
+          "name": "DataBank",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [
+            {
+              "basis": "it_load",
+              "value_mw": "480",
+              "status": "upper_bound",
+              "qualifier": "up_to",
+              "complete": true
+            }
+          ],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": []
+        }
+      ]
+    },
+    {
+      "status": 200,
+      "query": {
+        "sector": "all",
+        "limit": "25",
+        "offset": "0",
+        "sort": "priority",
+        "shortlist": "false",
+        "canonical_only": "true"
+      },
+      "total": 2,
+      "generation_id": "b92eb643-1d27-436f-8405-3d24c1ce5f55",
+      "items": [
+        {
+          "name": "CyrusOne",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": []
+        },
+        {
+          "name": "DataBank",
+          "group_kind": "resolved_identity",
+          "capacity_totals": [
+            {
+              "basis": "it_load",
+              "value_mw": "480",
+              "status": "upper_bound",
+              "qualifier": "up_to",
+              "complete": true
+            }
+          ],
+          "power_amount_class": "unknown",
+          "permitted_contact_route_count": 0,
+          "recent_developments": []
+        }
+      ]
+    }
+  ],
+  "expanded_account_detail": {
+    "account": "DataBank",
+    "build_capacity": "Up to 480 MW · IT load",
+    "supported_timeline": false,
+    "source_link_count": 1
+  },
+  "page_errors": [],
+  "external_requests": [],
+  "screenshots": {
+    "after-customers-desktop.png": "002488af466e1797ac2d716206c3dcea20a15471a06a530c0262682b27c50236",
+    "after-customers-mobile.png": "215476e51d7da02c55d5c41c25f0a7f004d2d5a08a4296d66469a1182e29b253",
+    "after-databank-detail-commercial-open-desktop.png": "cb64cba0821a4e6e9ad686fa0af8bc415414573b2ec97933f3e5b2f7523c3ec9",
+    "after-databank-detail-desktop.png": "4298e34b4b63f6e9a2b28a04c12e95c9a82926d37274bdf74c4129d2898eff5c"
+  }
+}

@@ -1,0 +1,298 @@
+{
+  "date": "2026-11-13",
+  "args": {
+    "source": "rrc",
+    "projects": 5000,
+    "records": 300,
+    "changed_fraction": 0.05
+  },
+  "database": "commercial_ingest_perf_candidate_test",
+  "migrate_seconds": 5.655510510000113,
+  "seed_seconds": 1.5794762119999177,
+  "corpus": {
+    "projects": 5000,
+    "power_needs": 500,
+    "browse_state": {
+      "id": 1,
+      "input_revision": 4,
+      "generation_id": null,
+      "full_revision": 4,
+      "prepared_generation_id": null,
+      "structural_revision": 4,
+      "stale_since": null
+    }
+  },
+  "final_counts": {
+    "projects": 5300,
+    "observations": 300
+  },
+  "phases": [
+    {
+      "phase": "a_all_new",
+      "records": 300,
+      "wall_seconds": 102.493422861,
+      "records_per_second": 2.927017086812052,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 27967,
+      "statements_per_record": 93.22333333333333,
+      "explicit_lock_statements": 4210,
+      "explicit_lock_statements_per_record": 14.033333333333333,
+      "project_scan_statements": 3000,
+      "project_scan_seconds": 7.084608076003406,
+      "trigger_calls": 20740,
+      "trigger_calls_per_record": 69.13333333333334,
+      "trigger_total_ms_inclusive": 16125.827000000001,
+      "trigger_pct_of_wall": 15.73352372265838,
+      "trigger_functions": {
+        "invalidate_browse_generation": {
+          "calls": 6300,
+          "total_ms": 5258.548000000001,
+          "self_ms": 4799.246
+        },
+        "mark_browse_structural_fence": {
+          "calls": 300,
+          "total_ms": 178.523,
+          "self_ms": 170.372
+        },
+        "mark_browse_structural_deactivation": {
+          "calls": 300,
+          "total_ms": 29.61,
+          "self_ms": 29.61
+        },
+        "invalidate_browse_identity_entities": {
+          "calls": 20,
+          "total_ms": 33.665,
+          "self_ms": 33.665
+        },
+        "invalidate_browse_identity_entity_insert": {
+          "calls": 20,
+          "total_ms": 37.381,
+          "self_ms": 3.715
+        },
+        "invalidate_browse_company_membership_rows": {
+          "calls": 300,
+          "total_ms": 540.012,
+          "self_ms": 527.089
+        },
+        "invalidate_browse_company_membership_insert": {
+          "calls": 300,
+          "total_ms": 621.215,
+          "self_ms": 81.202
+        },
+        "track_browse_stale_since": {
+          "calls": 6900,
+          "total_ms": 480.37600000000003,
+          "self_ms": 480.37600000000003
+        },
+        "dirty_browse_project_insert": {
+          "calls": 4200,
+          "total_ms": 6434.696,
+          "self_ms": 6434.696
+        },
+        "dirty_browse_project_update": {
+          "calls": 2100,
+          "total_ms": 2511.801,
+          "self_ms": 2511.801
+        }
+      },
+      "process_job_result": {
+        "new": 300,
+        "changed": 0,
+        "unchanged": 0,
+        "signals": 300,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-12",
+        "collection_window_end": "2026-11-12",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-13T00:00:49.261505+00:00",
+        "acquisition_completed_at": "2026-11-13T00:02:31.698373+00:00",
+        "partial": true
+      }
+    },
+    {
+      "phase": "b_all_unchanged",
+      "records": 300,
+      "wall_seconds": 9.36848854300024,
+      "records_per_second": 32.02224122098628,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 4227,
+      "statements_per_record": 14.09,
+      "explicit_lock_statements": 1510,
+      "explicit_lock_statements_per_record": 5.033333333333333,
+      "project_scan_statements": 600,
+      "project_scan_seconds": 0.6383074129989836,
+      "trigger_calls": 0,
+      "trigger_calls_per_record": 0.0,
+      "trigger_total_ms_inclusive": 0,
+      "trigger_pct_of_wall": 0.0,
+      "trigger_functions": {},
+      "process_job_result": {
+        "new": 0,
+        "changed": 0,
+        "unchanged": 300,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-12",
+        "collection_window_end": "2026-11-12",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-13T00:02:35.872041+00:00",
+        "acquisition_completed_at": "2026-11-13T00:02:45.186103+00:00",
+        "partial": true
+      }
+    },
+    {
+      "phase": "c_5%_changed",
+      "records": 300,
+      "wall_seconds": 9.385891385999912,
+      "records_per_second": 31.962867208061127,
+      "commits": 5,
+      "commits_per_record": 0.016666666666666666,
+      "statements": 5217,
+      "statements_per_record": 17.39,
+      "explicit_lock_statements": 1660,
+      "explicit_lock_statements_per_record": 5.533333333333333,
+      "project_scan_statements": 705,
+      "project_scan_seconds": 0.5935584729995753,
+      "trigger_calls": 570,
+      "trigger_calls_per_record": 1.9,
+      "trigger_total_ms_inclusive": 242.89900000000063,
+      "trigger_pct_of_wall": 2.5879161606569534,
+      "trigger_functions": {
+        "invalidate_browse_generation": {
+          "calls": 135,
+          "total_ms": 31.39300000000003,
+          "self_ms": 27.01800000000003
+        },
+        "invalidate_browse_company_membership_update": {
+          "calls": 15,
+          "total_ms": 16.848,
+          "self_ms": 7.252
+        },
+        "mark_browse_structural_fence": {
+          "calls": 30,
+          "total_ms": 1.5699999999999932,
+          "self_ms": 1.3899999999999864
+        },
+        "mark_browse_structural_deactivation": {
+          "calls": 15,
+          "total_ms": 1.083000000000002,
+          "self_ms": 1.083000000000002
+        },
+        "invalidate_browse_company_membership_rows": {
+          "calls": 30,
+          "total_ms": 16.049000000000092,
+          "self_ms": 15.594999999999914
+        },
+        "invalidate_browse_company_membership_insert": {
+          "calls": 15,
+          "total_ms": 9.15300000000002,
+          "self_ms": 2.700000000000003
+        },
+        "track_browse_stale_since": {
+          "calls": 195,
+          "total_ms": 5.007999999999981,
+          "self_ms": 5.007999999999981
+        },
+        "dirty_browse_project_insert": {
+          "calls": 60,
+          "total_ms": 58.10900000000038,
+          "self_ms": 58.10900000000038
+        },
+        "dirty_browse_project_update": {
+          "calls": 75,
+          "total_ms": 103.68600000000015,
+          "self_ms": 103.68600000000015
+        }
+      },
+      "process_job_result": {
+        "new": 0,
+        "changed": 15,
+        "unchanged": 285,
+        "signals": 0,
+        "retrieved_records": 300,
+        "parsed_records": 300,
+        "records_scanned": 300,
+        "permit_accepted": 300,
+        "permit_rejected": 0,
+        "regional_held": 0,
+        "regional_excluded": 0,
+        "latest_publication_date": "2026-09-01",
+        "latest_public_comment_deadline": null,
+        "pdf_candidates": 0,
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "pdf_skipped_not_signal": 0,
+        "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
+        "collection_lane": "issue_recent",
+        "collection_status": "PARTIAL",
+        "collection_current_complete": true,
+        "collection_continuation": true,
+        "collection_window_start": "2026-11-12",
+        "collection_window_end": "2026-11-12",
+        "collection_expected_count": 300,
+        "collection_observed_count": 300,
+        "collection_error_class": null,
+        "collection_error_code": null,
+        "collection_error_stage": null,
+        "collection_http_status": null,
+        "acquisition_started_at": "2026-11-13T00:02:49.300172+00:00",
+        "acquisition_completed_at": "2026-11-13T00:02:58.639587+00:00",
+        "partial": true
+      }
+    }
+  ],
+  "approximations": [
+    "Rows locked cannot be measured from the client; reported proxies are explicit FOR UPDATE/SHARE statements and per-record calls of browse-invalidation trigger functions.",
+    "Trigger function total_ms is inclusive of nested function calls and may double count; it bounds time spent in browse invalidation from above.",
+    "Project scan statements are client statements containing 'FROM projects'."
+  ]
+}

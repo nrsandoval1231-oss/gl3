@@ -1,0 +1,22 @@
+{
+  "source_id": "applied",
+  "url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with",
+  "title": "Applied Digital Announces 250MW AI Data Center Lease With CoreWeave in North Dakota :: Applied Digital Corporation (APLD)",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "June 02, 2025 8:00am EDT [Download as PDF](https://ir.applieddigital.com/_assets/_262619ab396e2f4c1ad1e27139b4cd53/appliedblockchaininc/news/2025-06-02_Applied_Digital_Announces_250MW_AI_Data_Center_123.pdf \"PDF: Applied Digital Announces 250MW AI Data Center Lease With CoreWeave in North Dakota\")",
+    "Under the lease agreements, Applied Digital will deliver 250 megawatts (MW) of critical IT load to host CoreWeave's artificial intelligence (AI) and high-performance computing (HPC) infrastructure at its Ellendale, North Dakota data center campus. Over the approximately 15-year term, Applied Digital anticipates generating approximately $7 billion in total revenue from the leases.",
+    "Pursuant to the lease agreements, CoreWeave also retains the option to access an additional 150 MW of critical IT load at Ellendale, positioning the campus as a scalable hub for expanding AI and HPC workloads. “We believe these leases solidify Applied Digital’s position as an emerging provider of infrastructure critical to the next generation of artificial intelligence and high-performance computing,” said Wes Cummins, Chairman and CEO of Applied Digital. “As demand for AI accelerates exponentially, we believe that we are uniquely positioned to deliver substantial returns while supporting the evolving and dynamic needs of these rapidly evolving sectors. We view CoreWeave as an ideal partner as we accelerate our growth and innovation.”",
+    "The Ellendale campus was planned to be engineered for high-density compute and designed to scale up to 1 gigawatt over time. The two approximately 15-year lease agreements mark a foundational step in unlocking the campus’s full potential.",
+    "Applied Digital designed Ellendale for the speed and efficiency of deployment, prime location, AI innovative design, and access to abundant, low-cost energy. The energy-efficient climate is intended to further enable Applied Digital to meet the rapid capacity demands, positioning both the region and the company as emerging leaders in the AI data center ecosystem. Applied Digital expects the first 100 MW data center for CoreWeave to be ready for service in the fourth quarter of calendar 2025. The second building, which is expected to house a 150 MW data center, is currently under construction and is expected to be ready for service in the middle of 2026. Additionally, CoreWeave holds an option for the third 150 MW building, which is currently in the planning stages, anticipated to be ready for service in 2027.",
+    "Applied Digital’s Ellendale campus is designed to host 400 MW of critical IT load. Ellendale has 1+ gigawatts of power capacity currently under various stages of load study, allowing the campus to expand its power capacity to support additional AI and HPC data center infrastructure development.",
+    "Released June 2, 2025"
+  ]
+}
+

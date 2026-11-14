@@ -1,0 +1,100 @@
+{
+  "captured_at_utc": "2026-11-14T04:50:10.2660908Z",
+  "host_processes_top_cumulative_cpu": [
+    {
+      "Name": "codex",
+      "Id": 20196,
+      "CpuSeconds": 12109.72,
+      "WorkingSetMiB": 2151.2
+    },
+    {
+      "Name": "Docker Desktop",
+      "Id": 21696,
+      "CpuSeconds": 830.2,
+      "WorkingSetMiB": 166.2
+    },
+    {
+      "Name": "ChatGPT",
+      "Id": 5904,
+      "CpuSeconds": 805.64,
+      "WorkingSetMiB": 85.3
+    },
+    {
+      "Name": "com.docker.backend",
+      "Id": 23608,
+      "CpuSeconds": 702.5,
+      "WorkingSetMiB": 330.3
+    },
+    {
+      "Name": "ChatGPT",
+      "Id": 20940,
+      "CpuSeconds": 448.88,
+      "WorkingSetMiB": 511.1
+    },
+    {
+      "Name": "ChatGPT",
+      "Id": 12468,
+      "CpuSeconds": 270.7,
+      "WorkingSetMiB": 328.1
+    },
+    {
+      "Name": "ChatGPT",
+      "Id": 17668,
+      "CpuSeconds": 185.38,
+      "WorkingSetMiB": 94.8
+    },
+    {
+      "Name": "chrome",
+      "Id": 22236,
+      "CpuSeconds": 124.52,
+      "WorkingSetMiB": 505.5
+    },
+    {
+      "Name": "wsl",
+      "Id": 12220,
+      "CpuSeconds": 122.19,
+      "WorkingSetMiB": 11.4
+    },
+    {
+      "Name": "Dropbox",
+      "Id": 22420,
+      "CpuSeconds": 67.86,
+      "WorkingSetMiB": 311.9
+    },
+    {
+      "Name": "chrome",
+      "Id": 10036,
+      "CpuSeconds": 61.27,
+      "WorkingSetMiB": 213.0
+    },
+    {
+      "Name": "claude",
+      "Id": 30500,
+      "CpuSeconds": 58.72,
+      "WorkingSetMiB": 270.0
+    },
+    {
+      "Name": "Docker Desktop",
+      "Id": 13676,
+      "CpuSeconds": 57.12,
+      "WorkingSetMiB": 109.3
+    },
+    {
+      "Name": "CrossDeviceService",
+      "Id": 12400,
+      "CpuSeconds": 38.55,
+      "WorkingSetMiB": 58.0
+    },
+    {
+      "Name": "com.docker.backend",
+      "Id": 5216,
+      "CpuSeconds": 31.81,
+      "WorkingSetMiB": 59.1
+    }
+  ],
+  "database_container_stats": [
+    "CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O          BLOCK I/O         PIDS",
+    "2c49e62f7e3e   gl3-full-audit-db-20261113   0.31%     454.1MiB / 15.38GiB   2.88%     319MB / 1.02GB   18.1MB / 1.94GB   9"
+  ],
+  "note": "Best-effort local host/resource snapshot immediately before matched synthetic timing."
+}

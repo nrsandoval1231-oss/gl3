@@ -1,0 +1,53 @@
+{
+  "started_at": "2026-11-12T23:58:48.852295+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "base",
+      "source_commit": "bf75d32746d28ac44effcb65989d53fdeaa765e4",
+      "source_manifest_sha256_before": "a750011099008bf79a21cbd0c96ac4394c876607b74a42cce3e829850c7f27a5",
+      "database": "commercial_ingest_perf_base_test",
+      "commands": [
+        {
+          "label": "ingestion-base",
+          "started_at": "2026-11-12T23:58:49.334248+00:00",
+          "finished_at": "2026-11-13T00:00:37.319371+00:00",
+          "wall_seconds": 107.98517340800026,
+          "exit_code": 0,
+          "log_file": "ingestion-base.log",
+          "log_sha256": "1c09d7d87db5d94098ce2303b8e55b66f44ac1e026f9b1fe5e8815a15c771284"
+        }
+      ],
+      "harness_sha256": "41c1985768c4554d79ffa3b96b1113c2f38b7223e9731d8b19cc3631a552ba48",
+      "source_manifest_sha256_after": "a750011099008bf79a21cbd0c96ac4394c876607b74a42cce3e829850c7f27a5",
+      "source_unchanged_during_run": true
+    },
+    {
+      "side": "candidate",
+      "source_commit": "4b6d0f92ad3d2475c9a783fe7b6bdd649ca0c74a",
+      "source_manifest_sha256_before": "1a7b43fa01c8aa005e6c47a4eb67ea25bd89348bef7efb39c9b91d8deb3e0a96",
+      "database": "commercial_ingest_perf_candidate_test",
+      "commands": [
+        {
+          "label": "ingestion-candidate",
+          "started_at": "2026-11-13T00:00:37.418825+00:00",
+          "finished_at": "2026-11-13T00:03:01.255547+00:00",
+          "wall_seconds": 143.8367266829996,
+          "exit_code": 0,
+          "log_file": "ingestion-candidate.log",
+          "log_sha256": "66cd714718f1d372caa4fb302b35ede1572907304f3ca336bc24f19c8190e5f9"
+        }
+      ],
+      "harness_sha256": "41c1985768c4554d79ffa3b96b1113c2f38b7223e9731d8b19cc3631a552ba48",
+      "source_manifest_sha256_after": "1a7b43fa01c8aa005e6c47a4eb67ea25bd89348bef7efb39c9b91d8deb3e0a96",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "limitations": [
+    "Shared machine while root full backend pytest runs with four workers.",
+    "Single matched ingestion run, not a statistical regression gate.",
+    "All sources and accounts are synthetic disposable fixtures.",
+    "No external/provider execution; ingestion retrieval is fixture-monkeypatched."
+  ],
+  "finished_at": "2026-11-13T00:03:01.268752+00:00"
+}

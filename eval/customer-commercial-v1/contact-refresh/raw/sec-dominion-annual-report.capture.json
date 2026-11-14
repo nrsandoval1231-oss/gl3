@@ -1,0 +1,27 @@
+{
+  "slug": "sec-dominion-annual-report",
+  "url": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/dei-ars-12312025.pdf",
+  "observed_at": "2026-11-13",
+  "publication_date": null,
+  "publication_date_basis": "SEC-hosted report metadata as returned by search; filing date not yet independently captured from the filing index.",
+  "retrieval": "Firecrawl SEC PDF parser rendered as Markdown",
+  "metadata": {
+    "scrapeId": "01a1d2f4-5947-7354-a349-2332712a465a",
+    "sourceURL": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/dei-ars-12312025.pdf",
+    "url": "https://www.sec.gov/Archives/edgar/data/715957/000119312526115192/dei-ars-12312025.pdf",
+    "statusCode": 200,
+    "numPages": 184,
+    "totalPages": 184,
+    "title": "Dominion Energy 2025 Annual Report",
+    "contentType": "application/pdf",
+    "proxyUsed": "basic",
+    "indexId": "1021b7f4-5db4-4ec1-b991-e18dda53a6a7",
+    "creditsUsed": 184,
+    "concurrencyLimited": false
+  },
+  "source_text_chars": 928160,
+  "publication_date_status": "Publisher publication date not captured; SEC index separately confirms an ARS filing date.",
+  "filing_date": "2026-03-19",
+  "filing_type": "ARS",
+  "filing_date_source_id": "sec-dominion-index"
+}

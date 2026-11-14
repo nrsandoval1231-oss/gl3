@@ -1,0 +1,7 @@
+# Frozen customer presentation capture
+
+The unchanged regression suite passed all 339 cases in 5.2 minutes. These captures use synthetic fixtures and the exact source hashes in `manifest.json`. The source working tree was uncommitted at capture; HEAD alone is not the source identity. Original parent-directory screenshots were restored to their prior committed bytes.
+
+Primary cards hide legacy inferred/estimated temporary-power MW and distinguish source-reported operational targets from energization. The existing before images use a smaller fixture, so before/after comparison is illustrative, not a matched-input measurement. No real-source coverage or production-readiness claim follows from these images.
+
+Independent Astra visually reviewed desktop-wide, mobile and account-detail captures and verified every manifest image/source hash with zero mismatches. Bounded synthetic visual acceptance: customer hierarchy, capacity qualifications, separate construction/energization, explicit commissioning abstention, one next action, responsive wrapping and existing branding. The reviewer did not rerun the coordinator's 339-case regression receipt. In the full-page detail capture, the sticky header appears midway through the page after scroll-to-expand interactions; this limits that image, rather than demonstrating a new layout regression. No human salesperson or real-customer usefulness acceptance was administered.

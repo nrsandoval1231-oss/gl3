@@ -1,0 +1,20 @@
+{
+  "source_id": "compass_markets",
+  "url": "https://www.compassdatacenters.com/data-center-markets/",
+  "title": "Data Center Markets - Compass Datacenters",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "miss",
+  "cached_at": null,
+  "publication_date_metadata": null,
+  "modified_date_metadata": "2026-08-21T16:00:18+00:00",
+  "excerpts": [
+    "This 200 MW campus, located 30 miles west of Chicago in Hoffman Estates, is strategically positioned to support growing demand for capacity in the Midwest.",
+    "Meridian broke ground in 2025, 80 miles east of Jackson, this 320 MW site is set to become one of the largest data center campuses in the Southeast.",
+    "The Dallas–Fort Worth Metroplex is a premier hub for hyperscalers and cloud providers. With our 360 MW Red Oak development nearing completion, Compass is expanding its footprint across this critical U.S. market.",
+    "Northern Virginia is home to Compass' 79 MW hyperscale campus in Loudoun County, located in the heart of Data Center Alley. Developed in close partnership with local officials, the campus reflects Compass' commitment to responsible development, operational excellence and delivering scalable infrastructure in one of the world's most dynamic data center markets.",
+    "Phoenix has become a strategic market due to its proximity to West Coast tech centers. To meet the region’s growing demand, Compass is developing multiple sites — including a 212 MW campus in Goodyear and a 108 MW campus in El Mirage."
+  ]
+}
+

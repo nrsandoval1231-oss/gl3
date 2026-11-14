@@ -1,0 +1,300 @@
+{
+  "captured_at": "2026-11-13T06:30:51.154691+00:00",
+  "immutable_inputs": {
+    "gold_sha256": "dd061c52a85b0ba05b59aab4229f5dd886bced31145fe6ab315c5ad1cda0b922",
+    "gold_used_as_runtime_input": false,
+    "source_artifacts_verified": 29,
+    "source_manifest_sha256": "4b8831df9e94261806d2df7d51a4df1fd4299fe3b4daf862fdc64b99f192c5fb"
+  },
+  "runtime": {
+    "disposable_database": "gl3_customer_runtime_20261113063046_e4b36df3_test",
+    "evaluation_limits": {
+      "contacts": "unavailable_unverified; no current contact evidence was acquired",
+      "cross_customer_grouping": "not_measured; no independently proven global IDs",
+      "dedupe": "only native ingestion replay keys observed; no identity oracle",
+      "identity_accuracy": "not_measured; reference labels were never seeded",
+      "portfolio_mw_rollup": "not_evaluated; source MW facts do not populate required_mw",
+      "ranking_usefulness": "not_evaluated; browse generation publication is plumbing only"
+    },
+    "native_runtime": {
+      "accepted_interpretations": 2,
+      "account_projection": {
+        "account_api_rows": 0,
+        "browse_membership_rows": 0
+      },
+      "current_project_scoped_company_links": 0,
+      "evidence_rows": 2,
+      "needs_with_unknown_mw": 2,
+      "power_need_rows": 2,
+      "project_rows": 2,
+      "projects": [
+        {
+          "location": "Red Oak, TX",
+          "name": "Red Oak, TX data center campus",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        },
+        {
+          "location": "Bosque County, TX",
+          "name": "new data center adjacent to the Thad Hill Energy Center",
+          "power_need_count": 1,
+          "region_state": "TX",
+          "region_status": "ELIGIBLE",
+          "source_id": "retained-company-project-evaluation"
+        }
+      ],
+      "saved_browse_generation": {
+        "generation_id": "9d31aca0-630e-41b5-a640-1d2e4418d70d",
+        "rows": 2,
+        "status": "published"
+      },
+      "source_backed_fact_packages": [
+        {
+          "capacity_claims": [
+            {
+              "basis": "it_load",
+              "phase_id": "1",
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "f0e3415a-f9d8-4726-8c66-638db49d7092:phase:1",
+              "value_mw": "240"
+            },
+            {
+              "basis": "it_load",
+              "phase_id": null,
+              "qualifier": "up_to",
+              "quote": "The Phase 1 design of the site will feature 4 buildings and a 400MW sub-station from Oncor that can deliver up to 240MW of critical IT power with the ability to increase this in Phase 2 for a total of 480MW across all 8 buildings.",
+              "scope_id": "f0e3415a-f9d8-4726-8c66-638db49d7092:site",
+              "value_mw": "480"
+            }
+          ],
+          "commissioning_inputs": 0,
+          "required_mw": null,
+          "timeline_claims": [],
+          "url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        }
+      ]
+    },
+    "source_admission": {
+      "accepted_source_records": [
+        {
+          "activity_key": "construction",
+          "activity_quote": "currently under construction",
+          "alias_spans": {},
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [],
+          "project_location": "Bosque County, TX",
+          "project_name": "new data center adjacent to the Thad Hill Energy Center",
+          "publication_date": "2025-07-30",
+          "source_files": [
+            "sources/cyrusone.json",
+            "sources/cyrusone_supplement.json"
+          ],
+          "source_hash": "585fa362e7abdaf4ef5104450f50451da103a2742f93f51ea6e58daee6319e5a",
+          "source_url": "https://www.cyrusone.com/resources/press-releases/cyrusone-and-calpine-announce-newhyperscale-data-center-development-in-texas"
+        },
+        {
+          "activity_key": "facility-expansion",
+          "activity_quote": "development of a 480MW data center campus on 292 acres of land in Red Oak",
+          "alias_spans": {
+            "Red Oak Campus": [
+              460,
+              477
+            ]
+          },
+          "building_id": null,
+          "phase": null,
+          "project_aliases": [
+            "Red Oak Campus"
+          ],
+          "project_location": "Red Oak, TX",
+          "project_name": "Red Oak, TX data center campus",
+          "publication_date": "2024-09-10",
+          "source_files": [
+            "sources/databank.json"
+          ],
+          "source_hash": "88593a58b68fa106741317aee9a259e9d23b1bd08d48910fe9dada843ab3b4e8",
+          "source_url": "https://www.databank.com/resources/press-releases/databank-announces-development-of-480mw-data-center-campus-in-south-dallas/"
+        }
+      ],
+      "candidate_records": 2,
+      "held_documents": 20,
+      "hold_reasons": [
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation",
+        "No complete source-bound project/location/activity relation"
+      ],
+      "hold_receipts": [
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/aligned.json"
+          ],
+          "source_url": "https://aligneddc.com/press-release/aligned-data-centers-expands-in-ohio-with-new-mega-scale-ai-campus/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/microsoft.json"
+          ],
+          "source_url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion_project_supplement.json"
+          ],
+          "source_url": "https://coastalvawind.com/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/meta.json"
+          ],
+          "source_url": "https://datacenters.atmeta.com/richland-parish-data-center/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/google.json",
+            "sources/google_supplement.json"
+          ],
+          "source_url": "https://datacenters.google/locations/indiana/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/edgecore_press.json"
+          ],
+          "source_url": "https://edgecore.com/resources/press-releases/edgecore-digital-infrastructure-announces-expansion-of-its-metro-phoenix-data-center-market-to-over-450-mw/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/fervo.json",
+            "sources/fervo_supplement.json"
+          ],
+          "source_url": "https://fervoenergy.com/fervo-energy-achieves-first-power-at-cape-station-a-landmark-moment-for-the-future-of-enhanced-geothermal-systems/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/applied.json"
+          ],
+          "source_url": "https://ir.applieddigital.com/news-events/press-releases/detail/123/applied-digital-announces-250mw-ai-data-center-lease-with"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/equinix.json"
+          ],
+          "source_url": "https://newsroom.equinix.com/2025-11-10-Equinix-Tops-Out-Its-Second-Data-Center-in-Johor"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/vantage.json"
+          ],
+          "source_url": "https://vantage-dc.com/news/vantage-data-centers-unveils-plans-for-frontier-a-25b-mega-campus-in-texas-to-meet-unprecedented-ai-demand/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/amazon.json",
+            "sources/amazon_supplement.json"
+          ],
+          "source_url": "https://www.aboutamazon.com/news/aws/aws-10-billion-investment-mississippi"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass_markets.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/data-center-markets/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/compass.json",
+            "sources/compass_supplement.json"
+          ],
+          "source_url": "https://www.compassdatacenters.com/news/compass-10b-investment-lauderdale-county-mississippi/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/crusoe.json"
+          ],
+          "source_url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/digitalrealty.json"
+          ],
+          "source_url": "https://www.digitalrealty.com/about/newsroom/press-releases/123339/digital-realty-expands-presence-in-west-africa-with-new-data-center-in-lagos"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/dominion.json"
+          ],
+          "source_url": "https://www.dominionenergy.com/About/Delivering-Energy/Wind-Power-Projects/Coastal-Virginia-Offshore-Wind"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/qts.json"
+          ],
+          "source_url": "https://www.prnewswire.com/news-releases/qts-announces-development-of-mega-data-center-on-250-megawatt-hillsboro-oregon-campus-301007028.html"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/stack.json",
+            "sources/stack_supplement.json"
+          ],
+          "source_url": "https://www.stackinfra.com/about/news-press/press-releases/stack-infrastructure-breaks-ground-on-expansion-of-100mw-campus-in-heart-of-silicon-valley/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/switch.json"
+          ],
+          "source_url": "https://www.switch.com/switch-announces-fifth-prime-expansion-with-development-of-exascale-data-center-campus-in-texas/"
+        },
+        {
+          "reason": "No complete source-bound project/location/activity relation",
+          "source_files": [
+            "sources/terrapower.json",
+            "sources/terrapower_supplement.json"
+          ],
+          "source_url": "https://www.terrapower.com/TerraPower-Commences-Construction-on-Americas-First-Utility-Scale-Advanced-Nuclear-Power-Plant"
+        }
+      ],
+      "native_signals": 2,
+      "retrieved_records": 2
+    }
+  },
+  "schema_version": "gridlens-customer-commercial-runtime-v2"
+}

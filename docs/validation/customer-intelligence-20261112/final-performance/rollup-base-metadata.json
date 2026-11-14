@@ -1,0 +1,66 @@
+{
+  "lane": "rollup",
+  "side": "base",
+  "started_at": "2026-11-13T03:00:31.680341+00:00",
+  "postgres_version": "PostgreSQL 16.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 10.2.1 20210130 (Red Hat 10.2.1-11), 64-bit",
+  "runs": [
+    {
+      "side": "base",
+      "source_commit": "5ee2f30c2b1c9998063db1c6468d1f4e65f7ac2d",
+      "source_manifest_sha256_before": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "database": "gl3_mission_rollup_scale_base_test",
+      "commands": [
+        {
+          "label": "rollup-migrate-base",
+          "started_at": "2026-11-13T03:00:31.966492+00:00",
+          "finished_at": "2026-11-13T03:00:34.015143+00:00",
+          "wall_seconds": 2.049,
+          "exit_code": 0,
+          "log_file": "rollup-migrate-base.log",
+          "log_sha256": "f6d6b597e92db509dfa78806e2fa8eac53a5178dca741e03ca12a2ec4ead3069"
+        },
+        {
+          "label": "rollup-seed-base",
+          "started_at": "2026-11-13T03:00:34.016321+00:00",
+          "finished_at": "2026-11-13T03:02:28.512029+00:00",
+          "wall_seconds": 114.496,
+          "exit_code": 0,
+          "log_file": "rollup-seed-base.log",
+          "log_sha256": "5d7aa0adbd9d07070d5ba739daf21f33cab1d5baadf52b8c3346fd7c0cffc391"
+        },
+        {
+          "label": "rollup-measure-base",
+          "started_at": "2026-11-13T03:02:28.512390+00:00",
+          "finished_at": "2026-11-13T03:03:45.501235+00:00",
+          "wall_seconds": 76.989,
+          "exit_code": 0,
+          "log_file": "rollup-measure-base.log",
+          "log_sha256": "8ec05afc7d64af96e833e3ee14470c6ddaec20f25746bf5ceaba603ca293d6e0"
+        },
+        {
+          "label": "rollup-body-base",
+          "started_at": "2026-11-13T03:03:45.501597+00:00",
+          "finished_at": "2026-11-13T03:03:56.868227+00:00",
+          "wall_seconds": 11.367,
+          "exit_code": 0,
+          "log_file": "rollup-body-base.log",
+          "log_sha256": "8cc1c70c402b7ea777abc534a37086d716c5b8127bef817ebf0777a810bf6e25"
+        }
+      ],
+      "seeder_sha256": "badc27751e4ce13212b98e86ef2069ea71330f1340b33eae09578a96b8748d39",
+      "account_fixture_sha256": "dbe749d255b1d9aa2442c6ca7161c1a2bdaf8afaa1085a2be2923f6977b83334",
+      "scale_fixture_sha256": "c2486ea781d80bc72d150309197876656f68dd5d3c58ff2fae2dde3a51c5a1cc",
+      "measure_harness_sha256": "a12f589ac07fdce3df9259d55f12990979172cd2df4adfced85a6ec5cd018e6b",
+      "source_manifest_sha256_after": "ccab75506a8587426ec983b3339b89066493fb5c02cd495f6346790592a8a4ec",
+      "source_unchanged_during_run": true
+    }
+  ],
+  "limitations": [
+    "Synthetic, disposable local fixtures only.",
+    "No external or paid provider execution.",
+    "Timings are single-run diagnostics, not a production SLA."
+  ],
+  "rollup_rows_requested": 40000,
+  "updated_at": "2026-11-13T03:03:56.900097+00:00",
+  "finished_at": "2026-11-13T03:03:56.900753+00:00"
+}

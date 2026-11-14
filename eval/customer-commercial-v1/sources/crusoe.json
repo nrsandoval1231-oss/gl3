@@ -1,0 +1,29 @@
+{
+  "source_id": "crusoe",
+  "url": "https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts",
+  "title": "Crusoe expands Abilene AI campus to 1.2 GW | Crusoe",
+  "observation_date": "2026-11-12",
+  "extraction_method": "firecrawl_scrape_markdown; independent manual reference labeling",
+  "http_status": 200,
+  "cache_state": "hit",
+  "cached_at": "2026-11-10T23:25:55.295Z",
+  "publication_date_metadata": null,
+  "modified_date_metadata": null,
+  "excerpts": [
+    "March 18, 2025",
+    "# Crusoe expands AI data center campus in Abilene to 1.2 gigawatts",
+    "Construction has begun at the Lancium Clean Campus in Abilene, Texas on an additional six data centers",
+    "August 18, 2026",
+    "[About Crusoe](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts#about-crusoe)",
+    "[About Lancium](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts#about-lancium)",
+    "[About the Development Corporation of Abilene](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts#about-the-development-corporation-of-abilene)",
+    "[Twitter share](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts# \"Twitter share\")[Linkedin share](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts# \"Linkedin share\")",
+    "[Copy URL](https://www.crusoe.ai/resources/newsroom/crusoe-expands-ai-data-center-campus-in-abilene-to-1-2-gigawatts# \"Copy URL\")",
+    "SAN FRANCISCO, CA / ABILENE, TX / March 18, 2025 / - Today [Crusoe](https://crusoe.ai/), the industry’s first vertically integrated AI infrastructure provider, announced construction has begun on the next phase of its AI data center at the [Lancium Clean Campus](https://lancium.com/abilene/) in Abilene, Texas. The second phase of construction, expected to be completed in mid-2026, includes six additional buildings, bringing the total facility to eight buildings, approximately 4 million square feet, and a total power capacity of 1.2 gigawatts (GW). With this announcement, Crusoe's total data center footprint will reach more than 1.6 GW under operations and construction with an additional pipeline exceeding 10 GW in development.",
+    "Crusoe began constructing the AI data center in Abilene in June 2024. The initial phase, comprising two buildings at 980,000 square feet and 200+ megawatts, is expected to be energized in the first half of 2025. Designed and built by Crusoe at the Lancium Clean Campus, the project incorporates innovative data center design to support powerful AI workloads. Each building is designed to operate up to 50,000 [NVIDIA GB200 NVL72s](https://www.nvidia.com/en-us/data-center/gb200-nvl72/) on a single integrated network fabric, advancing the frontier of data center design and scale for AI training and inference workloads. The construction site has approximately 2,000 people working on the project daily and is expected to reach nearly 5,000 as a result of the expansion. [The Development Corporation of Abilene](http://www.developabilene.com/) (DCOA) has previously estimated that the direct and indirect economic impact of the initial phase of the project is approximately $1 billion over 20 years. This expansion has the potential to scale that impact by many magnitudes.",
+    "November 6, 2026",
+    "October 22, 2026",
+    "October 22, 2026"
+  ]
+}
+
