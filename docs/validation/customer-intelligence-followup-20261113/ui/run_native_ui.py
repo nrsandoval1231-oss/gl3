@@ -17,10 +17,11 @@ from pathlib import Path
 
 import bcrypt
 from sqlalchemy.engine import make_url
-
 ROOT = Path(__file__).resolve().parents[4]
 SEED = Path(__file__).with_name("seed_native.py")
 CAPTURE = Path(__file__).with_name("capture_native_ui.cjs")
+sys.path.insert(0, str(Path(__file__).parent))
+from db_guard import validate_database_urls
 PR202 = "26344b8b"
 API_PORT = 18443
 WEB_PORT = 15443
@@ -28,15 +29,11 @@ API_URL = f"http://127.0.0.1:{API_PORT}"
 WEB_URL = f"http://127.0.0.1:{WEB_PORT}"
 
 
-def assert_safe_base_urls() -> make_url:
-    test_url = make_url(os.environ["TEST_DATABASE_URL"])
-    app_url = make_url(os.environ["DATABASE_URL"])
-    if test_url.host not in {"127.0.0.1", "localhost", "::1"}:
-        raise SystemExit("TEST_DATABASE_URL must use the assigned loopback PostgreSQL service")
-    if not test_url.database or not test_url.database.endswith("_test"):
-        raise SystemExit("TEST_DATABASE_URL must name a disposable *_test database")
-    if test_url == app_url:
-        raise SystemExit("DATABASE_URL and TEST_DATABASE_URL must remain distinct")
+def assert_safe_base_urls():
+    try:
+        test_url = validate_database_urls(os.environ["TEST_DATABASE_URL"], os.environ["DATABASE_URL"])
+    except (KeyError, ValueError) as error:
+        raise SystemExit("Database URLs must be distinct, query-free, loopback PostgreSQL URLs with a disposable test database") from None
     if os.environ.get("OPENAI_API_KEY") or os.environ.get("FIRECRAWL_API_KEY") or os.environ.get("TYPESAFE_API_KEY"):
         raise SystemExit("Provider keys must be blank for this native UI follow-up")
     return test_url

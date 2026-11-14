@@ -12,11 +12,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import create_engine, func, select, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
 BACKEND = ROOT / "backend"
 ALLOWED_DATABASE = re.compile(r"gl3_ui_followup_(?:before|after)_[a-f0-9]{8}_test\Z")
+sys.path.insert(0, str(Path(__file__).parent))
+from db_guard import validate_database_urls, validate_target_database
 
 
 def main() -> None:
@@ -31,13 +32,11 @@ def main() -> None:
     if args.manifest.exists():
         raise SystemExit("Refusing to overwrite the native UI manifest")
 
-    base = make_url(os.environ["TEST_DATABASE_URL"])
-    if base.host not in {"127.0.0.1", "localhost", "::1"} or not base.database or not base.database.endswith("_test"):
-        raise SystemExit("TEST_DATABASE_URL must use loopback and a disposable *_test database name")
-    application = make_url(os.environ["DATABASE_URL"])
-    target = base.set(database=args.database)
-    if application == target:
-        raise SystemExit("The disposable test database must differ from DATABASE_URL")
+    try:
+        base = validate_database_urls(os.environ["TEST_DATABASE_URL"], os.environ["DATABASE_URL"])
+        target = validate_target_database(base, os.environ["DATABASE_URL"], args.database)
+    except ValueError as error:
+        raise SystemExit(str(error)) from None
 
     admin = create_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
     with admin.connect() as connection:
