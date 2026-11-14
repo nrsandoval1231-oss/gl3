@@ -14,4 +14,6 @@ Acceptance remains open: current-main reconciliation/full gates; measured perfor
 
 Next: validate main conflict resolutions, freeze lane bases, run reproducible baseline/evaluations, implement bounded repairs with adverse controls, integrate and run final full CI/browser/recovery checks, then Astra review. Do not merge PR199 until material gates are satisfied; report unavailable checks individually.
 
+Owner clarification: prioritize both account prioritization and verified buyer outreach. At `78fa6406`, backend/web/brand CI passed; browser CI has one cache-key fixture failure in the far-future expiry case, assigned to the UI lane without removing assertions. Coverage candidate `285425ce` improves raw extraction only; Astra independently passed all 90 focused cases but found native admission is the earlier hold. A bounded source-native Abilene construction relation is under repair. Performance SQL plans identify wide intermediate materialization; matched measurements remain pending. Public company procurement roles/routes do not establish project authority or deliverability.
+
 Scoped integration review: main bootstrap bytes match c5 and V1 is unchanged. The legacy-group expiry fixture must seed canonicalOnly=false; production build identity needs selective PR189 preservation. UI lane owns both repairs and will retain all assertions.
