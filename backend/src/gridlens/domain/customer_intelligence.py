@@ -192,6 +192,14 @@ _CAPACITY_PATTERNS.extend(
 _CAPACITY_PATTERNS.extend(
     [
         (
+            "campus_development",
+            re.compile(
+                rf"\b{_QUALIFIER}\s*{_NUMBER}[\s-]*{_UNIT}\s+"
+                r"data\s+center\s+expansion\b",
+                re.I,
+            ),
+        ),
+        (
             "utility_service",
             re.compile(
                 rf"\b{_QUALIFIER}\s*{_NUMBER}[\s-]*{_UNIT}\s+agreement\b"
@@ -511,6 +519,8 @@ def extract_customer_facts(text: str, *, project_id: str, source: dict) -> dict:
                 if _RANGE_PREFIX.search(clause[max(0, match.start() - 30) : match.start()]):
                     continue
                 scope, phase_id = _scope_at(clause, match.start(), project_id)
+                if phase_id is None and re.search(r"\bdata\s+center\s+expansion\b", match[0], re.I):
+                    scope = f"{project_id}:expansion"
                 includes = []
                 campus_total = bool(
                     re.search(r"for\s+a\s+total\s+of", match[0], re.I)

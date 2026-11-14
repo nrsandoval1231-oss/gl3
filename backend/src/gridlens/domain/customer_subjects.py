@@ -14,8 +14,10 @@ from dataclasses import asdict, dataclass
 _CLAUSE_BREAK = re.compile(r"(?<=[.!?])\s+|[\n;]+")
 _ANAPHORA = re.compile(
     r"^(?:the\s+(?:(?:phase\s+(?:[0-9]+|[ivx]+)\s+)?design\s+of\s+the\s+site|"
-    r"deal|facility|project|campus|site|data\s+center)|"
-    r"this\s+(?:facility|project|campus|site|data\s+center)|it)\b",
+    r"deal|facility|project|campus|site|data\s+center|"
+    r"(?:\d{1,3}(?:,\d{3})*(?:\.\d+)?\s*(?:MW|megawatts?)\s+)?"
+    r"(?:data\s+center\s+)?expansion)|"
+    r"this\s+(?:facility|project|campus|site|data\s+center|expansion)|it)\b",
     re.I,
 )
 _SITE_NOUN = r"(?:campus|data\s+cent(?:er|re)|facility|site|project|plant|station)"
@@ -152,6 +154,14 @@ def _alias_pattern(aliases: list[str]) -> str:
     return "(?:" + "|".join(re.escape(value) for value in aliases) + ")"
 
 
+def _has_competing_physical_site(text: str) -> bool:
+    """Ignore generic market/sector mentions while retaining named-site holds."""
+    return any(
+        re.match(r"\s*(?:market|markets|industry|sector)\b", text[match.end() :], re.I) is None
+        for match in _COMPETING_SITE.finditer(text)
+    )
+
+
 def _direct_binding(
     clause: ClauseSpan,
     *,
@@ -247,6 +257,53 @@ def _introduced_binding(
     )
 
 
+def _named_site_alias_binding(
+    clause: ClauseSpan,
+    *,
+    aliases: list[str],
+    quote_span: tuple[int, int],
+) -> SubjectBinding | None:
+    """Bind a source-native alias used as a site's locality suffix.
+
+    This is limited to a unique alias in an explicit ``site noun in/at/near
+    locality, alias`` construction. It does not derive aliases from owner names,
+    locations, or reference labels.
+    """
+    alias_re = _alias_pattern(aliases)
+    matches = list(re.finditer(alias_re, clause.text, re.I))
+    if len(matches) != 1:
+        return None
+    match = matches[0]
+    prefix = clause.text[: match.start()]
+    site_location = re.search(
+        r"(?i:\b(?:campus|data\s+center|facility|site|project|plant|station)\s+"
+        r"(?:in|at|near|within)\s+)"
+        r"(?:[A-Z][\w’'-]*\s+){0,2}[A-Z][\w’'-]*,?\s*$",
+        prefix,
+    )
+    if (
+        site_location is None
+        or re.search(
+            r"\b(?:and|or|versus|compared\s+with)\b",
+            prefix[site_location.start() :] if site_location else "",
+            re.I,
+        )
+        or _has_competing_physical_site(clause.text)
+        or _NAMED_FOREIGN_SITE_RELATION.search(clause.text)
+    ):
+        return None
+    start = clause.start + match.start()
+    end = clause.start + match.end()
+    return SubjectBinding(
+        alias=match.group(),
+        subject_kind="native_site_location_alias",
+        predicate=clause.text,
+        quote_span=quote_span,
+        subject_span=(start, end),
+        predicate_span=(clause.start, clause.end),
+    )
+
+
 def resolve_claim_subject(
     source_text: str,
     quote: str,
@@ -298,23 +355,31 @@ def resolve_claim_subject(
             quote_span=occurrence,
         )
         if binding is None and _ANAPHORA.match(current.text):
-            if _NAMED_FOREIGN_SITE_RELATION.search(current.text) or _COMPETING_SITE.search(
+            if _NAMED_FOREIGN_SITE_RELATION.search(current.text) or _has_competing_physical_site(
                 current.text
             ):
                 return None
             if index == 0:
                 return None
             previous = spans[index - 1]
-            antecedent = _direct_binding(
-                previous,
-                aliases=aliases,
-                owner_names=owners,
-                quote_span=(previous.start, previous.end),
-            ) or _introduced_binding(
-                previous,
-                aliases=aliases,
-                owner_names=owners,
-                quote_span=(previous.start, previous.end),
+            antecedent = (
+                _direct_binding(
+                    previous,
+                    aliases=aliases,
+                    owner_names=owners,
+                    quote_span=(previous.start, previous.end),
+                )
+                or _introduced_binding(
+                    previous,
+                    aliases=aliases,
+                    owner_names=owners,
+                    quote_span=(previous.start, previous.end),
+                )
+                or _named_site_alias_binding(
+                    previous,
+                    aliases=aliases,
+                    quote_span=(previous.start, previous.end),
+                )
             )
             if antecedent is None:
                 return None
@@ -417,7 +482,7 @@ def claim_has_owned_predicate(
     }:
         return False
     if subject_kind == "adjacent_anaphora" and (
-        _COMPETING_SITE.search(predicate) or _FOREIGN_SITE_REFERENCE.search(predicate)
+        _has_competing_physical_site(predicate) or _FOREIGN_SITE_REFERENCE.search(predicate)
     ):
         return False
 
@@ -428,6 +493,18 @@ def claim_has_owned_predicate(
                 predicate,
                 re.I,
             )
+            expansion = re.match(
+                r"^\s*the\s+(?:\d{1,3}(?:,\d{3})*(?:\.\d+)?\s*"
+                r"(?:MW|megawatts?)\s+)?data\s+center\s+expansion\b",
+                predicate,
+                re.I,
+            )
+            if expansion:
+                return bool(
+                    claim.get("basis") == "campus_development"
+                    and claim.get("scope_id", "").endswith(":expansion")
+                    and _claim_in_owned_prefix(binding, claim, field, predicate)
+                )
             return bool(
                 phase_site
                 and re.search(
