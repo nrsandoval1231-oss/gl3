@@ -106,6 +106,10 @@ def test_native_site_alias_does_not_match_a_longer_site_name():
         ("SVY01", "SVY01-B"),
         ("SVY01", "SVY01.1"),
         ("SVY01", "SVY01.B"),
+        ("SVY01", "SVY01, Annex"),
+        ("SVY01", "SVY01: Annex"),
+        ("SVY01", "SVY01, South Campus"),
+        ("SVY01", "SVY01 is planned alongside SVY01 Annex"),
         ("North Site", "North Site Annex"),
     ):
         text = (

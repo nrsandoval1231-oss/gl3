@@ -277,17 +277,15 @@ def _named_site_alias_binding(
     locations, or reference labels.
     """
     alias_re = _alias_pattern(aliases)
-    matches = list(
-        re.finditer(
-            rf"(?<!\w){alias_re}(?!\w)"
-            rf"(?=$|[.,;:!?](?=\s|$)|\s+(?:is|was|are|were|has|had|will)\b)",
-            clause.text,
-            re.I,
-        )
-    )
+    matches = list(re.finditer(rf"(?<!\w){alias_re}(?!\w)", clause.text, re.I))
     if len(matches) != 1:
         return None
     match = matches[0]
+    if (
+        re.fullmatch(r"(?:\s+was\s+announced)?\s*[.!?]?\s*", clause.text[match.end() :], re.I)
+        is None
+    ):
+        return None
     prefix = clause.text[: match.start()]
     site_location = re.search(
         r"(?i:\b(?:campus|data\s+center|facility|site|project|plant|station)\s+"

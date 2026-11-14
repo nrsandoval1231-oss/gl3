@@ -570,15 +570,15 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
                         r"\b(?:adjacent\s+to|next\s+to|near|alongside|beside)\b", site, re.I
                     )
                 ):
-                    location = _RELATION_LOCATION.match(sentence, match.start("locality"))
-                    if location is None or location.end() != match.end("locality"):
+                    native_location = _RELATION_LOCATION.match(sentence, match.start("locality"))
+                    if native_location is None or native_location.end() != match.end("locality"):
                         continue
                     relations.append(
                         (
                             site,
                             match.start("site"),
                             match.end("site"),
-                            location,
+                            native_location,
                             "direct",
                         )
                     )
