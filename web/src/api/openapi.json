@@ -7096,6 +7096,13 @@
             "type": "array",
             "title": "Contacts"
           },
+          "published_company_roles": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedCompanyRole"
+            },
+            "type": "array",
+            "title": "Published Company Roles"
+          },
           "research_required": {
             "type": "boolean",
             "title": "Research Required",
@@ -12069,6 +12076,109 @@
           "observed_at"
         ],
         "title": "PublicContactOut"
+      },
+      "PublishedCompanyRole": {
+        "properties": {
+          "company_identity_id": {
+            "type": "string",
+            "title": "Company Identity Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "responsibility": {
+            "type": "string",
+            "title": "Responsibility",
+            "default": "Published company role; project involvement unverified"
+          },
+          "person_project_relationship": {
+            "type": "string",
+            "title": "Person Project Relationship",
+            "default": "UNKNOWN"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "source_title": {
+            "type": "string",
+            "title": "Source Title"
+          },
+          "source_quote": {
+            "type": "string",
+            "title": "Source Quote"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "observed_at": {
+            "type": "string",
+            "title": "Observed At"
+          },
+          "valid_until": {
+            "type": "string",
+            "title": "Valid Until"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "methods": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Methods"
+          },
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Project Ids"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status",
+            "default": "Published company role; current employment and project involvement unverified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_identity_id",
+          "name",
+          "title",
+          "role",
+          "source_url",
+          "source_title",
+          "source_quote",
+          "source_hash",
+          "observed_at",
+          "valid_until"
+        ],
+        "title": "PublishedCompanyRole",
+        "description": "Company roster assertion, with no implied project assignment or methods."
       },
       "PursuitContactOut": {
         "properties": {

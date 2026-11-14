@@ -3,6 +3,7 @@ import { browseUpdatingNotice, client, OpportunityBrowsePendingError, Opportunit
 import { usePursuitStore } from '../../state/pursuitStore'
 import { AddToPursuit } from '../pursuits/AddToPursuit'
 import { downloadProjectPage } from '../workspace/opportunityExport'
+import { PublishedCompanyRoles } from '../workspace/CompanyContacts'
 import { groupDescription } from './groupKind'
 
 const sectorLabel = (value: string) => value === 'oil_gas' ? 'Oil & Gas' : value === 'data_centers' ? 'Data Centers' : value.replaceAll('_', ' ')
@@ -525,6 +526,7 @@ export function CompanyView({ groupId, summary, onBack, onNeed, backLabel, short
         {whyNow && <p>{whyNow}</p>}
         {nextStep && <p>{nextStep}</p>}
         {(!group?.group_kind || group.group_kind === 'resolved_identity') ? <AccountContacts project={accountContactProject}/> : <p className="cmp-note">Select a project to see its supported business contact.</p>}
+        {group?.group_kind === 'resolved_identity' && accountContactProject?.customer_identity_id && <PublishedCompanyRoles companyId={accountContactProject.customer_identity_id}/>}
       </section>
       <CommercialAnalysis group={group} />
       <section aria-label="Linked pursuits" className="cmp-block">

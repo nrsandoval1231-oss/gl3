@@ -1949,6 +1949,8 @@ export interface components {
             company_id: string;
             /** Contacts */
             contacts?: components["schemas"]["CompanyContact"][];
+            /** Published Company Roles */
+            published_company_roles?: components["schemas"]["PublishedCompanyRole"][];
             /**
              * Research Required
              * @default true
@@ -3547,6 +3549,55 @@ export interface components {
              * Format: date-time
              */
             observed_at: string;
+        };
+        /**
+         * PublishedCompanyRole
+         * @description Company roster assertion, with no implied project assignment or methods.
+         */
+        PublishedCompanyRole: {
+            /** Company Identity Id */
+            company_identity_id: string;
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Role */
+            role: string;
+            /**
+             * Responsibility
+             * @default Published company role; project involvement unverified
+             */
+            responsibility: string;
+            /**
+             * Person Project Relationship
+             * @default UNKNOWN
+             */
+            person_project_relationship: string;
+            /** Source Url */
+            source_url: string;
+            /** Source Title */
+            source_title: string;
+            /** Source Quote */
+            source_quote: string;
+            /** Source Hash */
+            source_hash: string;
+            /** Observed At */
+            observed_at: string;
+            /** Valid Until */
+            valid_until: string;
+            /** Published At */
+            published_at?: string | null;
+            /** Methods */
+            methods?: {
+                [key: string]: string;
+            }[];
+            /** Project Ids */
+            project_ids?: string[];
+            /**
+             * Verification Status
+             * @default Published company role; current employment and project involvement unverified
+             */
+            verification_status: string;
         };
         /** PursuitContactOut */
         PursuitContactOut: {
