@@ -27,6 +27,78 @@ def _base_test_database_url() -> str:
         return ""
 
 
+def _unsafe_test_database_url() -> pytest.UsageError:
+    """Return a generic error that never includes URL credentials or query data."""
+    return pytest.UsageError(
+        "TEST_DATABASE_URL must target a local PostgreSQL test database with a safe name"
+    )
+
+
+def _validated_test_database_url(raw: str):
+    """Validate routing and names before any engine can make a connection."""
+    try:
+        url = make_url(raw)
+        database = url.database
+        host = url.host
+        # Accessing port can raise for malformed URL values; validate it here too.
+        _ = url.port
+    except Exception:
+        raise _unsafe_test_database_url() from None
+
+    if url.drivername != "postgresql+psycopg" or not database or not host:
+        raise _unsafe_test_database_url() from None
+    if not database.endswith("_test"):
+        raise _unsafe_test_database_url() from None
+    if (
+        not database.isascii()
+        or not database.replace("_", "a").isalnum()
+        or not database[0].isalpha()
+        and database[0] != "_"
+    ):
+        raise _unsafe_test_database_url() from None
+    if len(database.encode("utf-8")) > 63:
+        raise _unsafe_test_database_url() from None
+
+    normalized_host = host.rstrip(".").lower()
+    try:
+        loopback = (
+            normalized_host == "localhost" or ipaddress.ip_address(normalized_host).is_loopback
+        )
+    except ValueError:
+        loopback = normalized_host == "localhost"
+    if not loopback:
+        raise _unsafe_test_database_url() from None
+
+    # libpq query parameters override URL routing/name fields. Service files can
+    # also redirect connections without changing the visible URL host.
+    forbidden_query = {"host", "hostaddr", "database", "dbname", "service", "servicefile"}
+    if forbidden_query.intersection(key.lower() for key in url.query):
+        raise _unsafe_test_database_url() from None
+    if any(os.environ.get(name) for name in ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE")):
+        raise _unsafe_test_database_url() from None
+    return url
+
+
+def _worker_database_name(database: str, worker: str) -> str:
+    if (
+        not database.endswith("_test")
+        or not worker.isascii()
+        or not worker.replace("_", "a").isalnum()
+    ):
+        raise _unsafe_test_database_url() from None
+    stem = database[: -len("_test")]
+    derived = f"{stem}_{worker}_test"
+    if (
+        not derived.isascii()
+        or not derived.replace("_", "a").isalnum()
+        or not (derived[0].isalpha() or derived[0] == "_")
+    ):
+        raise _unsafe_test_database_url() from None
+    if len(derived.encode("utf-8")) > 63:
+        raise _unsafe_test_database_url() from None
+    return derived
+
+
 def pytest_configure(config):
     """Point each xdist worker at its own test database before settings load."""
     worker = os.environ.get("PYTEST_XDIST_WORKER")
@@ -35,11 +107,9 @@ def pytest_configure(config):
     base = _base_test_database_url()
     if not base:
         return
-    url = make_url(base)
-    if not url.database:
-        return
-    stem = url.database[: -len("_test")] if url.database.endswith("_test") else url.database
-    worker_url = url.set(database=f"{stem}_{worker}_test")
+    url = _validated_test_database_url(base)
+    worker_name = _worker_database_name(url.database, worker)
+    worker_url = url.set(database=worker_name)
     os.environ["TEST_DATABASE_URL"] = worker_url.render_as_string(hide_password=False)
 
 
@@ -58,17 +128,16 @@ def pytest_sessionstart(session):
     base = _base_test_database_url()
     if not base:
         return
-    url = make_url(base)
-    if not url.database:
-        return
-    stem = url.database[: -len("_test")] if url.database.endswith("_test") else url.database
+    url = _validated_test_database_url(base)
+    worker_names = [_worker_database_name(url.database, f"gw{index}") for index in range(num)]
     admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
-    with admin.connect() as connection:
-        for index in range(num):
-            name = f"{stem}_gw{index}_test"
-            connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
-            connection.execute(text(f'CREATE DATABASE "{name}"'))
-    admin.dispose()
+    try:
+        with admin.connect() as connection:
+            for name in worker_names:
+                connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+                connection.execute(text(f'CREATE DATABASE "{name}"'))
+    finally:
+        admin.dispose()
 
 
 @pytest.fixture(autouse=True)
