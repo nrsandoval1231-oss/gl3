@@ -4,7 +4,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import create_engine, select, text
@@ -16,6 +16,7 @@ from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.domain.pursuit_research import fingerprint
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.intelligence.buying_chain import (
+    _buying_chain_current_view,
     _store_document,
     buying_chain_view,
 )
@@ -29,15 +30,18 @@ from gridlens.intelligence.company_contact_discovery import _discover_anchor
 from gridlens.intelligence.company_contacts import company_contacts
 from gridlens.intelligence.contact_suppressions import (
     company_suppression_key,
+    global_person_suppression_key,
     person_suppression_key,
     record_contact_suppression,
 )
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
+    BuyingChainEvidence,
     BuyingChainIdentityLink,
     BuyingChainRun,
     CompanyIdentity,
+    PersonIdentity,
     Project,
     Source,
 )
@@ -600,6 +604,55 @@ def test_newer_company_roster_snapshot_withdraws_across_projects_and_old_replay(
             assert company_contacts(session, company_id).published_company_roles == []
 
 
+def test_roster_withdrawal_survives_loss_of_project_company_link(role_db):
+    roster = _retained_databank_roster()
+    withdrawn = _retained_databank_roster(
+        text=roster.text.replace("Joe Minarik\n\nChief Operating Officer", ""),
+        observed_at=NOW + timedelta(days=1),
+    )
+    with role_db.begin() as session:
+        first_project, company_id, _ = _seed_native_company_anchor(
+            session, "DataBank", native_host="databank.com"
+        )
+        second_project, second_company_id, _ = _seed_native_company_anchor(
+            session, "DataBank", native_host="databank.com"
+        )
+        second_link = session.scalar(
+            select(BuyingChainIdentityLink)
+            .join(BuyingChainClaim)
+            .where(
+                BuyingChainClaim.project_id == second_project.id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert second_link is not None
+        second_link.company_identity_id = company_id
+        session.flush()
+        assert second_company_id != company_id
+        _discover_anchor(session, first_project, company_id, {roster.url: roster}, NOW)
+        with evaluate_at(NOW + timedelta(days=1)):
+            _discover_anchor(
+                session,
+                second_project,
+                company_id,
+                {withdrawn.url: withdrawn},
+                NOW + timedelta(days=1),
+            )
+            assert "Joe Minarik" not in {
+                item.name for item in company_contacts(session, company_id).published_company_roles
+            }
+
+        # This project no longer contributes a current company anchor, but its
+        # newer same-URL roster snapshot must still prevent an older project
+        # capture from restoring the withdrawn role.
+        second_link.state = "superseded"
+        session.flush()
+        with evaluate_at(NOW + timedelta(days=1)):
+            visible = company_contacts(session, company_id).published_company_roles
+        assert "Joe Minarik" not in {item.name for item in visible}
+
+
 def test_methodless_roster_roles_obey_person_suppression_and_source_withdrawal(role_db):
     roster = _retained_databank_roster()
     project_id, company_id = _seed_retained_databank_anchor(role_db)
@@ -666,3 +719,245 @@ def test_methodless_roster_roles_obey_person_suppression_and_source_withdrawal(r
         with evaluate_at(NOW + timedelta(days=32)):
             expired = company_contacts(session, company_id).published_company_roles
         assert expired == []
+
+
+def test_global_person_suppression_hides_linked_roster_role(role_db):
+    roster = _retained_databank_roster()
+    project_id, company_id = _seed_retained_databank_anchor(role_db)
+    with role_db.begin() as session:
+        project = session.get(Project, project_id)
+        assert project is not None
+        _discover_anchor(session, project, company_id, {roster.url: roster}, NOW)
+        role_source = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_id,
+                BuyingChainEvidence.url == roster.url,
+                BuyingChainEvidence.project_match_reason
+                == "Exact actor-name company-domain roster; roles only.",
+            )
+        )
+        assert role_source is not None
+        company_claim = session.scalar(
+            select(BuyingChainClaim).where(
+                BuyingChainClaim.project_id == project_id,
+                BuyingChainClaim.person_name.is_(None),
+            )
+        )
+        assert company_claim is not None
+        company_source_id = next(
+            UUID(citation["evidence_id"])
+            for citation in company_claim.citations
+            if citation.get("supports") == "project_organization"
+        )
+        company_source = session.get(BuyingChainEvidence, company_source_id)
+        assert company_source is not None
+        person = PersonIdentity()
+        session.add(person)
+        session.flush()
+        quote = "Eric Swartz\n\nVP, Operations Engineering"
+        claim_state = {
+            "policy_version": "test-linked-roster-person-v1",
+            "organization": "DataBank",
+            "person_name": "Eric Swartz",
+            "title": "VP, Operations Engineering",
+            "category": "owner_construction",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current source-linked person identity for suppression regression.",
+            "citations": [
+                {
+                    "evidence_id": str(company_source.id),
+                    "url": company_source.url,
+                    "quote": company_source.excerpt,
+                    "supports": "project_organization",
+                },
+                {
+                    "evidence_id": str(role_source.id),
+                    "url": role_source.url,
+                    "quote": quote,
+                    "supports": "organization_person_role",
+                },
+            ],
+            "public_contacts": [],
+        }
+        person_claim = BuyingChainClaim(
+            project_id=project_id,
+            entity_key=f"test-person:{person.id}",
+            fingerprint=fingerprint(claim_state),
+            observed_at=NOW,
+            verified_at=NOW,
+            **claim_state,
+        )
+        session.add(person_claim)
+        session.flush()
+        session.add_all(
+            [
+                BuyingChainIdentityLink(
+                    claim_id=person_claim.id,
+                    entity_type="person",
+                    person_identity_id=person.id,
+                    reason="Exact retained roster role claim in privacy regression fixture.",
+                    basis="reviewed_alias",
+                    reviewed_by="synthetic-test",
+                    source_evidence_id=role_source.id,
+                    source_version_hash=role_source.content_hash,
+                    state="current",
+                ),
+                BuyingChainIdentityLink(
+                    claim_id=person_claim.id,
+                    entity_type="company",
+                    company_identity_id=company_id,
+                    reason="Current project-company link for privacy regression fixture.",
+                    basis="project_scoped",
+                    source_evidence_id=company_source.id,
+                    source_version_hash=company_source.content_hash,
+                    state="current",
+                ),
+            ]
+        )
+        session.flush()
+        current_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        )
+        assert current_run is not None
+        current_run.evidence_ids = list(
+            dict.fromkeys([*current_run.evidence_ids, str(role_source.id)])
+        )
+        current_run.claim_ids = [*current_run.claim_ids, str(person_claim.id)]
+        session.flush()
+
+        current_person = next(
+            candidate
+            for candidate in _buying_chain_current_view(session, project_id, now=NOW)["candidates"]
+            if candidate.get("person_name") == "Eric Swartz"
+        )
+        assert current_person["person_identity_id"] == str(person.id)
+        before = company_contacts(session, company_id)
+        before_role = next(
+            role for role in before.published_company_roles if role.name == "Eric Swartz"
+        )
+        assert before_role.name == "Eric Swartz"
+
+        record_contact_suppression(
+            session,
+            scope="person",
+            subject_key=global_person_suppression_key(person.id),
+            action="suppress",
+            expected_version=0,
+            reason="Synthetic global person privacy regression test",
+            actor="synthetic-test",
+            idempotency_key="published-role-global-person-suppression",
+        )
+        after = company_contacts(session, company_id)
+        suppressed_person = next(
+            candidate
+            for candidate in buying_chain_view(session, project_id, now=NOW)["candidates"]
+            if candidate.get("suppressed")
+        )
+        assert suppressed_person["person_name"] is None
+        assert not any(role.name == "Eric Swartz" for role in after.published_company_roles)
+
+
+def test_ambiguous_historical_person_links_withhold_company_roster_role(role_db):
+    roster = _retained_databank_roster()
+    project_id, company_id = _seed_retained_databank_anchor(role_db)
+    with role_db.begin() as session:
+        project = session.get(Project, project_id)
+        assert project is not None
+        _discover_anchor(session, project, company_id, {roster.url: roster}, NOW)
+        role_source = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project_id,
+                BuyingChainEvidence.url == roster.url,
+                BuyingChainEvidence.project_match_reason
+                == "Exact actor-name company-domain roster; roles only.",
+            )
+        )
+        company_claim = session.scalar(
+            select(BuyingChainClaim).where(
+                BuyingChainClaim.project_id == project_id,
+                BuyingChainClaim.person_name.is_(None),
+            )
+        )
+        assert role_source is not None and company_claim is not None
+        company_source_id = next(
+            UUID(citation["evidence_id"])
+            for citation in company_claim.citations
+            if citation.get("supports") == "project_organization"
+        )
+        company_source = session.get(BuyingChainEvidence, company_source_id)
+        assert company_source is not None
+        for suffix in ("one", "two"):
+            person = PersonIdentity()
+            session.add(person)
+            session.flush()
+            claim_state = {
+                "policy_version": f"test-ambiguous-roster-person-{suffix}",
+                "organization": "DataBank",
+                "person_name": "Eric Swartz",
+                "title": "VP, Operations Engineering",
+                "category": "owner_construction",
+                "organization_relationship": "DIRECT",
+                "person_organization_relationship": "CURRENT",
+                "person_project_relationship": "ROLE_SUPPORTED",
+                "evidence_strength": "Medium",
+                "reason": "Historical source-linked person identity for ambiguity regression.",
+                "citations": [
+                    {
+                        "evidence_id": str(company_source.id),
+                        "url": company_source.url,
+                        "quote": company_source.excerpt,
+                        "supports": "project_organization",
+                    },
+                    {
+                        "evidence_id": str(role_source.id),
+                        "url": role_source.url,
+                        "quote": "Eric Swartz\n\nVP, Operations Engineering",
+                        "supports": "organization_person_role",
+                    },
+                ],
+                "public_contacts": [],
+            }
+            claim = BuyingChainClaim(
+                project_id=project_id,
+                entity_key=f"test-ambiguous-person:{suffix}",
+                fingerprint=fingerprint(claim_state),
+                observed_at=NOW,
+                verified_at=NOW,
+                **claim_state,
+            )
+            session.add(claim)
+            session.flush()
+            session.add_all(
+                [
+                    BuyingChainIdentityLink(
+                        claim_id=claim.id,
+                        entity_type="person",
+                        person_identity_id=person.id,
+                        reason="Historical linked person identity for ambiguity regression.",
+                        basis="reviewed_alias",
+                        reviewed_by="synthetic-test",
+                        source_evidence_id=role_source.id,
+                        source_version_hash=role_source.content_hash,
+                        state="superseded",
+                    ),
+                    BuyingChainIdentityLink(
+                        claim_id=claim.id,
+                        entity_type="company",
+                        company_identity_id=company_id,
+                        reason="Historical company link for ambiguity regression.",
+                        basis="project_scoped",
+                        source_evidence_id=company_source.id,
+                        source_version_hash=company_source.content_hash,
+                        state="superseded",
+                    ),
+                ]
+            )
+        session.flush()
+
+        roles = company_contacts(session, company_id).published_company_roles
+        assert not any(role.name == "Eric Swartz" for role in roles)

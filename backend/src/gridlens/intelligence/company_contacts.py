@@ -7,11 +7,13 @@ Claim/evidence tables remain the append-only source of contact history.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select, union
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select, union
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql.elements import ColumnElement
 
 from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.opportunity_intelligence import IntelligenceContact, contact_projection
@@ -181,63 +183,36 @@ def _published_company_roles(
 ) -> list[PublishedCompanyRole]:
     if not project_ids:
         return []
-    # Roster URLs describe the company, not a project. Select the newest
-    # immutable capture across every current project anchor for this company so
-    # an older link on another project cannot resurrect a withdrawn person.
-    from sqlalchemy import func
-
-    ranked = (
-        select(
-            BuyingChainEvidence,
-            func.dense_rank()
-            .over(
-                partition_by=BuyingChainEvidence.url,
-                order_by=BuyingChainEvidence.last_seen_at.desc(),
-            )
-            .label("version_rank"),
-        )
-        .where(BuyingChainEvidence.project_id.in_(project_ids))
-        .subquery()
-    )
-    sources = session.scalars(
-        select(BuyingChainEvidence)
-        .join(ranked, ranked.c.id == BuyingChainEvidence.id)
-        .where(ranked.c.version_rank == 1)
-    ).all()
-    latest_hashes_by_url: dict[str, set[str]] = {}
-    for source in sources:
-        latest_hashes_by_url.setdefault(source.url, set()).add(source.content_hash)
-    source_project_ids = {source.project_id for source in sources}
-    source_projects = {
-        project.id: project
-        for project in session.scalars(
-            select(Project).where(Project.id.in_(source_project_ids))
-        ).all()
-    }
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.buying_chain_extraction import (
         Extracted,
         exact_native_company_roster_page,
         extract_people,
+        organization_key,
     )
     from gridlens.intelligence.company_contact_attribution import _source_hash_is_current
+    from gridlens.intelligence.company_contact_discovery import NATIVE_COMPANY_ROLE_SOURCE_REASON
+    from gridlens.intelligence.contact_suppressions import (
+        _ledger_states,
+        global_person_suppression_key,
+    )
 
-    grouped: dict[tuple[str, str, str], PublishedCompanyRole] = {}
-    for source in sources:
-        # Different bytes at an indistinguishable latest capture time have no
-        # defensible chronology. Withhold that URL instead of letting UUID
-        # order decide whether a removed person reappears.
-        if len(latest_hashes_by_url.get(source.url, set())) > 1:
+    # A roster URL is company-scoped. First establish its publisher from a
+    # current project-company anchor; historical role captures from that host
+    # may then participate in withdrawal ordering even if their old project
+    # later loses eligibility or its company link.
+    current_projects = {
+        project.id: project
+        for project in session.scalars(select(Project).where(Project.id.in_(project_ids))).all()
+    }
+    anchors: list[tuple[Project, dict]] = []
+    for project_id in sorted(project_ids, key=str):
+        project = current_projects.get(project_id)
+        view = views.get(str(project_id))
+        if project is None or view is None:
             continue
-        if source.project_match_reason != "Exact actor-name company-domain roster; roles only.":
-            continue
-        project_id = str(source.project_id)
-        source_project = source_projects.get(source.project_id)
-        view = views.get(project_id)
-        if view is None or source_project is None:
-            continue
-        anchors = [
-            candidate
+        anchors.extend(
+            (project, candidate)
             for candidate in view.get("candidates", [])
             if not candidate.get("person_name")
             and not candidate.get("stale")
@@ -251,17 +226,119 @@ def _published_company_roles(
                 and citation.get("current_support")
                 for citation in candidate.get("evidence", [])
             )
-        ]
-        if not anchors:
+        )
+    native_company_source_urls = [
+        str(citation.get("url"))
+        for _project, anchor in anchors
+        for citation in anchor.get("evidence", [])
+        if citation.get("supports") == "project_organization"
+        and citation.get("current_support")
+        and citation.get("url")
+    ]
+    native_hosts = {
+        host
+        for source_url in native_company_source_urls
+        if (host := (urlsplit(source_url).hostname or "").casefold().removeprefix("www."))
+    }
+    if not anchors or not native_hosts:
+        return []
+
+    host_conditions: list[ColumnElement[bool]] = []
+    for host in native_hosts:
+        host_conditions.extend(
+            (
+                func.lower(BuyingChainEvidence.url).like(f"https://{host}/%"),
+                func.lower(BuyingChainEvidence.url) == f"https://{host}",
+                func.lower(BuyingChainEvidence.url).like(f"https://www.{host}/%"),
+                func.lower(BuyingChainEvidence.url) == f"https://www.{host}",
+            )
+        )
+    historical_role_sources = session.scalars(
+        select(BuyingChainEvidence).where(
+            BuyingChainEvidence.project_match_reason == NATIVE_COMPANY_ROLE_SOURCE_REASON,
+            or_(*host_conditions),
+        )
+    ).all()
+    roster_urls = {
+        source.url
+        for source in historical_role_sources
+        if (host := (urlsplit(source.url).hostname or "").casefold().removeprefix("www."))
+        in native_hosts
+    }
+    if not roster_urls:
+        return []
+
+    # Rank all evidence consumers for each known roster URL, not only role
+    # rows: an indistinguishable newer capture from another path must abstain.
+    ranked = (
+        select(
+            BuyingChainEvidence,
+            func.dense_rank()
+            .over(
+                partition_by=BuyingChainEvidence.url,
+                order_by=BuyingChainEvidence.last_seen_at.desc(),
+            )
+            .label("version_rank"),
+        )
+        .where(BuyingChainEvidence.url.in_(roster_urls))
+        .subquery()
+    )
+    sources = session.scalars(
+        select(BuyingChainEvidence)
+        .join(ranked, ranked.c.id == BuyingChainEvidence.id)
+        .where(ranked.c.version_rank == 1)
+    ).all()
+    latest_hashes_by_url: dict[str, set[str]] = {}
+    for source in sources:
+        latest_hashes_by_url.setdefault(source.url, set()).add(source.content_hash)
+
+    # A global identity is carried only from existing historical company and
+    # person links on the same claim. Multiple linked identities for one
+    # spelling are ambiguous, so those role rows fail closed below.
+    person_link = aliased(BuyingChainIdentityLink)
+    company_link = aliased(BuyingChainIdentityLink)
+    linked_people = session.execute(
+        select(BuyingChainClaim.person_name, person_link.person_identity_id)
+        .join(person_link, person_link.claim_id == BuyingChainClaim.id)
+        .join(company_link, company_link.claim_id == BuyingChainClaim.id)
+        .where(
+            BuyingChainClaim.person_name.is_not(None),
+            person_link.entity_type == "person",
+            person_link.person_identity_id.is_not(None),
+            company_link.entity_type == "company",
+            company_link.company_identity_id == company_id,
+        )
+        .distinct()
+    ).all()
+    person_ids_by_name: dict[str, set[str]] = {}
+    for name, identity_id in linked_people:
+        normalized_name = organization_key(str(name))
+        person_ids_by_name.setdefault(normalized_name, set()).add(str(identity_id))
+    suppression_keys = {
+        ("person", global_person_suppression_key(UUID(identity_id)))
+        for identity_ids in person_ids_by_name.values()
+        for identity_id in identity_ids
+    }
+    suppression_states = _ledger_states(session, suppression_keys)
+    globally_suppressed_names = {
+        name
+        for name, identity_ids in person_ids_by_name.items()
+        if any(
+            suppression_states.get(("person", global_person_suppression_key(UUID(identity_id))))
+            == "suppress"
+            for identity_id in identity_ids
+        )
+    }
+
+    grouped: dict[tuple[str, str, str], PublishedCompanyRole] = {}
+    for source in sources:
+        # Different bytes at an indistinguishable latest capture time have no
+        # defensible chronology. Withhold that URL instead of letting UUID
+        # order decide whether a removed person reappears.
+        if len(latest_hashes_by_url.get(source.url, set())) > 1:
             continue
-        native_company_source_urls = [
-            str(citation.get("url"))
-            for anchor_candidate in anchors
-            for citation in anchor_candidate.get("evidence", [])
-            if citation.get("supports") == "project_organization"
-            and citation.get("current_support")
-            and citation.get("url")
-        ]
+        if source.project_match_reason != "Exact actor-name company-domain roster; roles only.":
+            continue
         observed = (
             source.observed_at.replace(tzinfo=UTC)
             if source.observed_at.tzinfo is None
@@ -287,14 +364,22 @@ def _published_company_roles(
             observed_at=source.last_seen_at,
             extraction_location=source.extraction_location,
         )
-        anchor = anchors[0]
-        organization = str(anchor.get("organization") or "")
-        if not exact_native_company_roster_page(
-            document,
-            organization,
-            native_company_source_urls=native_company_source_urls,
-        ):
+        matching_anchor = next(
+            (
+                (project, anchor)
+                for project, anchor in anchors
+                if exact_native_company_roster_page(
+                    document,
+                    str(anchor.get("organization") or ""),
+                    native_company_source_urls=native_company_source_urls,
+                )
+            ),
+            None,
+        )
+        if matching_anchor is None:
             continue
+        project, anchor = matching_anchor
+        organization = str(anchor.get("organization") or "")
         seed = Extracted(
             organization,
             str(anchor.get("category") or "owner"),
@@ -303,7 +388,7 @@ def _published_company_roles(
         for parsed in extract_people(
             document,
             [seed],
-            source_project,
+            project,
             project_scoped=False,
             today=now.date(),
             verified_official_roster=True,
@@ -321,6 +406,11 @@ def _published_company_roles(
                 continue
             key = (parsed.person_name or "", parsed.title or "", source.url)
             if not key[0] or not key[1]:
+                continue
+            linked_person_ids = person_ids_by_name.get(organization_key(key[0]), set())
+            if len(linked_person_ids) > 1:
+                continue
+            if organization_key(key[0]) in globally_suppressed_names:
                 continue
             grouped[key] = PublishedCompanyRole(
                 company_identity_id=str(company_id),
