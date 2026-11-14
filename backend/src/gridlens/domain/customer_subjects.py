@@ -156,10 +156,17 @@ def _alias_pattern(aliases: list[str]) -> str:
 
 def _has_competing_physical_site(text: str) -> bool:
     """Ignore generic market/sector mentions while retaining named-site holds."""
-    return any(
-        re.match(r"\s*(?:market|markets|industry|sector)\b", text[match.end() :], re.I) is None
-        for match in _COMPETING_SITE.finditer(text)
-    )
+    for match in _COMPETING_SITE.finditer(text):
+        generic_data_center = re.fullmatch(
+            r"(?:and|while|whereas|versus|but|compared\s+with)\s+(?:the\s+)?"
+            r"(?:(?:largest|most|desired)\s+)*data\s+cent(?:er|re)",
+            match.group(),
+            re.I,
+        )
+        market_suffix = re.match(r"\s*(?:markets?|industry|sector)\b", text[match.end() :], re.I)
+        if generic_data_center is None or market_suffix is None:
+            return True
+    return False
 
 
 def _direct_binding(

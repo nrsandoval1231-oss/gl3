@@ -88,6 +88,17 @@ def test_expansion_anaphora_requires_immediate_unique_source_site():
     assert binding["alias"] == "North Site"
 
 
+def test_market_suffix_does_not_hide_a_named_competing_site():
+    for site in ("South Campus", "South Data Center"):
+        for suffix in ("market facilities", "industry facilities", "sector facilities"):
+            text = (
+                "Construction will expand the data center campus in Reno, SVY01, "
+                f"and {site} {suffix}. "
+                "The 60 MW data center expansion will provide critical capacity."
+            )
+            assert not _scope(text, aliases=["SVY01"])["capacity_claims"]
+
+
 def test_expansion_anaphora_refuses_second_site_and_unrelated_intervening_clause():
     second_site = (
         "The 100 MW campus in Reno, North Site is planned adjacent to South Campus. "
