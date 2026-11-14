@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
@@ -29,6 +30,136 @@ _TITLE_DEVELOPER = re.compile(
     re.I,
 )
 _ORG_TOKEN = r"[A-Z][A-Za-z0-9&'’.-]*(?:\s+[A-Z][A-Za-z0-9&'’.-]*){0,4}"
+
+
+def _planned_native_developer_claim(
+    document: PublicDocument, context: dict[str, Any], body: str
+) -> Extracted | None:
+    """Bind a publisher actor to an immediately announced site's planned build."""
+    native_name = context.get("project_name")
+    location_quote = context.get("location_quote")
+    aliases = context.get("project_aliases")
+    alias_quotes = context.get("alias_quotes")
+    alias_spans = context.get("alias_spans")
+    sections = context.get("section_ranges")
+    publisher_host = context.get("publisher_host")
+    if (
+        not isinstance(native_name, str)
+        or not native_name
+        or not isinstance(location_quote, str)
+        or not location_quote
+        or not isinstance(aliases, list)
+        or len(aliases) != 1
+        or not isinstance(aliases[0], str)
+        or not isinstance(alias_quotes, dict)
+        or not isinstance(alias_spans, dict)
+        or not isinstance(sections, list)
+        or not isinstance(publisher_host, str)
+    ):
+        return None
+
+    alias = aliases[0]
+    alias_quote = alias_quotes.get(alias)
+    alias_span = alias_spans.get(alias)
+    if (
+        not isinstance(alias_quote, str)
+        or not isinstance(alias_span, list)
+        or len(alias_span) != 2
+        or body[alias_span[0] : alias_span[1]] != alias_quote
+        or alias not in alias_quote
+    ):
+        return None
+
+    # The source-defined actor must be linked from the same exact publisher host.
+    # A name-only or suffix-based company match is deliberately insufficient.
+    try:
+        document_host = (urlsplit(document.url).hostname or "").casefold()
+    except ValueError:
+        return None
+    publisher_host = publisher_host.casefold()
+    if not document_host or document_host != publisher_host:
+        return None
+    publisher_link = re.compile(
+        r"\[(?P<actor>[^\]\n]{1,80})\]\((?P<url>https://[^)\s]{1,300})\)"
+    ).search(body)
+    if publisher_link is None:
+        return None
+    try:
+        linked_host = (urlsplit(publisher_link.group("url")).hostname or "").casefold()
+    except ValueError:
+        return None
+    actor = publisher_link.group("actor").strip()
+    if not actor or linked_host != publisher_host:
+        return None
+
+    definition = re.compile(rf"\([\"“”']{re.escape(actor)}[\"“”']\)").search(
+        body, publisher_link.end()
+    )
+    if definition is None:
+        return None
+
+    # Require a finite announcement by the defined publisher actor, followed
+    # immediately by a land-purchase construction sentence for that same actor.
+    announcement_pattern = re.compile(
+        r"(?:,\s*(?:the|a)\s+[^,.!?\n]{1,80},)?\s*"
+        rf"today announced the primary location of its\s+"
+        rf"{re.escape(native_name)}\b[^.!?\n]*\."
+    )
+    announcement_tail = announcement_pattern.search(body, definition.end())
+    if announcement_tail is None:
+        return None
+    announcement_quote = body[publisher_link.start() : announcement_tail.end()]
+
+    action_pattern = re.compile(
+        rf"\s*The land purchase agreement\b[^.!?\n]{{1,180}}?\bwill allow\s+"
+        rf"{re.escape(actor)}\s+to construct\b(?:[^.!?\n]|\d\.\d){{0,300}}?"
+        rf"{re.escape(location_quote)}\b[^.!?\n]*\."
+    )
+    action = action_pattern.match(body, announcement_tail.end())
+    if action is None:
+        return None
+
+    project_stem_match = re.fullmatch(
+        r"(?P<stem>.+?)\s+(?:data\s+center\s+)?campus", native_name, re.I
+    )
+    if project_stem_match is None:
+        return None
+    project_stem = project_stem_match.group("stem")
+    alias_sentence_pattern = re.compile(
+        rf"\s*The\s+{re.escape(project_stem)}\s+campus\s+will be called\s+"
+        rf"{re.escape(alias_quote)}"
+    )
+    alias_sentence = alias_sentence_pattern.match(body, action.end())
+    if alias_sentence is None:
+        return None
+
+    # All three clauses must belong to one unbroken retained source section.
+    if not any(
+        isinstance(section, dict)
+        and isinstance(section.get("start"), int)
+        and isinstance(section.get("end"), int)
+        and section["start"] <= publisher_link.start()
+        and alias_sentence.end() <= section["end"]
+        and body[section["start"] : section["end"]].strip()
+        for section in sections
+    ):
+        return None
+
+    return Extracted(
+        organization=actor,
+        category="owner_developer",
+        evidence_strength="High",
+        reason=(
+            "The retained source reports this organization as the planned developer "
+            "of the named project. This does not establish legal ownership, completed "
+            "construction, current status, or purchasing authority."
+        ),
+        citations=[
+            _citation(document, announcement_quote, "organization_category"),
+            _citation(document, action.group(0).strip(), "project_organization"),
+            _citation(document, alias_sentence.group(0).strip(), "project_name"),
+        ],
+    )
 
 
 def _fresh_native_context(
@@ -150,6 +281,10 @@ def extract_retained_project_organizations(
         return []
     context, body = validated
     claims: list[Extracted] = []
+
+    planned_developer = _planned_native_developer_claim(document, context, body)
+    if planned_developer is not None:
+        claims.append(planned_developer)
 
     title_match = _TITLE_DEVELOPER.fullmatch(document.title.strip())
     if title_match:

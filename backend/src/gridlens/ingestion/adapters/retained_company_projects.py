@@ -438,7 +438,19 @@ def _sentences(text: str) -> list[tuple[int, int, str]]:
             continue
         char = text[i]
         if char in ".!?" and not in_link_target:
-            if char == "." and i + 1 < len(text) and not text[i + 1].isspace():
+            closing_quote = i + 1
+            while closing_quote < len(text) and text[closing_quote] in '"”’)]}':
+                closing_quote += 1
+            if (
+                char == "."
+                and i + 1 < len(text)
+                and not text[i + 1].isspace()
+                and (
+                    closing_quote == i + 1
+                    or closing_quote >= len(text)
+                    or not text[closing_quote].isspace()
+                )
+            ):
                 i += 1
                 continue
             decimal = (
@@ -450,6 +462,8 @@ def _sentences(text: str) -> list[tuple[int, int, str]]:
             )
             if not decimal:
                 j = i + 1
+                while j < len(text) and text[j] in '"”’)]}':
+                    j += 1
                 while j < len(text) and text[j].isspace():
                     j += 1
                 # Do not break a markdown anchor's visible text from its
@@ -630,7 +644,13 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
             )
             if location_kind == "park":
                 project_location = _normal_text(location_relation.group("place"))
-                location_quote = location_relation.group(0)
+                park_location_start = subject_end
+                while (
+                    park_location_start < location_relation.end()
+                    and sentence[park_location_start].isspace()
+                ):
+                    park_location_start += 1
+                location_quote = sentence[park_location_start : location_relation.end()]
             elif location_kind == "county":
                 project_location = _normal_text(location_relation.group("place"))
                 location_quote = location_relation.group("place")
@@ -709,7 +729,12 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
                     activity_sentence,
                     subject_span=(subject_start, subject_end),
                     activity_span=primitive.span() if primitive else activity_span,
-                    site_span=(location_relation.start(), location_relation.end()),
+                    site_span=(
+                        park_location_start
+                        if location_kind == "park"
+                        else location_relation.start(),
+                        location_relation.end(),
+                    ),
                 )
                 if not activity_owns_site:
                     activity = activity_quote = rationale = None
@@ -853,7 +878,10 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
                 else None
             )
             project_rel = project_span[0]
-            location_rel = [start + location_relation.start(), start + location_relation.end()]
+            location_start = (
+                park_location_start if location_kind == "park" else location_relation.start()
+            )
+            location_rel = [start + location_start, start + location_relation.end()]
             candidates.append(
                 SiteCandidate(
                     "CANDIDATE",
@@ -875,6 +903,197 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
                     building_id,
                 )
             )
+    candidates.extend(_named_project_action_candidates(sections))
+    return candidates
+
+
+_EXPLICIT_CALLED_CAMPUS = re.compile(
+    r"\bThe\s+(?P<name>[A-Z][A-Za-z0-9'’&.\-]*(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,4})"
+    r"\s+campus\s+will\s+be\s+called\s+[\"“](?P<alias>[A-Z0-9][A-Za-z0-9'’&.\- ]{1,55})[\"”]",
+    re.I,
+)
+_PRIMARY_LOCATION_ANNOUNCEMENT = re.compile(
+    r"[\"“](?P<actor>[A-Z][A-Za-z0-9'’&.\-]*(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,3})"
+    r"[\"”]\s*\)\s*,\s*[^,.;]{1,120},\s*(?:today\s+)?"
+    r"announced\s+the\s+primary\s+location\s+of\s+its\s+",
+    re.I,
+)
+
+
+def _paragraph_ranges(text: str) -> list[tuple[int, int]]:
+    """Return source-offset paragraph bounds across Markdown whitespace variants."""
+    ranges: list[tuple[int, int]] = []
+    cursor = 0
+    for separator in re.finditer(r"(?:\r?\n[ \t]*){2,}", text):
+        end = separator.start()
+        while end > cursor and text[end - 1] in " \t\r":
+            end -= 1
+        if text[cursor:end].strip():
+            ranges.append((cursor, end))
+        cursor = separator.end()
+    end = len(text)
+    while end > cursor and text[end - 1] in " \t\r\n":
+        end -= 1
+    if text[cursor:end].strip():
+        ranges.append((cursor, end))
+    return ranges
+
+
+def _named_project_action_candidates(sections: list[str]) -> list[SiteCandidate]:
+    """Bind a named campus to a direct construction-and-location clause.
+
+    The project noun, explicit campus naming statement, construction action,
+    and local site relation must occur in one retained paragraph. The action
+    object must be a data-center noun directly governed by the activity verb.
+    """
+    candidates: list[SiteCandidate] = []
+    for section_index, section in enumerate(sections):
+        for paragraph_start, paragraph_end in _paragraph_ranges(section):
+            paragraph = section[paragraph_start:paragraph_end]
+            named_sites = [
+                match
+                for match in _NAMED_PROJECT.finditer(paragraph)
+                if re.search(r"\bdata\s*cent(?:er|re)\s+campus\b", match.group(0), re.I)
+            ]
+            # A second physical campus in the paragraph makes a local action
+            # ambiguous, even if one of the names has an explicit alias.
+            distinct_sites = {match.group(0).casefold() for match in named_sites}
+            if len(distinct_sites) != 1:
+                continue
+            named_site = named_sites[0]
+            source_name = named_site.group(1)
+            paragraph_sentences = _sentences(paragraph)
+            announcement_relation: tuple[int, re.Match[str]] | None = None
+            for sentence_index, (sentence_start, _sentence_end, sentence) in enumerate(
+                paragraph_sentences
+            ):
+                match = _PRIMARY_LOCATION_ANNOUNCEMENT.search(sentence)
+                if match is not None and sentence_start + match.end() == named_site.start():
+                    announcement_relation = (sentence_index, match)
+                    break
+            all_called_names = list(_EXPLICIT_CALLED_CAMPUS.finditer(paragraph))
+            if announcement_relation is None or len(all_called_names) != 1:
+                continue
+            announcement_index, announcement_match = announcement_relation
+            called_name = all_called_names[0]
+            called_sentence_index = next(
+                (
+                    index
+                    for index, (sentence_start, sentence_end, _sentence) in enumerate(
+                        paragraph_sentences
+                    )
+                    if sentence_start <= called_name.start() < called_name.end() <= sentence_end
+                ),
+                None,
+            )
+            if (
+                _normal_text(called_name.group("name")).casefold() != source_name.casefold()
+                or called_sentence_index != announcement_index + 2
+                or called_name.start() != paragraph_sentences[called_sentence_index][0]
+                or not re.fullmatch(
+                    r"[.!?]?\s*",
+                    paragraph[called_name.end() : paragraph_sentences[called_sentence_index][1]],
+                )
+            ):
+                continue
+
+            for sentence_index, (sentence_start, _sentence_end, sentence) in enumerate(
+                paragraph_sentences
+            ):
+                if sentence_index != announcement_index + 1:
+                    continue
+                primitive = _ACTIVITY.search(sentence)
+                if primitive is None or not re.search(
+                    r"\b(?:develop|build|construct)\b", primitive.group(0), re.I
+                ):
+                    continue
+                agreement = re.match(
+                    r"\s*The\s+land\s+purchase\s+agreement"
+                    r"(?:\s+with\s+[A-Z][A-Za-z0-9'’&.\-]*"
+                    r"(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,3})?\s+will\s+allow\b",
+                    sentence,
+                    re.I,
+                )
+                if agreement is None:
+                    continue
+                allowed_action = re.search(
+                    r"\bwill\s+allow\s+(?P<actor>[A-Z][A-Za-z0-9'’&.\-]*"
+                    r"(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,3})\s+"
+                    r"to\s+construct\b",
+                    sentence,
+                )
+                if (
+                    allowed_action is None
+                    or _normal_text(allowed_action.group("actor")).casefold()
+                    != _normal_text(announcement_match.group("actor")).casefold()
+                ):
+                    continue
+                action, action_quote, rationale, activity_span = _activity(sentence)
+                if action is None or activity_span is None:
+                    continue
+                for location in _RELATION_LOCATION.finditer(sentence):
+                    preceding = sentence[: location.start()]
+                    site_relation = re.search(
+                        r"\bnext\s+to\s+(?:the\s+)?"
+                        r"[A-Z][A-Za-z0-9'’&.\-/ ]{0,75}"
+                        r"\b(?:headquarters|HQ)\s*$",
+                        preceding,
+                        re.I,
+                    )
+                    if site_relation is None:
+                        continue
+                    object_matches = [
+                        match
+                        for match in _PROJECT_NOUN.finditer(sentence, primitive.end())
+                        if re.fullmatch(r"data\s*cent(?:er|re)", match.group(0), re.I)
+                        and re.match(r"\s+space\b", sentence[match.end() :], re.I)
+                    ]
+                    if len(object_matches) != 1:
+                        continue
+                    physical_object = object_matches[0]
+                    space_match = re.match(r"\s+space\b", sentence[physical_object.end() :], re.I)
+                    if space_match is None:
+                        continue
+                    object_end = physical_object.end() + space_match.end()
+                    subject_span = (physical_object.start(), object_end)
+                    site_span = (site_relation.start(), location.end())
+                    if not activity_is_bound_to_project(
+                        sentence,
+                        subject_span=subject_span,
+                        activity_span=primitive.span(),
+                        site_span=site_span,
+                    ):
+                        continue
+                    place = _normal_text(location.group("place"))
+                    state_raw = location.group("state")
+                    state = _STATE_CODES.get(state_raw.casefold(), state_raw.upper())
+                    section_paragraph_start = paragraph_start
+                    project_start = section_paragraph_start + named_site.start()
+                    project_end = section_paragraph_start + named_site.end()
+                    location_start = section_paragraph_start + sentence_start + location.start()
+                    location_end = section_paragraph_start + sentence_start + location.end()
+                    activity_start = section_paragraph_start + sentence_start + primitive.start()
+                    activity_end = section_paragraph_start + sentence_start + primitive.end()
+                    candidates.append(
+                        SiteCandidate(
+                            "CANDIDATE",
+                            _normal_text(named_site.group(0)),
+                            f"{place}, {state}",
+                            action,
+                            rationale,
+                            action_quote,
+                            location.group(0),
+                            "Explicit named campus, direct construction object, "
+                            "and local site relation",
+                            named_site.group(0),
+                            source_spans={
+                                "project": [project_start, project_end],
+                                "location": [location_start, location_end],
+                                "activity": [activity_start, activity_end],
+                                "section": [section_index, section_index],
+                            },
+                        )
+                    )
     return candidates
 
 
@@ -886,6 +1105,21 @@ def _candidate(sections: list[str]) -> SiteCandidate:
         return holds[0]
     if len(candidates) == 1:
         candidate = candidates[0]
+        if _has_conflicting_explicit_alias(sections, candidate):
+            return SiteCandidate(
+                "HOLD",
+                None,
+                candidate.location,
+                None,
+                None,
+                None,
+                candidate.location_quote,
+                "Explicit project alias is also assigned to a different source-named campus",
+                candidate.project_quote,
+                candidate.phase,
+                candidate.source_spans,
+                candidate.building_id,
+            )
         if _adverse_status_for_candidate(sections, candidate):
             return SiteCandidate(
                 "HOLD",
@@ -896,6 +1130,10 @@ def _candidate(sections: list[str]) -> SiteCandidate:
                 None,
                 candidate.location_quote,
                 "Adverse or contradictory status is reported near the selected site",
+                candidate.project_quote,
+                candidate.phase,
+                candidate.source_spans,
+                candidate.building_id,
             )
         return candidate
     if len(candidates) > 1:
@@ -906,6 +1144,21 @@ def _candidate(sections: list[str]) -> SiteCandidate:
         }
         if len(unique_sites) == 1:
             candidate = candidates[0]
+            if _has_conflicting_explicit_alias(sections, candidate):
+                return SiteCandidate(
+                    "HOLD",
+                    None,
+                    candidate.location,
+                    None,
+                    None,
+                    None,
+                    candidate.location_quote,
+                    "Explicit project alias is also assigned to a different source-named campus",
+                    candidate.project_quote,
+                    candidate.phase,
+                    candidate.source_spans,
+                    candidate.building_id,
+                )
             if _adverse_status_for_candidate(sections, candidate):
                 return SiteCandidate(
                     "HOLD",
@@ -916,6 +1169,10 @@ def _candidate(sections: list[str]) -> SiteCandidate:
                     None,
                     candidate.location_quote,
                     "Adverse or contradictory status is reported near the selected site",
+                    candidate.project_quote,
+                    candidate.phase,
+                    candidate.source_spans,
+                    candidate.building_id,
                 )
             return candidate
         return SiteCandidate(
@@ -945,15 +1202,36 @@ def _candidate(sections: list[str]) -> SiteCandidate:
 
 
 def _adverse_status_for_candidate(sections: list[str], candidate: SiteCandidate) -> bool:
+    return _adverse_status_quote(sections, candidate) is not None
+
+
+def _adverse_status_quote(sections: list[str], candidate: SiteCandidate) -> str | None:
     if not candidate.location:
-        return False
+        return None
     locality = candidate.location.split(",", 1)[0].casefold()
-    selected_name = (candidate.project_quote or candidate.project_name or "").casefold()
+    selected_names = {
+        value.casefold()
+        for value in (candidate.project_quote, candidate.project_name)
+        if isinstance(value, str) and value
+    }
+    project_quote = candidate.project_quote
+    if isinstance(project_quote, str):
+        named_site = re.fullmatch(
+            r"(?P<name>[A-Z][A-Za-z0-9'’&.\-]*(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,4})"
+            r"\s+data\s*cent(?:er|re)\s+campus",
+            project_quote,
+            re.I,
+        )
+        if named_site:
+            selected_names.add(f"{_normal_text(named_site.group('name'))} campus".casefold())
+    aliases = _source_project_aliases(sections, candidate).get("project_aliases", [])
+    selected_names.update(alias.casefold() for alias in aliases if isinstance(alias, str) and alias)
     for section in sections:
         selected_site_context = False
         for _start, _end, sentence in _sentences(section):
             text = sentence.casefold()
-            if locality in text or (selected_name and selected_name in text):
+            selected_name_in_text = any(name in text for name in selected_names)
+            if locality in text or selected_name_in_text:
                 selected_site_context = True
             if not _ADVERSE_STATUS.search(sentence):
                 if re.search(
@@ -968,9 +1246,34 @@ def _adverse_status_for_candidate(sections: list[str], candidate: SiteCandidate)
                 selected_site_context
                 and re.search(r"\b(?:the|this|its)\s+(?:campus|site|facility|project)\b", text)
             )
-            if locality in text or (selected_name and selected_name in text) or anaphoric_status:
-                return True
+            if locality in text or selected_name_in_text or anaphoric_status:
+                return sentence
             selected_site_context = False
+    return None
+
+
+def _has_conflicting_explicit_alias(sections: list[str], candidate: SiteCandidate) -> bool:
+    aliases = _explicit_called_campus_alias(sections, candidate)
+    if not aliases or len(aliases.get("project_aliases", [])) != 1:
+        return False
+    alias = aliases["project_aliases"][0].casefold()
+    project_quote = candidate.project_quote or ""
+    selected = re.fullmatch(
+        r"(?P<name>[A-Z][A-Za-z0-9'’&.\-]*(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,4})"
+        r"\s+data\s*cent(?:er|re)\s+campus",
+        project_quote,
+        re.I,
+    )
+    if selected is None:
+        return True
+    selected_name = _normal_text(selected.group("name")).casefold()
+    for section in sections:
+        for match in _EXPLICIT_CALLED_CAMPUS.finditer(section):
+            if (
+                _normal_text(match.group("alias")).strip(" .,-").casefold() == alias
+                and _normal_text(match.group("name")).casefold() != selected_name
+            ):
+                return True
     return False
 
 
@@ -980,6 +1283,9 @@ def _source_project_aliases(
     """Extract explicit source-native site names linked by a named locality."""
     if not candidate.location:
         return {"project_aliases": [], "alias_spans": {}, "alias_quotes": {}}
+    explicit_alias = _explicit_called_campus_alias(sections, candidate)
+    if explicit_alias is not None:
+        return explicit_alias
     locality = candidate.location.split(",", 1)[0].strip()
     title_market = re.search(
         r"\b(?P<market>[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2})\s+Data Campus\b",
@@ -1075,6 +1381,72 @@ def _source_project_aliases(
         "project_aliases": [alias],
         "alias_spans": {alias: [start, end]},
         "alias_quotes": {alias: quote},
+    }
+
+
+def _explicit_called_campus_alias(
+    sections: list[str], candidate: SiteCandidate
+) -> dict[str, Any] | None:
+    """Return a same-paragraph literal campus rename tied to this candidate."""
+    spans = candidate.source_spans or {}
+    section_indexes = spans.get("section_indexes", {})
+    section_value = spans.get("section", [None])
+    section_index = section_indexes.get(
+        "project", section_value[0] if isinstance(section_value, list) and section_value else None
+    )
+    if not isinstance(section_index, int) or not 0 <= section_index < len(sections):
+        return None
+    project_span = spans.get("project")
+    location_span = spans.get("location")
+    activity_span = spans.get("activity")
+    selected_spans: list[tuple[int, int]] = []
+    for span in (project_span, location_span, activity_span):
+        if (
+            not isinstance(span, list)
+            or len(span) != 2
+            or not isinstance(span[0], int)
+            or not isinstance(span[1], int)
+        ):
+            return None
+        selected_spans.append((span[0], span[1]))
+    quote = candidate.project_quote
+    if not isinstance(quote, str):
+        return None
+    name_match = re.fullmatch(
+        r"(?P<name>[A-Z][A-Za-z0-9'’&.\-]*(?:\s+[A-Z][A-Za-z0-9'’&.\-]*){0,4})"
+        r"\s+data\s*cent(?:er|re)\s+campus",
+        quote,
+        re.I,
+    )
+    if name_match is None:
+        return None
+    source_name = _normal_text(name_match.group("name")).casefold()
+    section = sections[section_index]
+    preceding_sections_length = sum(len(item) + 2 for item in sections[:section_index])
+    aliases: dict[str, tuple[int, int, str]] = {}
+    for paragraph_start, paragraph_end in _paragraph_ranges(section):
+        if not all(
+            paragraph_start <= span_start < span_end <= paragraph_end
+            for span_start, span_end in selected_spans
+        ):
+            continue
+        paragraph = section[paragraph_start:paragraph_end]
+        for match in _EXPLICIT_CALLED_CAMPUS.finditer(paragraph):
+            if _normal_text(match.group("name")).casefold() != source_name:
+                continue
+            alias = _normal_text(match.group("alias")).strip(" .,-")
+            quote_start = match.start("alias") - 1
+            quote_end = match.end("alias") + 1
+            start = preceding_sections_length + paragraph_start + quote_start
+            end = preceding_sections_length + paragraph_start + quote_end
+            aliases[alias] = (start, end, paragraph[quote_start:quote_end])
+    if len(aliases) != 1:
+        return None
+    alias, (start, end, quote_text) = next(iter(aliases.items()))
+    return {
+        "project_aliases": [alias],
+        "alias_spans": {alias: [start, end]},
+        "alias_quotes": {alias: quote_text},
     }
 
 
@@ -1176,20 +1548,7 @@ def retained_records(corpus: Path) -> tuple[list[dict[str, Any]], list[dict[str,
                 status_quote = (
                     source_title
                     if title_adverse
-                    else next(
-                        (
-                            sentence
-                            for section in sections
-                            for _start, _end, sentence in _sentences(section)
-                            if _ADVERSE_STATUS.search(sentence)
-                            and (
-                                not candidate.location
-                                or candidate.location.split(",", 1)[0].casefold()
-                                in sentence.casefold()
-                            )
-                        ),
-                        "",
-                    )
+                    else (_adverse_status_quote(sections, candidate) or "")
                 )
                 host = urlsplit(url).hostname or ""
                 status_record = {

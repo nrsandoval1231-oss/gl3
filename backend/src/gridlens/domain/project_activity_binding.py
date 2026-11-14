@@ -35,7 +35,7 @@ _DIRECT_STATUS_GAP = re.compile(
 )
 _LOCATION_RELATION = re.compile(
     r"\s*(?:(?:on\s+\d[\d,.]*\s+acres?\s+of\s+land\s+)?"
-    r"(?:in|at|near|within|inside|on|adjacent\s+to)\s+)"
+    r"(?:in|at|near|within|inside|on|adjacent\s+to|next\s+to)\s+)"
     r"(?:the\s+)?[A-Z0-9][\w’'. ,/-]{0,90}$",
     re.I,
 )
