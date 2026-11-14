@@ -69,9 +69,7 @@ def test_group_page_aggregates_commercial_projects_only_after_page_selection(sav
                 facet_statements.clear()
                 with saved_db() as session:
                     session.execute(text("SET TRANSACTION READ ONLY"))
-                    result = groups(
-                        session, limit=page_limit, canonical_only=canonical_only
-                    )
+                    result = groups(session, limit=page_limit, canonical_only=canonical_only)
                     assert len(statements) == 1
                     assert len(result["items"]) == page_limit
 
@@ -117,9 +115,7 @@ def test_group_page_aggregates_commercial_projects_only_after_page_selection(sav
                         and "jsonb_agg" in json.dumps(node.get("Output", [])).lower()
                     ]
                     assert page_row_scans
-                    assert all(
-                        node["Actual Rows"] <= page_limit for node in page_row_scans
-                    )
+                    assert all(node["Actual Rows"] <= page_limit for node in page_row_scans)
                     project_key_scans = [
                         node
                         for node in _walk(plan)
@@ -318,12 +314,7 @@ def test_hydration_keeps_every_selected_account_project_and_need(saved_db):  # n
             assert page["items"][0]["name"] == "Synthetic 30 project account"
             assert len(statements) == 1
             query, parameters = statements[0]
-            raw = (
-                session.connection()
-                .exec_driver_sql(query, parameters)
-                .mappings()
-                .one()
-            )
+            raw = session.connection().exec_driver_sql(query, parameters).mappings().one()
     finally:
         event.remove(engine, "before_cursor_execute", capture)
 
