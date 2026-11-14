@@ -20,6 +20,7 @@ from gridlens.ingestion.adapters.retained_company_projects import (
     retained_records,
 )
 from gridlens.intelligence.retained_project_organizations import (
+    _corroborated_native_build_claim,
     extract_retained_project_organizations,
 )
 
@@ -133,6 +134,37 @@ def extract(values):
     )
 
 
+@pytest.fixture
+def crusoe_case(tmp_path):
+    source_path = (
+        Path(__file__).resolve().parents[3] / "eval/customer-commercial-v1/sources/crusoe.json"
+    )
+    source_bytes = source_path.read_bytes()
+    source = json.loads(source_bytes)
+    corpus = tmp_path / "retained-crusoe"
+    sources_dir = corpus / "sources"
+    sources_dir.mkdir(parents=True)
+    (sources_dir / "crusoe.json").write_bytes(source_bytes)
+    body = "\n\n".join(source["excerpts"])
+    manifest = [
+        {
+            "file": "sources/crusoe.json",
+            "sha256": hashlib.sha256(source_bytes).hexdigest(),
+            "url": source["url"],
+            "excerpt_sha256": hashlib.sha256(body.encode()).hexdigest(),
+        }
+    ]
+    (corpus / "source-hashes.json").write_text(json.dumps(manifest), encoding="utf-8")
+    records, held = retained_records(corpus)
+    record = next(
+        row
+        for row in records
+        if "sources/crusoe.json" in row["retained_company_project"]["source_files"]
+    )
+    assert not any("sources/crusoe.json" in item.get("source_files", []) for item in held)
+    return materialize(record)
+
+
 def test_databank_reported_developer_is_bound_to_red_oak_site(cases):
     values = materialize(cases["databank"])
     claims = extract(values)
@@ -160,6 +192,72 @@ def test_cyrusone_is_direct_project_customer_not_energy_center_owner(cases):
     assert claim.citations[0]["supports"] == "project_organization"
     assert "Thad Hill Energy Center" in claim.citations[0]["quote"]
     assert "not" in claim.reason
+
+
+def test_crusoe_developer_claim_requires_fresh_correlated_native_site_evidence(crusoe_case):
+    values = crusoe_case
+    claims = extract(values)
+    assert len(claims) == 1
+    claim = claims[0]
+    assert (claim.organization, claim.category) == ("Crusoe", "owner_developer")
+    assert {item["supports"] for item in claim.citations} == {
+        "organization_category",
+        "project_organization",
+        "project_name",
+    }
+    assert all(item["quote"] in values[0].text for item in claim.citations)
+    assert "historical" in claim.reason
+    assert "not legal ownership" in claim.reason
+    assert "purchasing authority" in claim.reason
+    assert not hasattr(claim, "required_mw")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "section_split"),
+    [
+        ("built-only", False),
+        ("other-actor", False),
+        ("other-site", False),
+        ("withdrawal", False),
+        ("unchanged", True),
+    ],
+    ids=["built-only", "different-builder", "different-site", "withdrawn", "detached-clauses"],
+)
+def test_crusoe_developer_claim_rejects_unlinked_or_adverse_clauses(
+    crusoe_case, mutation, section_split
+):
+    document, project, source, observation, evidence, interpretation = crusoe_case
+    context = evidence.provenance["retained_company_project"]
+    body = document.text.removeprefix(document.title + "\n")
+    adjusted = deepcopy(context)
+    if mutation == "built-only":
+        body = body.replace("announced construction has begun", "announced a project")
+    elif mutation == "other-actor":
+        body = body.replace("Designed and built by Crusoe", "Designed and built by Lancium")
+    elif mutation == "other-site":
+        body = body.replace(
+            "Designed and built by Crusoe at the Lancium Clean Campus",
+            "Designed and built by Crusoe at South Campus",
+        )
+    elif mutation == "withdrawal":
+        insertion = body.index("Designed and built by Crusoe at the Lancium Clean Campus")
+        insertion = body.index(".", insertion) + 1
+        addition = " The project was later cancelled."
+        body = body[:insertion] + addition + body[insertion:]
+        for section in adjusted["section_ranges"]:
+            if section["start"] >= insertion:
+                section["start"] += len(addition)
+            if section["end"] >= insertion:
+                section["end"] += len(addition)
+    if section_split:
+        second = body.index("Crusoe began constructing")
+        third = body.index("Designed and built by Crusoe at")
+        adjusted["section_ranges"] = [
+            {"start": 0, "end": second},
+            {"start": second, "end": third},
+            {"start": third, "end": len(body)},
+        ]
+    assert _corroborated_native_build_claim(document, adjusted, body) is None
 
 
 def test_native_document_version_fence_and_capacity_revision(cases):
