@@ -1,0 +1,101 @@
+{
+  "all_equal_except_as_of": true,
+  "candidate_db": "gl3_mission_rollup_scale_payload_after_20261113_test",
+  "combinations": [
+    {
+      "after_bytes": 57127,
+      "after_file": "after_payload_false.json",
+      "after_page_count": 25,
+      "after_sha256": "5f73c4c56c01eb719404922fa5f7e12c25213cf8302305d3ec678dec5c4c73e1",
+      "after_total": 38319,
+      "before_bytes": 57127,
+      "before_file": "before_payload_false.json",
+      "before_page_count": 25,
+      "before_sha256": "db9bf0e8fa154dc207f1c4ee1c93a847620bd8d8151108ee65e795d0b0397838",
+      "before_total": 38319,
+      "canonical_only": false,
+      "differences_outside_as_of": [],
+      "equal_except_as_of": true,
+      "normalized_after_sha256": "5f85a72f956d1fc6e4201a5bcfdabf2b53cba8a0a67bd06e88d3bc6bbeae449c",
+      "normalized_before_sha256": "5f85a72f956d1fc6e4201a5bcfdabf2b53cba8a0a67bd06e88d3bc6bbeae449c",
+      "only_as_of_fields_ignored": [
+        "$.items[0].account_contact_project.commercial_brief.freshness.as_of",
+        "$.items[0].account_contact_project.needs[0].commercial_brief.freshness.as_of"
+      ],
+      "shortlist": false
+    },
+    {
+      "after_bytes": 57140,
+      "after_file": "after_payload_true.json",
+      "after_page_count": 25,
+      "after_sha256": "40a991bec7323ec5b550970b8a9eacc615404ec1adf17cd8e6111413b9b6fc78",
+      "after_total": 316,
+      "before_bytes": 57140,
+      "before_file": "before_payload_true.json",
+      "before_page_count": 25,
+      "before_sha256": "29848e0a9512841308c82f9bbe852faa495ee8f6f15b6b8ac6c8d75898767194",
+      "before_total": 316,
+      "canonical_only": true,
+      "differences_outside_as_of": [],
+      "equal_except_as_of": true,
+      "normalized_after_sha256": "a8314bb6149628724caa7ef3fb533259b3ba76182a31090f086fd3501b4a273e",
+      "normalized_before_sha256": "a8314bb6149628724caa7ef3fb533259b3ba76182a31090f086fd3501b4a273e",
+      "only_as_of_fields_ignored": [
+        "$.items[0].account_contact_project.commercial_brief.freshness.as_of",
+        "$.items[0].account_contact_project.needs[0].commercial_brief.freshness.as_of"
+      ],
+      "shortlist": false
+    },
+    {
+      "after_bytes": 12155,
+      "after_file": "after_payload_shortlist_false.json",
+      "after_page_count": 1,
+      "after_sha256": "403619684331a3aeb6fc58746276ddd24be64e86876490a687a948df64467f1f",
+      "after_total": 1,
+      "before_bytes": 12155,
+      "before_file": "before_payload_shortlist_false.json",
+      "before_page_count": 1,
+      "before_sha256": "a3fd30b98931b0caf4ab62ba79ba87847e31f122564d64890449ee4044ac5ea1",
+      "before_total": 1,
+      "canonical_only": false,
+      "differences_outside_as_of": [],
+      "equal_except_as_of": true,
+      "normalized_after_sha256": "aa5faeacd063f38ba84d869de692ccd7b73973bd477d9cf2ea7293253c4abb1c",
+      "normalized_before_sha256": "aa5faeacd063f38ba84d869de692ccd7b73973bd477d9cf2ea7293253c4abb1c",
+      "only_as_of_fields_ignored": [
+        "$.items[0].account_contact_project.commercial_brief.freshness.as_of",
+        "$.items[0].account_contact_project.needs[0].commercial_brief.freshness.as_of",
+        "$.items[0].featured_project.commercial_brief.freshness.as_of",
+        "$.items[0].featured_project.needs[0].commercial_brief.freshness.as_of"
+      ],
+      "shortlist": true
+    },
+    {
+      "after_bytes": 12155,
+      "after_file": "after_payload_shortlist_true.json",
+      "after_page_count": 1,
+      "after_sha256": "d4c8bb46fc7b5a8356fbf5fcc15f759ad80b819f192393411828a1800c0d1564",
+      "after_total": 1,
+      "before_bytes": 12155,
+      "before_file": "before_payload_shortlist_true.json",
+      "before_page_count": 1,
+      "before_sha256": "7d1026613a62e8b797862a43deebaa8f77c899343b192f8a58778b0aaffd2773",
+      "before_total": 1,
+      "canonical_only": true,
+      "differences_outside_as_of": [],
+      "equal_except_as_of": true,
+      "normalized_after_sha256": "6c925ee076e26489d50da4c6c3580d4cb8297c54839d0a4b13bc9fbb78577ad6",
+      "normalized_before_sha256": "6c925ee076e26489d50da4c6c3580d4cb8297c54839d0a4b13bc9fbb78577ad6",
+      "only_as_of_fields_ignored": [
+        "$.items[0].account_contact_project.commercial_brief.freshness.as_of",
+        "$.items[0].account_contact_project.needs[0].commercial_brief.freshness.as_of",
+        "$.items[0].featured_project.commercial_brief.freshness.as_of",
+        "$.items[0].featured_project.needs[0].commercial_brief.freshness.as_of"
+      ],
+      "shortlist": true
+    }
+  ],
+  "comparison": "All response JSON fields and array ordering compared recursively; only keys named as_of were ignored.",
+  "controlled_clone_policy_adjustment": "See controlled_policy_binding_adjustment.json; only candidate clone's current generation policy_version was rebound to the candidate source fingerprint.",
+  "source_db": "gl3_mission_rollup_scale_payload_20261113_test"
+}
