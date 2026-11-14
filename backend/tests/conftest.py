@@ -69,10 +69,13 @@ def _validated_test_database_url(raw: str):
     if not loopback:
         raise _unsafe_test_database_url() from None
 
-    # libpq query parameters override URL routing/name fields. Service files can
-    # also redirect connections without changing the visible URL host.
-    forbidden_query = {"host", "hostaddr", "database", "dbname", "service", "servicefile"}
-    if forbidden_query.intersection(key.lower() for key in url.query):
+    # Driver-specific query options can override URL routing, including nested
+    # conninfo strings. Destructive bootstrap accepts only an explicit URL.
+    if any(
+        value
+        for values in url.query.values()
+        for value in (values if isinstance(values, tuple) else (values,))
+    ):
         raise _unsafe_test_database_url() from None
     if any(os.environ.get(name) for name in ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE")):
         raise _unsafe_test_database_url() from None

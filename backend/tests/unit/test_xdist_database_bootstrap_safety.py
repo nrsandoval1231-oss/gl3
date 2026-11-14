@@ -98,6 +98,7 @@ def test_loopback_hosts_provision_safely_derived_worker_databases(monkeypatch, h
         "postgresql+psycopg://tester:secret@127.0.0.1:5432/gridlens_test?hostaddr=203.0.113.9",
         "postgresql+psycopg://tester:secret@127.0.0.1:5432/gridlens_test?dbname=retained",
         "postgresql+psycopg://tester:secret@127.0.0.1:5432/gridlens_test?service=production",
+        "postgresql+psycopg://tester:secret@127.0.0.1:5432/gridlens_test?conninfo=hostaddr%3D203.0.113.9",
         "postgresql+psycopg://tester:secret@localhost:5432/" + ("x" * 60) + "_test",
         "sqlite:///gridlens_test",
         "not a valid URL secret",
@@ -197,6 +198,7 @@ def test_collect_only_and_unconfigured_runs_do_not_connect(monkeypatch):
     conftest.pytest_sessionstart(_session(collectonly=True))
 
     monkeypatch.delenv("TEST_DATABASE_URL")
+    monkeypatch.setattr(conftest, "_base_test_database_url", lambda: "")
     conftest.pytest_sessionstart(_session())
 
     assert create_engine_calls == []
