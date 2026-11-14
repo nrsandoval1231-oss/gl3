@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import statistics
 import subprocess
 import sys
@@ -14,10 +15,15 @@ from pathlib import Path
 from time import perf_counter
 
 from sqlalchemy import event, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_MAIN = Path(r"C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3")
+from perf_db_guard import perf_database_url  # noqa: E402
+
+env_url = perf_database_url(
+    os.environ.get("DATABASE_URL"),
+    allowed_databases={"gl3_perf_followup_rollup_scale_candidate_test"},
+)
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--main-root", type=Path, default=DEFAULT_MAIN)
 parser.add_argument("--samples", type=int, default=20)
@@ -32,10 +38,18 @@ if not (main_root / "backend/src/gridlens/intelligence/customer_results.py").is_
     parser.error("main-root must contain the customer_results.py source")
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
+from gridlens.settings import settings  # noqa: E402
+
+url = perf_database_url(
+    settings.database_url,
+    allowed_databases={"gl3_perf_followup_rollup_scale_candidate_test"},
+)
+if url != env_url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
 from gridlens.intelligence import customer_results as candidate_results  # noqa: E402
 from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
 from gridlens.persistence.models import BrowseGeneration, BrowseState  # noqa: E402
-from gridlens.settings import settings  # noqa: E402
 
 main_path = main_root / "backend/src/gridlens/intelligence/customer_results.py"
 spec = importlib.util.spec_from_file_location(
@@ -46,15 +60,6 @@ if spec is None or spec.loader is None:
 main_results = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = main_results
 spec.loader.exec_module(main_results)
-
-url = make_url(settings.database_url)
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or url.database != "gl3_perf_followup_rollup_scale_candidate_test"
-    or url.query
-):
-    raise SystemExit("Requires the task-owned 40k disposable candidate clone on port 50833")
 
 def source_fingerprint(path: Path) -> str:
     digest = hashlib.sha256()
@@ -128,7 +133,7 @@ def measure(module, *, limit: int, route: str) -> dict:
         "payload_sha256": hashlib.sha256(body).hexdigest(),
         "groups_returned": len(result["items"]),
         "total_groups": result["total"],
-        "account_total": result.get("totals", {}).get("account_total"),
+        "account_total": result.get("totals", {}).get("accounts"),
     }
 
 
@@ -191,16 +196,21 @@ receipt = {
             "commit": git_commit(main_root),
             "backend_source_manifest_sha256": source_fingerprint(main_root),
             "backend_source_dirty": git_dirty_source(main_root),
+            "execution_scope": (
+                "customer_results.py file only, loaded by importlib into the candidate package; "
+                "transitive gridlens dependencies resolve from candidate source"
+            ),
         },
         "candidate": {
             "root": str(ROOT),
             "commit": git_commit(ROOT),
             "backend_source_manifest_sha256": source_fingerprint(ROOT),
             "backend_source_dirty": git_dirty_source(ROOT),
+            "execution_scope": "candidate customer_results.py and candidate package dependencies",
         },
     },
     "route_contract": {
-        "main_legacy": "c5 main customer_results.groups default policy",
+        "main_legacy": "main c5 customer_results.py file control using candidate package dependencies",
         "candidate_legacy": "candidate groups(canonical_only=False), matched explicit legacy path",
         "candidate_default": "candidate groups(canonical_only=True), current default path",
         "limits": [1, 25, 50],
@@ -216,6 +226,7 @@ receipt = {
     "limitations": [
         "One local synthetic 40k fixture, one database clone, and one execution environment.",
         "selected_generation pins one already-published synthetic snapshot to compare query implementations; it bypasses the live current-generation qualification lookup.",
+        "Historical account_total samples were produced by reading totals.account_total rather than totals.accounts; those nulls are invalid account-count evidence. The runner now reads totals.accounts.",
         "This is a diagnostic comparison, not a service-level objective or production latency claim.",
     ],
 }

@@ -6,15 +6,18 @@ import hashlib
 import argparse
 import json
 import math
+import os
 import statistics
 import sys
 from pathlib import Path
 from time import perf_counter
 
 from sqlalchemy import event, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
+from perf_db_guard import perf_database_url  # noqa: E402
+
+env_url = perf_database_url(os.environ.get("DATABASE_URL"))
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--canonical-only", action="store_true")
 parser.add_argument("--source-root", type=Path, default=ROOT)
@@ -32,20 +35,14 @@ source_root = args.source_root.resolve()
 source = source_root / "backend" / "src"
 sys.path.insert(0, str(source))
 
-from gridlens.intelligence import customer_results  # noqa: E402
-from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
 from gridlens.settings import settings  # noqa: E402
 
-url = make_url(settings.database_url)
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or not url.database
-    or not url.database.startswith("gl3_perf_followup_")
-    or not url.database.endswith("_test")
-    or url.query
-):
-    raise SystemExit("Requires task-owned loopback port 50833 *_test database")
+url = perf_database_url(settings.database_url)
+if url != env_url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
+from gridlens.intelligence import customer_results  # noqa: E402
+from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
 
 digest = hashlib.sha256()
 for path in sorted(source.rglob("*.py")):

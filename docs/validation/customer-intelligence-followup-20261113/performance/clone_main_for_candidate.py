@@ -9,19 +9,15 @@ import subprocess
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
 MAIN_DATABASE = "gl3_perf_followup_rollup_scale_main_test"
 CANDIDATE_DATABASE = "gl3_perf_followup_rollup_scale_candidate_test"
-url = make_url(os.environ["DATABASE_URL"])
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or url.database != MAIN_DATABASE
-    or url.query
-):
-    raise SystemExit("Requires the task-owned c5 loopback fixture database")
+from perf_db_guard import perf_database_url  # noqa: E402
+
+url = perf_database_url(
+    os.environ.get("DATABASE_URL"), allowed_databases={MAIN_DATABASE}
+)
 
 source = ROOT / "backend" / "src"
 digest = hashlib.sha256()
@@ -29,9 +25,21 @@ for path in sorted(source.rglob("*.py")):
     digest.update(str(path.relative_to(source)).encode())
     digest.update(path.read_bytes())
 source_manifest = digest.hexdigest()
+from gridlens.settings import settings  # noqa: E402
+
+application_url = perf_database_url(
+    settings.database_url, allowed_databases={MAIN_DATABASE}
+)
+if application_url != url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
 from gridlens.intelligence.saved_browse import POLICY_VERSION  # noqa: E402
 
-admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+admin_url = perf_database_url(
+    url.set(database="postgres").render_as_string(hide_password=False),
+    allowed_databases={"postgres"},
+)
+admin = create_engine(admin_url, isolation_level="AUTOCOMMIT")
 try:
     with admin.connect() as connection:
         assert not connection.execute(
@@ -45,6 +53,10 @@ finally:
     admin.dispose()
 
 candidate_url = url.set(database=CANDIDATE_DATABASE)
+candidate_url = perf_database_url(
+    candidate_url.render_as_string(hide_password=False),
+    allowed_databases={CANDIDATE_DATABASE},
+)
 engine = create_engine(candidate_url)
 try:
     with engine.begin() as connection:

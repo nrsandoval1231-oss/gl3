@@ -3,25 +3,34 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
-from gridlens.intelligence.saved_browse import POLICY_VERSION  # noqa: E402
-from gridlens.persistence.database import engine  # noqa: E402
+from perf_db_guard import perf_database_url  # noqa: E402
+
+candidate_database = "gl3_perf_followup_rollup_scale_candidate_test"
+env_url = perf_database_url(
+    os.environ.get("DATABASE_URL"),
+    allowed_databases={candidate_database},
+)
+sys.path.insert(0, str(ROOT / "backend" / "src"))
+
 from gridlens.settings import settings  # noqa: E402
 
-url = make_url(settings.database_url)
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or url.database != "gl3_perf_followup_rollup_scale_candidate_test"
-    or url.query
-):
-    raise SystemExit("Requires the disposable candidate clone on loopback port 50833")
+url = perf_database_url(
+    settings.database_url, allowed_databases={candidate_database}
+)
+if url != env_url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
+from gridlens.intelligence.saved_browse import POLICY_VERSION  # noqa: E402
+from gridlens.persistence.database import engine  # noqa: E402
+
 
 with engine.begin() as connection:
     before = dict(

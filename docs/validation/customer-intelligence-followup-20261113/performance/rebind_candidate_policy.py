@@ -8,19 +8,23 @@ import subprocess
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
-from gridlens.intelligence.saved_browse import POLICY_VERSION  # noqa: E402
+from perf_db_guard import perf_database_url  # noqa: E402
 
-url = make_url(os.environ["DATABASE_URL"])
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or url.database != "gl3_perf_followup_rollup_scale_candidate_test"
-    or url.query
-):
-    raise SystemExit("Requires the task-owned candidate clone on loopback port 50833")
+candidate_database = "gl3_perf_followup_rollup_scale_candidate_test"
+url = perf_database_url(
+    os.environ.get("DATABASE_URL"), allowed_databases={candidate_database}
+)
+from gridlens.settings import settings  # noqa: E402
+
+application_url = perf_database_url(
+    settings.database_url, allowed_databases={candidate_database}
+)
+if application_url != url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
+from gridlens.intelligence.saved_browse import POLICY_VERSION  # noqa: E402
 
 engine = create_engine(url)
 try:

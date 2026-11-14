@@ -15,17 +15,19 @@
       "root": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3",
       "commit": "c5cb4c484ae84fa888f86b5f4747611fca18e65e",
       "backend_source_manifest_sha256": "cddc77648a68599a5541a575ab2aba0007d2bafed8b0d390ec41651bb00f9cf4",
-      "backend_source_dirty": false
+      "backend_source_dirty": false,
+      "execution_scope": "Main c5 customer_results.py file loaded by importlib into the candidate package; transitive gridlens dependencies resolve from the candidate source tree. This is a main-file control, not a full main checkout execution."
     },
     "candidate": {
       "root": "C:\\Users\\nrsan\\.codex\\worktrees\\gl3-native-validation\\gl3",
       "commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
       "backend_source_manifest_sha256": "49e0a5cd31924d87c80c9e4501157b6c17fd268810f5cb3424f326c23ebdcf3e",
-      "backend_source_dirty": true
+      "backend_source_dirty": true,
+      "execution_scope": "Candidate customer_results.py and candidate package dependencies."
     }
   },
   "route_contract": {
-    "main_legacy": "c5 main customer_results.groups default policy",
+    "main_legacy": "Main-file control: c5 customer_results.groups default policy; candidate package dependencies.",
     "candidate_legacy": "candidate groups(canonical_only=False), matched explicit legacy path",
     "candidate_default": "candidate groups(canonical_only=True), current default path",
     "limits": [
@@ -1906,6 +1908,7 @@
   "limitations": [
     "One local synthetic 40k fixture, one database clone, and one execution environment.",
     "selected_generation pins one already-published synthetic snapshot to compare query implementations; it bypasses the live current-generation qualification lookup.",
-    "This is a diagnostic comparison, not a service-level objective or production latency claim."
+    "This is a diagnostic comparison, not a service-level objective or production latency claim.",
+    "Historical account_total samples are null because the runner read totals.account_total rather than totals.accounts; those nulls are invalid account-count evidence and were not backfilled."
   ]
 }

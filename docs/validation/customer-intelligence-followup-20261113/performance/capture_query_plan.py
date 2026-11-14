@@ -5,14 +5,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 from sqlalchemy import event, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
+from perf_db_guard import perf_database_url  # noqa: E402
+
+env_url = perf_database_url(os.environ.get("DATABASE_URL"))
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--source-root", type=Path, default=ROOT)
 parser.add_argument("--limit", type=int, choices=(1, 25, 50), required=True)
@@ -24,19 +27,14 @@ if Path(args.output_prefix).name != args.output_prefix or ".." in args.output_pr
 source_root = args.source_root.resolve()
 sys.path.insert(0, str(source_root / "backend" / "src"))
 
-from gridlens.intelligence import customer_results  # noqa: E402
-from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
 from gridlens.settings import settings  # noqa: E402
 
-url = make_url(settings.database_url)
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or not (url.database or "").startswith("gl3_perf_followup_")
-    or not url.database.endswith("_test")
-    or url.query
-):
-    raise SystemExit("Requires task-owned loopback port 50833 *_test database")
+url = perf_database_url(settings.database_url)
+if url != env_url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
+
+from gridlens.intelligence import customer_results  # noqa: E402
+from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
 
 captured: dict = {}
 
@@ -170,7 +168,10 @@ sql_path = prefix.with_suffix(".sql")
 json_path = prefix.with_name(prefix.stem + "-plan.json")
 if sql_path.exists() or json_path.exists():
     raise SystemExit("Refusing to overwrite a SQL plan receipt")
-sql_path.write_text(captured["sql"] + "\n", encoding="utf-8")
+readable_sql = "\n".join(
+    line.rstrip(" \t") for line in captured["sql"].split("\n")
+).rstrip("\n") + "\n"
+sql_path.write_bytes(readable_sql.encode("utf-8"))
 receipt = {
     "source_root": str(source_root),
     "commit": commit,
@@ -179,6 +180,13 @@ receipt = {
     "route": f"groups(limit={args.limit}, canonical_only={args.canonical_only})",
     "query_file": sql_path.name,
     "query_sha256": query_hash,
+    "captured_sql": captured["sql"],
+    "query_file_representation": "derived_readable_export",
+    "query_file_note": (
+        "Standalone SQL trims trailing horizontal whitespace for readability. "
+        "query_sha256 is computed over the byte-exact captured_sql UTF-8 bytes "
+        "without a terminal newline."
+    ),
     "parameter_values_written": False,
     "bind_parameter_summary": {
         str(name): summarize_bind(str(name), value)

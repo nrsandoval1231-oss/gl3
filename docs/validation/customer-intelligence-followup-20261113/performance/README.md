@@ -13,7 +13,8 @@ matches the original browse row on both project and need IDs.
 
 The new plan removes that unsafe hydration join order, but the measured result
 does **not** pass a general latency or payload regression gate. On this one
-synthetic 40k clone, matched legacy-path p50 increased 6–13% relative to main.
+synthetic 40k clone, matched legacy-path p50 increased 6–13% relative to the
+main-file control.
 The current canonical-only product default remains a separate route and took
 about 2.5–2.6 seconds p50. No timeout was raised and no speedup/SLA is claimed.
 
@@ -28,7 +29,7 @@ timeout. This internal `selected_generation` path intentionally bypasses the
 current-generation qualification lookup; it measures list query behavior on a
 specific already-published synthetic snapshot.
 
-| Page size | Main legacy p50/p95 ms | Candidate legacy p50/p95 ms | Candidate canonical default p50/p95 ms | Median payload bytes: main / candidate legacy / candidate default |
+| Page size | Main-file control p50/p95 ms | Candidate legacy p50/p95 ms | Candidate canonical default p50/p95 ms | Median payload bytes: main-file control / candidate legacy / candidate default |
 | ---: | ---: | ---: | ---: | ---: |
 | 1 | 1,577 / 1,609 | 1,673 / 1,734 | 2,495 / 2,563 | 5,475 / 7,180 / 7,176 |
 | 25 | 1,588 / 1,669 | 1,779 / 2,007 | 2,610 / 2,688 | 15,760 / 57,128 / 57,141 |
@@ -37,21 +38,40 @@ specific already-published synthetic snapshot.
 The candidate legacy response includes the new commercial card fields, so its
 larger body is not a like-for-like payload contract. Each full body is
 represented by byte count and SHA-256 in the raw samples; body contents are not
-stored in the receipt. Median SQL statement counts were 55 for main/candidate
+stored in the receipt. Median SQL statement counts were 55 for main-file
+control/candidate
 legacy and 57 for candidate canonical-only. Median SQL execute time was
 1,549/1,641/2,462 ms at page 1, 1,560/1,724/2,556 ms at page 25, and
-1,575/1,723/2,545 ms at page 50 (main legacy / candidate legacy / candidate
+1,575/1,723/2,545 ms at page 50 (main-file control / candidate legacy / candidate
 default). These sums include all list SQL; page-size growth does not remove the
 full-cohort facet/contact work on canonical reads.
+
+`main_legacy` in this paired receipt is a **main-file control**, not a full main
+checkout execution: the c5 `customer_results.py` file was loaded by module spec
+inside the candidate package environment, so its imported `gridlens` dependencies
+resolve from the candidate source tree. The raw timing and payload samples are
+unchanged; use the separate `main-c5-legacy-phases.json` for the earlier
+full-main-source measurements, which were not interleaved with candidate runs.
+The historical `account_total` sample field is null because the original runner
+read `totals.account_total` instead of `totals.accounts`; those nulls are not
+account-count evidence. The runner now reads the correct key, without rewriting
+historical samples.
 
 ## Page hydration plans
 
 `candidate-canonical-page{1,25,50}-actual-retry.json` are one-execution
 `EXPLAIN ANALYZE BUFFERS` plans for the page SQL; the paired distribution above
-is the timing result. Execution times were 1,107.2 / 1,107.6 / 1,143.6 ms,
-returning 1 / 25 / 50 rows. Temporary reads/writes were 130,648 / 17,905 blocks
+is the timing result. Plan-root `Actual Total Time` values were 1,107.158 /
+1,107.580 / 1,143.558 ms (full-query `Execution Time`: 1,115.508 / 1,116.287 /
+1,152.341 ms), returning 1 / 25 / 50 rows. Temporary reads/writes were 130,648 / 17,905 blocks
 at limit 1 and 131,541 / 18,799 blocks at limits 25 and 50. The main/facet and
 contact SQL still contribute material time to the full group response.
+
+The JSON receipt preserves the byte-exact captured SQL string. The adjacent
+`.sql` file is a readable export with trailing horizontal whitespace removed;
+`query_sha256` hashes the raw captured string, not that normalized export.
+The historical failed-variant receipt also now contains a hash-verified
+reconstruction in `captured_sql`; its plan/timing fields were left unchanged.
 
 The integration test runs actual plans at limits 1, 25 and 50 for both
 `canonical_only` values, verifies the materialization boundaries and actual

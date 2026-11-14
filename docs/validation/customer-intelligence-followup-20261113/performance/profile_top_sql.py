@@ -10,25 +10,22 @@ from pathlib import Path
 from time import perf_counter
 
 from sqlalchemy import event, text
-from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
+from perf_db_guard import perf_database_url  # noqa: E402
+
+env_url = perf_database_url(os.environ.get("DATABASE_URL"))
 sys.path.insert(0, str(ROOT / "backend" / "src"))
+
+from gridlens.settings import settings  # noqa: E402
+
+url = perf_database_url(settings.database_url)
+if url != env_url:
+    raise SystemExit("Application DATABASE_URL differs from the validated process URL")
 
 from gridlens.intelligence.customer_results import groups  # noqa: E402
 from gridlens.persistence.database import SessionLocal, engine  # noqa: E402
-from gridlens.settings import settings  # noqa: E402
-
-url = make_url(settings.database_url)
 canonical_only = os.environ.get("PROFILE_CANONICAL_ONLY", "0") == "1"
-if (
-    url.host not in {"127.0.0.1", "localhost", "::1"}
-    or url.port != 50833
-    or not (url.database or "").startswith("gl3_perf_followup_")
-    or not url.database.endswith("_test")
-    or url.query
-):
-    raise SystemExit("Requires task-owned loopback port 50833 *_test database")
 
 active: dict[int, tuple[float, str, object]] = {}
 statements: list[dict] = []
