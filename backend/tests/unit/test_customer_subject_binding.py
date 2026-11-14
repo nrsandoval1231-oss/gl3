@@ -369,6 +369,7 @@ def test_fact_free_source_skips_receipt_database_work_before_flush():
         '```json\n{"commissioning_test_plan": []}\n```',
         "Unknown " + "x" * 200_001,
     ],
+    ids=["capacity-fact", "empty-engineering-plan", "oversized-source"],
 )
 def test_capacity_plan_or_overflow_source_does_not_skip_database_work(source_text):
     class VisitedDatabase(Exception):

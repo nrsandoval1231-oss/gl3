@@ -553,19 +553,34 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
             for match in re.finditer(
                 r"\b(?P<verb>construction\s+(?:has\s+)?(?:begun|started|commenced))\s+"
                 r"(?:at|on)\s+(?:the\s+)?(?P<site>[A-Z][A-Za-z0-9'’&.\- ]{1,55}?)\s+"
-                r"in\s+(?P<place>[A-Z][A-Za-z.'’\-]*(?:\s+[A-Z][A-Za-z.'’\-]*){0,2}),\s*"
+                r"(?P<locality>in\s+(?P<place>[A-Z][A-Za-z.'’\-]*(?:\s+[A-Z][A-Za-z.'’\-]*){0,2}),\s*"
                 r"(?P<state>North\s+Dakota|South\s+Dakota|Texas|California|Oregon|Ohio|"
                 r"Louisiana|Wyoming|Mississippi|Arizona|Alabama|Arkansas|Colorado|Florida|"
                 r"Georgia|Illinois|Indiana|Iowa|Kansas|Kentucky|Michigan|Minnesota|Missouri|"
                 r"Nevada|New\s+York|North\s+Carolina|Oklahoma|Pennsylvania|Tennessee|Utah|"
-                r"Virginia|Washington|Wisconsin|[A-Z]{2})(?![A-Za-z])",
+                r"Virginia|Washington|Wisconsin|[A-Z]{2})(?![A-Za-z]))",
                 sentence,
                 re.I,
             ):
                 site = match.group("site").strip()
-                if re.search(r"\b(?:campus|data\s*cent(?:er|re)|facility|site)\b", site, re.I):
+                if (
+                    re.search(r"\b(?:campus|data\s*cent(?:er|re)|facility|site)\b", site, re.I)
+                    and not _OTHER_SITE_CLAUSE.search(site)
+                    and not re.search(
+                        r"\b(?:adjacent\s+to|next\s+to|near|alongside|beside)\b", site, re.I
+                    )
+                ):
+                    location = _RELATION_LOCATION.match(sentence, match.start("locality"))
+                    if location is None or location.end() != match.end("locality"):
+                        continue
                     relations.append(
-                        (site, match.start("site"), match.end("site"), match, "direct")
+                        (
+                            site,
+                            match.start("site"),
+                            match.end("site"),
+                            location,
+                            "direct",
+                        )
                     )
             for location in _REVERSE_SITE.finditer(sentence):
                 if not _DATA_CENTER.search(location.group("subject")):
@@ -659,7 +674,7 @@ def _relation_candidates(sections: list[str]) -> list[SiteCandidate]:
                 state_raw = location_relation.group("state")
                 state = _STATE_CODES.get(state_raw.casefold(), state_raw.upper())
                 project_location = f"{place}, {state}"
-                location_quote = f"{place}, {state_raw}"
+                location_quote = location_relation.group(0)
             elif location_kind == "develop":
                 place = _normal_text(location_relation.group("place"))
                 state_raw = location_relation.group("state")

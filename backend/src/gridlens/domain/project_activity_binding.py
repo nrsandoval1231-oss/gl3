@@ -66,8 +66,19 @@ def _status_is_direct(
     site_span: tuple[int, int],
 ) -> bool:
     subject_start, subject_end = subject_span
-    activity_start, _ = activity_span
+    activity_start, activity_end = activity_span
     site_start, site_end = site_span
+    if activity_end <= subject_start and subject_end <= site_start:
+        # A verb-first status can identify a named physical site only when it
+        # directly governs the site through an at/on phrase and the site is
+        # immediately followed by its explicit locality.
+        return bool(
+            not text[:activity_start].strip()
+            and re.fullmatch(r"\s+(?:at|on)\s+(?:the\s+)?", text[activity_end:subject_start], re.I)
+            and re.fullmatch(r"\s+", text[subject_end:site_start])
+            and re.match(r"\s*in\s+", text[site_start:site_end], re.I)
+            and _LOCATION_RELATION.fullmatch(text[site_start:site_end])
+        )
     if subject_end > activity_start:
         return False
     if site_span == subject_span:

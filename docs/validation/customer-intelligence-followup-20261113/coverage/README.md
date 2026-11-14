@@ -57,16 +57,30 @@ V1/V2 corpus changes.
 
 ## Checks and limits
 
-- Focused coverage controls: `6 passed`.
-- Combined new controls, existing subject-binding tests, and customer-intelligence
-  unit tests: `87 passed, 3 deselected`. The deselected cases are the existing
-  large-input parameterized test; on this Windows runner its 200,000-character
-  parameter ID exceeds the 32,767-character environment limit. A broader run
-  also reported two transient assertions during implementation; both were
-  corrected before the final focused run.
-- Ruff lint and format checks passed on all three changed Python files.
-- The native runtime replay was not rerun. Its runner creates a database named
-  `gl3_customer_runtime_*_test`, outside this lane's allowed
-  `gl3_coverage_followup*_test` database prefix. This lane makes no native
-  runtime or retained-data write claim.
+- The final 20-organization candidate source-scope replay after verb-first admission
+  has the same score as the earlier candidate: 26 raw capacity candidates,
+  2/0/30 capacity TP/FP/FN, and 8 raw timeline candidates with 0/0/30 timeline
+  TP/FP/FN. `candidate-final-source-scope-replay-verb-first.json` SHA-256:
+  `d22469c611cf8ccf8c75ff166114b7823879deb3915c2727362d06bad8288c2b4`.
+- Native runtime changed from 4 to 5 accepted interpretations, 4 to 5 project
+  rows, and 3 to 4 PowerNeeds; every PowerNeed still has `required_mw: null`.
+  The new source-bound record is Lancium Clean Campus, Abilene, TX, from
+  Crusoe's retained source. Held documents changed from 18 to 17. No state or
+  admission rules were broadened. The account projection remains 3 cards
+  (CyrusOne, DataBank, Switch); Crusoe receives no account identity or verified
+  buyer contact from this change. All three cards still report
+  `unavailable_unverified` contacts. Before receipt SHA-256:
+  `3a373ae2b418f182292cf26e93ae51c2416c4a16ecd20f021f5f5d3c41376e66`;
+  final receipt [native-runtime-final-verb-first.json](native-runtime-final-verb-first.json)
+  SHA-256: `707e81364528ed18da2c94133db56b94262108ac4eaeb9539661218a1d6292b4`.
+- Retained-source and verb-first focused suite: `67 passed`.
+- The broad `backend/tests/unit` run completed with `3940 passed, 32 skipped,
+  20 failed, 41 errors` (119.85s). It was run without `TEST_DATABASE_URL` and
+  against Windows CRLF materializations of hash-bound V1 source files. Errors
+  include an unparsable missing test URL and V1 source-hash mismatches; this is
+  not a clean full-suite acceptance result. The focused retained-source run
+  supplied a disposable test URL and temporarily restored exact Git-LF V1
+  blobs, then restored each original working byte in `finally`.
+- The 3-case parameterized large-input test now has explicit short IDs, removing
+  the Windows environment-length failure without dropping cases.
 - Full CI and the full repository gate were not run.
