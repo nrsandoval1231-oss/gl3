@@ -137,6 +137,11 @@ def test_customer_development_carries_evidence_and_hides_contact_tokens(saved_db
         summary = groups(session)["items"][0]["commercial_intelligence"]
         assert summary["recent_developments"][0]["summary"] == "Build capacity revised"
         assert summary["recent_developments"][0]["evidence_id"] == str(evidence.id)
+        assert summary["recent_developments"][0]["source_date"] == evidence.published_at.isoformat()
+        assert (
+            summary["recent_developments"][0]["source_date"]
+            != summary["recent_developments"][0]["observed_at"][:10]
+        )
         assert "secret@example.invalid" not in str(summary)
         detail = group_metadata(session, groups(session)["items"][0]["id"])
         development = detail["commercial_intelligence"]["recent_developments"][0]

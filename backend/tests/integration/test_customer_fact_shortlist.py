@@ -49,6 +49,7 @@ def seed_facts(session, monkeypatch):
 def test_capacity_only_source_enters_existing_canonical_customer_shortlist(
     equipment_db, monkeypatch
 ):
+    from gridlens.intelligence import customer_results
     from gridlens.intelligence.customer_results import groups
 
     with equipment_db.begin() as session:
@@ -69,6 +70,40 @@ def test_capacity_only_source_enters_existing_canonical_customer_shortlist(
         assert result["total"] == 1
         assert result["items"][0]["group_kind"] == "resolved_identity"
         assert need.required_mw is None and browse.mw_low is None
+
+        original_ctes = customer_results._ctes
+
+        def full_width_ctes(where, shortlist_data=None, **kwargs):
+            return original_ctes(where, shortlist_data, narrow_compact=False, **kwargs)
+
+        def stable(value):
+            if isinstance(value, dict):
+                result = {key: stable(item) for key, item in value.items()}
+                freshness = result.get("freshness")
+                if isinstance(freshness, dict):
+                    freshness.pop("as_of", None)
+                return result
+            if isinstance(value, list):
+                return [stable(item) for item in value]
+            return value
+
+        for canonical_only in (False, True):
+            for shortlist in (False, True):
+                candidate = groups(
+                    session,
+                    selected_generation=generation,
+                    canonical_only=canonical_only,
+                    shortlist=shortlist,
+                )
+                monkeypatch.setattr(customer_results, "_ctes", full_width_ctes)
+                reference = groups(
+                    session,
+                    selected_generation=generation,
+                    canonical_only=canonical_only,
+                    shortlist=shortlist,
+                )
+                monkeypatch.setattr(customer_results, "_ctes", original_ctes)
+                assert stable(candidate) == stable(reference)
 
 
 @pytest.mark.parametrize("corruption", ["hash", "withdrawn", "conflict", "jev_hold"])

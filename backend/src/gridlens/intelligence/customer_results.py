@@ -471,7 +471,13 @@ def assignment_context(session, generation, shortlist: bool = False) -> dict[str
     }
 
 
-def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) -> str:
+def _ctes(
+    where: str,
+    shortlist_data=None,
+    *,
+    include_commercial_projects=True,
+    narrow_compact: bool | None = None,
+) -> str:
     asset_expr = _ASSET_B
     if shortlist_data and shortlist_data["duplicate_project_map"]:
         duplicate_cases = " ".join(
@@ -498,6 +504,14 @@ def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) 
     commercial_projects_group_by = (
         ", gnc.commercial_projects" if include_commercial_projects else ""
     )
+    if narrow_compact is None:
+        narrow_compact = not include_commercial_projects
+    matched_compact = (
+        "b.compact - ARRAY['customer_facts', 'customer_developments', "
+        "'customer_priority', 'contact_actions', 'contact_people']::text[]"
+        if narrow_compact
+        else "b.compact"
+    )
     # Both relations use the same cohort predicate, so the asset self-join
     # cannot add rows beyond those already in matched.
     return (
@@ -506,7 +520,16 @@ def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) 
       SELECT %%ASSET%% AS asset_key, b.project_id, b.need_id,
              coalesce((CAST(:need_alias_map AS jsonb)->>b.need_id::text)::uuid, b.need_id)
                AS canonical_need_id,
-             b.compact,
+             %%MATCHED_COMPACT%% AS compact,
+             (CASE WHEN jsonb_typeof(b.compact->'contact_actions')='array'
+                     THEN jsonb_array_length(b.compact->'contact_actions') > 0 ELSE false END
+               OR CASE WHEN jsonb_typeof(b.compact->'contact_people')='array'
+                     THEN jsonb_array_length(b.compact->'contact_people') > 0 ELSE false END)
+               AS has_contact_actions,
+             CASE WHEN b.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
+                    AND b.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
+                  THEN least(100, (b.compact #>> '{customer_priority,score}')::integer)
+                  ELSE NULL END AS commercial_score,
              b.rank_score, b.updated_at
       FROM browse_rows b WHERE %%WHERE%%
     ), candidate_assets AS (
@@ -741,15 +764,8 @@ def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) 
         count(DISTINCT ar.canonical_need_id) FILTER (
           WHERE ar.canonical_need_id = ANY(CAST(:pursued_need_ids AS uuid[]))
         )::integer AS pursued_eligible_need_count,
-        bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_actions')='array'
-          THEN jsonb_array_length(ar.compact->'contact_actions') > 0 ELSE false END)
-          OR bool_or(CASE WHEN jsonb_typeof(ar.compact->'contact_people')='array'
-            THEN jsonb_array_length(ar.compact->'contact_people') > 0 ELSE false END)
-          AS has_contact_actions,
-        max(CASE WHEN ar.compact #>> '{customer_priority,score}' ~ '^[0-9]{1,3}$'
-          AND ar.compact #>> '{customer_priority,confidence}' ~ '^[1-9][0-9]{0,2}$'
-          THEN least(100, (ar.compact #>> '{customer_priority,score}')::integer)
-        ELSE NULL END) AS commercial_score%%COMMERCIAL_PROJECTS_AGGREGATE%%
+        bool_or(ar.has_contact_actions) AS has_contact_actions,
+        max(ar.commercial_score) AS commercial_score%%COMMERCIAL_PROJECTS_AGGREGATE%%
       FROM assigned a JOIN all_rows ar ON ar.asset_key=a.asset_key
       GROUP BY a.group_key
     ), grouped AS (
@@ -778,6 +794,7 @@ def _ctes(where: str, shortlist_data=None, *, include_commercial_projects=True) 
                %%COMMERCIAL_PROJECTS_GROUP_BY%%
     )
     """.replace("%%ASSET%%", asset_expr)
+        .replace("%%MATCHED_COMPACT%%", matched_compact)
         .replace("%%WHERE%%", where)
         .replace("%%CUSTOMER_ROLE_ORDER%%", customer_roles)
         .replace("%%CUSTOMER_ROLES%%", customer_roles)
@@ -843,7 +860,9 @@ def _account_contact_projects(
     if not group_keys:
         return {}
     shortlist_state = shortlist_data
-    sql = _ctes(where, shortlist_state)
+    # Contact selection needs assignment and compact contact rows from browse_rows,
+    # not full customer fact/development JSON on every row in the cohort.
+    sql = _ctes(where, shortlist_state, include_commercial_projects=False)
     candidate_rows = (
         session.execute(
             text(
@@ -1132,15 +1151,20 @@ def groups(
             else ""
         )
         + f" ORDER BY {order} LIMIT :limit OFFSET :offset), "
+        + "page_project_rows AS MATERIALIZED ("
+        + "SELECT DISTINCT p.group_key, ar.project_id, a.company_id, ar.need_id "
+        + "FROM page_rows p JOIN assigned a ON a.group_key=p.group_key "
+        + "JOIN all_rows ar ON ar.asset_key=a.asset_key), "
         + "page_commercial_projects AS ("
         + "SELECT p.group_key, jsonb_agg(DISTINCT jsonb_build_object("
-        + "'project_id', ar.project_id, 'company_id', a.company_id, "
-        + "'facts', coalesce(ar.compact->'customer_facts', '[]'::jsonb), "
-        + "'priority', ar.compact->'customer_priority', "
-        + "'developments', coalesce(ar.compact->'customer_developments', '[]'::jsonb)"
-        + ")) AS commercial_projects FROM page_rows p "
-        + "JOIN assigned a ON a.group_key=p.group_key "
-        + "JOIN all_rows ar ON ar.asset_key=a.asset_key GROUP BY p.group_key) "
+        + "'project_id', p.project_id, 'company_id', p.company_id, "
+        + "'facts', coalesce(b.compact->'customer_facts', '[]'::jsonb), "
+        + "'priority', b.compact->'customer_priority', "
+        + "'developments', coalesce(b.compact->'customer_developments', '[]'::jsonb)"
+        + ")) AS commercial_projects FROM page_project_rows p "
+        + "JOIN browse_rows b ON b.generation_id=:generation "
+        + "AND b.project_id=p.project_id AND b.need_id=p.need_id "
+        + "GROUP BY p.group_key) "
         + "SELECT p.*, cp.commercial_projects FROM page_rows p "
         + "LEFT JOIN page_commercial_projects cp USING (group_key) "
         + f"ORDER BY {order}"

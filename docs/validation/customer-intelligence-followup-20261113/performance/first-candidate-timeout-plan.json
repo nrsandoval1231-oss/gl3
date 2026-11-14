@@ -1,0 +1,1135 @@
+{
+  "commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+  "database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "failed_variant": "pre-page jsonb_build_object projection, reconstructed from the captured first candidate query",
+  "statement_hash_sha256": "51fb9abbbf27a546bf7089eb78599ee68a2b04acc3b1ec1983f32caa06ff0543",
+  "execution": "No query execution; EXPLAIN estimates only, without ANALYZE.",
+  "root": {
+    "Node Type": "Sort",
+    "Plan Rows": 25,
+    "Plan Width": 266,
+    "Startup Cost": 2621356.83,
+    "Total Cost": 2621356.89
+  },
+  "planning_ms": null,
+  "nodes": [
+    {
+      "Node Type": "Sort",
+      "Plan Rows": 25,
+      "Plan Width": 266,
+      "Startup Cost": 2621356.83,
+      "Total Cost": 2621356.89
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "InitPlan",
+      "Relation Name": "browse_rows",
+      "Alias": "b_1",
+      "Plan Rows": 40000,
+      "Plan Width": 129,
+      "Startup Cost": 0.0,
+      "Total Cost": 15819.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "InitPlan",
+      "Alias": "matched",
+      "Plan Rows": 40000,
+      "Plan Width": 129,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 88,
+      "Startup Cost": 7498.77,
+      "Total Cost": 9198.88
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 108,
+      "Startup Cost": 7498.77,
+      "Total Cost": 7598.77
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 108,
+      "Startup Cost": 1206.5,
+      "Total Cost": 2113.72
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_1",
+      "Plan Rows": 40000,
+      "Plan Width": 76,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1204.0,
+      "Total Cost": 1204.0
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "c",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1200.0,
+      "Total Cost": 1204.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 1200.0,
+      "Total Cost": 1202.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "matched_1",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 982.55,
+      "Total Cost": 982.57
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 982.55,
+      "Total Cost": 982.55
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "membership_role_priorities",
+      "Plan Rows": 1,
+      "Plan Width": 141,
+      "Startup Cost": 978.96,
+      "Total Cost": 982.54
+    },
+    {
+      "Node Type": "WindowAgg",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 53,
+      "Plan Width": 197,
+      "Startup Cost": 978.96,
+      "Total Cost": 981.74
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 978.96,
+      "Total Cost": 979.09
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "mc",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 977.44
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 976.91
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 975.72,
+      "Total Cost": 975.85
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 189,
+      "Startup Cost": 4.06,
+      "Total Cost": 974.2
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 53,
+      "Plan Width": 141,
+      "Startup Cost": 3.9,
+      "Total Cost": 954.43
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r",
+      "Plan Rows": 40000,
+      "Plan Width": 80,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 53,
+      "Plan Width": 77,
+      "Startup Cost": 3.24,
+      "Total Cost": 3.24
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_customer_memberships",
+      "Alias": "bcm",
+      "Plan Rows": 53,
+      "Plan Width": 77,
+      "Startup Cost": 0.0,
+      "Total Cost": 3.24
+    },
+    {
+      "Node Type": "Memoize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 44,
+      "Startup Cost": 0.16,
+      "Total Cost": 1.08
+    },
+    {
+      "Node Type": "Index Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "company_identities",
+      "Alias": "ci",
+      "Plan Rows": 1,
+      "Plan Width": 44,
+      "Startup Cost": 0.15,
+      "Total Cost": 1.07
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.13
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 2,
+      "Plan Width": 226,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.08
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "memberships",
+      "Plan Rows": 1,
+      "Plan Width": 226,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 2074.0,
+      "Total Cost": 2075.03
+    },
+    {
+      "Node Type": "Merge Append",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 2074.0,
+      "Total Cost": 2074.7
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "memberships_1",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 958.21,
+      "Total Cost": 958.23
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 958.21,
+      "Total Cost": 958.22
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 8.19,
+      "Total Cost": 958.2
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_1",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 48,
+      "Startup Cost": 8.18,
+      "Total Cost": 8.18
+    },
+    {
+      "Node Type": "Index Only Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_unresolved_customers",
+      "Alias": "uc",
+      "Plan Rows": 1,
+      "Plan Width": 48,
+      "Startup Cost": 0.15,
+      "Total Cost": 8.18
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Member",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 1115.77,
+      "Total Cost": 1116.12
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 1115.77,
+      "Total Cost": 1115.82
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20,
+      "Plan Width": 64,
+      "Startup Cost": 0.04,
+      "Total Cost": 1115.34
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_2",
+      "Plan Rows": 4000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 1100.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 3909.58,
+      "Total Cost": 3909.59
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 3909.58,
+      "Total Cost": 3909.58
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.57,
+      "Total Cost": 3909.57
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.57,
+      "Total Cost": 2759.57
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "nr_1",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 1800.56,
+      "Total Cost": 1800.56
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.56
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.05
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm_1",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.03
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "r_3",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 1800.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "uc_1",
+      "Plan Rows": 22,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.44
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Inner",
+      "Alias": "nr",
+      "Plan Rows": 4000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 1100.0
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 912.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "candidate",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 903.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ca",
+      "Plan Rows": 40000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "csm",
+      "Plan Rows": 1,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "SubPlan",
+      "Alias": "eligible",
+      "Plan Rows": 1,
+      "Plan Width": 128,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 444,
+      "Startup Cost": 8800.67,
+      "Total Cost": 13080.38
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 316,
+      "Startup Cost": 0.13,
+      "Total Cost": 1172.62
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 280,
+      "Startup Cost": 0.0,
+      "Total Cost": 1069.46
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 216,
+      "Startup Cost": 0.0,
+      "Total Cost": 903.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_2",
+      "Plan Rows": 40000,
+      "Plan Width": 88,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "sm_2",
+      "Plan Rows": 1,
+      "Plan Width": 160,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.49
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "uc_2",
+      "Plan Rows": 22,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.44
+    },
+    {
+      "Node Type": "Materialize",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.16
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.15
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.13,
+      "Total Cost": 0.14
+    },
+    {
+      "Node Type": "Nested Loop",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 68,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.12
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "e",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 100,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.06
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.03,
+      "Total Cost": 0.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "same_name_eligible",
+      "Plan Rows": 1,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.02
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 192,
+      "Startup Cost": 8798.04,
+      "Total Cost": 8798.04
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "r_4",
+      "Plan Rows": 200,
+      "Plan Width": 192,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8798.04
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 200,
+      "Plan Width": 220,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8796.04
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 220,
+      "Startup Cost": 8596.04,
+      "Total Cost": 8696.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "all_rows",
+      "Plan Rows": 40000,
+      "Plan Width": 220,
+      "Startup Cost": 0.0,
+      "Total Cost": 1300.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 40000,
+      "Plan Width": 201,
+      "Startup Cost": 1710161.54,
+      "Total Cost": 1895691.52
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 225,
+      "Startup Cost": 1710161.54,
+      "Total Cost": 1891889.76
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 225,
+      "Startup Cost": 1709250.87,
+      "Total Cost": 1889856.99
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 208,
+      "Startup Cost": 7823.04,
+      "Total Cost": 7923.04
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "assigned",
+      "Plan Rows": 40000,
+      "Plan Width": 208,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 49,
+      "Startup Cost": 1701427.83,
+      "Total Cost": 1881431.45
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 8000000,
+      "Plan Width": 69,
+      "Startup Cost": 1701427.83,
+      "Total Cost": 1721427.83
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 8000000,
+      "Plan Width": 69,
+      "Startup Cost": 7715.08,
+      "Total Cost": 127915.08
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a_3",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 69,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar_1",
+      "Plan Rows": 40000,
+      "Plan Width": 69,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Unique",
+      "Parent Relationship": "SubPlan",
+      "Plan Rows": 42,
+      "Plan Width": 32,
+      "Startup Cost": 1001.42,
+      "Total Cost": 1001.66
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 47,
+      "Plan Width": 32,
+      "Startup Cost": 1001.42,
+      "Total Cost": 1001.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "all_rows_1",
+      "Plan Rows": 47,
+      "Plan Width": 32,
+      "Startup Cost": 0.12,
+      "Total Cost": 1000.12
+    },
+    {
+      "Node Type": "Limit",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 25,
+      "Plan Width": 234,
+      "Startup Cost": 665502.47,
+      "Total Cost": 665502.53
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "InitPlan",
+      "Plan Rows": 1,
+      "Plan Width": 8,
+      "Startup Cost": 662773.69,
+      "Total Cost": 662773.7
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 4000000,
+      "Plan Width": 16,
+      "Startup Cost": 642773.69,
+      "Total Cost": 652773.69
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 4000000,
+      "Plan Width": 16,
+      "Startup Cost": 7318.31,
+      "Total Cost": 67418.31
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20000,
+      "Plan Width": 32,
+      "Startup Cost": 3460.77,
+      "Total Cost": 3510.77
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 20000,
+      "Plan Width": 32,
+      "Startup Cost": 904.5,
+      "Total Cost": 2032.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "na",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 200,
+      "Plan Width": 32,
+      "Startup Cost": 902.0,
+      "Total Cost": 902.0
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 32,
+      "Startup Cost": 900.0,
+      "Total Cost": 902.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "g2",
+      "Plan Rows": 40000,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 3857.54,
+      "Total Cost": 3957.54
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar_2",
+      "Plan Rows": 40000,
+      "Plan Width": 48,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 234,
+      "Startup Cost": 2728.77,
+      "Total Cost": 2828.77
+    },
+    {
+      "Node Type": "WindowAgg",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 40000,
+      "Plan Width": 234,
+      "Startup Cost": 1599.96,
+      "Total Cost": 1600.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "g",
+      "Plan Rows": 40000,
+      "Plan Width": 201,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 266,
+      "Startup Cost": 13383.5,
+      "Total Cost": 13384.07
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "p",
+      "Plan Rows": 25,
+      "Plan Width": 233,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.5
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13383.18,
+      "Total Cost": 13383.18
+    },
+    {
+      "Node Type": "Subquery Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "cp",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13383.18
+    },
+    {
+      "Node Type": "Aggregate",
+      "Parent Relationship": "Subquery",
+      "Plan Rows": 25,
+      "Plan Width": 64,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13382.93
+    },
+    {
+      "Node Type": "Incremental Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 795,
+      "Startup Cost": 13379.81,
+      "Total Cost": 13382.25
+    },
+    {
+      "Node Type": "Merge Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 25,
+      "Plan Width": 795,
+      "Startup Cost": 13379.75,
+      "Total Cost": 13381.12
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 795,
+      "Startup Cost": 13378.67,
+      "Total Cost": 13379.17
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 200,
+      "Plan Width": 795,
+      "Startup Cost": 12419.02,
+      "Total Cost": 13371.02
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "a",
+      "Plan Rows": 40000,
+      "Plan Width": 96,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 1,
+      "Plan Width": 763,
+      "Startup Cost": 12419.01,
+      "Total Cost": 12419.01
+    },
+    {
+      "Node Type": "Hash Join",
+      "Parent Relationship": "Outer",
+      "Plan Rows": 1,
+      "Plan Width": 763,
+      "Startup Cost": 1400.0,
+      "Total Cost": 12419.01
+    },
+    {
+      "Node Type": "Seq Scan",
+      "Parent Relationship": "Outer",
+      "Relation Name": "browse_rows",
+      "Alias": "b",
+      "Plan Rows": 40000,
+      "Plan Width": 747,
+      "Startup Cost": 0.0,
+      "Total Cost": 10719.0
+    },
+    {
+      "Node Type": "Hash",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 800.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "ar",
+      "Plan Rows": 40000,
+      "Plan Width": 64,
+      "Startup Cost": 0.0,
+      "Total Cost": 800.0
+    },
+    {
+      "Node Type": "Sort",
+      "Parent Relationship": "Inner",
+      "Plan Rows": 25,
+      "Plan Width": 32,
+      "Startup Cost": 1.08,
+      "Total Cost": 1.14
+    },
+    {
+      "Node Type": "CTE Scan",
+      "Parent Relationship": "Outer",
+      "Alias": "p_1",
+      "Plan Rows": 25,
+      "Plan Width": 32,
+      "Startup Cost": 0.0,
+      "Total Cost": 0.5
+    }
+  ],
+  "limitations": [
+    "EXPLAIN estimates do not establish actual execution cost or identify a runtime cause.",
+    "The captured SQL used the same page query with only the initial pre-page compact projection restored."
+  ]
+}

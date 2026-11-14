@@ -1,0 +1,35 @@
+{
+  "source_commit": "8112fb940c3575b375bdcc0bf471e81bfb0c8830",
+  "source_policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/931b8096f94ece6f24e3c827",
+  "database": "gl3_perf_followup_rollup_scale_candidate_test",
+  "generation_before": {
+    "id": "f637c22a-8f45-4d41-a020-c5e816e1c10a",
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/931b8096f94ece6f24e3c827",
+    "input_revision": 40303,
+    "state_revision": 40303,
+    "row_count": 40000
+  },
+  "generation_after": {
+    "id": "f637c22a-8f45-4d41-a020-c5e816e1c10a",
+    "policy_version": "browse-b1-v1/ranking-v2-regional-geography/regional-project-scope-v1/931b8096f94ece6f24e3c827",
+    "input_revision": 40303,
+    "state_revision": 40303,
+    "row_count": 40000
+  },
+  "counts_before": {
+    "projects": 40000,
+    "browse_rows": 40000,
+    "evidence": 48,
+    "needs": 48,
+    "memberships": 66
+  },
+  "counts_after": {
+    "projects": 40000,
+    "browse_rows": 40000,
+    "evidence": 48,
+    "needs": 48,
+    "memberships": 66
+  },
+  "counts_unchanged": true,
+  "allowed_adjustment": "Only browse_generations.policy_version for the synthetic disposable generation row."
+}
