@@ -43,6 +43,7 @@ test('synthetic account card puts scoped commercial context first and offers one
   await expect(card).toContainText('Up to 20 MW IT load')
   await expect(card).toContainText('Q2 2027')
   await expect(card).toContainText('Synthetic site plan update.')
+  await expect(card).toContainText('Source date unknown')
   await expect(card.getByText('Next action', { exact: true })).toHaveCount(1)
   await expect(card).toContainText('Confirm phase timing from the cited schedule.')
   await expect(card).not.toContainText('unknown is zero')
@@ -76,4 +77,84 @@ test('synthetic account card puts scoped commercial context first and offers one
     await expect(refreshed).toContainText('source-reported; energization unverified')
     await expect(refreshed.getByText('Expected energization', { exact: true }).locator('..')).toContainText('Not established')
   }
+})
+
+test('synthetic browser fixture distinguishes a first historical fact from a source-dated revision', async ({ page }) => {
+  // Presentation-only fixture: the backend integration test owns source-date eligibility.
+  // It is explicitly synthetic and does not assert customer facts or human acceptance.
+  const makeProject = (id: string, company: string) => ({
+    id, project_id: id, customer_identity_id: `${id}-company`, name: `${company} site`, company,
+    location: null, sector: 'data_centers', asset_type: 'data_center', priority_score: null,
+    representative_need_id: null, need_count: 0, needs: [], eligible_need_ids: [], event: null,
+    contact: [], contact_people: [], power_summary: null, power_summary_kind: 'unknown', next_action: null,
+    updated_at: null,
+    commercial_brief: {
+      version: 'synthetic-v1', why_now: { text: 'Current customer demand is not established.', source_date: null, scope: null, sources: [] },
+      power_need: { amount_class: 'unknown', scope: null, value: null, unit: null, status: 'unknown', limitations: [] },
+      best_contact: null, next_action: { text: 'Review supported source facts.', kind: 'review', source: null },
+      freshness: { as_of: null, status: 'unknown', source_date: null }, limitations: [], sources: [],
+    },
+  })
+  const makeAccount = (id: string, name: string, recentDevelopments: unknown[]) => ({
+    id, name, role: 'customer', group_kind: 'resolved_identity', project_count: 1,
+    total_known_project_count: 1, relevant_project_count: 0, need_count: 0, sectors: ['data_centers'],
+    priority_score: 0.91,
+    commercial_intelligence: {
+      capacity: {
+        status: 'supported',
+        totals: [{ basis: 'it_load', value_mw: '480', status: 'upper_bound', qualifier: 'up_to', complete: true }],
+        coverage: { projects_with_capacity: 1, projects_total: 1 }, conflicts: [],
+      },
+      timelines: { construction_start: null, expected_energization: null, claims: [], conflicts: [] },
+      commissioning: { status: 'insufficient_data', base_mw: null, low_mw: null, high_mw: null, limitations: [], input_evidence: [] },
+      recent_developments: recentDevelopments,
+      priority: { potential: 0.8, confidence: 0.7, score: 0.56, components: { material_changes: 0.4 } },
+      recommended_next_action: 'Review supported source facts.', sources: [], limitations: [],
+    },
+    featured_project: makeProject(`${id}-project`, name),
+  })
+  const oldFirstFact = makeAccount('cg_history', 'Synthetic Historical Account', [])
+  const datedRevision = makeAccount('cg_revision', 'Synthetic Revision Account', [{
+    summary: 'Build capacity revised', source_date: '2026-11-01',
+    observed_at: '2026-11-13T12:00:00Z', evidence_id: 'synthetic-evidence',
+  }])
+
+  await mockDemandSummary(page)
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: {
+    items: [oldFirstFact, datedRevision], total: 2, count_unit: 'groups', limit: 25, offset: 0,
+    cohort_token: 'synthetic', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z',
+  } }))
+  await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z' } }))
+
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  const historicalCard = page.getByRole('region', { name: 'Synthetic Historical Account customer group' })
+  const revisionCard = page.getByRole('region', { name: 'Synthetic Revision Account customer group' })
+  await expect(historicalCard).toContainText('Up to 480 MW IT load')
+  await expect(historicalCard.getByText('Recent development', { exact: true })).toHaveCount(0)
+  await expect(historicalCard).not.toContainText('480 MW demand')
+  await expect(historicalCard.getByText('Power need', { exact: true })).toHaveCount(0)
+  await expect(historicalCard).not.toContainText('0.91')
+  await expect(historicalCard.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
+  await expect(revisionCard).toContainText('Build capacity revised')
+  await expect(revisionCard).toContainText('Source date 2026-11-01')
+  await expect(revisionCard).not.toContainText('2026-11-13')
+  await expect(revisionCard).not.toContainText('0.91')
+  await expect(revisionCard.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
+})
+
+test('customer account disclosure respects the operating system reduced motion preference', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await mockDemandSummary(page)
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/groups?**', route => route.fulfill({ json: {
+    items: [{ id: 'synthetic-motion-account', name: 'Synthetic Motion Account', role: 'customer', group_kind: 'resolved_identity', project_count: 1, need_count: 0, sectors: ['data_centers'] }],
+    total: 1, count_unit: 'groups', limit: 25, offset: 0, cohort_token: 'synthetic-motion', generation: 'synthetic', valid_until: '2099-01-01T00:00:00Z',
+  } }))
+  await page.route('**/api/opportunities/projects?**', route => route.fulfill({ json: { items: [], total: 0, count_unit: 'projects', limit: 25, offset: 0, cohort_token: 'synthetic-motion', generation: 'synthetic' } }))
+
+  await page.goto('/?view=workspace&groupBrowse=1')
+  await expect(page.locator('.customer-group-chevron')).toHaveCount(1)
+  const transitionDuration = await page.locator('.customer-group-chevron').evaluate(element => getComputedStyle(element).transitionDuration)
+  expect(transitionDuration).toBe('0s')
 })

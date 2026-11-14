@@ -69,6 +69,10 @@ services:
     build:
       context: ../..
       dockerfile: deploy/Dockerfile.web
+      args:
+        GRIDLENS_BUILD_SHA: ${GRIDLENS_BUILD_SHA:-}
+        GRIDLENS_DEPLOYMENT_ENVIRONMENT: production
+        GRIDLENS_DEPLOYED_AT: ${GRIDLENS_DEPLOYED_AT:-}
     depends_on:
       - api
     restart: unless-stopped

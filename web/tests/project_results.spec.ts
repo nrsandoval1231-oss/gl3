@@ -1400,7 +1400,7 @@ test('far-future account and child snapshots remain visible until their exact ex
   await page.evaluate(async ({ cachedGroup, cachedProject, childExpiryAt, accountExpiryAt }) => {
     const cachePath = '/src/state/projectBrowseCache.ts'
     const cache = await import(cachePath)
-    const route = { search: '', sector: 'all', offset: 0, shortlist: true }
+    const route = { search: '', sector: 'all', offset: 0, shortlist: true, canonicalOnly: false }
     const page = {
       ...{
         items: [cachedGroup], total: 1, count_unit: 'groups', limit: 25, offset: 0,

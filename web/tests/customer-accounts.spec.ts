@@ -176,6 +176,32 @@ test('account cards prefer an optional brief, keep abstained claims withheld, an
   expect(writes).toEqual([])
 })
 
+test('commercial evidence link keeps provenance without exposing an evidence identifier as its label', async ({ page }) => {
+  const group = {
+    ...accountGroup(),
+    commercial_intelligence: {
+      version: 'synthetic-v1',
+      capacity: { status: 'limited', totals: [] },
+      timelines: {},
+      recent_developments: [],
+      priority: { potential: 0, confidence: 0, score: 0, version: 'synthetic-v1' },
+      recommended_next_action: 'Review the source record.',
+      limitations: [],
+      sources: [{ evidence_id: 'private-evidence-uuid-123', url: 'https://example.invalid/source-record' }],
+    },
+  } as OpportunityGroup
+  await installAccountFirst(page, { groups: [group] })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=0')
+  const card = page.getByRole('region', { name: /Northstar Compute customer group/ })
+  await card.getByRole('button', { name: /Northstar Compute/ }).click()
+  const detail = page.getByRole('region', { name: 'Company Northstar Compute' })
+  const analysis = detail.locator('.cmp-commercial-analysis')
+  await analysis.locator('summary').first().click()
+  const source = analysis.getByRole('link', { name: 'Evidence source', exact: true })
+  await expect(source).toHaveAttribute('href', 'https://example.invalid/source-record')
+  await expect(analysis).not.toContainText('private-evidence-uuid-123')
+})
+
 test('a brief with no best contact does not repeat an unavailable-contact block or restore legacy routes', async ({ page }) => {
   const brief = {
     version: 'synthetic-v1',

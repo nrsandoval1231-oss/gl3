@@ -8,6 +8,7 @@ import { bestProjectContactRoutes, commercialCapacityUnavailableMessage, Company
 type Props = { selectedNeedId?: string; accountContextStatus?: 'valid' | 'pending' | 'unavailable'; onNeed: (need: { id: string }, context?: { accountId: string; projectId?: string }) => void; onBrowseChange?: () => void }
 function commercialIntel(group: OpportunityGroup): CommercialCustomerIntelligence | null { return group.commercial_intelligence ?? null }
 function intelLabel(value: unknown): string { if (typeof value === 'string' || typeof value === 'number') return String(value); if (!value || typeof value !== 'object') return ''; const row = value as Record<string, unknown>; const display = row.display_label; if (typeof display === 'string') return display; return [row.summary, row.title, row.name, row.label, row.value, row.text, row.date, row.precision].filter((item): item is string | number => typeof item === 'string' || typeof item === 'number').join(' · ') }
+function sourceDate(value: unknown): string | null { if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null; const parsed = new Date(`${value}T00:00:00Z`); return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null }
 function capacityBasis(value: string) { const labels: Record<string,string> = { campus_development:'Campus development', it_load:'IT load', utility_service:'Utility service', generation:'Generation', individual_phase:'Individual phase' }; return labels[value] ?? value.replaceAll('_',' ') }
 function capacityPrefix(qualifier: string | undefined, status: string) { if (qualifier === 'up_to' || status === 'upper_bound') return 'Up to '; if (qualifier === 'approximate') return 'Approximately '; if (qualifier === 'more_than') return 'More than '; if (qualifier === 'at_least' || status === 'lower_bound') return 'At least '; return '' }
 function CustomerIntelSummary({ group, showNextAction = true }: { group: OpportunityGroup; showNextAction?: boolean }) {
@@ -28,13 +29,13 @@ function CustomerIntelSummary({ group, showNextAction = true }: { group: Opportu
     : scenario?.base_mw != null ? `${scenario.base_mw} MW base engineering scenario`
       : scenario?.low_mw != null ? `Low scenario bound · ${scenario.low_mw} MW`
         : scenario?.high_mw != null ? `High scenario bound · ${scenario.high_mw} MW` : ''
-  const development = (intel?.recent_developments ?? []).map(intelLabel).find(Boolean)
+  const development = (intel?.recent_developments ?? []).map(item => ({ label: intelLabel(item), sourceDate: sourceDate(item.source_date) })).find(item => item.label)
   const nextAction = intelLabel(intel?.recommended_next_action)
   return <div className="premium-intelligence-summary" aria-label="Commercial intelligence">
     <span><strong>Build capacity</strong>{capacity || commercialCapacityUnavailableMessage(intel?.capacity.status)}{capacityCoverage && <small>{capacityCoverage}</small>}{(capacityConflictCount > 0 || intel?.capacity.status === 'conflict') && <small role="status">Conflicting capacity claims require review.</small>}</span>
     <span><strong>Timing</strong><small><b>Construction start</b> · {construction || 'Not established'}</small><small><b>Expected energization</b> · {energization || 'Not established'}</small>{reportedTarget && <small><b>{reportedTarget.label}</b> · {reportedTarget.value} · source-reported; energization unverified</small>}{timelineConflictCount > 0 && <small role="status">Conflicting timeline claims require review.</small>}</span>
     <span><strong>Commissioning</strong>{scenarioText || 'Insufficient data for an engineering scenario'}</span>
-    {development && <span className="premium-intelligence-development"><strong>Recent development</strong>{development}</span>}
+    {development && <span className="premium-intelligence-development"><strong>Recent development</strong>{development.label}<small>{development.sourceDate ? `Source date ${development.sourceDate}` : 'Source date unknown'}</small></span>}
     {showNextAction && nextAction && <span className="premium-intelligence-action"><strong>Next action</strong>{nextAction}</span>}
   </div>
 }
