@@ -39,9 +39,9 @@ function CustomerIntelSummary({ group, showNextAction = true }: { group: Opportu
   </div>
 }
 const MAX_PENDING_RETRIES = 3
-const MAX_BROWSER_TIMEOUT_MS = 2_147_483_647
 const PENDING_EXHAUSTED_MESSAGE = 'Accounts are still being prepared. Please try again shortly.'
 const SEARCH_DEBOUNCE_MS = 300
+const MAX_TIMER_DELAY_MS = 2_147_483_647
 const projectSpecificMatch = (group: OpportunityGroup, query: string) => {
   if (!group.matched_project_id || !group.matched_need_id || !query.trim()) return false
   const words = (value: string) => value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
@@ -258,7 +258,7 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
     const scheduleExpirationCheck = () => {
       const remaining = validUntil - Date.now()
       if (remaining <= 0) { expire(); return }
-      timer = setTimeout(scheduleExpirationCheck, Math.min(remaining, MAX_BROWSER_TIMEOUT_MS))
+      timer = setTimeout(scheduleExpirationCheck, Math.min(remaining, MAX_TIMER_DELAY_MS))
     }
     scheduleExpirationCheck()
     return () => { if (timer !== undefined) clearTimeout(timer) }
@@ -274,18 +274,16 @@ export function ProjectResults({ selectedNeedId, accountContextStatus = 'valid',
       setOpenedGroups(current => { const next = { ...current }; for (const id of expired) delete next[id]; return next })
     }
     const expiredNow: string[] = []
+    const scheduleExpiryCheck = (groupId: string, validUntil: number) => {
+      const delay = validUntil - Date.now()
+      if (delay <= 0) { expireGroups([groupId]); return }
+      timers.push(setTimeout(() => scheduleExpiryCheck(groupId, validUntil), Math.min(delay, MAX_TIMER_DELAY_MS)))
+    }
     for (const [groupId, childPage] of Object.entries(children)) {
       if (!childPage || childPage.valid_until === undefined) continue
       const validUntil = Date.parse(childPage.valid_until)
-      if (!Number.isFinite(validUntil) || validUntil <= Date.now()) expiredNow.push(groupId)
-      else {
-        const scheduleGroupExpiryCheck = () => {
-          const remaining = validUntil - Date.now()
-          if (remaining <= 0) { expireGroups([groupId]); return }
-          timers.push(setTimeout(scheduleGroupExpiryCheck, Math.min(remaining, MAX_BROWSER_TIMEOUT_MS)))
-        }
-        scheduleGroupExpiryCheck()
-      }
+      if (!Number.isFinite(validUntil)) expiredNow.push(groupId)
+      else scheduleExpiryCheck(groupId, validUntil)
     }
     if (expiredNow.length) expireGroups(expiredNow)
     return () => timers.forEach(clearTimeout)

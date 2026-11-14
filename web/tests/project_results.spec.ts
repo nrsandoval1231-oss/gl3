@@ -1366,3 +1366,81 @@ test('account list still rejects an unrecognized refresh state', async ({ page }
   await expect(page.getByRole('alert')).toContainText('Could not load accounts')
   await expect(page.getByRole('button', { name: /Example Energy/ })).toHaveCount(0)
 })
+
+test('far-future account and child snapshots remain visible until their exact expiry', async ({ page }) => {
+  const startedAt = new Date('2026-10-29T12:00:00Z')
+  const childExpiry = '2026-11-28T12:00:00Z'
+  const accountExpiry = '2026-12-03T12:00:00Z'
+  await page.clock.install({ time: startedAt })
+  await page.clock.pauseAt(startedAt)
+  let groupReads = 0
+  let armExpiry = false
+  let returnFreshSnapshot = false
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/commercial-pursuits*', route => route.fulfill({ json: { items: [], counts: { total: 0, active: 0, needs_attention: 0 }, total_matching: 0, has_more: false, next_offset: null } }))
+  await page.route('**/api/health', route => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
+  await page.route('**/api/ingestion*', route => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  await mockDemandSummary(page)
+  await page.route('**/api/opportunities/groups?*', route => {
+    groupReads += 1
+    const validUntil = !armExpiry ? undefined : returnFreshSnapshot ? '2027-01-01T00:00:00Z' : accountExpiry
+    return route.fulfill({ json: { ...groupPage, items: [group], ...(validUntil ? { valid_until: validUntil } : {}), qualification_state: 'current', refresh_state: 'current' } })
+  })
+  await page.goto('/?view=workspace&groupBrowse=1&shortlist=1')
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+
+  await page.locator('summary[aria-label="Account menu"]').click()
+  await page.getByRole('button', { name: 'Technical diagnostics' }).click()
+  armExpiry = true
+
+  const cachedProject = {
+    ...sample,
+    contact: [{ kind: 'call', label: 'Call Far Future Buyer', name: 'Far Future Buyer', href: 'tel:+15555550100' }],
+  }
+  await page.evaluate(async ({ cachedGroup, cachedProject, childExpiryAt, accountExpiryAt }) => {
+    const cachePath = '/src/state/projectBrowseCache.ts'
+    const cache = await import(cachePath)
+    const route = { search: '', sector: 'all', offset: 0, shortlist: true }
+    const page = {
+      ...{
+        items: [cachedGroup], total: 1, count_unit: 'groups', limit: 25, offset: 0,
+        cohort_token: 'synthetic-group-cohort', generation: '1',
+      },
+      valid_until: accountExpiryAt,
+    }
+    const childPage = {
+      items: [cachedProject], total: 1, count_unit: 'projects', limit: 25, offset: 0,
+      cohort_token: 'synthetic-cohort', generation: 'synthetic-project-generation', valid_until: childExpiryAt,
+    }
+    cache.writeProjectBrowseCache(cache.projectBrowseCacheKey(route), {
+      savedAt: Date.now(), page, expanded: { [cachedGroup.id]: true },
+      children: { [cachedGroup.id]: childPage }, childOffsets: { [cachedGroup.id]: 0 },
+      groupParentTokens: { [cachedGroup.id]: 'synthetic-group-cohort' }, openedGroups: {}, scrollY: 0,
+    }, cache.projectBrowseCacheVersion())
+  }, { cachedGroup: group, cachedProject, childExpiryAt: childExpiry, accountExpiryAt: accountExpiry })
+
+  await page.goBack()
+  const buyer = page.locator('.customer-group-projects a[href="tel:+15555550100"]')
+  await expect(buyer).toBeVisible()
+
+  const maxTimerDelay = 2_147_483_647
+  await page.clock.fastForward(maxTimerDelay)
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  await expect(buyer).toBeVisible()
+
+  const childRemaining = Date.parse(childExpiry) - Date.parse(startedAt.toISOString()) - maxTimerDelay
+  await page.clock.fastForward(childRemaining - 1)
+  await expect(buyer).toBeVisible()
+  await page.clock.runFor(1)
+  await expect(buyer).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+
+  const accountRemaining = Date.parse(accountExpiry) - Date.parse(childExpiry)
+  await page.clock.fastForward(accountRemaining - 1)
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+  const readsBeforeExpiry = groupReads
+  returnFreshSnapshot = true
+  await page.clock.runFor(1)
+  await expect.poll(() => groupReads).toBeGreaterThan(readsBeforeExpiry)
+  await expect(page.getByRole('button', { name: /Example Energy/ })).toBeVisible()
+})
